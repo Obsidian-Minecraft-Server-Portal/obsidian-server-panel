@@ -1,10 +1,11 @@
 use actix_web::web::Query;
 use actix_web::{get, web, HttpResponse, Responder};
-use loader_manager::supported_loaders::Loader;
+use obsidian_loaders::supported_loaders::Loader;
 use log::error;
 use serde_json::json;
 use std::collections::HashMap;
 use std::str::FromStr;
+use obsidian_loaders::{fabric, forge};
 
 /// Retrieves all supported server loaders
 #[get("/supported_loaders/{minecraft_version}")]
@@ -42,11 +43,11 @@ pub async fn get_loader_by_id(params: web::Path<(String, String)>) -> impl Respo
         }
     };
     match loader {
-        Loader::Fabric => match loader_manager::fabric::versions().await {
+        Loader::Fabric => match fabric::versions().await {
             Ok(versions) => HttpResponse::Ok().json(json!(versions)),
             Err(_) => HttpResponse::InternalServerError().json(json!({"message":"Failed to fetch versions"})),
         },
-        Loader::Forge => match loader_manager::forge::versions(minecraft_version).await {
+        Loader::Forge => match forge::versions(minecraft_version).await {
             Ok(versions) => HttpResponse::Ok().json(json!(versions)),
             Err(_) => HttpResponse::InternalServerError().json(json!({"message":"Failed to fetch versions"})),
         },

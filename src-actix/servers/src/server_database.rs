@@ -1,11 +1,11 @@
 use crate::server::Server;
 use crate::server_status::ServerStatus;
-use database::{create_appdb_connection, last_inserted_id};
+use obsidian_sqlite::{create_appdb_connection, last_inserted_id};
 use log::info;
 use sqlite::State;
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use crypto::hashids::decode;
+use obsidian_cryptography::hashids::decode;
 
 /// Initializes the server database by creating necessary tables.
 ///

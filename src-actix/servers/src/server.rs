@@ -1,7 +1,7 @@
 use crate::server_database::ServerDatabase;
 use crate::server_filesystem::ServerFilesystem;
 use crate::server_status::ServerStatus;
-use crypto::hashids::{decode, encode};
+use obsidian_cryptography::hashids::{decode, encode};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
 use std::any::Any;

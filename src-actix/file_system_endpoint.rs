@@ -1,7 +1,7 @@
 use actix_multipart::form::{json::Json as MPJson, tempfile::TempFile, MultipartForm};
 use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
-use authentication::data::User;
-use crypto::hashids::decode;
+use obsidian_authentication::data::User;
+use obsidian_cryptography::hashids::decode;
 use log::{debug, error};
 use serde::Deserialize;
 use serde_json::json;

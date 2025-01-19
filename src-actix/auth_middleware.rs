@@ -5,6 +5,7 @@ use log::{debug, error, info, warn};
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
+use obsidian_authentication::validation;
 
 /// Middleware for extracting and logging authentication tokens from requests.
 pub struct AuthMiddleware;
@@ -64,7 +65,7 @@ where
             if let Some(auth_cookie) = req.cookie("token") {
                 let auth_token = auth_cookie.value();
                 info!("Received auth token: {}", auth_token);
-                match authentication::validation::validate_token(auth_token, &addr) {
+                match validation::validate_token(auth_token, &addr) {
                     Ok(user) => {
                         info!("Token is valid");
                         req.extensions_mut().insert(user);
@@ -80,7 +81,7 @@ where
                 match auth_header.to_str() {
                     Ok(auth_token) => {
                         info!("Received auth token: {}", auth_token);
-                        match authentication::validation::validate_token(auth_token, &addr) {
+                        match validation::validate_token(auth_token, &addr) {
                             Ok(user) => {
                                 info!("Token is valid");
                                 req.extensions_mut().insert(user);

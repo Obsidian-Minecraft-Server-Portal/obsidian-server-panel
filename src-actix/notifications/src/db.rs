@@ -1,10 +1,10 @@
 use crate::data::{AsNumber, Notification, SenderType};
-use crypto::hashids::{decode, encode};
+use obsidian_cryptography::hashids::{decode, encode};
 use sqlite::State;
 use std::error::Error;
 
 pub fn initialize_db() -> Result<(), Box<dyn Error>> {
-    let connection = database::create_appdb_connection()?;
+    let connection = obsidian_sqlite::create_appdb_connection()?;
     connection.execute(
         r#"
 CREATE TABLE IF NOT EXISTS notifications
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS notifications
 }
 
 pub fn insert(notification: Notification) -> Result<(), Box<dyn Error>> {
-    let connection = database::create_appdb_connection()?;
+    let connection = obsidian_sqlite::create_appdb_connection()?;
     let mut stmt = connection.prepare(
         r#"
 INSERT INTO notifications (title, message, read, archived, sender_id, sender_type, receiver_id, action)
@@ -47,7 +47,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 }
 
 pub fn update(id: impl AsRef<str>, notification: Notification) -> Result<(), Box<dyn Error>> {
-    let connection = database::create_appdb_connection()?;
+    let connection = obsidian_sqlite::create_appdb_connection()?;
     let mut stmt = connection.prepare(
         r#"
 UPDATE notifications
@@ -76,7 +76,7 @@ WHERE id = ?;
 }
 
 pub fn delete(id: impl AsRef<str>) -> Result<(), Box<dyn Error>> {
-    let connection = database::create_appdb_connection()?;
+    let connection = obsidian_sqlite::create_appdb_connection()?;
     let mut stmt = connection.prepare(
         r#"
 DELETE FROM notifications
@@ -89,7 +89,7 @@ WHERE id = ?;
 }
 
 pub fn get() -> Result<Vec<Notification>, Box<dyn Error>> {
-    let connection = database::create_appdb_connection()?;
+    let connection = obsidian_sqlite::create_appdb_connection()?;
     let mut stmt = connection.prepare(r#"SELECT * FROM notifications;"#)?;
     let mut notifications = vec![];
     while let State::Row = stmt.next()? {

@@ -19,12 +19,12 @@ use actix_web::http::header;
 use actix_web::{error, get, middleware, rt, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::AggregatedMessage;
 use awc::Client;
-use configuration::config::CONFIG;
+use obsidian_configuration::config::CONFIG;
 use futures_util::stream::StreamExt;
 use include_dir::{include_dir, Dir};
 use log::{debug, error, info};
-use network_utility::{close_all_ports, open_port};
-use scheduler::{start_ticking_schedules, stop_ticking_schedules};
+use obsidian_upnp::{close_all_ports, open_port};
+use obsidian_scheduler::{start_ticking_schedules, stop_ticking_schedules};
 use serde_json::json;
 use std::process::{exit, Child};
 use std::sync::Mutex;
@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
     start_ticking_schedules!();
     let port = CONFIG.port; // Port to listen on
 
-    match authentication::initialize() {
+    match obsidian_authentication::initialize() {
         Ok(_) => info!("Authentication initialized"),
         Err(e) => error!("Failed to initialize authentication: {}", e),
     }
@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
             exit(1);
         }
     }
-    backups::initialize();
+    obsidian_backups::initialize();
 
     if CONFIG.port_forward_webui {
         // This will open the webui port on the router using upnp

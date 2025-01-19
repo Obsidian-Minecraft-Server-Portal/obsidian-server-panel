@@ -1,6 +1,6 @@
 use actix_web::web::Path;
 use actix_web::{get, HttpResponse, Responder};
-use minecraft::minecraft_version;
+use obsidian_minecraft::minecraft_version;
 use serde_json::json;
 
 #[get("/versions")]
@@ -30,9 +30,9 @@ pub async fn get_latest_snapshot() -> impl Responder {
 pub async fn get_snapshots() -> impl Responder {
     match minecraft_version::get_versions().await {
         Ok(versions) => {
-            let snapshots: Vec<minecraft::minecraft_version::MinecraftVersionResponse> = versions
+            let snapshots: Vec<minecraft_version::MinecraftVersionResponse> = versions
                 .into_iter()
-                .filter(|version| version.version_type == minecraft::minecraft_version::VersionType::Snapshot)
+                .filter(|version| version.version_type == minecraft_version::VersionType::Snapshot)
                 .collect();
             HttpResponse::Ok().json(snapshots)
         }
@@ -44,9 +44,9 @@ pub async fn get_snapshots() -> impl Responder {
 pub async fn get_releases() -> impl Responder {
     match minecraft_version::get_versions().await {
         Ok(versions) => {
-            let releases: Vec<minecraft::minecraft_version::MinecraftVersionResponse> = versions
+            let releases: Vec<minecraft_version::MinecraftVersionResponse> = versions
                 .into_iter()
-                .filter(|version| version.version_type == minecraft::minecraft_version::VersionType::Release)
+                .filter(|version| version.version_type == minecraft_version::VersionType::Release)
                 .collect();
             HttpResponse::Ok().json(releases)
         }

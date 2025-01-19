@@ -1,8 +1,8 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
-use authentication::data::User;
-use backups::backup_item::{BackupCreationMethod, BackupItem, BackupType};
-use backups::hashed_backup_item::HashedBackupItem;
-use crypto::hashids::decode;
+use obsidian_authentication::data::User;
+use obsidian_backups::backup_item::{BackupCreationMethod, BackupItem, BackupType};
+use obsidian_backups::hashed_backup_item::HashedBackupItem;
+use obsidian_cryptography::hashids::decode;
 use log::error;
 use serde_json::json;
 use servers::server::Server;

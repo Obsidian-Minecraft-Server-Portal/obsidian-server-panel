@@ -1,20 +1,3 @@
-members = [
-    "src-actix/archive_utility",
-    "src-actix/authentication",
-    "src-actix/minecraft",
-    "src-actix/servers",
-    "src-actix/crypto",
-    "src-actix/backups",
-    "src-actix/java",
-    "src-actix/configuration",
-    "src-actix/database",
-    "src-actix/scheduler",
-    "src-actix/network_utility",
-    "src-actix/instance_manager",
-    "src-actix/loader_manager",
-    "."
-]
-
 [package]
 name = "obsidian-server-panel"
 version = "0.0.0"
@@ -27,21 +10,22 @@ path = "src-actix/main.rs"
 
 [dependencies]
 # Internal Libraries
-authentication = { path = "src-actix/authentication" }
-configuration = { path = "src-actix/configuration" }
-scheduler = { path = "src-actix/scheduler" }
-network_utility = { path = "src-actix/network_utility" }
-loader_manager = { path = "src-actix/loader_manager" }
-minecraft = { path = "src-actix/minecraft" }
 servers = { path = "src-actix/servers" }
 instance_manager = { path = "src-actix/instance_manager" }
-crypto = { path = "src-actix/crypto" }
-backups = { path = "src-actix/backups" }
-database = { path = "src-actix/database" }
-java = { path = "src-actix/java" }
-archive_utility = { path = "src-actix/archive_utility" }
 notifications = { path = "src-actix/notifications" }
-common_lib = { path = "src-actix/common_lib" }
+
+obsidian-authentication = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/authentication.git" }
+obsidian-configuration = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/configuration.git" }
+obsidian-scheduler = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/scheduler.git" }
+obsidian-upnp = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/upnp.git" }
+obsidian-loaders = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/loaders.git" }
+obsidian-minecraft = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/minecraft.git" }
+obsidian-cryptography = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/cryptography.git" }
+obsidian-backups = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/backups.git" }
+obsidian-sqlite = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/sqlite.git" }
+obsidian-java = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/java.git" }
+obsidian-zip = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/zip.git" }
+obsidian-common = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/common-lib.git" }
 
 # External Libraries
 actix-web = { version = "4.9.0" }

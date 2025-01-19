@@ -1,12 +1,11 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
-use authentication::access_tokens::{generate_unique_registration_access_token, get_all_access_tokens};
-use authentication::data::{UserLogin, UserRegistration};
+use obsidian_authentication::{access_tokens, access_tokens::{generate_unique_registration_access_token, get_all_access_tokens}, data::{UserLogin, UserRegistration}, management};
 use serde_json::json;
 use std::collections::HashMap;
 
 #[post("/login")]
 pub async fn login(body: web::Json<UserLogin>, req: HttpRequest) -> impl Responder {
-    match authentication::management::login(body.into_inner(), req.connection_info().realip_remote_addr().unwrap()) {
+    match management::login(body.into_inner(), req.connection_info().realip_remote_addr().unwrap()) {
         Ok(user) => HttpResponse::Ok().json(user),
         Err(e) => HttpResponse::BadRequest().json(json!({"error": e})),
     }
@@ -18,7 +17,7 @@ struct Token {
 
 #[post("/login/token")]
 pub async fn login_with_token(token: web::Json<Token>, req: HttpRequest) -> impl Responder {
-    match authentication::management::login_with_token(
+    match management::login_with_token(
         token.token.as_str(),
         req.connection_info().realip_remote_addr().unwrap(),
     ) {
@@ -31,7 +30,7 @@ pub async fn login_with_token(token: web::Json<Token>, req: HttpRequest) -> impl
 
 #[post("/register")]
 pub async fn create_user(body: web::Json<UserRegistration>) -> impl Responder {
-    match authentication::management::create_user(body.into_inner(), false) {
+    match management::create_user(body.into_inner(), false) {
         Ok(_) => HttpResponse::Ok().json(json!({"message":"User created"})),
         Err(e) => HttpResponse::BadRequest().json(json!({"error": e})),
     }
@@ -74,7 +73,7 @@ pub async fn get_access_tokens() -> impl Responder {
 
 #[post("/register/validate-access-token")]
 pub async fn validate_access_token(body: web::Json<Token>) -> impl Responder {
-    match authentication::access_tokens::does_token_exist(body.token.as_str()) {
+    match access_tokens::does_token_exist(body.token.as_str()) {
         Ok(exists) => {
             if exists {
                 HttpResponse::Ok().json(json!({"message": "Token exists"}))
@@ -88,7 +87,7 @@ pub async fn validate_access_token(body: web::Json<Token>) -> impl Responder {
 
 #[get("/users")]
 pub async fn get_users() -> impl Responder {
-    match authentication::management::get_users_list() {
+    match management::get_users_list() {
         Ok(users) => HttpResponse::Ok().json(users),
         Err(e) => HttpResponse::BadRequest().json(json!({"error": e})),
     }
@@ -116,7 +115,7 @@ pub async fn check_if_access_token_exists(req: HttpRequest) -> impl Responder {
 
     let token: &str = token.as_str();
 
-    match authentication::access_tokens::does_token_exist(token) {
+    match access_tokens::does_token_exist(token) {
         Ok(exists) => HttpResponse::Ok().json(json!({"exists": exists})),
         Err(e) => HttpResponse::BadRequest().json(json!({"error": e})),
     }

@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
-use authentication::data::User;
-use crypto::hashids::decode;
+use obsidian_authentication::data::User;
+use obsidian_cryptography::hashids::decode;
 use serde_json::json;
 use servers::server::Server;
 use servers::server_database::ServerDatabase;

@@ -1,6 +1,6 @@
 use actix_web::{delete, get, web, Error, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::sse;
-use java::versions::JavaVersion;
+use obsidian_java::versions::JavaVersion;
 use log::error;
 use serde_json::json;
 use std::time::Duration;

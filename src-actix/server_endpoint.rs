@@ -1,11 +1,11 @@
 use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use actix_web_lab::sse;
 use actix_web_lab::sse::Event;
-use authentication::data::User;
-use crypto::hashids::decode;
-use loader_manager::supported_loaders::Loader;
+use obsidian_authentication::data::User;
+use obsidian_cryptography::hashids::decode;
+use obsidian_loaders::supported_loaders::Loader;
 use log::{debug, error, info};
-use minecraft::minecraft_version::download_server_jar;
+use obsidian_minecraft::minecraft_version::download_server_jar;
 use percent_encoding::percent_decode;
 use serde::Deserialize;
 use serde_json::json;
@@ -137,7 +137,7 @@ pub async fn create_server(
             // For other loaders, delegate installation to the loader manager and get the start script
             _ => {
                 server.start_script = Some(PathBuf::from(
-                    loader_manager::install_loader(
+                    obsidian_loaders::install_loader(
                         body.loader.clone(),
                         &body.minecraft_version,
                         &server.directory,
@@ -237,7 +237,7 @@ pub async fn install_loader(
         };
         if loader != Loader::Vanilla {
             server.start_script = Some(PathBuf::from(
-                loader_manager::install_loader(
+                obsidian_loaders::install_loader(
                     loader,
                     &version,
                     &server.clone().directory,
