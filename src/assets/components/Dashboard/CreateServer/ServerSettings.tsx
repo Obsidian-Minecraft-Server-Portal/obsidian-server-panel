@@ -1,4 +1,4 @@
-import {SelectItem} from "@nextui-org/react";
+import {SelectItem} from "@heroui/react";
 import OSelect from "../../Extends/OSelect.tsx";
 
 interface ServerSettingsProps

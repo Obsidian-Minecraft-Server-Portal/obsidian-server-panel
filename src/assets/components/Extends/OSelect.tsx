@@ -1,4 +1,4 @@
-import {cn, Select, SelectProps} from "@nextui-org/react";
+import {cn, Select, SelectProps} from "@heroui/react";
 import {forwardRef} from "react";
 
 const OSelect = forwardRef<HTMLSelectElement, SelectProps>((props, ref) => {

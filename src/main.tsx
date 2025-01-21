@@ -1,7 +1,7 @@
 import {BrowserRouter, Route, Routes, useNavigate} from "react-router-dom";
 import ReactDOM from "react-dom/client";
 import $ from "jquery";
-import {NextUIProvider} from "@nextui-org/react";
+import { HeroUIProvider} from "@heroui/react";
 
 import "./assets/scss/index.scss";
 import DashboardOverview from "./assets/pages/Dashboard/DashboardOverview.tsx";
@@ -59,7 +59,7 @@ export function MainContentRenderer()
     const {isLoggedIn} = useAuth();
 
     return (
-        <NextUIProvider navigate={navigate} className={"flex flex-col"}>
+        <HeroUIProvider navigate={navigate} className={"flex flex-col"}>
             <Toaster position={"bottom-right"} closeButton richColors theme={"dark"} toastOptions={{
                 className: "bg-default/50 border-2 border-primary/50 rounded-md shadow-lg backdrop-blur-sm"
             }}/>
@@ -110,6 +110,6 @@ export function MainContentRenderer()
                     </main>
                 </>
             )}
-        </NextUIProvider>
+        </HeroUIProvider>
     );
 }

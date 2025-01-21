@@ -1,7 +1,7 @@
 import OInput from "../../Extends/OInput.tsx";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faPaperPlane, faTerminal} from "@fortawesome/free-solid-svg-icons";
-import {Button} from "@nextui-org/react";
+import {Button} from "@heroui/react";
 import {useState} from "react";
 import {useSelectedServer} from "../../../providers/SelectedServerProvider.tsx";
 import $ from "jquery";

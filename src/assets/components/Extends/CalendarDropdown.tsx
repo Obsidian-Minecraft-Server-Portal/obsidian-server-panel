@@ -1,4 +1,4 @@
-import {Button, ButtonProps, Calendar, CalendarProps, DateValue, Dropdown, DropdownItem, DropdownMenu, DropdownMenuProps, DropdownProps, DropdownTrigger} from "@nextui-org/react";
+import {Button, ButtonProps, Calendar, CalendarProps, DateValue, Dropdown, DropdownItem, DropdownMenu, DropdownMenuProps, DropdownProps, DropdownTrigger} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faChevronDown} from "@fortawesome/free-solid-svg-icons";
 import {ReactElement, useState} from "react";

@@ -1,4 +1,4 @@
-import {cn, Input, InputProps} from "@nextui-org/react";
+import {cn, Input, InputProps} from "@heroui/react";
 
 export default function OInput(props: InputProps)
 {

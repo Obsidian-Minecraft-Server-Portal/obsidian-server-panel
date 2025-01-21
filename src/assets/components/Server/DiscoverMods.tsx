@@ -1,4 +1,4 @@
-import {Input, Listbox, ListboxItem, Select, SelectItem} from "@nextui-org/react";
+import {Input, Listbox, ListboxItem, Select, SelectItem} from "@heroui/react";
 import MagnifyGlass from "../../images/MagnifyGlass.svg.tsx";
 
 export default function DiscoverMods()

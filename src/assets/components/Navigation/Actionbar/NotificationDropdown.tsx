@@ -1,4 +1,4 @@
-import {Badge, Button, Chip, PopoverContent, PopoverTrigger, Tab, Tabs} from "@nextui-org/react";
+import {Badge, Button, Chip, PopoverContent, PopoverTrigger, Tab, Tabs} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faBell} from "@fortawesome/free-solid-svg-icons";
 import OPopover from "../../Extends/OPopover.tsx";

@@ -1,4 +1,4 @@
-import {Button, Divider, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger} from "@nextui-org/react";
+import {Button, Divider, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faChevronDown} from "@fortawesome/free-solid-svg-icons";
 

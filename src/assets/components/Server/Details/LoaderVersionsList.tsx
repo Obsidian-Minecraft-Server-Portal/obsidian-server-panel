@@ -1,4 +1,4 @@
-import {Button, Listbox, ListboxItem, ScrollShadow} from "@nextui-org/react";
+import {Button, Listbox, ListboxItem, ScrollShadow} from "@heroui/react";
 import DownloadFile from "../../../images/DownloadFile.svg.tsx";
 import OTooltip from "../../Extends/OTooltip.tsx";
 

@@ -1,4 +1,4 @@
-import {Dropdown, DropdownProps} from "@nextui-org/react";
+import {Dropdown, DropdownProps} from "@heroui/react";
 
 export default function ODropdown(props: DropdownProps)
 {

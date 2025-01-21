@@ -1,5 +1,5 @@
 import {FileItem} from "../../../ts/file-system.ts";
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@nextui-org/react";
+import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
 import {useSelectedServer} from "../../../providers/SelectedServerProvider.tsx";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faImage} from "@fortawesome/free-solid-svg-icons";

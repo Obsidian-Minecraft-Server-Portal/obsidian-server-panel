@@ -1,4 +1,4 @@
-import {Button, Input, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@nextui-org/react";
+import {Button, Input, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faPlus, faUserCheck} from "@fortawesome/free-solid-svg-icons";
 import OTooltip from "../Extends/OTooltip.tsx";

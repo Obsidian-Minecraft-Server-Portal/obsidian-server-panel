@@ -1,4 +1,4 @@
-import {AutocompleteItem, Button, Tab, Tabs} from "@nextui-org/react";
+import {AutocompleteItem, Button, Tab, Tabs} from "@heroui/react";
 import OAutocomplete from "../../Extends/OAutocomplete.tsx";
 import {useEffect, useState} from "react";
 import {getLoaderVersions, getSupportedLoaders} from "../../../ts/loaders.ts";

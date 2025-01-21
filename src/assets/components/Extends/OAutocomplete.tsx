@@ -1,4 +1,4 @@
-import {Autocomplete, AutocompleteProps, cn} from "@nextui-org/react";
+import {Autocomplete, AutocompleteProps, cn} from "@heroui/react";
 
 export default function OAutocomplete(props: AutocompleteProps)
 {

@@ -1,5 +1,5 @@
 import {ReactElement, useEffect, useState} from "react";
-import {Button, Progress} from "@nextui-org/react";
+import {Button, Progress} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faChartLine} from "@fortawesome/free-solid-svg-icons";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, YAxis} from "recharts";

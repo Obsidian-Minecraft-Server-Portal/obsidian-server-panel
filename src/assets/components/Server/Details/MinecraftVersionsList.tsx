@@ -1,4 +1,4 @@
-import {Button, Listbox, ListboxItem, ScrollShadow, Spinner} from "@nextui-org/react";
+import {Button, Listbox, ListboxItem, ScrollShadow, Spinner} from "@heroui/react";
 import ExtendedSwitch from "../../Extends/ExtendedSwitch.tsx";
 import DownloadFile from "../../../images/DownloadFile.svg.tsx";
 import {useEffect, useState} from "react";

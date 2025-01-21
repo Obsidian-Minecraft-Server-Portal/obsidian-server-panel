@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import JavaVersionComponent from "./JavaVersionComponent.tsx";
-import {Skeleton} from "@nextui-org/react";
+import {Skeleton} from "@heroui/react";
 import JavaInstallModal from "../../Settings/JavaInstallModal.tsx";
 import Java, {JavaVersion} from "../../../ts/java.ts";
 

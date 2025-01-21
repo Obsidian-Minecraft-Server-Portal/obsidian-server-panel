@@ -1,4 +1,4 @@
-import {Tab, Tabs} from "@nextui-org/react";
+import {Tab, Tabs} from "@heroui/react";
 import {useState} from "react";
 import InstalledModsList from "../../components/Server/InstalledModsList.tsx";
 import DiscoverMods from "../../components/Server/DiscoverMods.tsx";

@@ -1,5 +1,5 @@
 import ExtendedSwitch from "../Extends/ExtendedSwitch.tsx";
-import {Button} from "@nextui-org/react";
+import {Button} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faFolderOpen} from "@fortawesome/free-solid-svg-icons";

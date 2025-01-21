@@ -1,4 +1,4 @@
-import {Button, Listbox, ListboxItem, ScrollShadow} from "@nextui-org/react";
+import {Button, Listbox, ListboxItem, ScrollShadow} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faPlus} from "@fortawesome/free-solid-svg-icons";
 import OTooltip from "../../Extends/OTooltip.tsx";

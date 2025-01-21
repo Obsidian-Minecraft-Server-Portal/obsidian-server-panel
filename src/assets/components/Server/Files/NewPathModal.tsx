@@ -1,4 +1,4 @@
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@nextui-org/react";
+import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {useSelectedServer} from "../../../providers/SelectedServerProvider.tsx";
 import OInput from "../../Extends/OInput.tsx";

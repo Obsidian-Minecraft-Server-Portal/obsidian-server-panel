@@ -1,4 +1,4 @@
-import {Button, Chip, Select, SelectItem, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@nextui-org/react";
+import {Button, Chip, Select, SelectItem, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faUserSlash, faX} from "@fortawesome/free-solid-svg-icons";
 import OTooltip from "../Extends/OTooltip";

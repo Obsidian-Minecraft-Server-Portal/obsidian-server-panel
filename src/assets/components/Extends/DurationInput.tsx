@@ -1,4 +1,4 @@
-import {cn, InputProps} from "@nextui-org/react";
+import {cn, InputProps} from "@heroui/react";
 import {useEffect, useState} from "react";
 import $ from "jquery";
 import OInput from "./OInput.tsx";

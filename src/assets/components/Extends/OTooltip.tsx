@@ -1,4 +1,4 @@
-import {cn, Tooltip, TooltipProps} from "@nextui-org/react";
+import {cn, Tooltip, TooltipProps} from "@heroui/react";
 import {forwardRef} from "react";
 
 const OTooltip = forwardRef<HTMLDivElement, TooltipProps>((props, ref) => {

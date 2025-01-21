@@ -1,5 +1,5 @@
 import {FileItem} from "../../../ts/file-system.ts";
-import {cn, Listbox, ListboxItem, ListboxSection} from "@nextui-org/react";
+import {cn, Listbox, ListboxItem, ListboxSection} from "@heroui/react";
 import {useEffect, useState} from "react";
 import $ from "jquery";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";

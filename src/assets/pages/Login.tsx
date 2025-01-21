@@ -1,4 +1,4 @@
-import {Button, Card, CardBody, CardHeader, cn, Image, Input, Link} from "@nextui-org/react";
+import {Button, Card, CardBody, CardHeader, cn, Image, Input, Link} from "@heroui/react";
 import {useState} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faEnvelope, faEye, faEyeSlash, faKey} from "@fortawesome/free-solid-svg-icons";
@@ -7,7 +7,7 @@ import {setTitle} from "../../main.tsx";
 import ExtendedSwitch from "../components/Extends/ExtendedSwitch.tsx";
 import {useAuth} from "../providers/AuthProvider.tsx";
 import {ErrorResponse, LoginResponse} from "../ts/authentication.ts";
-import {Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@nextui-org/navbar";
+import {Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
 import Logo from "../images/logo.gif";
 import {faGithub} from "@fortawesome/free-brands-svg-icons";
 import BackgroundImage from "../images/mc-bg.webp";

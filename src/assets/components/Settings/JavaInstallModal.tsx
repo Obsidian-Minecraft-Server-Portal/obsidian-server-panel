@@ -1,4 +1,4 @@
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Progress, Skeleton, Spinner} from "@nextui-org/react";
+import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Progress, Skeleton, Spinner} from "@heroui/react";
 import {InstallItems, JavaVersion} from "../../ts/java.ts";
 import {useEffect, useState} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";

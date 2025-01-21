@@ -1,4 +1,4 @@
-import {Button, cn, Divider, Image} from "@nextui-org/react";
+import {Button, cn, Divider, Image} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faUpload} from "@fortawesome/free-solid-svg-icons";
 import $ from "jquery";

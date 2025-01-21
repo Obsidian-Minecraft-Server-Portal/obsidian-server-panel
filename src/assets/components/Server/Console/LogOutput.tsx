@@ -1,4 +1,4 @@
-import {ScrollShadow} from "@nextui-org/react";
+import {ScrollShadow} from "@heroui/react";
 // @ts-ignore
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 // @ts-ignore

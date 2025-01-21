@@ -1,4 +1,4 @@
-import {Button} from "@nextui-org/react";
+import {Button} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {setTitle} from "../../../main.tsx";
 import ServerInfo from "../../components/Dashboard/CreateServer/ServerInfo.tsx";

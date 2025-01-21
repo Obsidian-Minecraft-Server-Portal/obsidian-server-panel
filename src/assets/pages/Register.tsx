@@ -1,7 +1,7 @@
 import {setTitle} from "../../main.tsx";
 import {useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
-import {Button, Card, CardBody, CardHeader, Input, Link} from "@nextui-org/react";
+import {Button, Card, CardBody, CardHeader, Input, Link} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faEnvelope, faEye, faEyeSlash, faKey} from "@fortawesome/free-solid-svg-icons";
 

@@ -1,6 +1,6 @@
 import MemoryAllocationInput from "./MemoryAllocationInput.tsx";
 import StopButton from "./StopButton.tsx";
-import {AutocompleteItem, Button, Link} from "@nextui-org/react";
+import {AutocompleteItem, Button, Link} from "@heroui/react";
 import DownloadFile from "../../../images/DownloadFile.svg.tsx";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faArchive, faEdit, faLayerGroup} from "@fortawesome/free-solid-svg-icons";

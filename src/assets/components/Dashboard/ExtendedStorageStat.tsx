@@ -1,4 +1,4 @@
-import {Button, CircularProgress, Listbox, ListboxItem} from "@nextui-org/react";
+import {Button, CircularProgress, Listbox, ListboxItem} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faArrowDown, faCircle, faCloudDownload} from "@fortawesome/free-solid-svg-icons";
 import {toast} from "sonner";

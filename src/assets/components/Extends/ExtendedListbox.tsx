@@ -1,4 +1,4 @@
-import {cn, Listbox, ListboxProps} from "@nextui-org/react";
+import {cn, Listbox, ListboxProps} from "@heroui/react";
 
 interface ExtendedListboxProps extends ListboxProps
 {

@@ -1,4 +1,4 @@
-import {Button, Chip, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@nextui-org/react";
+import {Button, Chip, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faPlus, faTrash, faUserEdit} from "@fortawesome/free-solid-svg-icons";
 import {setTitle} from "../../../main.tsx";

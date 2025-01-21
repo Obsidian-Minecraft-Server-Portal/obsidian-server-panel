@@ -1,5 +1,5 @@
 import {setTitle} from "../../../main.tsx";
-import {Input, ScrollShadow, Skeleton} from "@nextui-org/react";
+import {Input, ScrollShadow, Skeleton} from "@heroui/react";
 import ExtendedSwitch from "../../components/Extends/ExtendedSwitch.tsx";
 import {useEffect, useState} from "react";
 import MagnifyGlass from "../../images/MagnifyGlass.svg.tsx";

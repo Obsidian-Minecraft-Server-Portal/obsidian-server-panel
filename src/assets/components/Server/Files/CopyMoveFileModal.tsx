@@ -1,4 +1,4 @@
-import {BreadcrumbItem, Breadcrumbs, Button, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@nextui-org/react";
+import {BreadcrumbItem, Breadcrumbs, Button, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import FileSystem, {FileItem} from "../../../ts/file-system.ts";
 import Conversions from "../../../ts/conversions.ts";
 import {useEffect, useState} from "react";

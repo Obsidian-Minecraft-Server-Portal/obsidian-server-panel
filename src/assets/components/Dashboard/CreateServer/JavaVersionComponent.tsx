@@ -1,4 +1,4 @@
-import {Button} from "@nextui-org/react";
+import {Button} from "@heroui/react";
 import {JavaVersion} from "../../../ts/java.ts";
 import OTooltip from "../../Extends/OTooltip.tsx";
 

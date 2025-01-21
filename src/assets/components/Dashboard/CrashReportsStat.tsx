@@ -1,4 +1,4 @@
-import {Avatar, Listbox, ListboxItem, ScrollShadow} from "@nextui-org/react";
+import {Avatar, Listbox, ListboxItem, ScrollShadow} from "@heroui/react";
 import testImage from "../../images/demo/test-server.png";
 import {HTMLAttributes, useState} from "react";
 import EditorModal, {crashReport} from "../EditorModal.tsx";

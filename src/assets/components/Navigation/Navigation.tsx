@@ -1,5 +1,4 @@
-import {Navbar, NavbarContent, NavbarItem} from "@nextui-org/navbar";
-import {Accordion, AccordionItem, Avatar, cn, Link} from "@nextui-org/react";
+import {Accordion, AccordionItem, Avatar, cn, Link, Navbar, NavbarContent, NavbarItem} from "@heroui/react";
 import Home from "../../images/Home.svg.tsx";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faChevronRight} from "@fortawesome/free-solid-svg-icons";

@@ -1,4 +1,4 @@
-import {Avatar, Button, Chip, Image, Link} from "@nextui-org/react";
+import {Avatar, Button, Chip, Image, Link} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCalendar, faDownload, faHeart} from "@fortawesome/free-solid-svg-icons";
 import {Instance, Modloader} from "../../ts/instances.ts";

@@ -1,4 +1,4 @@
-import {Popover, PopoverProps} from "@nextui-org/react";
+import {Popover, PopoverProps} from "@heroui/react";
 
 export default function OPopover(props: PopoverProps)
 {

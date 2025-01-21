@@ -1,5 +1,4 @@
-import {Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@nextui-org/navbar";
-import {cn, Image} from "@nextui-org/react";
+import {cn, Image, Navbar, NavbarBrand, NavbarContent, NavbarItem} from "@heroui/react";
 import Logo from "../../../images/logo.gif";
 import {useAuth} from "../../../providers/AuthProvider.tsx";
 import ProfileDropdown from "./ProfileDropdown.tsx";

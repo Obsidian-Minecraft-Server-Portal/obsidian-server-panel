@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {FileItem} from "../../../ts/file-system.ts";
 import {useSelectedServer} from "../../../providers/SelectedServerProvider.tsx";
-import {SelectItem} from "@nextui-org/react";
+import {SelectItem} from "@heroui/react";
 import OSelect from "../../Extends/OSelect.tsx";
 
 interface LogSelectorProps

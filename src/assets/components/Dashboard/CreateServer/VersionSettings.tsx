@@ -1,4 +1,4 @@
-import {AutocompleteItem} from "@nextui-org/react";
+import {AutocompleteItem} from "@heroui/react";
 import ExtendedSwitch from "../../Extends/ExtendedSwitch.tsx";
 import OAutocomplete from "../../Extends/OAutocomplete.tsx";
 import {useEffect, useState} from "react";

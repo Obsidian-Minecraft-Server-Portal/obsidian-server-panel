@@ -1,5 +1,5 @@
 import {Bar, BarChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis} from "recharts";
-import {Button, Divider} from "@nextui-org/react";
+import {Button, Divider} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faArrowDown, faCircle} from "@fortawesome/free-solid-svg-icons";
 import {HTMLAttributes} from "react";

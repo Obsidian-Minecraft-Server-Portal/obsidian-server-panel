@@ -1,4 +1,4 @@
-import {Button, Input, Listbox, ListboxItem} from "@nextui-org/react";
+import {Button, Input, Listbox, ListboxItem} from "@heroui/react";
 import MagnifyGlass from "../../images/MagnifyGlass.svg.tsx";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faDownload, faUpload} from "@fortawesome/free-solid-svg-icons";

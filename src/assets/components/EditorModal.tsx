@@ -1,4 +1,4 @@
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@nextui-org/react";
+import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
 import {Editor} from "@monaco-editor/react";
 import {toast} from "sonner";
 import "../scss/editor.scss";

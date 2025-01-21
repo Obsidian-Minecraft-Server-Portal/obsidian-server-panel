@@ -1,4 +1,4 @@
-import {cn, SelectItem} from "@nextui-org/react";
+import {cn, SelectItem} from "@heroui/react";
 import DurationInput, {Duration} from "../../Extends/DurationInput.tsx";
 import {useState} from "react";
 import OSelect from "../../Extends/OSelect.tsx";

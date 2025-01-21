@@ -1,4 +1,4 @@
-import {Avatar, Button, Chip, cn, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@nextui-org/react";
+import {Avatar, Button, Chip, cn, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCalendar, faCheckCircle, faCheckSquare, faCircle, faClock, faEllipsis, faLayerGroup, faPlay, faPlus, faStop, faUser} from "@fortawesome/free-solid-svg-icons";
 import DownloadFile from "../../images/DownloadFile.svg.tsx";

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Slider} from "@nextui-org/react";
+import {Slider} from "@heroui/react";
 import OInput from "../../Extends/OInput.tsx";
 import {useSelectedServer} from "../../../providers/SelectedServerProvider.tsx";
 import $ from "jquery";

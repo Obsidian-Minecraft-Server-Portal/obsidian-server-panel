@@ -1,4 +1,4 @@
-import {Listbox, ListboxItem, SelectItem, Spinner} from "@nextui-org/react";
+import {Listbox, ListboxItem, SelectItem, Spinner} from "@heroui/react";
 import MagnifyGlass from "../images/MagnifyGlass.svg.tsx";
 import DiscoverModItem from "../components/Server/DiscoverModItem.tsx";
 import {setTitle} from "../../main.tsx";

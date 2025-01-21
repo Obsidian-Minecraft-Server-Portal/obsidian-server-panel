@@ -1,5 +1,5 @@
 import ODropdown from "../../Extends/ODropdown.tsx";
-import {Avatar, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Link} from "@nextui-org/react";
+import {Avatar, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Link} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faExternalLink, faSignOut, faSliders, faUser, faUsersGear, faUserShield} from "@fortawesome/free-solid-svg-icons";
 import {useAuth} from "../../../providers/AuthProvider.tsx";

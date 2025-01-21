@@ -1,5 +1,5 @@
 import {JavaVersion} from "../../ts/java.ts";
-import {Button} from "@nextui-org/react";
+import {Button} from "@heroui/react";
 import OTooltip from "../Extends/OTooltip.tsx";
 
 interface JavaVersionComponentProps

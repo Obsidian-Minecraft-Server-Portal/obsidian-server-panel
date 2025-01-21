@@ -1,4 +1,4 @@
-import {Button, Chip, cn, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@nextui-org/react";
+import {Button, Chip, cn, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import Conversions from "../../../ts/conversions.ts";
 import DownloadFile from "../../../images/DownloadFile.svg.tsx";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";

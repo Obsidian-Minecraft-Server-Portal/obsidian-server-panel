@@ -1,4 +1,4 @@
-import {Badge, BreadcrumbItem, Breadcrumbs, Button, Divider} from "@nextui-org/react";
+import {Badge, BreadcrumbItem, Breadcrumbs, Button, Divider} from "@heroui/react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCheckCircle, faFileArchive, faFileDownload, faFolderPlus, faRefresh, faTrashAlt, faUpload} from "@fortawesome/free-solid-svg-icons";
 import {setTitle} from "../../../main.tsx";

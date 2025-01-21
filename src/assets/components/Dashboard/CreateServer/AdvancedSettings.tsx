@@ -1,4 +1,4 @@
-import {Slider} from "@nextui-org/react";
+import {Slider} from "@heroui/react";
 import ExtendedSwitch from "../../Extends/ExtendedSwitch.tsx";
 import {useState} from "react";
 import OInput from "../../Extends/OInput.tsx";

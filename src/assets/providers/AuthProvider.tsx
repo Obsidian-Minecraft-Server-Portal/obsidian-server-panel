@@ -31,7 +31,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({children}) =>
                     auth.logout();
                 } else
                 {
-                    if (!pathname.startsWith("/app"))
+                    if (isLoggedIn && !pathname.startsWith("/app"))
                         navigate("/app");
                 }
             });

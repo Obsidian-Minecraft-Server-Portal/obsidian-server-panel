@@ -2,7 +2,7 @@ import Java, {JavaVersion} from "../../ts/java.ts";
 import {useEffect, useState} from "react";
 import JavaVersionComponent from "./JavaVersionComponent.tsx";
 import JavaInstallModal from "./JavaInstallModal.tsx";
-import {Skeleton} from "@nextui-org/react";
+import {Skeleton} from "@heroui/react";
 
 export default function JavaSettings()
 {

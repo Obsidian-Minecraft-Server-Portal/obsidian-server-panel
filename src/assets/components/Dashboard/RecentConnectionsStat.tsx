@@ -1,4 +1,4 @@
-import {Avatar, cn, Listbox, ListboxItem, ScrollShadow} from "@nextui-org/react";
+import {Avatar, cn, Listbox, ListboxItem, ScrollShadow} from "@heroui/react";
 import testImage from "../../images/demo/test-server.png";
 import {HTMLAttributes} from "react";
 
