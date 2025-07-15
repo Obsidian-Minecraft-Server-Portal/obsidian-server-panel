@@ -1,0 +1,46 @@
+{
+  "name": "obsidian_server_panel",
+  "private": true,
+  "version": "0.0.0",
+  "description": "",
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "repository": "",
+  "type": "module",
+  "scripts": {
+    "build-api": "cargo build --release",
+    "run-api": "cargo run --bin obsidian_server_panel",
+    "dev": "vite",
+    "build-frontend": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "watch": "cargo watch -x \"run --bin obsidian_server_panel\" -C dist -N --why -w ../src-actix/",
+    "build": "npm run \"build-frontend\" && npm run \"build-api\""
+  },
+  "dependencies": {
+    "@heroui/react": "2.7.11",
+    "@iconify-icon/react": "2.3.0",
+    "framer-motion": "12.19.2",
+    "jquery": "3.7.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-router-dom": "7.1.3"
+  },
+  "devDependencies": {
+    "@types/jquery": "3.5.32",
+    "@types/react": "19.0.8",
+    "@types/react-dom": "19.0.3",
+    "@typescript-eslint/eslint-plugin": "8.21.0",
+    "@typescript-eslint/parser": "8.21.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "autoprefixer": "10.4.16",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "eslint-plugin-react-refresh": "0.4.18",
+    "postcss": "8.4.31",
+    "postcss-import": "15.1.0",
+    "sass": "1.83.4",
+    "sass-loader": "16.0.4",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.7.3",
+    "vite": "6.0.11"
+  }
+}
