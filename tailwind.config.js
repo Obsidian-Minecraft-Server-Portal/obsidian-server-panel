@@ -8,7 +8,12 @@ export default {
         "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}"
     ],
     theme: {
-        extend: {},
+        extend: {
+            fontFamily: {
+                'minecraft-header': ['MinecraftHeader', 'sans-serif'],
+                'minecraft-body': ['MinecraftBody', 'sans-serif'],
+            }
+        },
     },
     darkMode: "class",
     plugins: [heroui({
@@ -16,19 +21,22 @@ export default {
             light: {
                 colors: {
                     primary: {
-                        DEFAULT: "#f13848",
+                        DEFAULT: "#168a26",
                         foreground: "#fff",
                     },
                     secondary: "#2b2b2b",
-                    background: "#e3e3ea",
+                    background: "#ffffff",
 
                 }
             },
             dark: {
                 colors: {
-                    primary: "#ff3247",
+                    primary: {
+                        DEFAULT: "#1bd96a",
+                        foreground: "#000",
+                    },
                     secondary: "#eaeaea",
-                    background: "#18181b",
+                    background: "#0b0b0e",
                 }
             },
         }
