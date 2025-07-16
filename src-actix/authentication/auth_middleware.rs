@@ -1,9 +1,5 @@
 use crate::authentication::auth_data::UserData;
-use actix_web::{
-    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    error::ErrorUnauthorized,
-    Error,
-};
+use actix_web::{dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform}, error::ErrorUnauthorized, Error, HttpMessage};
 use futures::future::LocalBoxFuture;
 use std::rc::Rc;
 
@@ -45,7 +41,8 @@ where
             let headers = req.headers().clone();
             if let Some(auth_header) = headers.get("Authorization") {
                 if let Ok(token) = auth_header.to_str() {
-                    UserData::authenticate_with_session_token(token).await.map_err(ErrorUnauthorized)?;
+                    let user = UserData::authenticate_with_session_token(token).await.map_err(ErrorUnauthorized)?;
+                    req.extensions_mut().insert(user);
                     return service.call(req).await.map_err(actix_web::error::ErrorInternalServerError);
                 }
             }

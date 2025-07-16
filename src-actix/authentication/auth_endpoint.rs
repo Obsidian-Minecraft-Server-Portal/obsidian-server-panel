@@ -2,7 +2,9 @@ use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
 use crate::authentication::auth_data::{UserData, TOKEN_KEY};
 use actix_web::{get, post, web, HttpResponse, Responder};
+use actix_web::web::Data;
 use serde_json::json;
+use crate::authentication::user_permissions::PermissionFlag;
 
 #[post("/")]
 pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
@@ -42,7 +44,12 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
 }
 
 #[get("/")]
-pub async fn get_users() -> Result<impl Responder> {
+pub async fn get_users(user: Data<UserData>) -> Result<impl Responder> {
+    if !user.permissions.contains(PermissionFlag::Admin) || !user.permissions.contains(PermissionFlag::ViewUsers) {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You do not have permission to view this resource",
+        })));
+    }
     let pool = open_pool().await?;
     let users = UserData::get_users(&pool).await?;
     pool.close().await;
