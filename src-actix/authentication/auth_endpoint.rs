@@ -1,7 +1,7 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
-use crate::authentication::auth_data::{UserData, TOKEN_KEY};
-use actix_web::{post, web, HttpResponse, Responder};
+use crate::authentication::auth_data::{TOKEN_KEY, UserData};
+use actix_web::{HttpResponse, Responder, post, web};
 use serde_json::json;
 
 #[post("/")]

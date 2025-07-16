@@ -1,5 +1,5 @@
 use actix_util::asset_endpoint::AssetsAppConfig;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use anyhow::Result;
 use log::*;
 use serde_json::json;
