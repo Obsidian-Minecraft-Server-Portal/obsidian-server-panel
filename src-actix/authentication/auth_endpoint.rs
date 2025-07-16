@@ -24,6 +24,11 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
     let pool = open_pool().await?;
     let username = body.get("username").expect("Missing username").as_str().expect("Username must be a string").to_string();
     let password = body.get("password").expect("Missing password").as_str().expect("Password must be a string").to_string();
+    if UserData::exists(&username, &pool).await? {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Username already exists",
+        })));
+    }
     UserData::register(username, password, &pool).await?;
     Ok(HttpResponse::Ok().json(json!({
         "message": "Registration successful",

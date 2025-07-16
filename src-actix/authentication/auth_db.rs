@@ -34,7 +34,7 @@ impl UserData {
         user.update_login_time(pool).await?;
         Ok((token, user))
     }
-    async fn login_with_token(token: &str, pool: &SqlitePool) -> Result<Option<Self>> {
+    pub async fn login_with_token(token: &str, pool: &SqlitePool) -> Result<Option<Self>> {
         let id_part = &token[..16];
         let id = serde_hash::hashids::decode_single(id_part).map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
         let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ?"#).bind(id.to_string()).fetch_optional(pool).await?;
@@ -52,6 +52,12 @@ impl UserData {
         sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(username).bind(password).execute(pool).await?;
         Ok(())
     }
+
+    pub async fn exists(username: &str, pool: &SqlitePool) -> Result<bool> {
+        let exists = sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)"#).bind(username).fetch_one(pool).await?;
+        Ok(exists)
+    }
+
     pub async fn get_users(pool: &SqlitePool) -> Result<Vec<Self>> {
         let users = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users"#).fetch_all(pool).await?;
         Ok(users)
