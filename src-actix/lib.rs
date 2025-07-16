@@ -6,6 +6,7 @@ use serde_json::json;
 use vite_actix::start_vite_server;
 
 mod actix_util;
+mod authentication;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 const PORT: u16 = 8080;
