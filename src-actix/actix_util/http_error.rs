@@ -14,11 +14,9 @@ impl ResponseError for Error {
         }
     }
 
-    fn error_response(&self) -> HttpResponse { 
+    fn error_response(&self) -> HttpResponse {
         HttpResponse::build(self.status_code()).body(self.to_string())
     }
 }
-
-
 
 pub type Result<T> = std::result::Result<T, Error>;
