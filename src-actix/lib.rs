@@ -6,6 +6,7 @@ use serde_json::json;
 use vite_actix::start_vite_server;
 
 mod actix_util;
+mod app_db;
 mod authentication;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
@@ -20,6 +21,8 @@ pub async fn run() -> Result<()> {
         })
         .format_timestamp(None)
         .init();
+
+    app_db::initialize_databases().await?;
 
     let server = HttpServer::new(move || {
         App::new()

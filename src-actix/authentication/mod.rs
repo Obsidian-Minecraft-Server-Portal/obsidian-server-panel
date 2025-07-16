@@ -1,4 +1,7 @@
-mod auth_endpoint;
-mod auth_data;
+pub mod auth_data;
 mod auth_db;
-mod user_permissions;
+pub mod auth_endpoint;
+pub mod user_permissions;
+mod auth_middleware;
+
+pub use auth_db::initialize;
