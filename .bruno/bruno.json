@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Obsidian Server Panel",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
