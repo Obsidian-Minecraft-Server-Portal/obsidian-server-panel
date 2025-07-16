@@ -1,4 +1,5 @@
 use crate::authentication::user_permissions::PermissionFlag;
+use anyhow::Result;
 use enumflags2::BitFlags;
 use serde::Deserialize;
 use sqlx::sqlite::SqliteRow;
@@ -63,5 +64,13 @@ impl<'a> FromRow<'a, SqliteRow> for UserData {
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
         let last_online: DateTime<Utc> = row.try_get("last_online")?;
         Ok(UserData { id, username, password, permissions, join_date, last_online })
+    }
+}
+
+impl UserData {
+    pub async fn authenticate_with_session_token(token: &str) -> Result<UserData> {
+        let pool = crate::app_db::open_pool().await?;
+        let user = UserData::login_with_token(token, &pool).await?;
+        if let Some(user) = user { Ok(user) } else { Err(anyhow::anyhow!("User doesn't exist or token is invalid")) }
     }
 }
