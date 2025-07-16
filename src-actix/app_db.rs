@@ -1,7 +1,7 @@
 use anyhow::Result;
-use log::{info, LevelFilter};
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+use log::{LevelFilter, info};
 use sqlx::ConnectOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 
 pub async fn initialize_databases() -> Result<()> {
     info!("Initializing databases...");

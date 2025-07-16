@@ -24,15 +24,8 @@ CREATE TABLE IF NOT EXISTS users (
 }
 
 impl UserData {
-    pub async fn login(
-        username: String,
-        password: String,
-        pool: &SqlitePool,
-    ) -> Result<(String, Self)> {
-        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ?"#)
-            .bind(username)
-            .fetch_one(pool)
-            .await?;
+    pub async fn login(username: String, password: String, pool: &SqlitePool) -> Result<(String, Self)> {
+        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ?"#).bind(username).fetch_one(pool).await?;
         let is_valid_password = bcrypt::verify(password, &user.password)?;
         if !is_valid_password {
             return Err(anyhow::anyhow!("Invalid username or password"));
@@ -43,12 +36,8 @@ impl UserData {
     }
     async fn login_with_token(token: &str, pool: &SqlitePool) -> Result<Option<Self>> {
         let id_part = &token[..16];
-        let id = serde_hash::hashids::decode_single(id_part)
-            .map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
-        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ?"#)
-            .bind(id.to_string())
-            .fetch_optional(pool)
-            .await?;
+        let id = serde_hash::hashids::decode_single(id_part).map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
+        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ?"#).bind(id.to_string()).fetch_optional(pool).await?;
         if let Some(ref user) = user {
             if !bcrypt::verify(format!("{}{}", user.username, user.password), token)? {
                 return Err(anyhow::anyhow!("Invalid token"));
@@ -60,27 +49,17 @@ impl UserData {
     }
 
     pub async fn register(username: String, password: String, pool: &SqlitePool) -> Result<()> {
-        sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#)
-            .bind(username)
-            .bind(password)
-            .execute(pool)
-            .await?;
+        sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(username).bind(password).execute(pool).await?;
         Ok(())
     }
     pub async fn get_users(pool: &SqlitePool) -> Result<Vec<Self>> {
-        let users = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users"#)
-            .fetch_all(pool)
-            .await?;
+        let users = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users"#).fetch_all(pool).await?;
         Ok(users)
     }
 
     async fn update_login_time(&self, pool: &SqlitePool) -> Result<()> {
         if let Some(id) = self.id {
-            sqlx::query(r#"UPDATE users SET last_online = ? WHERE id = ?"#)
-                .bind(chrono::Utc::now())
-                .bind(id.to_string())
-                .execute(pool)
-                .await?;
+            sqlx::query(r#"UPDATE users SET last_online = ? WHERE id = ?"#).bind(chrono::Utc::now()).bind(id.to_string()).execute(pool).await?;
         }
 
         Ok(())

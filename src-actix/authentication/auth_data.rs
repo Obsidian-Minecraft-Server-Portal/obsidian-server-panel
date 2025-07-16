@@ -9,11 +9,7 @@ pub const TOKEN_KEY: &str = "obathtok_eP4j7XbF20KCn8k5YOjsnQ";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct UserData {
-    #[serde(
-        serialize_with = "hash_id",
-        deserialize_with = "unhash_id",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(serialize_with = "hash_id", deserialize_with = "unhash_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<u64>,
     pub username: String,
     #[serde(skip)]
@@ -66,13 +62,6 @@ impl<'a> FromRow<'a, SqliteRow> for UserData {
         let permissions = BitFlags::<PermissionFlag>::from_bits_truncate(permissions as u16);
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
         let last_online: DateTime<Utc> = row.try_get("last_online")?;
-        Ok(UserData {
-            id,
-            username,
-            password,
-            permissions,
-            join_date,
-            last_online,
-        })
+        Ok(UserData { id, username, password, permissions, join_date, last_online })
     }
 }
