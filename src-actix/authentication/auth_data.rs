@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use sqlx::FromRow;
 use sqlx::types::chrono::{DateTime, Utc};
+use crate::authentication::user_permissions::PermissionFlag;
 
 pub const TOKEN_KEY: &str = "obathtok_eP4j7XbF20KCn8k5YOjsnQ";
 
@@ -11,6 +12,7 @@ pub struct UserData{
 	pub username: String,
 	#[serde(skip)]
 	pub password: String,
+	pub permissions: PermissionFlag,
 	pub join_date: DateTime<Utc>,
 	pub last_online: DateTime<Utc>,
 }
