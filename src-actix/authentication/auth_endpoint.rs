@@ -1,7 +1,7 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
-use crate::authentication::auth_data::{TOKEN_KEY, UserData};
-use actix_web::{HttpResponse, Responder, post, web};
+use crate::authentication::auth_data::{UserData, TOKEN_KEY};
+use actix_web::{post, web, HttpResponse, Responder};
 use serde_json::json;
 
 #[post("/")]
@@ -19,8 +19,19 @@ pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder>
     })))
 }
 
-pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.service(actix_web::web::scope("/auth").service(login).default_service(actix_web::web::to(|| async {
+#[actix_web::put("/")]
+pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
+    let pool = open_pool().await?;
+    let username = body.get("username").expect("Missing username").as_str().expect("Username must be a string").to_string();
+    let password = body.get("password").expect("Missing password").as_str().expect("Password must be a string").to_string();
+    UserData::register(username, password, &pool).await?;
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Registration successful",
+    })))
+}
+
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(web::scope("/auth").service(login).service(register).default_service(web::to(|| async {
         HttpResponse::NotFound().json(json!({
             "error": "API endpoint not found".to_string(),
         }))
