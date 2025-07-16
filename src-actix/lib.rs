@@ -21,6 +21,10 @@ pub async fn run() -> Result<()> {
         })
         .format_timestamp(None)
         .init();
+    // setup serde hashids
+    serde_hash::hashids::SerdeHashOptions::new()
+        .with_min_length(16)
+        .build();
 
     app_db::initialize_databases().await?;
 
@@ -39,7 +43,7 @@ pub async fn run() -> Result<()> {
                         .into()
                     }),
             )
-            .service(web::scope("api"))
+            .service(web::scope("api").configure(authentication::configure))
             .configure_frontend_routes()
     })
     .workers(4)
