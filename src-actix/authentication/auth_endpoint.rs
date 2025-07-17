@@ -1,10 +1,10 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
 use crate::authentication::auth_data::{UserData, TOKEN_KEY};
-use actix_web::{get, post, web, HttpResponse, Responder};
-use actix_web::web::Data;
-use serde_json::json;
 use crate::authentication::user_permissions::PermissionFlag;
+use actix_web::web::Data;
+use actix_web::{get, post, web, HttpResponse, Responder};
+use serde_json::json;
 
 #[post("/")]
 pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
@@ -58,7 +58,7 @@ pub async fn get_users(user: Data<UserData>) -> Result<impl Responder> {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/auth").service(login).service(register).default_service(web::to(|| async {
+    cfg.service(web::scope("/auth").service(login).service(register).service(get_users).default_service(web::to(|| async {
         HttpResponse::NotFound().json(json!({
             "error": "API endpoint not found".to_string(),
         }))
