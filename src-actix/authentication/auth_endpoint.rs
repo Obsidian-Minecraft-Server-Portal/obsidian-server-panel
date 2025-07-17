@@ -1,5 +1,6 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
+use crate::authentication;
 use crate::authentication::auth_data::{UserData, TOKEN_KEY};
 use crate::authentication::user_permissions::PermissionFlag;
 use actix_web::web::Data;
@@ -58,9 +59,19 @@ pub async fn get_users(user: Data<UserData>) -> Result<impl Responder> {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/auth").service(login).service(register).service(get_users).default_service(web::to(|| async {
-        HttpResponse::NotFound().json(json!({
-            "error": "API endpoint not found".to_string(),
-        }))
-    })));
+    cfg.service(
+        web::scope("/auth")
+            .service(login)
+            .service(register)
+            .service(
+                web::scope("")
+                    .wrap(authentication::AuthenticationMiddleware)
+                    .service(get_users)
+            )
+            .default_service(web::to(|| async {
+                HttpResponse::NotFound().json(json!({
+                    "error": "API endpoint not found".to_string(),
+                }))
+            })),
+    );
 }

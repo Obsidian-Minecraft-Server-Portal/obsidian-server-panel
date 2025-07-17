@@ -5,7 +5,6 @@ use actix_web::{
     Error,
     HttpMessage,
 };
-use awc::http::Method;
 use futures::future::LocalBoxFuture;
 use std::rc::Rc;
 
@@ -44,12 +43,6 @@ where
         let service = self.service.clone();
 
         Box::pin(async move {
-            let path = req.path();
-            let method = req.method();
-            if path.eq("/api/auth/") && (method == Method::POST || method == Method::PUT) {
-                // Bypass authentication for login and registration endpoints
-                return service.call(req).await.map_err(actix_web::error::ErrorInternalServerError);
-            }
             let cookies = req.cookie(auth_data::TOKEN_KEY);
             let headers = req.headers().clone();
             let token = cookies

@@ -32,12 +32,11 @@ pub async fn run() -> Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
-            .wrap(authentication::AuthenticationMiddleware)
             .app_data(web::JsonConfig::default().limit(4096).error_handler(|err, _req| {
                 let error = json!({ "error": format!("{}", err) });
                 actix_web::error::InternalError::from_response(err, HttpResponse::BadRequest().json(error)).into()
             }))
-            .service(web::scope("api").configure(authentication::configure))
+            .service(web::scope("api").configure(authentication::configure).service(web::scope("").wrap(authentication::AuthenticationMiddleware)))
             .configure_frontend_routes()
     })
     .workers(4)
