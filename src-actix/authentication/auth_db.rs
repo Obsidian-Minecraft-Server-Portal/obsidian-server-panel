@@ -25,19 +25,24 @@ CREATE TABLE IF NOT EXISTS users (
 
 impl UserData {
     pub async fn login(username: String, password: String, pool: &SqlitePool) -> Result<(String, Self)> {
-        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ?"#).bind(username).fetch_one(pool).await?;
-        let is_valid_password = bcrypt::verify(password, &user.password)?;
-        if !is_valid_password {
-            return Err(anyhow::anyhow!("Invalid username or password"));
+        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#).bind(username).fetch_optional(pool).await?;
+        if let Some(user) = user {
+            let is_valid_password = bcrypt::verify(password, &user.password)?;
+            if !is_valid_password {
+                return Err(anyhow::anyhow!("Invalid username or password"));
+            }
+            let token = user.generate_token()?;
+            user.update_login_time(pool).await?;
+            Ok((token, user))
+        } else {
+            Err(anyhow::anyhow!("User not found"))
         }
-        let token = user.generate_token()?;
-        user.update_login_time(pool).await?;
-        Ok((token, user))
     }
     pub async fn login_with_token(token: &str, pool: &SqlitePool) -> Result<Option<Self>> {
         let id_part = &token[..16];
+        let token = &token[16..];
         let id = serde_hash::hashids::decode_single(id_part).map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
-        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ?"#).bind(id.to_string()).fetch_optional(pool).await?;
+        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ? LIMIT 1"#).bind(id.to_string()).fetch_optional(pool).await?;
         if let Some(ref user) = user {
             if !bcrypt::verify(format!("{}{}", user.username, user.password), token)? {
                 return Err(anyhow::anyhow!("Invalid token"));
@@ -49,6 +54,7 @@ impl UserData {
     }
 
     pub async fn register(username: String, password: String, pool: &SqlitePool) -> Result<()> {
+        let password = bcrypt::hash(password, 10)?;
         sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(username).bind(password).execute(pool).await?;
         Ok(())
     }
