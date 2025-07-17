@@ -3,6 +3,7 @@ use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use log::*;
 use serde_json::json;
+use std::env::set_current_dir;
 use vite_actix::start_vite_server;
 
 mod actix_util;
@@ -15,6 +16,15 @@ const PORT: u16 = 8080;
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder().filter_level(if DEBUG { LevelFilter::Debug } else { LevelFilter::Info }).format_timestamp(None).init();
     // setup serde hashids
+
+    #[cfg(debug_assertions)]
+    {
+        serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).with_salt("obsidian-server-panel").build();
+        let dev_env_path = "./target/dev-env";
+        std::fs::create_dir_all(dev_env_path)?;
+        set_current_dir(dev_env_path)?;
+    }
+    #[cfg(not(debug_assertions))]
     serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).build();
 
     app_db::initialize_databases().await?;
