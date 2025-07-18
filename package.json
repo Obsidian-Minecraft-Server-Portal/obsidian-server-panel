@@ -17,13 +17,15 @@
     "build": "npm run \"build-frontend\" && npm run \"build-api\""
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@heroui/react": "2.7.11",
     "@iconify-icon/react": "2.3.0",
     "framer-motion": "12.19.2",
     "jquery": "3.7.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-router-dom": "7.1.3"
+    "react-router-dom": "7.1.3",
+    "recharts": "^3.1.0"
   },
   "devDependencies": {
     "@types/jquery": "3.5.32",
