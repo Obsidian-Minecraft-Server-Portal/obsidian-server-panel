@@ -54,7 +54,7 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
     let pool = open_pool().await?;
     if UserData::exists(&username, &pool).await? {
         return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Username already exists",
+            "message": "Username already exists",
         })));
     }
     UserData::register(username, password, &pool).await?;
@@ -70,7 +70,7 @@ pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
     let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
     if !user.permissions.contains(PermissionFlag::Admin) || !user.permissions.contains(PermissionFlag::ViewUsers) {
         return Ok(HttpResponse::Forbidden().json(json!({
-            "error": "You do not have permission to view this resource",
+            "message": "You do not have permission to view this resource",
         })));
     }
     let pool = open_pool().await?;
@@ -88,7 +88,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(web::scope("").wrap(authentication::AuthenticationMiddleware).service(get_users).service(login_with_token).service(logout))
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
-                    "error": "API endpoint not found".to_string(),
+                    "message": "API endpoint not found".to_string(),
                 }))
             })),
     );
