@@ -9,6 +9,7 @@ import {HeroUIProvider, ToastProvider} from "@heroui/react";
 import Login from "./assets/pages/Login.tsx";
 import Dashboard from "./assets/pages/Dashboard.tsx";
 import {AuthenticationProvider} from "./assets/providers/AuthenticationProvider.tsx";
+import Navigation from "./assets/components/navigation/Navigation.tsx";
 
 
 ReactDOM.createRoot($("#root")[0]!).render(
@@ -40,6 +41,7 @@ export function MainContentRenderer()
                     }
                 }}
             />
+            <Navigation />
             <Routes>
                 <Route>
                     <Route path="/" element={<Login/>}/>
