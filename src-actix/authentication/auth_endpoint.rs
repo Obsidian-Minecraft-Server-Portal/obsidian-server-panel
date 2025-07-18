@@ -43,7 +43,7 @@ pub async fn logout() -> Result<impl Responder> {
         .http_only(true)
         .max_age(actix_web::cookie::time::Duration::MIN)
         .finish();
-    Ok(HttpResponse::Ok().cookie(cookie).finish())
+    Ok(HttpResponse::PermanentRedirect().append_header(("Location", "/")).cookie(cookie.clone()).finish())
 }
 
 #[actix_web::put("/")]
