@@ -52,12 +52,16 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
     let password = body.get("password").expect("Missing password").as_str().expect("Password must be a string").to_string();
 
     let pool = open_pool().await?;
+    let should_be_admin_user = UserData::get_users_with_permissions(PermissionFlag::Admin, &pool).await?.is_empty();
     if UserData::exists(&username, &pool).await? {
         return Ok(HttpResponse::BadRequest().json(json!({
             "message": "Username already exists",
         })));
     }
-    UserData::register(username, password, &pool).await?;
+    let user = UserData::register(username, password, &pool).await?;
+    if should_be_admin_user {
+        user.set_permissions(PermissionFlag::Admin, &pool).await?;
+    }
     pool.close().await;
 
     Ok(HttpResponse::Ok().json(json!({

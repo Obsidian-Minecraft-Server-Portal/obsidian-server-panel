@@ -55,10 +55,11 @@ impl UserData {
         Ok(user)
     }
 
-    pub async fn register(username: String, password: String, pool: &SqlitePool) -> Result<()> {
+    pub async fn register(username: String, password: String, pool: &SqlitePool) -> Result<Self> {
         let password = bcrypt::hash(password, 10)?;
-        sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(username).bind(password).execute(pool).await?;
-        Ok(())
+        sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(&username).bind(password).execute(pool).await?;
+        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#).bind(username).fetch_one(pool).await?;
+        Ok(user)
     }
 
     pub async fn exists(username: &str, pool: &SqlitePool) -> Result<bool> {
@@ -78,6 +79,23 @@ impl UserData {
 
         Ok(())
     }
+
+
+    pub async fn set_permissions<T>(&self, permissions: T, pool: &SqlitePool) -> Result<()>
+        where
+        T: Into<BitFlags<PermissionFlag>>,
+        {
+            if self.id.is_none() {
+                return Err(anyhow::anyhow!("User ID is not set"));
+            }
+            let permissions = permissions.into();
+            sqlx::query("UPDATE users SET permissions = ? WHERE id = ?")
+                .bind(permissions.bits() as i64)
+                .bind(self.id.unwrap().to_string())
+                .execute(pool)
+                .await?;
+            Ok(())
+        }
 
     pub async fn get_users_with_permissions<T>(permissions: T, pool: &SqlitePool) -> Result<Vec<Self>>
     where
