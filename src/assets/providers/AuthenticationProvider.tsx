@@ -20,7 +20,7 @@ interface AuthenticationContextType
 {
     isAuthenticated: boolean | undefined;
     user: UserData | null;
-    login: (username: string, password: string, rememberMe: boolean) => Promise<void>;
+    login: (username: string, password: string, rememberMe: boolean, delay?: number) => Promise<void>;
     loginWithToken: () => Promise<void>;
     logout: () => void;
     isLoggingIn: boolean;
@@ -36,7 +36,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
     const navigate = useNavigate();
     const {pathname} = useLocation();
 
-    const login = useCallback(async (username: string, password: string, rememberMe: boolean) =>
+    const login = useCallback(async (username: string, password: string, rememberMe: boolean, delay?: number) =>
     {
         setIsLoggingIn(true);
         try
@@ -51,6 +51,11 @@ export function AuthenticationProvider({children}: { children: ReactNode })
             if (response.user)
             {
                 setUser(response.user);
+                if (delay)
+                {
+                    console.log(`Delaying login for ${delay}ms`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
                 setIsAuthenticated(true);
                 setTimeout(() => setIsLoggingIn(false), 1000);
             } else
