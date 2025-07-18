@@ -23,6 +23,7 @@ interface AuthenticationContextType
     login: (username: string, password: string, rememberMe: boolean, delay?: number) => Promise<void>;
     loginWithToken: () => Promise<void>;
     logout: () => void;
+    register: (username: string, password: string) => Promise<void>;
     isLoggingIn: boolean;
 }
 
@@ -109,6 +110,30 @@ export function AuthenticationProvider({children}: { children: ReactNode })
     }, [setUser, setIsAuthenticated]);
 
 
+    const register = useCallback(async (username: string, password: string) =>
+    {
+        setIsLoggingIn(true);
+        try
+        {
+            const response: LoginResponse = await $.ajax("/api/auth/register/", {
+                method: "POST",
+                data: JSON.stringify({username, password}),
+                contentType: "application/json",
+                dataType: "json"
+            });
+            console.log("Register Response: ", response);
+        } catch (err: any | Error)
+        {
+            const errorMessage = err.responseJSON?.message || err.message;
+            console.error(`Failed to register`, errorMessage);
+            throw new Error(errorMessage || "Failed to register");
+        } finally
+        {
+            setIsLoggingIn(false);
+        }
+    }, [setUser, setIsAuthenticated, setIsLoggingIn]);
+
+
     useEffect(() =>
     {
         loginWithToken();
@@ -134,7 +159,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
 
 
     return (
-        <AuthenticationContext.Provider value={{user, isAuthenticated, login, logout, loginWithToken, isLoggingIn}}>
+        <AuthenticationContext.Provider value={{user, isAuthenticated, login, logout, loginWithToken, isLoggingIn, register}}>
             {children}
         </AuthenticationContext.Provider>
     );
