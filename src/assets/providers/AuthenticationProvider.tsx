@@ -100,7 +100,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
     {
         setUser(null);
         setIsAuthenticated(false);
-        await $.get("/api/auth/logout");
+        await $.get("/api/auth/logout/");
     }, [setUser, setIsAuthenticated]);
 
 
