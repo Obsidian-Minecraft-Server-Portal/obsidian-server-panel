@@ -12,6 +12,7 @@ type CheckboxProps = {
     value?: string;
     defaultChecked?: boolean;
     isRequired?: boolean;
+    isInvalid?: boolean;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "checked" | "onChange" | "value">;
 
 const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
@@ -25,6 +26,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
         name,
         value = "on",
         defaultChecked = false,
+        isRequired,
         ...inputProps
     } = props;
 
@@ -75,6 +77,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
                     "data-[label-placement=left]:flex-row-reverse",
                     "data-[full-width=true]:w-full justify-between",
                     "hover:!bg-foreground/10",
+                    "data-[invalid=true]:text-danger data-[invalid=true]:bg-danger/10",
                     props.className
                 )
             }
@@ -82,6 +85,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
             data-full-width={fullWidth}
             data-label-placement={labelPlacement}
             onClick={handleClick}
+            data-invalid={props.isInvalid ? "true" : "false"}
         >
             {/* Hidden input that acts as the actual form element */}
             <input
@@ -101,7 +105,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
                     width: 0,
                     height: 0
                 }}
-                required={props.isRequired ?? false}
+                required={isRequired ?? false}
             />
 
             <Button
