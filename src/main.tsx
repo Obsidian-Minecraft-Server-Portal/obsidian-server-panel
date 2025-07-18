@@ -13,6 +13,7 @@ import {AuthenticationProvider} from "./assets/providers/AuthenticationProvider.
 import Navigation from "./assets/components/navigation/Navigation.tsx";
 import {ServerInfoProvider} from "./assets/providers/ServerInfoProvider.tsx";
 import Footer from "./assets/components/Footer.tsx";
+import ErrorPage from "./assets/pages/ErrorPage.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
@@ -54,6 +55,7 @@ export function MainContentRenderer()
                         <Route>
                             <Route path="/" element={<Login/>}/>
                             <Route path="/app" element={<Dashboard/>}/>
+                            <Route path="*" element={<ErrorPage />} />
                         </Route>
                     </Routes>
                     <Footer/>
