@@ -10,7 +10,7 @@ export type ServerInfo = {
 interface ServerInfoContextType
 {
     serverInfo: ServerInfo;
-    refreshServerInfo?: () => Promise<void>;
+    refreshServerInfo: () => Promise<void>;
 }
 
 const ServerInfoContext = createContext<ServerInfoContextType | undefined>(undefined);
