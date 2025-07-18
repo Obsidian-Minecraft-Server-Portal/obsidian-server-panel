@@ -1,10 +1,10 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
 use crate::authentication;
-use crate::authentication::auth_data::{UserData, TOKEN_KEY};
+use crate::authentication::auth_data::{TOKEN_KEY, UserData};
 use crate::authentication::user_permissions::PermissionFlag;
-use actix_web::web::Data;
-use actix_web::{get, post, web, HttpResponse, Responder};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, web};
+use anyhow::anyhow;
 use serde_json::json;
 
 #[post("/")]
@@ -14,15 +14,36 @@ pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder>
     let remember = body.get("remember").is_some_and(|v| v.as_bool().unwrap_or(false));
 
     let pool = open_pool().await?;
-    let (token, _user) = UserData::login(username, password, &pool).await?;
+    let (token, user) = UserData::login(username, password, &pool).await?;
     pool.close().await; // Close the database connection after use
 
     let cookie = actix_web::cookie::Cookie::build(TOKEN_KEY, &token).path("/").secure(true).http_only(true);
     let cookie = if remember { cookie.max_age(actix_web::cookie::time::Duration::days(30)) } else { cookie }.finish();
     Ok(HttpResponse::Ok().cookie(cookie).json(json!({
         "message": "Login successful",
-        "token": token,
+        "user": user,
     })))
+}
+
+#[get("/")]
+pub async fn login_with_token(req: HttpRequest) -> Result<impl Responder> {
+    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "User is logged in",
+        "user": user,
+    })))
+}
+
+#[get("/logout/")]
+pub async fn logout() -> Result<impl Responder> {
+    // Invalidate the session by clearing the token cookie
+    let cookie = actix_web::cookie::Cookie::build(TOKEN_KEY, "")
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .max_age(actix_web::cookie::time::Duration::MIN)
+        .finish();
+    Ok(HttpResponse::Ok().cookie(cookie).finish())
 }
 
 #[actix_web::put("/")]
@@ -44,8 +65,9 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
     })))
 }
 
-#[get("/")]
-pub async fn get_users(user: Data<UserData>) -> Result<impl Responder> {
+#[get("/users/")]
+pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
+    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
     if !user.permissions.contains(PermissionFlag::Admin) || !user.permissions.contains(PermissionFlag::ViewUsers) {
         return Ok(HttpResponse::Forbidden().json(json!({
             "error": "You do not have permission to view this resource",
@@ -63,11 +85,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/auth")
             .service(login)
             .service(register)
-            .service(
-                web::scope("")
-                    .wrap(authentication::AuthenticationMiddleware)
-                    .service(get_users)
-            )
+            .service(web::scope("").wrap(authentication::AuthenticationMiddleware).service(get_users).service(login_with_token).service(logout))
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),

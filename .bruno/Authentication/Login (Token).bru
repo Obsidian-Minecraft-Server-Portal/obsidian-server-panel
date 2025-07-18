@@ -1,13 +1,17 @@
 meta {
-  name: Login
+  name: Login (Token)
   type: http
-  seq: 1
+  seq: 4
 }
 
-post {
+get {
   url: {{baseurl}}/auth/
-  body: json
+  body: none
   auth: none
+}
+
+headers {
+  Authorization: lW97O03zR32QygKY$2b$10$QPStoRcK348jyty.87zC1eKkPYvCBaHxPhd3KzZ64J1OUjWRTxFP6
 }
 
 body:json {
