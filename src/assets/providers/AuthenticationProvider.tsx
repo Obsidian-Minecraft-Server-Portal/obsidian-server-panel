@@ -115,8 +115,8 @@ export function AuthenticationProvider({children}: { children: ReactNode })
         setIsLoggingIn(true);
         try
         {
-            const response: LoginResponse = await $.ajax("/api/auth/register/", {
-                method: "POST",
+            const response: LoginResponse = await $.ajax("/api/auth/", {
+                method: "PUT",
                 data: JSON.stringify({username, password}),
                 contentType: "application/json",
                 dataType: "json"
@@ -145,8 +145,11 @@ export function AuthenticationProvider({children}: { children: ReactNode })
         if (isAuthenticated === undefined) return; // Wait for the initial authentication check
         if (isAuthenticated)
         {
-            console.log("User is authenticated, redirecting to dashboard...");
-            navigate("/app");
+            if (!pathname.startsWith("/app"))
+            {
+                console.log("User is authenticated, redirecting to dashboard...");
+                navigate("/app");
+            }
         } else
         {
             if (pathname.startsWith("/app"))
