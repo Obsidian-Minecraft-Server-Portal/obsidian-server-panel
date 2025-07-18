@@ -1,5 +1,5 @@
 import {addToast, Button, Form, Input, Tooltip} from "@heroui/react";
-import Checkbox from "../components/Checkbox.tsx";
+import Checkbox from "../components/extended/Checkbox.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useState} from "react";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
