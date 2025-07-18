@@ -1,4 +1,4 @@
-import {useState, forwardRef, useImperativeHandle, useRef, InputHTMLAttributes} from "react";
+import {forwardRef, InputHTMLAttributes, useImperativeHandle, useRef, useState} from "react";
 import {Button, cn} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 
@@ -11,9 +11,11 @@ type CheckboxProps = {
     name?: string;
     value?: string;
     defaultChecked?: boolean;
-} & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'checked' | 'onChange' | 'value'>;
+    isRequired?: boolean;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "checked" | "onChange" | "value">;
 
-const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
+const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
+{
     const {
         label,
         checked,
@@ -38,21 +40,25 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
     // Expose the internal input element through the forwarded ref
     useImperativeHandle(ref, () => internalInputRef.current!, []);
 
-    const handleClick = () => {
+    const handleClick = () =>
+    {
         const newChecked = !checkedValue;
 
-        if (!isControlled) {
+        if (!isControlled)
+        {
             setInternalChecked(newChecked);
         }
 
-        if (onChange) {
+        if (onChange)
+        {
             onChange(newChecked);
         }
 
         // Trigger change event on the hidden input for form compatibility
-        if (internalInputRef.current) {
-            const event = new Event('change', { bubbles: true });
-            Object.defineProperty(event, 'target', {
+        if (internalInputRef.current)
+        {
+            const event = new Event("change", {bubbles: true});
+            Object.defineProperty(event, "target", {
                 writable: false,
                 value: internalInputRef.current
             });
@@ -85,16 +91,19 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
                 name={name}
                 value={value}
                 checked={checkedValue}
-                onChange={() => {}} // Handled by the div onClick
-                style={{ 
-                    position: 'absolute',
+                onChange={() =>
+                {
+                }} // Handled by the div onClick
+                style={{
+                    position: "absolute",
                     opacity: 0,
-                    pointerEvents: 'none',
+                    pointerEvents: "none",
                     width: 0,
                     height: 0
                 }}
+                required={props.isRequired ?? false}
             />
-            
+
             <Button
                 isIconOnly
                 size={"sm"}
@@ -103,9 +112,9 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
                 color={checkedValue ? "primary" : "default"}
                 onPress={handleClick}
             >
-                {checkedValue ? <Icon icon={"pixelarticons:check"} width={16} /> : ""}
+                {checkedValue ? <Icon icon={"pixelarticons:check"} width={16}/> : ""}
             </Button>
-            <span className={"select-none"}>{label}</span>
+            <span className={"select-none"}>{label}{props.isRequired ? <span className={"text-danger"}>*</span> : ""}</span>
         </div>
     );
 });
