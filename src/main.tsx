@@ -1,5 +1,5 @@
 import React from "react";
-import {BrowserRouter, Route, Routes, useNavigate, useLocation} from "react-router-dom";
+import {BrowserRouter, Route, Routes, useLocation, useNavigate} from "react-router-dom";
 import ReactDOM from "react-dom/client";
 import $ from "jquery";
 import {AnimatePresence} from "framer-motion";
@@ -11,14 +11,18 @@ import Login from "./assets/pages/Login.tsx";
 import Dashboard from "./assets/pages/Dashboard.tsx";
 import {AuthenticationProvider} from "./assets/providers/AuthenticationProvider.tsx";
 import Navigation from "./assets/components/navigation/Navigation.tsx";
+import {ServerInfoProvider} from "./assets/providers/ServerInfoProvider.tsx";
+import Footer from "./assets/components/Footer.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
             <ThemeProvider>
-                <AuthenticationProvider>
-                    <MainContentRenderer/>
-                </AuthenticationProvider>
+                <ServerInfoProvider>
+                    <AuthenticationProvider>
+                        <MainContentRenderer/>
+                    </AuthenticationProvider>
+                </ServerInfoProvider>
             </ThemeProvider>
         </BrowserRouter>
     </React.StrictMode>
@@ -43,14 +47,17 @@ export function MainContentRenderer()
                     }
                 }}
             />
-            <Navigation/>
             <AnimatePresence mode="wait" initial={false}>
-                <Routes location={location} key={location.pathname}>
-                    <Route>
-                        <Route path="/" element={<Login/>}/>
-                        <Route path="/app" element={<Dashboard/>}/>
-                    </Route>
-                </Routes>
+                <main className={"w-full h-screen flex flex-col"}>
+                    <Navigation/>
+                    <Routes location={location} key={location.pathname}>
+                        <Route>
+                            <Route path="/" element={<Login/>}/>
+                            <Route path="/app" element={<Dashboard/>}/>
+                        </Route>
+                    </Routes>
+                    <Footer/>
+                </main>
             </AnimatePresence>
         </HeroUIProvider>
     );

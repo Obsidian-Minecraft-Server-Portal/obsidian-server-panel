@@ -1,5 +1,7 @@
 use crate::authentication::auth_data::UserData;
+use crate::authentication::user_permissions::PermissionFlag;
 use anyhow::Result;
+use enumflags2::BitFlags;
 use log::debug;
 use serde_hash::hashids::encode_single;
 use sqlx::{Executor, SqlitePool};
@@ -75,6 +77,15 @@ impl UserData {
         }
 
         Ok(())
+    }
+
+    pub async fn get_users_with_permissions<T>(permissions: T, pool: &SqlitePool) -> Result<Vec<Self>>
+    where
+        T: Into<BitFlags<PermissionFlag>>,
+    {
+        let users =
+            sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE permissions = ?"#).bind(permissions.into().bits()).fetch_all(pool).await?;
+        Ok(users)
     }
 
     fn generate_token(&self) -> Result<String> {

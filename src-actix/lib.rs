@@ -9,6 +9,7 @@ use vite_actix::start_vite_server;
 mod actix_util;
 mod app_db;
 mod authentication;
+mod server_info_endpoint;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 const PORT: u16 = 8080;
@@ -36,7 +37,12 @@ pub async fn run() -> Result<()> {
                 let error = json!({ "error": format!("{}", err) });
                 actix_web::error::InternalError::from_response(err, HttpResponse::BadRequest().json(error)).into()
             }))
-            .service(web::scope("api").configure(authentication::configure).service(web::scope("").wrap(authentication::AuthenticationMiddleware)))
+            .service(
+                web::scope("api")
+                    .configure(server_info_endpoint::configure)
+                    .configure(authentication::configure)
+                    .service(web::scope("").wrap(authentication::AuthenticationMiddleware)),
+            )
             .configure_frontend_routes()
     })
     .workers(4)
