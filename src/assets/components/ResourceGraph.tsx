@@ -311,7 +311,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                         {/* Large Current Value */}
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center">
-                                <span className={`font-minecraft-header ${sizeClasses.value} font-bold text-gray-800 dark:text-gray-200`}>
+                                <span className={`font-minecraft-header ${sizeClasses.value} text-gray-800 dark:text-gray-200`}>
                                     {currentValue.toFixed(decimalPlaces)}
                                 </span>
                                 {showMaxValue && (
