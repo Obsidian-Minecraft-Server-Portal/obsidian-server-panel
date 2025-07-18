@@ -1,18 +1,26 @@
-import {addToast, Button, Form, Input, Tooltip} from "@heroui/react";
+import {addToast, Button, Form, Input} from "@heroui/react";
 import Checkbox from "../components/extended/Checkbox.tsx";
 import {Icon} from "@iconify-icon/react";
-import {useState} from "react";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
 import {AnimatePresence, motion} from "framer-motion";
+import {useServerInfo} from "../providers/ServerInfoProvider.tsx";
+import Signup from "./Signup.tsx";
+import {PasswordInput} from "../components/extended/PasswordInput.tsx";
 
 export default function Login()
 {
-    const [showPassword, setShowPassword] = useState(false);
     const {login, isLoggingIn} = useAuthentication();
+    const {serverInfo} = useServerInfo();
+
+    if (!serverInfo.has_admin_user)
+    {
+        return <Signup/>;
+    }
+
 
     return (
         <AnimatePresence>
-            <div className={"flex flex-col items-center justify-center h-screen"}>
+            <div className={"flex flex-col items-center justify-center grow"}>
                 <motion.h1
                     className={"text-7xl text-primary"}
                     initial={{opacity: 0, y: -20}}
@@ -81,24 +89,16 @@ export default function Login()
                         exit={{opacity: 0, y: 50}}
                         transition={{duration: 0.2, delay: 0.3}}
                     >
-                        <Input
+                        <PasswordInput
                             id={"login-password"}
                             name={"password"}
                             label={"Password"}
                             placeholder={"*********"}
                             radius={"none"}
-                            type={showPassword ? "text" : "password"}
                             className={"font-minecraft-body"}
                             isRequired
                             autoComplete={"current-password webauthn"}
                             errorMessage={"Please provide a password."}
-                            endContent={
-                                <Tooltip content={"Toggle Password Visibility"} placement={"top"} radius={"none"} className={"font-minecraft-body"}>
-                                    <Button isIconOnly size={"sm"} variant={"light"} onPress={() => setShowPassword(prev => !prev)}>
-                                        <Icon icon={showPassword ? "pixelarticons:eye-closed" : "pixelarticons:eye"} width={16}/>
-                                    </Button>
-                                </Tooltip>
-                            }
                         />
                     </motion.div>
 
