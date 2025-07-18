@@ -6,6 +6,7 @@ import {useState} from "react";
 import {PasswordInput} from "../components/extended/PasswordInput.tsx";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
+import {useServerInfo} from "../providers/ServerInfoProvider.tsx";
 
 export default function Signup()
 {
@@ -14,7 +15,8 @@ export default function Signup()
     const [confirmPassword, setConfirmPassword] = useState("");
     const [username, setUsername] = useState("");
     const [termsAccepted, setTermsAccepted] = useState(false);
-    const {register} = useAuthentication();
+    const {register, login} = useAuthentication();
+    const {refreshServerInfo} = useServerInfo();
 
     // Password validation
     const passwordErrors = [];
@@ -97,6 +99,8 @@ export default function Signup()
                           try
                           {
                               await register(username, password);
+                              await refreshServerInfo();
+                              await login(username, password, false);
                               setUnloading(true);
                               setTimeout(() => setUnloading(false), 1000);
                           } catch (error: any)
