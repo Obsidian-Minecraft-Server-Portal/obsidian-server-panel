@@ -51,7 +51,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((p
             endContent={
                 <div className={"flex flex-row gap-1"}>
                     <Tooltip content={"Toggle Password Visibility"} placement={"top"}>
-                        <Button isIconOnly size={"sm"} variant={"light"} onPress={() => setShowPassword(prev => !prev)}>
+                        <Button isIconOnly size={"sm"} variant={"light"} radius={"none"} onPress={() => setShowPassword(prev => !prev)}>
                             <Icon icon={showPassword ? "pixelarticons:eye-closed" : "pixelarticons:eye"} width={16}/>
                         </Button>
                     </Tooltip>
