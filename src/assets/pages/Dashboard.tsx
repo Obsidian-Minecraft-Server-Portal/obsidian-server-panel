@@ -1,6 +1,6 @@
 import {AnimatePresence, motion} from "framer-motion";
 import {ResourceGraph} from "../components/ResourceGraph.tsx";
-import ServerList from "../components/ServerList.tsx";
+import ServerList from "../components/server-components/ServerList.tsx";
 
 export default function Dashboard()
 {
