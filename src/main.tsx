@@ -14,6 +14,11 @@ import Navigation from "./assets/components/navigation/Navigation.tsx";
 import {ServerInfoProvider} from "./assets/providers/ServerInfoProvider.tsx";
 import Footer from "./assets/components/Footer.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
+import {MinecraftVersionsProvider} from "./assets/providers/MinecraftVersionsProvider.tsx";
+import {ForgeVersionsProvider} from "./assets/providers/ForgeVersionsProvider.tsx";
+import {FabricVersionsProvider} from "./assets/providers/FabricVersionsProvider.tsx";
+import {QuiltVersionsProvider} from "./assets/providers/QuiltVersionsProvider.tsx";
+import {NeoForgeVersionsProvider} from "./assets/providers/NeoForgeVersionsProvider.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
@@ -21,7 +26,17 @@ ReactDOM.createRoot($("#root")[0]!).render(
             <ThemeProvider>
                 <ServerInfoProvider>
                     <AuthenticationProvider>
-                        <MainContentRenderer/>
+                        <MinecraftVersionsProvider>
+                            <ForgeVersionsProvider>
+                                <FabricVersionsProvider>
+                                    <QuiltVersionsProvider>
+                                        <NeoForgeVersionsProvider>
+                                            <MainContentRenderer/>
+                                        </NeoForgeVersionsProvider>
+                                    </QuiltVersionsProvider>
+                                </FabricVersionsProvider>
+                            </ForgeVersionsProvider>
+                        </MinecraftVersionsProvider>
                     </AuthenticationProvider>
                 </ServerInfoProvider>
             </ThemeProvider>
@@ -55,7 +70,7 @@ export function MainContentRenderer()
                         <Route>
                             <Route path="/" element={<Login/>}/>
                             <Route path="/app" element={<Dashboard/>}/>
-                            <Route path="*" element={<ErrorPage />} />
+                            <Route path="*" element={<ErrorPage/>}/>
                         </Route>
                     </Routes>
                     <Footer/>

@@ -1,5 +1,5 @@
 use actix_util::asset_endpoint::AssetsAppConfig;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use anyhow::Result;
 use log::*;
 use serde_json::json;
@@ -9,6 +9,7 @@ use vite_actix::start_vite_server;
 mod actix_util;
 mod app_db;
 mod authentication;
+mod forge_endpoint;
 mod server_info_endpoint;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
@@ -41,7 +42,7 @@ pub async fn run() -> Result<()> {
                 web::scope("api")
                     .configure(server_info_endpoint::configure)
                     .configure(authentication::configure)
-                    .service(web::scope("").wrap(authentication::AuthenticationMiddleware)),
+                    .service(web::scope("").wrap(authentication::AuthenticationMiddleware).configure(forge_endpoint::configure)),
             )
             .configure_frontend_routes()
     })
