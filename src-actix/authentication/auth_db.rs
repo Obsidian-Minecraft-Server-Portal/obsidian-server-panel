@@ -6,22 +6,11 @@ use log::debug;
 use serde_hash::hashids::encode_single;
 use sqlx::{Executor, SqlitePool};
 
+static CREATE_USER_TABLE_SQL: &str = include_str!("../../resources/sql/user.sql");
+
 pub async fn initialize(pool: &SqlitePool) -> Result<()> {
     debug!("Initializing authentication database...");
-    pool.execute(
-        r#"
-CREATE TABLE IF NOT EXISTS users (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	username TEXT NOT NULL UNIQUE,
-	password TEXT NOT NULL,
-	permissions INTEGER NOT NULL DEFAULT 0,
-	join_date TEXT NOT NULL DEFAULT (datetime('now')),
-	last_online TEXT NOT NULL DEFAULT (datetime('now'))
-);
-		"#,
-    )
-    .await?;
-
+    pool.execute(CREATE_USER_TABLE_SQL).await?;
     Ok(())
 }
 
@@ -80,22 +69,21 @@ impl UserData {
         Ok(())
     }
 
-
     pub async fn set_permissions<T>(&self, permissions: T, pool: &SqlitePool) -> Result<()>
-        where
+    where
         T: Into<BitFlags<PermissionFlag>>,
-        {
-            if self.id.is_none() {
-                return Err(anyhow::anyhow!("User ID is not set"));
-            }
-            let permissions = permissions.into();
-            sqlx::query("UPDATE users SET permissions = ? WHERE id = ?")
-                .bind(permissions.bits() as i64)
-                .bind(self.id.unwrap().to_string())
-                .execute(pool)
-                .await?;
-            Ok(())
+    {
+        if self.id.is_none() {
+            return Err(anyhow::anyhow!("User ID is not set"));
         }
+        let permissions = permissions.into();
+        sqlx::query("UPDATE users SET permissions = ? WHERE id = ?")
+            .bind(permissions.bits() as i64)
+            .bind(self.id.unwrap().to_string())
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
 
     pub async fn get_users_with_permissions<T>(permissions: T, pool: &SqlitePool) -> Result<Vec<Self>>
     where
