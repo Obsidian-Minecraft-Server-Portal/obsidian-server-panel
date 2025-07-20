@@ -1,6 +1,7 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {addToast} from "@heroui/react";
 import {ForgeVersionList, getForgeVersions} from "../ts/forge-versions.ts";
+import {useAuthentication} from "./AuthenticationProvider.tsx";
 
 interface ForgeVersionsContextType
 {
@@ -12,6 +13,7 @@ const ForgeVersionsContext = createContext<ForgeVersionsContextType | undefined>
 
 export function ForgeVersionsProvider({children}: { children: ReactNode })
 {
+    const {isAuthenticated} = useAuthentication();
     const [forgeVersions, setForgeVersions] = useState<ForgeVersionList | null>(null);
 
     const refreshForgeVersions = useCallback(async () =>
@@ -21,6 +23,8 @@ export function ForgeVersionsProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
+        if (!isAuthenticated) return;
+
         refreshForgeVersions()
             .then(() => console.log("Loaded forge versions successfully."))
             .catch(error =>
@@ -33,7 +37,7 @@ export function ForgeVersionsProvider({children}: { children: ReactNode })
                     color: "danger"
                 });
             });
-    }, []);
+    }, [isAuthenticated]);
 
     return (
         <ForgeVersionsContext.Provider value={{forgeVersions, refreshForgeVersions}}>
