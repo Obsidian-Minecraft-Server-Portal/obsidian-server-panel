@@ -25,7 +25,7 @@ pub async fn get_resources() -> impl Responder {
 }
 
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.service(actix_web::web::scope("/").service(get_host_info).service(get_resources).default_service(actix_web::web::to(|| async {
+    cfg.service(actix_web::web::scope("/info").service(get_host_info).service(get_resources).default_service(actix_web::web::to(|| async {
         HttpResponse::NotFound().json(json!({
             "error": "API endpoint not found".to_string(),
         }))
