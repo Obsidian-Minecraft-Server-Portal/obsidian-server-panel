@@ -64,6 +64,7 @@ impl HostResourceData {
                     if let Some(token) = &cancellation_token {
                         token.cancelled().await;
                     }
+                    std::future::pending::<()>().await
                 } => {
                     break;
                 }
