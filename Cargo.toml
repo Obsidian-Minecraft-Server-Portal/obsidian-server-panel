@@ -37,6 +37,7 @@ reqwest = { version = "0.12.22", features = ["json"] }
 sysinfo = { version = "0.36.1", features = ["multithread", "disk", "windows", "system", "user", "network"] }
 tokio = { version = "1.46.1", features = ["time", "fs", "rt-multi-thread", "sync", "rt", "macros"] }
 tokio-util = "0.7.15"
+regex = {version = "1.11.1", features = ["perf"]}
 
 
 [build-dependencies]

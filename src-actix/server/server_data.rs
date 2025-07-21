@@ -1,9 +1,11 @@
+use actix_web::dev::Path;
 use anyhow::Result;
 use serde_hash::HashIds;
+use sqlx::FromRow;
+use std::path::PathBuf;
 
 const SERVER_DIRECTORY: &str = "./servers";
-
-#[derive(HashIds, Debug, Clone, Default)]
+#[derive(HashIds, Debug, Clone, FromRow)]
 pub struct ServerData {
     /// Unique identifier for the server
     #[hash]
@@ -13,7 +15,7 @@ pub struct ServerData {
     /// Directory name where server files are stored, e.g. 'my_minecraft_server'
     pub directory: String,
     /// Path to Java executable, e.g. '/usr/bin/java' or 'java' for system PATH
-    pub java_executable: String,
+    pub java_executable: Option<String>,
     /// Additional JVM arguments excluding -Xmx and -Xms
     pub java_args: String,
     /// Maximum memory in GB for JVM -Xmx argument
@@ -54,16 +56,71 @@ pub struct ServerData {
     pub last_started: Option<u64>,
 }
 
+impl Default for ServerData {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: String::new(),
+            directory: String::new(),
+            java_executable: None,
+            java_args: String::new(),
+            max_memory: 2,
+            min_memory: 1,
+            minecraft_args: String::new(),
+            server_jar: "".to_string(),
+            upnp: false,
+            status: "stopped".to_string(),
+            auto_start: false,
+            auto_restart: false,
+            backup_enabled: false,
+            backup_interval: 60,
+            description: None,
+            minecraft_version: None,
+            server_type: None,
+            loader_version: None,
+            owner_id: 0,
+            created_at: 0,
+            updated_at: 0,
+            last_started: None,
+        }
+    }
+}
+
 impl ServerData {
+    pub fn new(name: String, server_type: String, minecraft_version: String, loader_version: Option<String>, owner_id: u64) -> Self {
+        Self {
+            name: name.clone(),
+            directory: Self::generate_directory_name(name.as_str()),
+            minecraft_version: Some(minecraft_version),
+            server_type: Some(server_type),
+            loader_version,
+            owner_id,
+            ..Self::default()
+        }
+    }
+
     pub fn get_start_command(&self) -> String {
-        let mut command = format!("{} -Xmx{}G -Xms{}G {}", self.java_executable, self.max_memory, self.min_memory, self.java_args);
+        let java_executable = if let Some(java_executable) = &self.java_executable { java_executable.clone() } else { "java".to_string() };
+        let mut command = format!("{} -Xmx{}G -Xms{}G {}", java_executable, self.max_memory, self.min_memory, self.java_args);
 
         if !self.minecraft_args.is_empty() {
             command.push_str(&format!(" {}", self.minecraft_args));
         }
 
         command.push_str(&format!(" -jar {} nogui", self.server_jar));
-
         command
+    }
+
+    fn generate_directory_name(name: &str) -> String {
+        let dir_name = regex::Regex::new(r"[^a-zA-Z0-9_\-]").unwrap().replace_all(name, "_").to_string().to_lowercase();
+        let mut path = PathBuf::from(SERVER_DIRECTORY).join(&dir_name);
+        let mut index = 1u32;
+        loop {
+            if !path.exists() {
+                return dir_name;
+            }
+            path.set_file_name(format!("{} ({})", dir_name, index));
+            index += 1;
+        }
     }
 }
