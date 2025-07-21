@@ -3,6 +3,7 @@ import {Button, Card, CardBody} from "@heroui/react";
 import {Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis} from "recharts";
 import {Tooltip} from "./extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
+import {RWUsage, useHostInfo} from "../providers/ServerInfoProvider.tsx";
 
 type ResourceGraphProps = {
     variant?: "cpu" | "memory" | "network" | "disk" | "players" | "storage";
@@ -12,7 +13,7 @@ type ResourceGraphProps = {
     showCPUCores?: boolean;
     serverId?: string;
     size?: "sm" | "md" | "lg" | "fullWidth";
-    unit?: "percent" | "ms" | "count" | "b" | "kb" | "mb" | "gb" | "tb" | string;
+    unit?: "percent" | "ms" | "count" | "b" | "kb" | "mb" | "gb" | "tb" | "auto" | string;
     isUnitOverTime?: boolean;
     decimalPlaces?: number;
 }
@@ -44,7 +45,6 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     const {
         variant = defaultProps.variant,
         showHistory = defaultProps.showHistory,
-        maxValue = defaultProps.maxValue || 100,
         showCPUCores = defaultProps.showCPUCores,
         // serverId = defaultProps.serverId,
         size = defaultProps.size,
@@ -53,60 +53,152 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         showMaxValue = defaultProps.showMaxValue || false,
         decimalPlaces = defaultProps.decimalPlaces || 0
     } = props;
-
-    const [currentValue, setCurrentValue] = useState(50);
-    const [numberOfCores] = useState(8);
+    const {hostInfo, resources} = useHostInfo();
+    const [currentValue, setCurrentValue] = useState<number | RWUsage>(50);
     const [isHistoryView, setIsHistoryView] = useState(false);
     const [valueHistory, setValueHistory] = useState<HistoryDataPoint[]>([]);
     const [coreData, setCoreData] = useState<CoreDataPoint[]>([]);
+    const [maxValue, setMaxValue] = useState(props.maxValue || 100);
+    const [autoUnit, setAutoUnit] = useState<string>("b"); // For storing the auto-detected unit
 
     // Maximum number of history points to keep
     const maxHistoryPoints = 50;
 
+    // Function to determine the best unit for byte values
+    const determineBestUnit = (bytes: number): string => {
+        const tb = 1024 * 1024 * 1024 * 1024;
+        const gb = 1024 * 1024 * 1024;
+        const mb = 1024 * 1024;
+        const kb = 1024;
+
+        if (bytes >= tb) return "tb";
+        if (bytes >= gb) return "gb";
+        if (bytes >= mb) return "mb";
+        if (bytes >= kb) return "kb";
+        return "b";
+    };
+
+    // Function to convert bytes to the specified unit
+    const convertBytesToUnit = (bytes: number, targetUnit: string): number => {
+        switch (targetUnit) {
+            case "tb": return bytes / (1024 * 1024 * 1024 * 1024);
+            case "gb": return bytes / (1024 * 1024 * 1024);
+            case "mb": return bytes / (1024 * 1024);
+            case "kb": return bytes / 1024;
+            case "b":
+            default: return bytes;
+        }
+    };
+
+    // Function to convert RWUsage to appropriate units
+    const convertRWUsage = (rwUsage: RWUsage, targetUnit: string): RWUsage => {
+        return {
+            read: convertBytesToUnit(rwUsage.read, targetUnit),
+            write: convertBytesToUnit(rwUsage.write, targetUnit),
+            mtu: rwUsage.mtu
+        };
+    };
+
+    useEffect(() => {
+        // Auto-detect unit if needed
+        if (unit === "auto" && (variant === "memory" || variant === "network" || variant === "disk")) {
+            let referenceValue = 0;
+
+            if (variant === "memory" && typeof currentValue === 'number') {
+                referenceValue = currentValue;
+            } else if ((variant === "network" || variant === "disk") && typeof currentValue === 'object') {
+                referenceValue = Math.max(currentValue.read, currentValue.write);
+            }
+
+            const detectedUnit = determineBestUnit(referenceValue);
+            setAutoUnit(detectedUnit);
+        }
+
+        // Set max value based on variant and unit
+        if (variant === "memory" && hostInfo.resources.total_memory) {
+            const targetUnit = unit === "auto" ? autoUnit : unit;
+            setMaxValue(convertBytesToUnit(hostInfo.resources.total_memory, targetUnit));
+        } else if ((variant === "network" || variant === "disk") && typeof currentValue === 'object' && currentValue.mtu) {
+            const targetUnit = unit === "auto" ? autoUnit : unit;
+            setMaxValue(convertBytesToUnit(currentValue.mtu, targetUnit));
+        } else if (!props.maxValue) {
+            // Keep existing default behavior if no MTU and no explicit maxValue
+            switch (variant) {
+                case "cpu":
+                    setMaxValue(100);
+                    break;
+                default:
+                    setMaxValue(100);
+                    break;
+            }
+        }
+    }, [hostInfo, currentValue, variant, unit, props.maxValue, autoUnit]);
+
     useEffect(() =>
     {
-        // TODO: Replace with actual server resource fetching logic
-        const resourceTestTimer = setInterval(() =>
+        let newValue: number | RWUsage = 0;
+        switch (variant)
         {
-            const newValue = Math.floor(Math.random() * maxValue);
-            const now = Date.now();
+            case "cpu":
+                newValue = resources.cpu_usage?.total_usage ?? 0;
+                break;
+            case "memory":
+                newValue = resources.allocated_memory ?? 0;
+                break;
+            case "network":
+                newValue = resources.network_usage ?? {read: 0, write: 0};
+                break;
+            case "disk":
+                newValue = resources.disk_usage ?? {read: 0, write: 0};
+                break;
+            case "players":
+                newValue = 0;
+                break;
+        }
 
-            setCurrentValue(newValue);
+        // Convert values if using auto unit or specific byte units
+        if ((variant === "memory" || variant === "network" || variant === "disk") && unit !== "percent") {
+            const targetUnit = unit === "auto" ? autoUnit : unit;
 
-            // Add new data point to history
-            setValueHistory(prev =>
-            {
-                const newDataPoint: HistoryDataPoint = {
-                    time: now,
-                    value: newValue,
-                    timestamp: new Date(now).toLocaleTimeString()
-                };
-
-                // Keep only the last maxHistoryPoints
-                const updatedHistory = [...prev, newDataPoint];
-                if (updatedHistory.length > maxHistoryPoints)
-                {
-                    updatedHistory.shift(); // Remove oldest point
-                }
-
-                return updatedHistory;
-            });
-
-            // Update CPU core data if this is a CPU variant with core display
-            if (variant === "cpu" && showCPUCores)
-            {
-                setCoreData(Array.from({length: numberOfCores}, (_, i) => ({
-                    core: `Core ${i + 1}`,
-                    usage: Math.random() * 100
-                })));
+            if (variant === "memory" && typeof newValue === 'number') {
+                newValue = convertBytesToUnit(newValue, targetUnit);
+            } else if ((variant === "network" || variant === "disk") && typeof newValue === 'object') {
+                newValue = convertRWUsage(newValue, targetUnit);
             }
-        }, 1000);
+        }
 
-        return () =>
+        const now = Date.now();
+        setCurrentValue(newValue);
+
+        // Add new data point to history
+        setValueHistory(prev =>
         {
-            clearInterval(resourceTestTimer);
-        };
-    }, [maxValue, variant, showCPUCores, numberOfCores]);
+            const historyValue = typeof newValue === 'object' ? (newValue.read + newValue.write) : newValue;
+            const newDataPoint: HistoryDataPoint = {
+                time: now,
+                value: historyValue,
+                timestamp: new Date(now).toLocaleTimeString()
+            };
+
+            // Keep only the last maxHistoryPoints
+            const updatedHistory = [...prev, newDataPoint];
+            if (updatedHistory.length > maxHistoryPoints)
+            {
+                updatedHistory.shift(); // Remove oldest point
+            }
+
+            return updatedHistory;
+        });
+
+        // Update CPU core data if this is a CPU variant with core display
+        if (variant === "cpu" && showCPUCores)
+        {
+            setCoreData(Array.from({length: hostInfo.resources.num_cores}, (_, i) => ({
+                core: `Core ${i + 1}`,
+                usage: Math.random() * 100
+            })));
+        }
+    }, [maxValue, variant, showCPUCores, hostInfo.resources.num_cores, resources, unit, autoUnit]);
 
     // Initialize history with some data points
     useEffect(() =>
@@ -131,12 +223,12 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         // Initialize core data if needed
         if (variant === "cpu" && showCPUCores)
         {
-            setCoreData(Array.from({length: numberOfCores}, (_, i) => ({
+            setCoreData(Array.from({length: hostInfo.resources.num_cores}, (_, i) => ({
                 core: `Core ${i + 1}`,
                 usage: Math.random() * 100
             })));
         }
-    }, [maxValue, variant, showCPUCores, numberOfCores]);
+    }, [maxValue, variant, showCPUCores, hostInfo.resources.num_cores]);
 
     const getVariantTitle = () =>
     {
@@ -161,7 +253,9 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
 
     const getUnitDisplay = () =>
     {
-        switch (unit)
+        const effectiveUnit = unit === "auto" ? autoUnit : unit;
+
+        switch (effectiveUnit)
         {
             case "percent":
                 return "%";
@@ -180,8 +274,14 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
             case "tb":
                 return "TB";
             default:
-                return unit;
+                return effectiveUnit;
         }
+    };
+
+    const formatRWValue = (rwValue: RWUsage) => {
+        const unitDisplay = getUnitDisplay();
+        const suffix = isUnitOverTime ? "/s" : "";
+        return `R: ${rwValue.read.toFixed(decimalPlaces)}${unitDisplay}${suffix} W: ${rwValue.write.toFixed(decimalPlaces)}${unitDisplay}${suffix}`;
     };
 
     // Size-based styling
@@ -194,6 +294,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-32",
                     title: "text-xs mb-1",
                     value: "text-2xl",
+                    rwValue: "text-xs",
                     unit: "text-sm",
                     button: "w-3 h-3 top-1 right-1",
                     buttonIcon: "w-3 h-3",
@@ -204,6 +305,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-64",
                     title: "text-sm mb-2",
                     value: "text-4xl",
+                    rwValue: "text-sm",
                     unit: "text-lg",
                     button: "w-4 h-4 top-2 right-2",
                     buttonIcon: "w-4 h-4",
@@ -214,6 +316,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-80",
                     title: "text-base mb-3",
                     value: "text-6xl",
+                    rwValue: "text-base",
                     unit: "text-xl",
                     button: "w-5 h-5 top-3 right-3",
                     buttonIcon: "w-5 h-5",
@@ -224,6 +327,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-96",
                     title: "text-lg mb-4",
                     value: "text-8xl",
+                    rwValue: "text-lg",
                     unit: "text-2xl",
                     button: "w-6 h-6 top-4 right-4",
                     buttonIcon: "w-6 h-6",
@@ -234,6 +338,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-64",
                     title: "text-sm mb-2",
                     value: "text-4xl",
+                    rwValue: "text-sm",
                     unit: "text-lg",
                     button: "w-4 h-4 top-2 right-2",
                     buttonIcon: "w-4 h-4",
@@ -243,7 +348,8 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     };
 
     const sizeClasses = getSizeClasses();
-    const percentage = (currentValue / maxValue) * 100;
+    const numericValue = typeof currentValue === 'object' ? (currentValue.read + currentValue.write) : currentValue;
+    const percentage = (numericValue / maxValue) * 100;
 
     // Custom tooltip formatter
     const CustomTooltip = ({active, payload, label}: any) =>
@@ -311,18 +417,28 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                         {/* Large Current Value */}
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center">
-                                <span className={`font-minecraft-header ${sizeClasses.value} text-gray-800 dark:text-gray-200`}>
-                                    {currentValue.toFixed(decimalPlaces)}
-                                </span>
-                                {showMaxValue && (
-                                    <span className={`font-minecraft-body ${sizeClasses.unit} text-gray-600 dark:text-gray-400 ml-1`}>
-                                        / {maxValue.toFixed(decimalPlaces)}
-                                    </span>
+                                {typeof currentValue === 'object' ? (
+                                    // Display RWUsage data
+                                    <div className={`font-minecraft-header ${sizeClasses.rwValue} text-gray-800 dark:text-gray-200`}>
+                                        {formatRWValue(currentValue)}
+                                    </div>
+                                ) : (
+                                    // Display numeric data
+                                    <>
+                                        <span className={`font-minecraft-header ${sizeClasses.value} text-gray-800 dark:text-gray-200`}>
+                                            {currentValue.toFixed(decimalPlaces)}
+                                        </span>
+                                        {showMaxValue && (
+                                            <span className={`font-minecraft-body ${sizeClasses.unit} text-gray-600 dark:text-gray-400 ml-1`}>
+                                                / {maxValue.toFixed(decimalPlaces)}
+                                            </span>
+                                        )}
+                                        <span className={`font-minecraft-body ${sizeClasses.unit} text-gray-600 dark:text-gray-400 ml-1`}>
+                                            {getUnitDisplay()}
+                                            {isUnitOverTime && "/s"}
+                                        </span>
+                                    </>
                                 )}
-                                <span className={`font-minecraft-body ${sizeClasses.unit} text-gray-600 dark:text-gray-400 ml-1`}>
-                                    {getUnitDisplay()}
-                                    {isUnitOverTime && "/s"}
-                                </span>
                             </div>
                         </div>
                     </div>

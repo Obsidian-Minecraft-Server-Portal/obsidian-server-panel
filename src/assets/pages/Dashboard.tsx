@@ -19,8 +19,8 @@ export default function Dashboard()
                     transition={{duration: 0.3, delay: 0.1}}
                 >
                     <ResourceGraph variant={"cpu"} showCPUCores showHistory={true} size={"sm"} decimalPlaces={1}/>
-                    <ResourceGraph variant={"memory"} unit={"gb"} size={"sm"} showMaxValue maxValue={32}/>
-                    <ResourceGraph variant={"network"} unit={"mb"} isUnitOverTime={true} size={"sm"} maxValue={1000}/>
+                    <ResourceGraph variant={"memory"} unit={"gb"} size={"sm"} showMaxValue/>
+                    <ResourceGraph variant={"network"} unit={"mb"} isUnitOverTime={true} size={"sm"}/>
                     <ResourceGraph variant={"players"} unit={"count"} showHistory={false} size={"sm"} maxValue={10}/>
                 </motion.div>
                 <motion.div
