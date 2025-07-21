@@ -1,13 +1,12 @@
-use std::path::PathBuf;
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
 use crate::server::server_data::ServerData;
+use crate::server::filesystem;
 use actix_web::web::Json;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post};
+use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
 use serde_hash::hashids::encode_single;
 use serde_json::json;
-use crate::server::server_data;
 
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
@@ -37,8 +36,7 @@ pub async fn create_server(body: Json<serde_json::Value>, req: HttpRequest) -> R
     server.create(&pool).await?;
     pool.close().await;
 
-    std::fs::create_dir_all(PathBuf::from(server_data::SERVER_DIRECTORY).join(server.directory))?;
-
+    std::fs::create_dir_all(server.get_directory_path())?;
 
     Ok(HttpResponse::Created().json(json!({
         "message": "Server created successfully",
@@ -46,10 +44,16 @@ pub async fn create_server(body: Json<serde_json::Value>, req: HttpRequest) -> R
     })))
 }
 
-pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.service(actix_web::web::scope("/server").default_service(actix_web::web::to(|| async {
-        HttpResponse::NotFound().json(json!({
-            "error": "API endpoint not found".to_string(),
-        }))
-    })));
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/server")
+            .service(web::scope("/{server_id}").configure(filesystem::configure))
+            .service(get_servers)
+            .service(create_server)
+            .default_service(web::to(|| async {
+                HttpResponse::NotFound().json(json!({
+                    "error": "API endpoint not found".to_string(),
+                }))
+            })),
+    );
 }
