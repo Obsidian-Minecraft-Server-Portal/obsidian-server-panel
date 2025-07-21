@@ -1,6 +1,9 @@
+use anyhow::Result;
 use serde_hash::HashIds;
 
-#[derive(HashIds, Debug, Clone)]
+const SERVER_DIRECTORY: &str = "./servers";
+
+#[derive(HashIds, Debug, Clone, Default)]
 pub struct ServerData {
     /// Unique identifier for the server
     #[hash]
@@ -14,9 +17,9 @@ pub struct ServerData {
     /// Additional JVM arguments excluding -Xmx and -Xms
     pub java_args: String,
     /// Maximum memory in GB for JVM -Xmx argument
-    pub max_memory: i64,
+    pub max_memory: u8,
     /// Minimum memory in GB for JVM -Xms argument
-    pub min_memory: i64,
+    pub min_memory: u8,
     /// Additional Minecraft server arguments
     pub minecraft_args: String,
     /// Name/path of the server JAR file
@@ -32,7 +35,7 @@ pub struct ServerData {
     /// Whether automatic backups are enabled
     pub backup_enabled: bool,
     /// Backup interval in minutes
-    pub backup_interval: i64,
+    pub backup_interval: u64,
     /// Optional server description
     pub description: Option<String>,
     /// Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom'
@@ -44,9 +47,23 @@ pub struct ServerData {
     /// ID of the user who owns this server
     pub owner_id: u64,
     /// Timestamp of when the server was created (seconds since epoch)
-    pub created_at: i64,
+    pub created_at: u64,
     /// Timestamp of when the server was last updated (seconds since epoch)
-    pub updated_at: i64,
+    pub updated_at: u64,
     /// Timestamp of when the server was last started (seconds since epoch)
-    pub last_started: Option<i64>,
+    pub last_started: Option<u64>,
+}
+
+impl ServerData {
+    pub fn get_start_command(&self) -> String {
+        let mut command = format!("{} -Xmx{}G -Xms{}G {}", self.java_executable, self.max_memory, self.min_memory, self.java_args);
+
+        if !self.minecraft_args.is_empty() {
+            command.push_str(&format!(" {}", self.minecraft_args));
+        }
+
+        command.push_str(&format!(" -jar {} nogui", self.server_jar));
+
+        command
+    }
 }
