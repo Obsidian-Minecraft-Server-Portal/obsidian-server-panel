@@ -4,7 +4,7 @@ use serde_hash::HashIds;
 use sqlx::FromRow;
 use std::path::PathBuf;
 
-pub const SERVER_DIRECTORY: &str = "./servers";
+const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
 pub struct ServerData {
     /// Unique identifier for the server
@@ -109,6 +109,10 @@ impl ServerData {
 
         command.push_str(&format!(" -jar {} nogui", self.server_jar));
         command
+    }
+    
+    pub fn get_directory_path(&self) -> PathBuf {
+        PathBuf::from(SERVER_DIRECTORY).join(&self.directory)
     }
 
     fn generate_directory_name(name: &str) -> String {
