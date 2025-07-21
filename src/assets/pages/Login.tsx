@@ -3,16 +3,16 @@ import Checkbox from "../components/extended/Checkbox.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
 import {AnimatePresence, motion} from "framer-motion";
-import {useServerInfo} from "../providers/ServerInfoProvider.tsx";
+import {useHostInfo} from "../providers/ServerInfoProvider.tsx";
 import Signup from "./Signup.tsx";
 import {PasswordInput} from "../components/extended/PasswordInput.tsx";
 
 export default function Login()
 {
     const {login, isLoggingIn} = useAuthentication();
-    const {serverInfo} = useServerInfo();
+    const {hostInfo} = useHostInfo();
 
-    if (!serverInfo.has_admin_user)
+    if (!hostInfo.has_admin_user)
     {
         return <Signup/>;
     }
