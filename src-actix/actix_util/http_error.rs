@@ -142,6 +142,12 @@ impl From<HttpResponse> for Error {
     }
 }
 
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::Anyhow(anyhow::Error::new(err))
+    }
+}
+
 // Type alias for Result using custom Error type
 pub type Result<T> = std::result::Result<T, Error>;
 

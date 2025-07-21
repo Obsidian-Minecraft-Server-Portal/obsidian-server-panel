@@ -4,8 +4,8 @@ use serde_json::json;
 
 #[get("/versions")]
 pub async fn get_forge_versions() -> Result<impl Responder> {
-    let request = reqwest::Client::default().get("https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json").build().unwrap();
-    let text = reqwest::Client::default().execute(request).await.unwrap().text().await.unwrap();
+    let request = reqwest::Client::default().get("https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json").build()?;
+    let text = reqwest::Client::default().execute(request).await?.text().await?;
     Ok(HttpResponse::Ok().content_type("application/json").body(text))
 }
 
