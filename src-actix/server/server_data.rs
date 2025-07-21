@@ -4,7 +4,7 @@ use serde_hash::HashIds;
 use sqlx::FromRow;
 use std::path::PathBuf;
 
-const SERVER_DIRECTORY: &str = "./servers";
+pub const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
 pub struct ServerData {
     /// Unique identifier for the server
