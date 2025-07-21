@@ -1,5 +1,5 @@
 use actix_util::asset_endpoint::AssetsAppConfig;
-use actix_web::{App, HttpResponse, HttpServer, middleware, web};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use log::*;
 use serde_json::json;
@@ -10,8 +10,8 @@ mod actix_util;
 mod app_db;
 mod authentication;
 mod forge_endpoint;
-mod server_info_endpoint;
 mod server;
+mod host_info;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 const PORT: u16 = 8080;
@@ -39,12 +39,9 @@ pub async fn run() -> Result<()> {
                 let error = json!({ "error": format!("{}", err) });
                 actix_web::error::InternalError::from_response(err, HttpResponse::BadRequest().json(error)).into()
             }))
-            .service(
-                web::scope("api")
-                    .configure(server_info_endpoint::configure)
-                    .configure(authentication::configure)
-                    .service(web::scope("").wrap(authentication::AuthenticationMiddleware).configure(forge_endpoint::configure).configure(server::configure)),
-            )
+            .service(web::scope("api").configure(host_info::configure).configure(authentication::configure).service(
+                web::scope("").wrap(authentication::AuthenticationMiddleware).configure(forge_endpoint::configure).configure(server::configure),
+            ))
             .configure_frontend_routes()
     })
     .workers(4)
