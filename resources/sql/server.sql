@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `servers`
     `id`                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,       -- unique identifier for the server
     `name`              TEXT    NOT NULL,                                 -- e.g. 'My Minecraft Server'
     `directory`         TEXT    NOT NULL,                                 -- the directory name where the server files are stored, e.g. 'my_minecraft_server' or 'my_minecraft_server (2)'
-    `java_executable`   TEXT    NOT NULL,                                 -- path to the Java executable, e.g. '/usr/bin/java' or 'java' for system PATH
+    `java_executable`   TEXT             DEFAULT NULL,                    -- path to the Java executable, e.g. '/usr/bin/java' or 'java' for system PATH
     `java_args`         TEXT    NOT NULL DEFAULT '',                      -- additional arguments for Java excluding -Xmx and -Xms, e.g. '-XX:+UseG1GC -XX:MaxGCPauseMillis=200'
     `max_memory`        tinyint NOT NULL DEFAULT 4,                       -- in GB (e.g. 4GB, 8GB, etc.) this will translate to -Xmx${max_memory}G
     `min_memory`        tinyint NOT NULL DEFAULT 2,                       -- in GB (e.g. 2GB, 4GB, etc.) this will translate to -Xms${min_memory}G
