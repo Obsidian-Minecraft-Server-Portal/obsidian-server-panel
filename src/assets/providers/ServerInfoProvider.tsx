@@ -15,8 +15,8 @@ export type HostInfo = {
 export type ResourceData = {
     cpu_usage?: CpuUsage,
     allocated_memory?: number, // Memory allocated to the server in Bytes
-    disk_usage?: RWUsage, // Disk usage in read/write operations per second
-    network_usage?: RWUsage, // Network usage in read/write operations per second
+    disk_usage?: RWUsage[], // Disk usage in read/write operations per second
+    network_usage?: RWUsage[], // Network usage in read/write operations per second
 
 }
 
@@ -26,6 +26,7 @@ export type CpuUsage = {
 }
 
 export type RWUsage = {
+    device: string; // Device name (e.g., /dev/sda)
     read: number; // Read operations per second
     write: number; // Write operations per second
     mtu?: number; // Maximum Transmission Unit in bytes
@@ -59,10 +60,9 @@ export function ServerInfoProvider({children}: { children: ReactNode })
             console.log("SSE connection established.");
             getHostInfo().then(console.log);
         };
-        connection.addEventListener("message", (event) =>
+        connection.addEventListener("resource_update", (event) =>
         {
             const data = JSON.parse(event.data);
-            console.log("Received resource data:", data);
             setResources(data);
         });
         connection.onerror = (error) =>

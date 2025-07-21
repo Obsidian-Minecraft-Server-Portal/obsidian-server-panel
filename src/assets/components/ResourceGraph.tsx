@@ -40,6 +40,17 @@ const defaultProps: ResourceGraphProps = {
     decimalPlaces: 0
 };
 
+// Add this helper function at the top of your component, after the imports
+const chunkArray = <T, >(array: T[], chunkSize: number): T[][] =>
+{
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize)
+    {
+        chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+};
+
 export function ResourceGraph(props: ResourceGraphProps = defaultProps)
 {
     const {
@@ -65,7 +76,8 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     const maxHistoryPoints = 50;
 
     // Function to determine the best unit for byte values
-    const determineBestUnit = (bytes: number): string => {
+    const determineBestUnit = (bytes: number): string =>
+    {
         const tb = 1024 * 1024 * 1024 * 1024;
         const gb = 1024 * 1024 * 1024;
         const mb = 1024 * 1024;
@@ -79,34 +91,47 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     };
 
     // Function to convert bytes to the specified unit
-    const convertBytesToUnit = (bytes: number, targetUnit: string): number => {
-        switch (targetUnit) {
-            case "tb": return bytes / (1024 * 1024 * 1024 * 1024);
-            case "gb": return bytes / (1024 * 1024 * 1024);
-            case "mb": return bytes / (1024 * 1024);
-            case "kb": return bytes / 1024;
+    const convertBytesToUnit = (bytes: number, targetUnit: string): number =>
+    {
+        switch (targetUnit)
+        {
+            case "tb":
+                return bytes / (1024 * 1024 * 1024 * 1024);
+            case "gb":
+                return bytes / (1024 * 1024 * 1024);
+            case "mb":
+                return bytes / (1024 * 1024);
+            case "kb":
+                return bytes / 1024;
             case "b":
-            default: return bytes;
+            default:
+                return bytes;
         }
     };
 
     // Function to convert RWUsage to appropriate units
-    const convertRWUsage = (rwUsage: RWUsage, targetUnit: string): RWUsage => {
+    const convertRWUsage = (rwUsage: RWUsage, targetUnit: string): RWUsage =>
+    {
         return {
+            device: rwUsage.device,
             read: convertBytesToUnit(rwUsage.read, targetUnit),
             write: convertBytesToUnit(rwUsage.write, targetUnit),
             mtu: rwUsage.mtu
         };
     };
 
-    useEffect(() => {
+    useEffect(() =>
+    {
         // Auto-detect unit if needed
-        if (unit === "auto" && (variant === "memory" || variant === "network" || variant === "disk")) {
+        if (unit === "auto" && (variant === "memory" || variant === "network" || variant === "disk"))
+        {
             let referenceValue = 0;
 
-            if (variant === "memory" && typeof currentValue === 'number') {
+            if (variant === "memory" && typeof currentValue === "number")
+            {
                 referenceValue = currentValue;
-            } else if ((variant === "network" || variant === "disk") && typeof currentValue === 'object') {
+            } else if ((variant === "network" || variant === "disk") && typeof currentValue === "object")
+            {
                 referenceValue = Math.max(currentValue.read, currentValue.write);
             }
 
@@ -115,15 +140,19 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         }
 
         // Set max value based on variant and unit
-        if (variant === "memory" && hostInfo.resources.total_memory) {
+        if (variant === "memory" && hostInfo.resources.total_memory)
+        {
             const targetUnit = unit === "auto" ? autoUnit : unit;
             setMaxValue(convertBytesToUnit(hostInfo.resources.total_memory, targetUnit));
-        } else if ((variant === "network" || variant === "disk") && typeof currentValue === 'object' && currentValue.mtu) {
+        } else if ((variant === "network" || variant === "disk") && typeof currentValue === "object" && currentValue.mtu)
+        {
             const targetUnit = unit === "auto" ? autoUnit : unit;
             setMaxValue(convertBytesToUnit(currentValue.mtu, targetUnit));
-        } else if (!props.maxValue) {
+        } else if (!props.maxValue)
+        {
             // Keep existing default behavior if no MTU and no explicit maxValue
-            switch (variant) {
+            switch (variant)
+            {
                 case "cpu":
                     setMaxValue(100);
                     break;
@@ -146,10 +175,10 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                 newValue = resources.allocated_memory ?? 0;
                 break;
             case "network":
-                newValue = resources.network_usage ?? {read: 0, write: 0};
+                newValue = resources.network_usage?.[0] ?? {device: "", read: 0, write: 0};
                 break;
             case "disk":
-                newValue = resources.disk_usage ?? {read: 0, write: 0};
+                newValue = resources.disk_usage?.[0] ?? {device: "", read: 0, write: 0};
                 break;
             case "players":
                 newValue = 0;
@@ -157,12 +186,15 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         }
 
         // Convert values if using auto unit or specific byte units
-        if ((variant === "memory" || variant === "network" || variant === "disk") && unit !== "percent") {
+        if ((variant === "memory" || variant === "network" || variant === "disk") && unit !== "percent")
+        {
             const targetUnit = unit === "auto" ? autoUnit : unit;
 
-            if (variant === "memory" && typeof newValue === 'number') {
+            if (variant === "memory" && typeof newValue === "number")
+            {
                 newValue = convertBytesToUnit(newValue, targetUnit);
-            } else if ((variant === "network" || variant === "disk") && typeof newValue === 'object') {
+            } else if ((variant === "network" || variant === "disk") && typeof newValue === "object")
+            {
                 newValue = convertRWUsage(newValue, targetUnit);
             }
         }
@@ -173,7 +205,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         // Add new data point to history
         setValueHistory(prev =>
         {
-            const historyValue = typeof newValue === 'object' ? (newValue.read + newValue.write) : newValue;
+            const historyValue = typeof newValue === "object" ? (newValue.read + newValue.write) : newValue;
             const newDataPoint: HistoryDataPoint = {
                 time: now,
                 value: historyValue,
@@ -195,7 +227,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         {
             setCoreData(Array.from({length: hostInfo.resources.num_cores}, (_, i) => ({
                 core: `Core ${i + 1}`,
-                usage: Math.random() * 100
+                usage: resources.cpu_usage?.cores[i] || 0
             })));
         }
     }, [maxValue, variant, showCPUCores, hostInfo.resources.num_cores, resources, unit, autoUnit]);
@@ -225,7 +257,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         {
             setCoreData(Array.from({length: hostInfo.resources.num_cores}, (_, i) => ({
                 core: `Core ${i + 1}`,
-                usage: Math.random() * 100
+                usage: resources.cpu_usage?.cores[i] || 0
             })));
         }
     }, [maxValue, variant, showCPUCores, hostInfo.resources.num_cores]);
@@ -278,10 +310,16 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         }
     };
 
-    const formatRWValue = (rwValue: RWUsage) => {
+    const formatRWValue = (rwValue: RWUsage) =>
+    {
         const unitDisplay = getUnitDisplay();
         const suffix = isUnitOverTime ? "/s" : "";
-        return `R: ${rwValue.read.toFixed(decimalPlaces)}${unitDisplay}${suffix} W: ${rwValue.write.toFixed(decimalPlaces)}${unitDisplay}${suffix}`;
+        return (
+            <div className={"text-start"}>
+                <span className={"text-primary"}>R:</span> {rwValue.read.toFixed(decimalPlaces)}{unitDisplay}{suffix}<br/>
+                <span className={"text-primary"}>W:</span> {rwValue.write.toFixed(decimalPlaces)}{unitDisplay}{suffix}
+            </div>
+        );
     };
 
     // Size-based styling
@@ -294,7 +332,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-32",
                     title: "text-xs mb-1",
                     value: "text-2xl",
-                    rwValue: "text-xs",
+                    rwValue: "text-xl",
                     unit: "text-sm",
                     button: "w-3 h-3 top-1 right-1",
                     buttonIcon: "w-3 h-3",
@@ -305,7 +343,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-64",
                     title: "text-sm mb-2",
                     value: "text-4xl",
-                    rwValue: "text-sm",
+                    rwValue: "text-2xl",
                     unit: "text-lg",
                     button: "w-4 h-4 top-2 right-2",
                     buttonIcon: "w-4 h-4",
@@ -316,7 +354,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     card: "w-full h-80",
                     title: "text-base mb-3",
                     value: "text-6xl",
-                    rwValue: "text-base",
+                    rwValue: "text-3xl",
                     unit: "text-xl",
                     button: "w-5 h-5 top-3 right-3",
                     buttonIcon: "w-5 h-5",
@@ -324,13 +362,13 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                 };
             case "fullWidth":
                 return {
-                    card: "w-full h-96",
+                    card: "w-full h-48",
                     title: "text-lg mb-4",
-                    value: "text-8xl",
-                    rwValue: "text-lg",
+                    value: "text-4xl",
+                    rwValue: "text-3xl",
                     unit: "text-2xl",
-                    button: "w-6 h-6 top-4 right-4",
-                    buttonIcon: "w-6 h-6",
+                    button: "w-2 h-2 top-4 right-4",
+                    buttonIcon: "w-4 h-4",
                     padding: "p-8"
                 };
             default:
@@ -348,7 +386,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     };
 
     const sizeClasses = getSizeClasses();
-    const numericValue = typeof currentValue === 'object' ? (currentValue.read + currentValue.write) : currentValue;
+    const numericValue = typeof currentValue === "object" ? (currentValue.read + currentValue.write) : currentValue;
     const percentage = (numericValue / maxValue) * 100;
 
     // Custom tooltip formatter
@@ -371,7 +409,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     };
 
     return (
-        <Card className={`${sizeClasses.card} shadow-none`} radius={"none"}>
+        <Card className={`${sizeClasses.card} shadow-none transition-all duration-200`} radius={"none"}>
             <CardBody className={`${sizeClasses.padding} relative overflow-hidden`}>
                 {/* Progress Bar Overlay - Full Width and Height */}
                 {!isHistoryView && (
@@ -417,7 +455,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                         {/* Large Current Value */}
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center">
-                                {typeof currentValue === 'object' ? (
+                                {typeof currentValue === "object" ? (
                                     // Display RWUsage data
                                     <div className={`font-minecraft-header ${sizeClasses.rwValue} text-gray-800 dark:text-gray-200`}>
                                         {formatRWValue(currentValue)}
@@ -446,33 +484,38 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     // History Graph View
                     <div className="flex flex-col h-full pt-6 relative z-10">
                         {variant === "cpu" && showCPUCores ? (
-                            // CPU Cores Bar Chart
-                            <div className="flex-1">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={coreData}
-                                        margin={{top: 0, right: 0, left: 0, bottom: 0}}
-                                    >
-                                        <XAxis
-                                            dataKey="core"
-                                            tick={{fontSize: size === "sm" ? 8 : size === "lg" || size === "fullWidth" ? 12 : 10}}
-                                            className="font-minecraft-body"
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <RechartsTooltip
-                                            content={<CustomTooltip/>}
-                                            cursor={{fill: "rgba(0, 0, 0, 0.1)"}}
-                                        />
-                                        <Bar
-                                            dataKey="usage"
-                                            fill="hsl(var(--heroui-primary))"
-                                            fillOpacity={0.8}
-                                            radius={0}
-                                            isAnimationActive={false}
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                            // CPU Cores Bar Chart - Multiple rows of 16 cores each
+                            <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
+                                {chunkArray(coreData, 8).map((coreChunk, chunkIndex) => (
+                                    <div key={chunkIndex} className="min-h-0 flex-shrink-0" style={{height: `${100 / Math.ceil(coreData.length / 16)}%`}}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={coreChunk}
+                                                margin={{top: 0, right: 0, left: 0, bottom: 0}}
+                                            >
+                                                <XAxis
+                                                    dataKey="core"
+                                                    tick={{fontSize: size === "sm" ? 6 : size === "lg" || size === "fullWidth" ? 10 : 8}}
+                                                    className="font-minecraft-body"
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    interval={0} // Show all ticks
+                                                />
+                                                <RechartsTooltip
+                                                    content={<CustomTooltip/>}
+                                                    cursor={{fill: "rgba(0, 0, 0, 0.1)"}}
+                                                />
+                                                <Bar
+                                                    dataKey="usage"
+                                                    fill="hsl(var(--heroui-primary))"
+                                                    fillOpacity={1}
+                                                    radius={0}
+                                                    isAnimationActive={false}
+                                                />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             // Line Chart for History

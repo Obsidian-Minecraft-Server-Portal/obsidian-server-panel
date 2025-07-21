@@ -64,7 +64,7 @@ export function MainContentRenderer()
                 }}
             />
             <AnimatePresence mode="wait" initial={false}>
-                <main className={"w-full h-screen flex flex-col"}>
+                <main className={"w-full flex flex-col"}>
                     <Navigation/>
                     <Routes location={location} key={location.pathname}>
                         <Route>

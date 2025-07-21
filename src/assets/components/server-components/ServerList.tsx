@@ -19,7 +19,7 @@ export default function ServerList()
                         </Tooltip>
                     </div>
                 </CardHeader>
-                <CardBody className={"overflow-y-auto flex flex-col gap-2 grow shrink min-h-[200px] max-h-[800px] h-[calc(100dvh_-_308px)]"}>
+                <CardBody className={"overflow-y-auto flex flex-col gap-2 grow shrink min-h-[200px] h-full"}>
                     {Array.from({length: 50}).map((_, i) => (
                         <ServerItem key={i} serverId={i.toString(36)} serverName={`Server ${i + 1}`}/>
                     ))}
