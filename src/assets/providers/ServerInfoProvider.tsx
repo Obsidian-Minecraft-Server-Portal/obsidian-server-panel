@@ -1,44 +1,91 @@
 import $ from "jquery";
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 
-export type ServerInfo = {
+export type HostInfo = {
     version: string,
     is_development: boolean,
     has_admin_user: boolean,
+    resources: {
+        os: string,
+        num_cores: number,
+        total_memory: number,
+    }
 }
 
-interface ServerInfoContextType
+export type ResourceData = {
+    cpu_usage?: CpuUsage,
+    allocated_memory?: number, // Memory allocated to the server in Bytes
+    disk_usage?: RWUsage, // Disk usage in read/write operations per second
+    network_usage?: RWUsage, // Network usage in read/write operations per second
+
+}
+
+export type CpuUsage = {
+    total_usage: number; // Total CPU usage percentage
+    cores: number[]; // Array of CPU usage percentages per core
+}
+
+export type RWUsage = {
+    read: number; // Read operations per second
+    write: number; // Write operations per second
+    mtu?: number; // Maximum Transmission Unit in bytes
+}
+
+interface HostInfoContextType
 {
-    serverInfo: ServerInfo;
-    refreshServerInfo: () => Promise<void>;
+    hostInfo: HostInfo;
+    resources: ResourceData;
+    refreshHostInfo: () => Promise<void>;
 }
 
-const ServerInfoContext = createContext<ServerInfoContextType | undefined>(undefined);
+const HostInfoContext = createContext<HostInfoContextType | undefined>(undefined);
 
 export function ServerInfoProvider({children}: { children: ReactNode })
 {
-    const [serverInfo, setServerInfo] = useState<ServerInfo>({} as ServerInfo);
+    const [hostInfo, setHostInfo] = useState<HostInfo>({resources: {total_memory: 1, num_cores: 1}} as HostInfo);
+    const [resources, setResources] = useState<ResourceData>({} as ResourceData);
 
-    const getServerInfo = useCallback(async () =>
+    const getHostInfo = useCallback(async () =>
     {
-        setServerInfo(await $.get("/api/"));
-    }, [setServerInfo]);
+        setHostInfo(await $.get("/api/info"));
+    }, [setHostInfo]);
 
     useEffect(() =>
     {
-        getServerInfo().then(console.log);
+        getHostInfo().then(console.log);
+        let connection = new EventSource("/api/info/resources", {withCredentials: true});
+        connection.onopen = () =>
+        {
+            console.log("SSE connection established.");
+            getHostInfo().then(console.log);
+        };
+        connection.addEventListener("message", (event) =>
+        {
+            const data = JSON.parse(event.data);
+            console.log("Received resource data:", data);
+            setResources(data);
+        });
+        connection.onerror = (error) =>
+        {
+            console.error("Error in SSE connection:", error);
+            connection.close();
+        };
+        return () =>
+        {
+            connection.close();
+        };
     }, []);
 
     return (
-        <ServerInfoContext.Provider value={{serverInfo, refreshServerInfo: getServerInfo}}>
+        <HostInfoContext.Provider value={{hostInfo, refreshHostInfo: getHostInfo, resources}}>
             {children}
-        </ServerInfoContext.Provider>
+        </HostInfoContext.Provider>
     );
 }
 
-export function useServerInfo(): ServerInfoContextType
+export function useHostInfo(): HostInfoContextType
 {
-    const context = useContext(ServerInfoContext);
+    const context = useContext(HostInfoContext);
     if (!context)
     {
         throw new Error("useServerInfo must be used within a ServerInfoProvider");
