@@ -1,6 +1,6 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {addToast} from "@heroui/react";
-import {FabricVersionList, getFabricVersions} from "../ts/fabric-versions.ts";
+import {FabricVersionList, getFabricVersions} from "../../ts/fabric-versions.ts";
 
 interface FabricVersionsContextType
 {

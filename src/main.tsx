@@ -14,11 +14,11 @@ import Navigation from "./assets/components/navigation/Navigation.tsx";
 import {ServerInfoProvider} from "./assets/providers/ServerInfoProvider.tsx";
 import Footer from "./assets/components/Footer.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
-import {MinecraftVersionsProvider} from "./assets/providers/MinecraftVersionsProvider.tsx";
-import {ForgeVersionsProvider} from "./assets/providers/ForgeVersionsProvider.tsx";
-import {FabricVersionsProvider} from "./assets/providers/FabricVersionsProvider.tsx";
-import {QuiltVersionsProvider} from "./assets/providers/QuiltVersionsProvider.tsx";
-import {NeoForgeVersionsProvider} from "./assets/providers/NeoForgeVersionsProvider.tsx";
+import {MinecraftVersionsProvider} from "./assets/providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
+import {ForgeVersionsProvider} from "./assets/providers/LoaderVersionProviders/ForgeVersionsProvider.tsx";
+import {FabricVersionsProvider} from "./assets/providers/LoaderVersionProviders/FabricVersionsProvider.tsx";
+import {QuiltVersionsProvider} from "./assets/providers/LoaderVersionProviders/QuiltVersionsProvider.tsx";
+import {NeoForgeVersionsProvider} from "./assets/providers/LoaderVersionProviders/NeoForgeVersionsProvider.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>

@@ -1,6 +1,6 @@
 import {Autocomplete, AutocompleteItem} from "@heroui/react";
 import {useEffect, useState} from "react";
-import {useForgeVersions} from "../../../providers/ForgeVersionsProvider.tsx";
+import {useForgeVersions} from "../../../providers/LoaderVersionProviders/ForgeVersionsProvider.tsx";
 
 type ForgeVersionSelectorProps = {
     minecraftVersion: string;

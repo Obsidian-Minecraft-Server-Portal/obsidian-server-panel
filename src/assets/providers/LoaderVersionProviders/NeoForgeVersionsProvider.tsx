@@ -1,6 +1,6 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {addToast} from "@heroui/react";
-import {NeoForgeVersionList, getNeoForgeVersions} from "../ts/neoforge-versions.ts";
+import {NeoForgeVersionList, getNeoForgeVersions} from "../../ts/neoforge-versions.ts";
 
 interface NeoForgeVersionsContextType
 {

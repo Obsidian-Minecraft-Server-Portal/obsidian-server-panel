@@ -1,7 +1,7 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {addToast} from "@heroui/react";
-import {ForgeVersionList, getForgeVersions} from "../ts/forge-versions.ts";
-import {useAuthentication} from "./AuthenticationProvider.tsx";
+import {ForgeVersionList, getForgeVersions} from "../../ts/forge-versions.ts";
+import {useAuthentication} from "../AuthenticationProvider.tsx";
 
 interface ForgeVersionsContextType
 {

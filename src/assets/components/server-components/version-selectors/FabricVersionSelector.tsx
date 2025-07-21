@@ -1,6 +1,6 @@
 import {Autocomplete, AutocompleteItem} from "@heroui/react";
 import {useEffect, useState} from "react";
-import {useFabricVersions} from "../../../providers/FabricVersionsProvider.tsx";
+import {useFabricVersions} from "../../../providers/LoaderVersionProviders/FabricVersionsProvider.tsx";
 
 type FabricVersionSelectorProps = {
     minecraftVersion: string;

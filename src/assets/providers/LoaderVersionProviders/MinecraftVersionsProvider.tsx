@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import {getMinecraftVersions, MinecraftVersionList} from "../ts/minecraft-versions.ts";
+import {getMinecraftVersions, MinecraftVersionList} from "../../ts/minecraft-versions.ts";
 import {addToast} from "@heroui/react";
 
 interface MinecraftVersionsContextType

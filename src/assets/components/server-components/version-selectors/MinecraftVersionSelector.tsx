@@ -2,7 +2,7 @@ import {Autocomplete, AutocompleteItem, Button} from "@heroui/react";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
-import {useMinecraftVersions} from "../../../providers/MinecraftVersionsProvider.tsx";
+import {useMinecraftVersions} from "../../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 
 type MinecraftVersionSelectorProps = {
     onVersionChange?: (version: string | undefined) => void;

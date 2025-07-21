@@ -1,6 +1,6 @@
 import {Autocomplete, AutocompleteItem} from "@heroui/react";
 import {useEffect, useState} from "react";
-import {useQuiltVersions} from "../../../providers/QuiltVersionsProvider.tsx";
+import {useQuiltVersions} from "../../../providers/LoaderVersionProviders/QuiltVersionsProvider.tsx";
 
 type QuiltVersionSelectorProps = {
     minecraftVersion: string;
