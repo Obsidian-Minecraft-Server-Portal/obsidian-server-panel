@@ -115,6 +115,33 @@ impl ServerData {
         PathBuf::from(SERVER_DIRECTORY).join(&self.directory)
     }
 
+    /// Update the server structure data
+    /// This will not update the database, use `server.save(&SqlitePool)` for that
+    pub fn update(&mut self, server_data: &ServerData) -> Result<()> {
+        self.name = server_data.name.clone();
+        self.directory = server_data.directory.clone();
+        self.java_executable = server_data.java_executable.clone();
+        self.java_args = server_data.java_args.clone();
+        self.max_memory = server_data.max_memory;
+        self.min_memory = server_data.min_memory;
+        self.minecraft_args = server_data.minecraft_args.clone();
+        self.server_jar = server_data.server_jar.clone();
+        self.upnp = server_data.upnp;
+        self.status = server_data.status.clone();
+        self.auto_start = server_data.auto_start;
+        self.auto_restart = server_data.auto_restart;
+        self.backup_enabled = server_data.backup_enabled;
+        self.backup_interval = server_data.backup_interval;
+        self.description = server_data.description.clone();
+        self.minecraft_version = server_data.minecraft_version.clone();
+        self.server_type = server_data.server_type.clone();
+        self.loader_version = server_data.loader_version.clone();
+        self.owner_id = server_data.owner_id;
+        self.last_started = server_data.last_started;
+        self.updated_at = chrono::Utc::now().timestamp() as u64;
+        Ok(())
+    }
+
     fn generate_directory_name(name: &str) -> String {
         let dir_name = regex::Regex::new(r"[^a-zA-Z0-9_\-]").unwrap().replace_all(name, "_").to_string().to_lowercase();
         let mut path = PathBuf::from(SERVER_DIRECTORY).join(&dir_name);
