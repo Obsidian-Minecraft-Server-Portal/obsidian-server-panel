@@ -1,11 +1,10 @@
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
-use crate::server::server_data::ServerData;
 use crate::server::filesystem;
-use actix_web::web::Json;
-use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use crate::server::server_data::ServerData;
+use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
-use serde_hash::hashids::encode_single;
+use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
 
 #[get("")]
@@ -15,13 +14,52 @@ pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
 
     let pool = crate::app_db::open_pool().await?;
     let servers = ServerData::list(user_id, &pool).await?;
-
     pool.close().await;
+
     Ok(HttpResponse::Ok().json(servers))
 }
 
-#[post("")]
-pub async fn create_server(body: Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
+#[get("{server_id}")]
+pub async fn get_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let pool = crate::app_db::open_pool().await?;
+    let server = ServerData::get(server_id, user_id, &pool).await?;
+    pool.close().await;
+
+    if server.is_none() {
+        return Ok(HttpResponse::NotFound().json(json!({
+            "error": "Server not found".to_string(),
+        })));
+    }
+    Ok(HttpResponse::Ok().json(server))
+}
+
+#[delete("{server_id}")]
+pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let pool = crate::app_db::open_pool().await?;
+    let server = ServerData::get(server_id, user_id, &pool).await?;
+
+    if let Some(server) = server {
+        server.delete(&pool).await?;
+        pool.close().await;
+        Ok(HttpResponse::Ok().finish())
+    } else {
+        pool.close().await;
+        Ok(HttpResponse::NotFound().json(json!({
+            "error": "Server not found".to_string(),
+        })))
+    }
+}
+
+#[put("")]
+pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
     let body = body.0;
@@ -44,12 +82,34 @@ pub async fn create_server(body: Json<serde_json::Value>, req: HttpRequest) -> R
     })))
 }
 
+#[post("{server_id}")]
+pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerData>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let pool = crate::app_db::open_pool().await?;
+    let server = ServerData::get(server_id, user_id, &pool).await?;
+    if let Some(mut server) = server {
+        server.update(&body)?;
+        server.save(&pool).await?;
+        pool.close().await;
+        Ok(HttpResponse::Ok().finish())
+    } else {
+        pool.close().await;
+        Ok(HttpResponse::NotFound().json(json!({
+            "error": "Server not found".to_string(),
+        })))
+    }
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
-            .service(web::scope("/{server_id}").configure(filesystem::configure))
             .service(get_servers)
             .service(create_server)
+            .service(get_server)
+            .service(web::scope("/{server_id}").configure(filesystem::configure))
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),
