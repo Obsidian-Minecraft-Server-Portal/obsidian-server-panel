@@ -61,13 +61,18 @@ export type CreateServerData = {
 interface ServerContextType
 {
     server: Server | null;
+    servers: Server[];
     loadServer: (id: string) => Promise<void>;
+    loadServers: () => Promise<void>;
     createServer: (server: CreateServerData) => Promise<void>;
     updateServer: (server: Partial<Server>) => Promise<void>;
     deleteServer: () => Promise<void>;
     startServer: () => Promise<void>;
     stopServer: () => Promise<void>;
     restartServer: () => Promise<void>;
+    killServer: () => Promise<void>;
+    sendCommand: (command: string) => Promise<void>;
+    subscribeToConsole: (callback: (data: string) => void) => () => void;
     backupServer: () => Promise<void>;
     getServerStatus: () => Promise<string>;
 }
@@ -77,12 +82,20 @@ const ServerContext = createContext<ServerContextType | undefined>(undefined);
 export function ServerProvider({children}: { children: ReactNode })
 {
     const [server, setServer] = useState<Server | null>(null);
+    const [servers, setServers] = useState<Server[]>([]);
 
     const loadServer = async (id: string) =>
     {
         let server: Server = await $.get(`/api/server/${id}`);
         setServer(server);
     };
+
+    const loadServers = async () =>
+    {
+        let servers: Server[] = await $.get("/api/server");
+        setServers(servers);
+    };
+
     const createServer = async (server: CreateServerData) =>
     {
         let newServer: Server = await $.ajax({
@@ -92,7 +105,41 @@ export function ServerProvider({children}: { children: ReactNode })
             data: JSON.stringify(server)
         });
         setServer(newServer);
+        // Refresh servers list
+        await loadServers();
     };
+
+    const updateServer = useCallback(async (updates: Partial<Server>) =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        const updatedServer = {...server, ...updates};
+        await $.ajax({
+            url: `/api/server/${server.id}`,
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(updatedServer)
+        });
+
+        setServer(updatedServer);
+        // Update in servers list if present
+        setServers(prev => prev.map(s => s.id === server.id ? updatedServer : s));
+    }, [server]);
+
+    const deleteServer = useCallback(async () =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        await $.ajax({
+            url: `/api/server/${server.id}`,
+            type: "DELETE"
+        });
+
+        setServer(null);
+        // Remove from servers list
+        setServers(prev => prev.filter(s => s.id !== server.id));
+    }, [server]);
+
     const startServer = useCallback(async () =>
     {
         if (!server) throw new Error("No server loaded");
@@ -106,16 +153,139 @@ export function ServerProvider({children}: { children: ReactNode })
             if (server.status === "running" || server.status === "error" || server.status === "crashed")
             {
                 setServer(server);
+                setServers(prev => prev.map(s => s.id === id ? server : s));
                 clearInterval(statusPoll);
             }
-
         }, 1000);
-
     }, [server]);
 
+    const stopServer = useCallback(async () =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        await $.post(`/api/server/${server.id}/stop`);
+        setServer(prev => prev ? {...prev, status: "stopping"} : null);
+        let id = server.id;
+
+        let statusPoll = setInterval(async () =>
+        {
+            let server: Server = await $.get(`/api/server/${id}`);
+            if (server.status === "stopped" || server.status === "error" || server.status === "crashed")
+            {
+                setServer(server);
+                setServers(prev => prev.map(s => s.id === id ? server : s));
+                clearInterval(statusPoll);
+            }
+        }, 1000);
+    }, [server]);
+
+    const restartServer = useCallback(async () =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        await $.post(`/api/server/${server.id}/restart`);
+        setServer(prev => prev ? {...prev, status: "stopping"} : null);
+        let id = server.id;
+
+        let statusPoll = setInterval(async () =>
+        {
+            let server: Server = await $.get(`/api/server/${id}`);
+            if (server.status === "running" || server.status === "error" || server.status === "crashed")
+            {
+                setServer(server);
+                setServers(prev => prev.map(s => s.id === id ? server : s));
+                clearInterval(statusPoll);
+            }
+        }, 1000);
+    }, [server]);
+
+    const killServer = useCallback(async () =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        await $.post(`/api/server/${server.id}/kill`);
+        setServer(prev => prev ? {...prev, status: "stopping"} : null);
+        let id = server.id;
+
+        let statusPoll = setInterval(async () =>
+        {
+            let server: Server = await $.get(`/api/server/${id}`);
+            if (server.status === "stopped" || server.status === "error" || server.status === "crashed")
+            {
+                setServer(server);
+                setServers(prev => prev.map(s => s.id === id ? server : s));
+                clearInterval(statusPoll);
+            }
+        }, 1000);
+    }, [server]);
+
+    const sendCommand = useCallback(async (command: string) =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        await $.ajax({
+            url: `/api/server/${server.id}/send-command`,
+            type: "POST",
+            contentType: "text/plain",
+            data: command
+        });
+    }, [server]);
+
+    const subscribeToConsole = useCallback((callback: (data: string) => void): (() => void) =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        const eventSource = new EventSource(`/api/server/${server.id}/console`);
+        const eventName = `server-${server.id}-console`;
+
+        const handleMessage = (event: MessageEvent) => {
+            callback(event.data);
+        };
+
+        eventSource.addEventListener(eventName, handleMessage);
+
+        // Return cleanup function
+        return () => {
+            eventSource.removeEventListener(eventName, handleMessage);
+            eventSource.close();
+        };
+    }, [server]);
+
+    const backupServer = useCallback(async () =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        // Note: There's no backup endpoint in the server_endpoint.rs file
+        // You may need to implement this endpoint on the backend
+        throw new Error("Backup endpoint not implemented");
+    }, [server]);
+
+    const getServerStatus = useCallback(async (): Promise<string> =>
+    {
+        if (!server) throw new Error("No server loaded");
+
+        const serverData: Server = await $.get(`/api/server/${server.id}`);
+        return serverData.status;
+    }, [server]);
 
     return (
-        <ServerContext.Provider value={{server, loadServer, createServer, startServer}}>
+        <ServerContext.Provider value={{
+            server,
+            servers,
+            loadServer,
+            loadServers,
+            createServer,
+            updateServer,
+            deleteServer,
+            startServer,
+            stopServer,
+            restartServer,
+            killServer,
+            sendCommand,
+            subscribeToConsole,
+            backupServer,
+            getServerStatus
+        }}>
             {children}
         </ServerContext.Provider>
     );
