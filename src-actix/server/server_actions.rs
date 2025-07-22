@@ -2,7 +2,7 @@ use crate::app_db;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::{bail, Result};
-use log::{debug, error};
+use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -59,7 +59,7 @@ impl ServerData {
 
     pub async fn kill_server(&mut self) -> Result<()> {
         let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        let mut servers = servers.lock().await;
+        let servers = servers.lock().await;
         let pid = *servers.get(&self.id).expect("Server not running");
         let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
         process.kill().await?;
@@ -105,6 +105,24 @@ impl ServerData {
         let pid = *servers.get(&self.id).expect("Server not running");
         let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
         process.send_input(command).await?;
+
+        Ok(())
+    }
+
+    pub async fn attach_to_stdout(&self, sender: tokio::sync::mpsc::Sender<actix_web_lab::sse::Event>) -> Result<()> {
+        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+        let servers = servers.lock().await;
+        let pid = *servers.get(&self.id).expect("Server not running");
+        let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+        loop {
+            let line = process.receive_output().await?;
+            if let Some(line) = line {
+                let message = actix_web_lab::sse::Data::new(line);
+                if sender.send(message.into()).await.is_err() {
+                    break;
+                }
+            }
+        }
 
         Ok(())
     }

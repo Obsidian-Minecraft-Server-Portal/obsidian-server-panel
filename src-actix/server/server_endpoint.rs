@@ -1,3 +1,4 @@
+use std::time::Duration;
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
 use crate::server::filesystem;
@@ -31,6 +32,7 @@ pub async fn get_server(server_id: web::Path<String>, req: HttpRequest) -> Resul
     }
     Ok(HttpResponse::Ok().json(server))
 }
+
 
 #[delete("{server_id}")]
 pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
@@ -120,6 +122,22 @@ pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: H
     server.send_command(body).await?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[get("{server_id}/console")]
+pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> Result< impl Responder> {
+    let (sender, receiver) = tokio::sync::mpsc::channel(100);
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    tokio::spawn(async move {
+       server.attach_to_stdout(sender).await
+    });
+
+
+    Ok(actix_web_lab::sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
