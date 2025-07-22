@@ -2,7 +2,7 @@ use crate::app_db;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::{bail, Result};
-use log::{debug, error, warn};
+use log::{debug, error};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -13,6 +13,8 @@ static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, u32>>>> = OnceLock::new()
 
 impl ServerData {
     pub async fn start_server(&mut self) -> Result<()> {
+        self.status = ServerStatus::Starting;
+        self.save().await?;
         let java_executable =
             if let Some(java_executable) = self.java_executable.clone() { java_executable } else { bail!("java_executable is not set") };
         let arguments = format!("{} {} {}", &self.java_args, &self.server_jar, &self.minecraft_args);
@@ -42,16 +44,42 @@ impl ServerData {
         servers.lock().await.insert(self.id, pid);
         debug!("Server started with pid {}", pid);
         self.last_started = Some(chrono::Utc::now().timestamp() as u64);
-        self.status = ServerStatus::Running;
-        let pool = app_db::open_pool().await?;
-        self.save(&pool).await?;
-        pool.close().await;
+        self.save().await?;
+        
+        let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+
+        loop {
+            let line = process.receive_output().await?;
+            if let Some(line) = line {
+                if line.contains("Done (") {
+                    self.status = ServerStatus::Running;
+                    self.save().await?;
+                    break;
+                }
+            }
+        }
 
         Ok(())
     }
 
     pub async fn stop_server(&mut self) -> Result<()> {
         self.send_command("stop").await?;
+
+        let mut iterations = 0;
+        loop {
+            let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+            let servers = servers.lock().await;
+            if servers.get(&self.id).is_none() {
+                break;
+            }
+            iterations += 1;
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            if iterations >= 30 {
+                // 30 seconds
+                return self.kill_server().await;
+            }
+        }
+
         self.remove_server().await?;
 
         Ok(())
@@ -62,7 +90,7 @@ impl ServerData {
         let servers = servers.lock().await;
         let pid = *servers.get(&self.id).expect("Server not running");
         let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
-        process.kill().await?;
+        process.shutdown(Duration::from_secs(10)).await?; // tries to gracefully shutdown, but after 10 seconds it will kill the process.
         self.remove_server().await?;
 
         Ok(())
@@ -80,9 +108,7 @@ impl ServerData {
         let mut servers = servers.lock().await;
         servers.remove(&self.id);
         self.status = ServerStatus::Stopped;
-        let pool = app_db::open_pool().await?;
-        self.save(&pool).await?;
-        pool.close().await;
+        self.save().await?;
 
         Ok(())
     }
@@ -92,9 +118,7 @@ impl ServerData {
         let mut servers = servers.lock().await;
         servers.remove(&self.id);
         self.status = ServerStatus::Crashed;
-        let pool = app_db::open_pool().await?;
-        self.save(&pool).await?;
-        pool.close().await;
+        self.save().await?;
 
         Ok(())
     }
