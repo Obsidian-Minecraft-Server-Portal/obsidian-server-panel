@@ -82,6 +82,7 @@ impl ServerData {
             .bind(self.owner_id as i64)
             .execute(pool)
             .await?;
+        tokio::fs::remove_dir_all(self.get_directory_path()).await?;
 
         Ok(())
     }
