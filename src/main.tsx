@@ -15,10 +15,7 @@ import {HostInfoProvider} from "./assets/providers/HostInfoProvider.tsx";
 import Footer from "./assets/components/Footer.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {MinecraftVersionsProvider} from "./assets/providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
-import {ForgeVersionsProvider} from "./assets/providers/LoaderVersionProviders/ForgeVersionsProvider.tsx";
-import {FabricVersionsProvider} from "./assets/providers/LoaderVersionProviders/FabricVersionsProvider.tsx";
-import {QuiltVersionsProvider} from "./assets/providers/LoaderVersionProviders/QuiltVersionsProvider.tsx";
-import {NeoForgeVersionsProvider} from "./assets/providers/LoaderVersionProviders/NeoForgeVersionsProvider.tsx";
+import {ServerProvider} from "./assets/providers/ServerProvider.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
@@ -27,15 +24,9 @@ ReactDOM.createRoot($("#root")[0]!).render(
                 <HostInfoProvider>
                     <AuthenticationProvider>
                         <MinecraftVersionsProvider>
-                            <ForgeVersionsProvider>
-                                <FabricVersionsProvider>
-                                    <QuiltVersionsProvider>
-                                        <NeoForgeVersionsProvider>
-                                            <MainContentRenderer/>
-                                        </NeoForgeVersionsProvider>
-                                    </QuiltVersionsProvider>
-                                </FabricVersionsProvider>
-                            </ForgeVersionsProvider>
+                            <ServerProvider>
+                                <MainContentRenderer/>
+                            </ServerProvider>
                         </MinecraftVersionsProvider>
                     </AuthenticationProvider>
                 </HostInfoProvider>

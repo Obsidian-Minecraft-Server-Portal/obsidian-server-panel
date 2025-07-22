@@ -1,6 +1,10 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {getMinecraftVersions, MinecraftVersionList} from "../../ts/minecraft-versions.ts";
 import {addToast} from "@heroui/react";
+import {ForgeVersionsProvider} from "./ForgeVersionsProvider.tsx";
+import {FabricVersionsProvider} from "./FabricVersionsProvider.tsx";
+import {QuiltVersionsProvider} from "./QuiltVersionsProvider.tsx";
+import {NeoForgeVersionsProvider} from "./NeoForgeVersionsProvider.tsx";
 
 interface MinecraftVersionsContextType
 {
@@ -36,8 +40,17 @@ export function MinecraftVersionsProvider({children}: { children: ReactNode })
     }, []);
 
     return (
+
         <MinecraftVersionsContext.Provider value={{minecraftVersions, refreshMinecraftVersions}}>
-            {children}
+            <ForgeVersionsProvider>
+                <FabricVersionsProvider>
+                    <QuiltVersionsProvider>
+                        <NeoForgeVersionsProvider>
+                            {children}
+                        </NeoForgeVersionsProvider>
+                    </QuiltVersionsProvider>
+                </FabricVersionsProvider>
+            </ForgeVersionsProvider>
         </MinecraftVersionsContext.Provider>
     );
 }
