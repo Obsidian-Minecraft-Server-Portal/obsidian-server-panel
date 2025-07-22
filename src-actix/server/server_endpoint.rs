@@ -1,4 +1,3 @@
-use std::time::Duration;
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
 use crate::server::filesystem;
@@ -7,6 +6,9 @@ use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpRespo
 use anyhow::anyhow;
 use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
+use std::time::Duration;
+use log::error;
+use crate::server::server_status::ServerStatus;
 
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
@@ -32,7 +34,6 @@ pub async fn get_server(server_id: web::Path<String>, req: HttpRequest) -> Resul
     }
     Ok(HttpResponse::Ok().json(server))
 }
-
 
 #[delete("{server_id}")]
 pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
@@ -89,7 +90,7 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
     let server = ServerData::get_with_pool(server_id, user_id, &pool).await?;
     if let Some(mut server) = server {
         server.update(&body)?;
-        server.save(&pool).await?;
+        server.save_with_pool(&pool).await?;
         pool.close().await;
         Ok(HttpResponse::Ok().finish())
     } else {
@@ -107,7 +108,49 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
-    server.start_server().await?;
+    tokio::spawn(async move {
+        if let Err(e) = server.start_server().await {
+            error!("Failed to start server {}: {}", server.id, e);
+            // Optionally update server status to failed/crashed
+            server.status = ServerStatus::Crashed;
+            if let Err(save_err) = server.save().await {
+                error!("Failed to save server status after start failure: {}", save_err);
+            }
+        }
+    });
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[post("{server_id}/stop")]
+pub async fn stop_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    server.stop_server().await?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[post("{server_id}/restart")]
+pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    server.restart_server().await?;
+    Ok(HttpResponse::Ok().finish())
+}
+#[post("{server_id}/kill")]
+pub async fn kill_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    server.kill_server().await?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -125,17 +168,14 @@ pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: H
 }
 
 #[get("{server_id}/console")]
-pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> Result< impl Responder> {
+pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::mpsc::channel(100);
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
-    tokio::spawn(async move {
-       server.attach_to_stdout(sender).await
-    });
-
+    tokio::spawn(async move { server.attach_to_stdout(sender).await });
 
     Ok(actix_web_lab::sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
 }
@@ -146,6 +186,14 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(get_servers)
             .service(create_server)
             .service(get_server)
+            .service(update_server)
+            .service(delete_server)
+            .service(start_server)
+            .service(stop_server)
+            .service(restart_server)
+            .service(kill_server)
+            .service(send_command)
+            .service(get_console_out)
             .service(web::scope("/{server_id}").configure(filesystem::configure))
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
