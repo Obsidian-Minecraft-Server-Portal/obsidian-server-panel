@@ -1,11 +1,11 @@
+use crate::app_db;
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
+use crate::server::server_type::ServerType;
 use anyhow::Result;
 use serde_hash::HashIds;
 use sqlx::FromRow;
 use std::path::PathBuf;
-use crate::app_db;
-use crate::server::server_type::ServerType;
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -145,18 +145,25 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn get(id: u64, user_id: u64)->Result<Option<Self>>{
+    pub async fn get(id: u64, user_id: u64) -> Result<Option<Self>> {
         let pool = app_db::open_pool().await?;
         let server = Self::get_with_pool(id, user_id, &pool).await?;
         pool.close().await;
         Ok(server)
     }
-    
+
     pub async fn list(user_id: u64) -> Result<Vec<Self>> {
         let pool = app_db::open_pool().await?;
         let servers = Self::list_with_pool(user_id, &pool).await?;
         pool.close().await;
         Ok(servers)
+    }
+
+    pub async fn save(&self) -> Result<()> {
+        let pool = app_db::open_pool().await?;
+        self.save_with_pool(&pool).await?;
+        pool.close().await;
+        Ok(())
     }
 
     fn generate_directory_name(name: &str) -> String {

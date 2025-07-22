@@ -45,7 +45,7 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn save(&self, pool: &SqlitePool) -> Result<()> {
+    pub async fn save_with_pool(&self, pool: &SqlitePool) -> Result<()> {
         sqlx::query(
             r#"UPDATE servers SET name = ?, directory = ?, java_executable = ?, java_args = ?, max_memory = ?, min_memory = ?, minecraft_args = ?, server_jar = ?, upnp = ?, status = ?, auto_start = ?, auto_restart = ?, backup_enabled = ?, backup_interval = ?, description = ?, minecraft_version = ?, server_type = ?, loader_version = ?, last_started = ?, updated_at = ? WHERE id = ? AND owner_id = ?"#)
             .bind(&self.name)
