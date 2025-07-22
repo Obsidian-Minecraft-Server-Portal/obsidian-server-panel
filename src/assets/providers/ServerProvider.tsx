@@ -1,4 +1,4 @@
-import {createContext, ReactNode, useContext, useState} from "react";
+import {createContext, ReactNode, useCallback, useContext, useState} from "react";
 import $ from "jquery";
 
 export type Server =
@@ -24,7 +24,7 @@ export type Server =
         /** Whether UPnP port forwarding is enabled */
         upnp: boolean;
         /** Server status: 'stopped', 'starting', 'running', 'stopping', 'error' */
-        status: "stopped" | "starting" | "running" | "stopping" | "error";
+        status: "stopped" | "starting" | "running" | "stopping" | "error" | "crashed";
         /** Whether server should start automatically on boot */
         auto_start: boolean;
         /** Whether server should restart automatically if it crashes */
@@ -93,11 +93,29 @@ export function ServerProvider({children}: { children: ReactNode })
         });
         setServer(newServer);
     };
+    const startServer = useCallback(async () =>
+    {
+        if (!server) throw new Error("No server loaded");
+        await $.post(`/api/server/${server.id}/start`);
+        setServer(prev => prev ? {...prev, status: "starting"} : null);
+        let id = server.id;
 
+        let statusPoll = setInterval(async () =>
+        {
+            let server: Server = await $.get(`/api/server/${id}`);
+            if (server.status === "running" || server.status === "error" || server.status === "crashed")
+            {
+                setServer(server);
+                clearInterval(statusPoll);
+            }
+
+        }, 1000);
+
+    }, [server]);
 
 
     return (
-        <ServerContext.Provider value={{server, loadServer, createServer}}>
+        <ServerContext.Provider value={{server, loadServer, createServer, startServer}}>
             {children}
         </ServerContext.Provider>
     );
