@@ -141,7 +141,7 @@ impl ServerData {
         loop {
             let line = process.receive_output().await?;
             if let Some(line) = line {
-                let message = actix_web_lab::sse::Data::new(line);
+                let message = actix_web_lab::sse::Data::new(line).event(format!("server-{}-console", self.id));
                 if sender.send(message.into()).await.is_err() {
                     break;
                 }
