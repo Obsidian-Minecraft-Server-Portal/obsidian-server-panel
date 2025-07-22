@@ -14,14 +14,14 @@ CREATE TABLE IF NOT EXISTS `servers`
     `minecraft_args`    TEXT    NOT NULL DEFAULT 'nogui',
     `server_jar`        TEXT    NOT NULL DEFAULT '',
     `upnp`              tinyint NOT NULL DEFAULT 0,                       -- 0 = false, 1 = true
-    `status`            TEXT    NOT NULL DEFAULT 'stopped',               -- e.g. 'stopped', 'starting', 'running', 'stopping', 'error'
+    `status`            tinyint NOT NULL DEFAULT 0,                       -- 0 => idle, 1 => running, 2 => stopped, 3 => error, 4 => starting, 5 => stopping
     `auto_start`        BOOLEAN NOT NULL DEFAULT 0,                       -- whether the server should start automatically on boot
     `auto_restart`      BOOLEAN NOT NULL DEFAULT 1,                       -- whether the server should restart automatically if it crashes
     `backup_enabled`    BOOLEAN NOT NULL DEFAULT 1,                       -- whether the server should create backups
     `backup_interval`   INTEGER NOT NULL DEFAULT 1440,                    -- in minutes (1440 minutes = 24 hours)
     `description`       TEXT             DEFAULT '',                      -- a short description of the server
     `minecraft_version` TEXT             DEFAULT '',                      -- e.g. '1.20.1', '1.19.4', or `custom`
-    `server_type`       TEXT             DEFAULT 'vanilla',               -- e.g. 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', or `custom`
+    `server_type`       tinyint NOT NULL DEFAULT 0,                       -- 0 => self::vanilla, 1 => self::forge, 2 => self::fabric, 3 => self::neoforge, 4 => self::quilt, >=5 => self::custom,
     `loader_version`    TEXT             DEFAULT NULL,                    -- e.g. '0.14.0', '1.20.1-44.1.23', or `custom`
     `owner_id`          INTEGER NOT NULL,                                 -- the ID of the user who owns the server
     `created_at`        INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch

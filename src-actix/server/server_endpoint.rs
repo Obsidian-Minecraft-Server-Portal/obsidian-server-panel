@@ -70,7 +70,7 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     let loader_version: Option<String> = body.get("loader_version").and_then(|v| v.as_str().map(String::from));
 
     let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::new(name, server_type, minecraft_version, loader_version, user_id);
+    let server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, user_id);
     server.create(&pool).await?;
     pool.close().await;
 
@@ -101,6 +101,19 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
             "error": "Server not found".to_string(),
         })))
     }
+}
+
+#[post("{server_id}/start")]
+pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let pool = crate::app_db::open_pool().await?;
+    let mut server = ServerData::get(server_id, user_id, &pool).await?.expect("Server not found");
+    pool.close().await;
+    server.start_server().await?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {

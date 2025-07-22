@@ -1,8 +1,10 @@
-use actix_web::dev::Path;
+use crate::server::server_status::ServerStatus;
+use crate::server::server_status::ServerStatus::Idle;
 use anyhow::Result;
 use serde_hash::HashIds;
 use sqlx::FromRow;
 use std::path::PathBuf;
+use crate::server::server_type::ServerType;
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -29,10 +31,10 @@ pub struct ServerData {
     /// Whether UPnP port forwarding is enabled
     pub upnp: bool,
     /// Server status: 'stopped', 'starting', 'running', 'stopping', 'error'
-    pub status: String,
-    /// Whether server should start automatically on boot
+    pub status: ServerStatus,
+    /// Whether the server should start automatically on boot
     pub auto_start: bool,
-    /// Whether server should restart automatically if it crashes
+    /// Whether the server should restart automatically if it crashes
     pub auto_restart: bool,
     /// Whether automatic backups are enabled
     pub backup_enabled: bool,
@@ -43,7 +45,7 @@ pub struct ServerData {
     /// Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom'
     pub minecraft_version: Option<String>,
     /// Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', or 'custom'
-    pub server_type: Option<String>,
+    pub server_type: Option<ServerType>,
     /// Loader version e.g. '0.14.0', '1.20.1-44.1.23', or 'custom'
     pub loader_version: Option<String>,
     /// ID of the user who owns this server
@@ -69,7 +71,7 @@ impl Default for ServerData {
             minecraft_args: String::new(),
             server_jar: "".to_string(),
             upnp: false,
-            status: "stopped".to_string(),
+            status: Idle,
             auto_start: false,
             auto_restart: false,
             backup_enabled: false,
@@ -87,7 +89,7 @@ impl Default for ServerData {
 }
 
 impl ServerData {
-    pub fn new(name: String, server_type: String, minecraft_version: String, loader_version: Option<String>, owner_id: u64) -> Self {
+    pub fn new(name: String, server_type: ServerType, minecraft_version: String, loader_version: Option<String>, owner_id: u64) -> Self {
         Self {
             name: name.clone(),
             directory: Self::generate_directory_name(name.as_str()),
@@ -110,7 +112,7 @@ impl ServerData {
         command.push_str(&format!(" -jar {} nogui", self.server_jar));
         command
     }
-    
+
     pub fn get_directory_path(&self) -> PathBuf {
         PathBuf::from(SERVER_DIRECTORY).join(&self.directory)
     }

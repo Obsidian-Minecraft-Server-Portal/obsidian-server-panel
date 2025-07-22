@@ -36,7 +36,7 @@ impl ServerData {
             .bind(self.backup_interval as i64)
             .bind(self.description.as_deref())
             .bind(self.minecraft_version.as_deref())
-            .bind(self.server_type.as_deref())
+            .bind(&self.server_type)
             .bind(self.loader_version.as_deref())
             .bind(self.owner_id as i64)
             .execute(pool)
@@ -44,7 +44,7 @@ impl ServerData {
 
         Ok(())
     }
-    
+
     pub async fn save(&self, pool: &SqlitePool) -> Result<()> {
         sqlx::query(
             r#"UPDATE servers SET name = ?, directory = ?, java_executable = ?, java_args = ?, max_memory = ?, min_memory = ?, minecraft_args = ?, server_jar = ?, upnp = ?, status = ?, auto_start = ?, auto_restart = ?, backup_enabled = ?, backup_interval = ?, description = ?, minecraft_version = ?, server_type = ?, loader_version = ?, last_started = ?, updated_at = ? WHERE id = ? AND owner_id = ?"#)
@@ -64,7 +64,7 @@ impl ServerData {
             .bind(self.backup_interval as i64)
             .bind(self.description.as_deref())
             .bind(self.minecraft_version.as_deref())
-            .bind(self.server_type.as_deref())
+            .bind(&self.server_type)
             .bind(self.loader_version.as_deref())
             .bind(self.last_started.map(|ts| ts as i64))
             .bind(chrono::Utc::now().timestamp())
@@ -75,18 +75,11 @@ impl ServerData {
 
         Ok(())
     }
-    
+
     pub async fn delete(&self, pool: &SqlitePool) -> Result<()> {
-        sqlx::query(r#"DELETE FROM servers WHERE id = ? AND owner_id = ?"#)
-            .bind(self.id as i64)
-            .bind(self.owner_id as i64)
-            .execute(pool)
-            .await?;
+        sqlx::query(r#"DELETE FROM servers WHERE id = ? AND owner_id = ?"#).bind(self.id as i64).bind(self.owner_id as i64).execute(pool).await?;
         tokio::fs::remove_dir_all(self.get_directory_path()).await?;
 
         Ok(())
     }
-    
-    
-    
 }
