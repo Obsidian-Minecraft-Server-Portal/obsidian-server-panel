@@ -12,10 +12,7 @@ pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let pool = crate::app_db::open_pool().await?;
-    let servers = ServerData::list(user_id, &pool).await?;
-    pool.close().await;
-
+    let servers = ServerData::list(user_id).await?;
     Ok(HttpResponse::Ok().json(servers))
 }
 
@@ -25,9 +22,7 @@ pub async fn get_server(server_id: web::Path<String>, req: HttpRequest) -> Resul
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?;
-    pool.close().await;
+    let server = ServerData::get(server_id, user_id).await?;
 
     if server.is_none() {
         return Ok(HttpResponse::NotFound().json(json!({
@@ -44,7 +39,7 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?;
+    let server = ServerData::get_with_pool(server_id, user_id, &pool).await?;
 
     if let Some(server) = server {
         server.delete(&pool).await?;
@@ -89,7 +84,7 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?;
+    let server = ServerData::get_with_pool(server_id, user_id, &pool).await?;
     if let Some(mut server) = server {
         server.update(&body)?;
         server.save(&pool).await?;
@@ -109,10 +104,21 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let pool = crate::app_db::open_pool().await?;
-    let mut server = ServerData::get(server_id, user_id, &pool).await?.expect("Server not found");
-    pool.close().await;
+    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
     server.start_server().await?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[post("{server_id}/send-command")]
+pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: HttpRequest) -> Result<impl Responder> {
+    let body = String::from_utf8(body.to_vec())?;
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    server.send_command(body).await?;
+
     Ok(HttpResponse::Ok().finish())
 }
 

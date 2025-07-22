@@ -10,10 +10,10 @@ pub async fn initialize(pool: &SqlitePool) -> anyhow::Result<()> {
 }
 
 impl ServerData {
-    pub async fn list(user_id: u64, pool: &SqlitePool) -> Result<Vec<Self>> {
+    pub async fn list_with_pool(user_id: u64, pool: &SqlitePool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as(r#"select * from servers WHERE owner_id = ?"#).bind(user_id as i64).fetch_all(pool).await?)
     }
-    pub async fn get(id: u64, user_id: u64, pool: &SqlitePool) -> Result<Option<Self>> {
+    pub async fn get_with_pool(id: u64, user_id: u64, pool: &SqlitePool) -> Result<Option<Self>> {
         Ok(sqlx::query_as(r#"select * from servers WHERE id = ? and owner_id = ?"#).bind(id as i64).bind(user_id as i64).fetch_optional(pool).await?)
     }
     pub async fn create(&self, pool: &SqlitePool) -> Result<()> {

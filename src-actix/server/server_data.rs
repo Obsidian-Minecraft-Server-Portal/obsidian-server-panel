@@ -4,6 +4,7 @@ use anyhow::Result;
 use serde_hash::HashIds;
 use sqlx::FromRow;
 use std::path::PathBuf;
+use crate::app_db;
 use crate::server::server_type::ServerType;
 
 const SERVER_DIRECTORY: &str = "./servers";
@@ -142,6 +143,20 @@ impl ServerData {
         self.last_started = server_data.last_started;
         self.updated_at = chrono::Utc::now().timestamp() as u64;
         Ok(())
+    }
+
+    pub async fn get(id: u64, user_id: u64)->Result<Option<Self>>{
+        let pool = app_db::open_pool().await?;
+        let server = Self::get_with_pool(id, user_id, &pool).await?;
+        pool.close().await;
+        Ok(server)
+    }
+    
+    pub async fn list(user_id: u64) -> Result<Vec<Self>> {
+        let pool = app_db::open_pool().await?;
+        let servers = Self::list_with_pool(user_id, &pool).await?;
+        pool.close().await;
+        Ok(servers)
     }
 
     fn generate_directory_name(name: &str) -> String {
