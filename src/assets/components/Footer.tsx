@@ -1,4 +1,4 @@
-import {useHostInfo} from "../providers/ServerInfoProvider.tsx";
+import {useHostInfo} from "../providers/HostInfoProvider.tsx";
 
 export default function Footer()
 {

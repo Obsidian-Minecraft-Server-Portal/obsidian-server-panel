@@ -3,7 +3,7 @@ import {Button, Card, CardBody} from "@heroui/react";
 import {Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis} from "recharts";
 import {Tooltip} from "./extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
-import {RWUsage, useHostInfo} from "../providers/ServerInfoProvider.tsx";
+import {RWUsage, useHostInfo} from "../providers/HostInfoProvider.tsx";
 
 type ResourceGraphProps = {
     variant?: "cpu" | "memory" | "network" | "disk" | "players" | "storage";

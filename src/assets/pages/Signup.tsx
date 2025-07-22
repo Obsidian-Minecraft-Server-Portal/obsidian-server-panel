@@ -6,7 +6,7 @@ import {useState} from "react";
 import {PasswordInput} from "../components/extended/PasswordInput.tsx";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
-import {useHostInfo} from "../providers/ServerInfoProvider.tsx";
+import {useHostInfo} from "../providers/HostInfoProvider.tsx";
 
 export default function Signup()
 {

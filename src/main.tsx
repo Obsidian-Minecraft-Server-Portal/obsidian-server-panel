@@ -11,7 +11,7 @@ import Login from "./assets/pages/Login.tsx";
 import Dashboard from "./assets/pages/Dashboard.tsx";
 import {AuthenticationProvider} from "./assets/providers/AuthenticationProvider.tsx";
 import Navigation from "./assets/components/navigation/Navigation.tsx";
-import {ServerInfoProvider} from "./assets/providers/ServerInfoProvider.tsx";
+import {HostInfoProvider} from "./assets/providers/HostInfoProvider.tsx";
 import Footer from "./assets/components/Footer.tsx";
 import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {MinecraftVersionsProvider} from "./assets/providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
@@ -24,7 +24,7 @@ ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
             <ThemeProvider>
-                <ServerInfoProvider>
+                <HostInfoProvider>
                     <AuthenticationProvider>
                         <MinecraftVersionsProvider>
                             <ForgeVersionsProvider>
@@ -38,7 +38,7 @@ ReactDOM.createRoot($("#root")[0]!).render(
                             </ForgeVersionsProvider>
                         </MinecraftVersionsProvider>
                     </AuthenticationProvider>
-                </ServerInfoProvider>
+                </HostInfoProvider>
             </ThemeProvider>
         </BrowserRouter>
     </React.StrictMode>

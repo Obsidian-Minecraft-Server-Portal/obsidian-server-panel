@@ -41,7 +41,7 @@ interface HostInfoContextType
 
 const HostInfoContext = createContext<HostInfoContextType | undefined>(undefined);
 
-export function ServerInfoProvider({children}: { children: ReactNode })
+export function HostInfoProvider({children}: { children: ReactNode })
 {
     const [hostInfo, setHostInfo] = useState<HostInfo>({resources: {total_memory: 1, num_cores: 1}} as HostInfo);
     const [resources, setResources] = useState<ResourceData>({} as ResourceData);
@@ -88,7 +88,7 @@ export function useHostInfo(): HostInfoContextType
     const context = useContext(HostInfoContext);
     if (!context)
     {
-        throw new Error("useServerInfo must be used within a ServerInfoProvider");
+        throw new Error("useServerInfo must be used within a HostInfoProvider");
     }
     return context;
 }

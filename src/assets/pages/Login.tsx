@@ -3,7 +3,7 @@ import Checkbox from "../components/extended/Checkbox.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
 import {AnimatePresence, motion} from "framer-motion";
-import {useHostInfo} from "../providers/ServerInfoProvider.tsx";
+import {useHostInfo} from "../providers/HostInfoProvider.tsx";
 import Signup from "./Signup.tsx";
 import {PasswordInput} from "../components/extended/PasswordInput.tsx";
 
