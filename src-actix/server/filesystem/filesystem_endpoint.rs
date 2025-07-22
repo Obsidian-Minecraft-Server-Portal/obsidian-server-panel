@@ -1,4 +1,4 @@
-use crate::actix_util::http_error::{Result};
+use crate::actix_util::http_error::Result;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
@@ -24,9 +24,7 @@ pub async fn get_files(server_id: web::Path<String>, filepath: web::Query<String
     let filepath = filepath.into_inner();
 
     // get server from server id
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?.ok_or(anyhow::anyhow!("Server not found"))?;
-    pool.close().await;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
     let directory = server.get_directory_path().join(filepath);
     if !directory.exists() {
@@ -44,10 +42,7 @@ pub async fn upload_file(server_id: web::Path<String>, filepath: web::Query<Stri
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     // get server from server id
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?.ok_or(anyhow::anyhow!("Server not found"))?;
-    pool.close().await;
-
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let filepath = server.get_directory_path().join(filepath.into_inner());
     let directory = filepath.parent().ok_or(anyhow::anyhow!("Invalid file path"))?;
     std::fs::create_dir_all(directory)?;
@@ -64,9 +59,7 @@ pub async fn upload_url(server_id: web::Path<String>, query: web::Query<(String,
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     // get server from server id
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?.ok_or(anyhow::anyhow!("Server not found"))?;
-    pool.close().await;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
     let filepath = server.get_directory_path().join(filepath);
     let directory = filepath.parent().ok_or(anyhow::anyhow!("Invalid file path"))?;
@@ -92,9 +85,7 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     // get server from server id
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get(server_id, user_id, &pool).await?.ok_or(anyhow::anyhow!("Server not found"))?;
-    pool.close().await;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
     let filepath = server.get_directory_path();
     let items: Vec<PathBuf> = query.items.iter().map(|item| filepath.join(item)).collect();
