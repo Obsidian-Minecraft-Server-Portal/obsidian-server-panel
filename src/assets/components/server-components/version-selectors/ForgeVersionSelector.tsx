@@ -30,6 +30,7 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
 
     useEffect(() =>
     {
+        if (!selectedVersion || !minecraftVersion) return;
         props.onVersionChange(getForgeInstallerUrl(minecraftVersion, selectedVersion));
     }, [selectedVersion, minecraftVersion]);
 
