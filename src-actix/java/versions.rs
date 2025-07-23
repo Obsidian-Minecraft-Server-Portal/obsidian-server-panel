@@ -5,7 +5,7 @@ use futures::stream::StreamExt;
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::{fs::File, io::Write, sync::Arc};
@@ -123,8 +123,7 @@ impl JavaVersion {
         Ok(versions)
     }
 
-    pub async fn install(&self, sender: tokio::sync::mpsc::Sender<actix_web_lab::sse::Event>) -> Result<()>
-    {
+    pub async fn install(&self, sender: tokio::sync::mpsc::Sender<actix_web_lab::sse::Event>) -> Result<()> {
         let now = std::time::Instant::now();
         warn!("Installing Java {}, this may take some time!", self.version);
         let url = &self.manifest.url;
