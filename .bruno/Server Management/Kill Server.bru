@@ -1,0 +1,15 @@
+meta {
+  name: Kill Server
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/kill
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: 
+}

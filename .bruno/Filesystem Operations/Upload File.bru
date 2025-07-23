@@ -1,0 +1,23 @@
+meta {
+  name: Upload File
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/upload?filepath=example.txt
+  body: text
+  auth: inherit
+}
+
+params:query {
+  filepath: example.txt
+}
+
+params:path {
+  server-id: 
+}
+
+body:text {
+  This is the content of the uploaded file.
+}

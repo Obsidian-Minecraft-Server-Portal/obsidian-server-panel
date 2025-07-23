@@ -1,0 +1,15 @@
+meta {
+  name: Delete Server
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseurl}}/server/:server-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: 
+}

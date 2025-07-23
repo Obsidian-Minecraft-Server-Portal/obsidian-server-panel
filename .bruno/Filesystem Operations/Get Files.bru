@@ -1,0 +1,19 @@
+meta {
+  name: Get Files
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/fs/files?filepath=
+  body: none
+  auth: inherit
+}
+
+params:query {
+  filepath: 
+}
+
+params:path {
+  server-id: 
+}

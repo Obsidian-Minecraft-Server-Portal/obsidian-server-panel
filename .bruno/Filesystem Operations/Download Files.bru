@@ -1,0 +1,20 @@
+meta {
+  name: Download Files
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/fs/download?items=logs&items=config
+  body: none
+  auth: inherit
+}
+
+params:query {
+  items: logs
+  items: config
+}
+
+params:path {
+  server-id: 
+}

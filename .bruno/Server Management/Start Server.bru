@@ -1,0 +1,15 @@
+meta {
+  name: Start Server
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/start
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: 
+}

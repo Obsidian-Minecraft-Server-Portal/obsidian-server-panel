@@ -1,0 +1,15 @@
+meta {
+  name: Restart Server
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/restart
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: 
+}

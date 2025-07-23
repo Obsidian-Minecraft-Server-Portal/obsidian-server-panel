@@ -1,0 +1,19 @@
+meta {
+  name: Send Command
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/send-command
+  body: text
+  auth: inherit
+}
+
+params:path {
+  server-id: 
+}
+
+body:text {
+  say Hello from the server console!
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get Console Output
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/console
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: 
+}

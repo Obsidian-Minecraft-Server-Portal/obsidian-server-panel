@@ -1,0 +1,15 @@
+meta {
+  name: Get Installation Files
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseurl}}/java/versions/:java-version/files
+  body: none
+  auth: inherit
+}
+
+params:path {
+  java-version: 
+}

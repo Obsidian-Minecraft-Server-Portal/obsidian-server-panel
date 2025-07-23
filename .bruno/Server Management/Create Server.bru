@@ -1,0 +1,20 @@
+meta {
+  name: Create Server
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseurl}}/server
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "My Minecraft Server",
+    "server_type": "vanilla",
+    "minecraft_version": "1.20.1",
+    "loader_version": null
+  }
+}

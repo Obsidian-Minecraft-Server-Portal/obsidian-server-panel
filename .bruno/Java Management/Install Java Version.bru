@@ -1,0 +1,15 @@
+meta {
+  name: Install Java Version
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseurl}}/java/install/:java-version
+  body: none
+  auth: inherit
+}
+
+params:path {
+  java-version: 
+}

@@ -1,0 +1,20 @@
+meta {
+  name: Upload URL
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/upload-url?filepath=downloaded-file.jar&url=https://example.com/file.jar
+  body: none
+  auth: inherit
+}
+
+params:query {
+  filepath: downloaded-file.jar
+  url: https://example.com/file.jar
+}
+
+params:path {
+  server-id: 
+}
