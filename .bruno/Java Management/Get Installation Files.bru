@@ -5,11 +5,11 @@ meta {
 }
 
 get {
-  url: {{baseurl}}/java/versions/:java-version/files
+  url: {{baseurl}}/java/versions/:runtime/files
   body: none
   auth: inherit
 }
 
 params:path {
-  java-version: 
+  runtime: delta
 }
