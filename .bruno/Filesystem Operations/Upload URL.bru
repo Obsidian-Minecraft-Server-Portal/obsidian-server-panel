@@ -4,17 +4,17 @@ meta {
   seq: 3
 }
 
-post {
-  url: {{baseurl}}/server/:server-id/fs/upload-url?filepath=downloaded-file.jar&url=https://example.com/file.jar
+get {
+  url: {{baseurl}}/server/:server-id/fs/upload-url?filepath=server.jar&url=https://piston-data.mojang.com/v1/objects/6bce4ef400e4efaa63a13d5e6f6b500be969ef81/server.jar
   body: none
   auth: inherit
 }
 
 params:query {
-  filepath: downloaded-file.jar
-  url: https://example.com/file.jar
+  filepath: server.jar
+  url: https://piston-data.mojang.com/v1/objects/6bce4ef400e4efaa63a13d5e6f6b500be969ef81/server.jar
 }
 
 params:path {
-  server-id: 
+  server-id: lW97O03zR32QygKY
 }
