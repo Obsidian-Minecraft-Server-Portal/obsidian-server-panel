@@ -1,6 +1,6 @@
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
-use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
+use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use log::*;
 use serde_json::json;
@@ -12,6 +12,7 @@ mod app_db;
 mod authentication;
 mod forge_endpoint;
 mod host_info;
+mod java;
 mod server;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
@@ -42,9 +43,15 @@ pub async fn run() -> Result<()> {
                 actix_web::error::InternalError::from_response(err, HttpResponse::BadRequest().json(error)).into()
             }))
             .service(get_icon)
-            .service(web::scope("api").configure(host_info::configure).configure(authentication::configure).service(
-                web::scope("").wrap(authentication::AuthenticationMiddleware).configure(forge_endpoint::configure).configure(server::configure),
-            ))
+            .service(
+                web::scope("api").configure(host_info::configure).configure(authentication::configure).service(
+                    web::scope("")
+                        .wrap(authentication::AuthenticationMiddleware)
+                        .configure(java::configure)
+                        .configure(forge_endpoint::configure)
+                        .configure(server::configure),
+                ),
+            )
             .configure_frontend_routes()
     })
     .workers(4)
