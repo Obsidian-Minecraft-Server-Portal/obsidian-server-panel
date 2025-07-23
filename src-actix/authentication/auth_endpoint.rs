@@ -1,10 +1,11 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
 use crate::authentication;
-use crate::authentication::auth_data::{TOKEN_KEY, UserData};
+use crate::authentication::auth_data::{UserData, TOKEN_KEY};
 use crate::authentication::user_permissions::PermissionFlag;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, web};
+use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
+use enumflags2::BitFlags;
 use serde_json::json;
 
 #[post("/")]
@@ -69,12 +70,91 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
     })))
 }
 
+#[post("/{user_id}/permissions")]
+pub async fn update_permissions(
+    path: web::Path<String>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+    req: HttpRequest,
+) -> Result<impl Responder> {
+    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ManagePermissions) {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "message": "You do not have permission to update permissions",
+            "user_permissions": user.permissions,
+            "required_permissions": [
+                {
+                    "id": PermissionFlag::Admin as u16,
+                    "name": "Admin",
+                    "description": "Allows viewing and editing of users",
+                },
+                {
+                    "id": PermissionFlag::ManagePermissions as u16,
+                    "name": "Manage Permissions",
+                    "description": "Allows editing of user permissions",
+                }
+            ]
+        })));
+    }
+
+    let user_id = path.into_inner();
+    let user_id = serde_hash::hashids::decode_single(&user_id).map_err(|_| anyhow!("Invalid user ID format"))?;
+
+    // Get the ids parameter from query string
+    let ids_str = query.get("ids").ok_or_else(|| anyhow!("Missing 'ids' parameter"))?;
+
+    // Parse comma-separated permission IDs
+    let mut permission_ids = Vec::new();
+    for id_str in ids_str.split(',') {
+        let id = id_str.trim().parse::<u16>().map_err(|_| anyhow!("Invalid permission ID format: '{}'", id_str))?;
+        permission_ids.push(id);
+    }
+
+    // Convert IDs to BitFlags<PermissionFlag>
+    let mut permissions = BitFlags::<PermissionFlag>::empty();
+    for id in permission_ids {
+        permissions |= PermissionFlag::from(id);
+    }
+
+    // Update permissions in database
+    let pool = open_pool().await?;
+
+    // Create a temporary UserData with the target user ID to call set_permissions
+    let target_user = UserData { id: Some(user_id), ..Default::default() };
+
+    target_user.set_permissions(permissions, &pool).await?;
+    pool.close().await;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Permissions updated successfully",
+        "user_id": serde_hash::hashids::encode_single(user_id),
+        "permissions": permissions,
+    })))
+}
+
+#[get("/permissions")]
+pub async fn get_permissions_list() -> Result<impl Responder> {
+    Ok(HttpResponse::Ok().json(PermissionFlag::values()))
+}
+
 #[get("/users/")]
 pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
     let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
-    if !user.permissions.contains(PermissionFlag::Admin) || !user.permissions.contains(PermissionFlag::ViewUsers) {
+    if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ViewUsers) {
         return Ok(HttpResponse::Forbidden().json(json!({
             "message": "You do not have permission to view this resource",
+            "user_permissions": user.permissions,
+            "required_permissions": [
+                {
+                    "id": PermissionFlag::Admin as u16,
+                    "name": "Admin",
+                    "description": "Allows viewing and editing of users",
+                },
+                {
+                    "id": PermissionFlag::ViewUsers as u16,
+                    "name": "View Users",
+                    "description": "Allows viewing of users",
+                }
+            ]
         })));
     }
     let pool = open_pool().await?;
@@ -89,7 +169,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/auth")
             .service(login)
             .service(register)
-            .service(web::scope("").wrap(authentication::AuthenticationMiddleware).service(get_users).service(login_with_token).service(logout))
+            .service(get_permissions_list)
+            .service(
+                web::scope("")
+                    .wrap(authentication::AuthenticationMiddleware)
+                    .service(get_users)
+                    .service(login_with_token)
+                    .service(logout)
+                    .service(update_permissions),
+            )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "message": "API endpoint not found".to_string(),

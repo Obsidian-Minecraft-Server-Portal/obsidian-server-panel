@@ -1,0 +1,19 @@
+meta {
+  name: Update Permissions
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseurl}}/auth/:user-id/permissions?ids=2,3,7,8,9,10,11
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ids: 2,3,7,8,9,10,11
+}
+
+params:path {
+  user-id: LdKerGmyWwXObEJW
+}

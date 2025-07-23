@@ -15,6 +15,7 @@ pub struct UserData {
     pub username: String,
     #[serde(skip)]
     pub password: String,
+    #[serde(serialize_with = "serialize_permissions")]
     pub permissions: BitFlags<PermissionFlag>,
     pub join_date: DateTime<Utc>,
     pub last_online: DateTime<Utc>,
@@ -31,6 +32,11 @@ impl Default for UserData {
             last_online: Utc::now(),
         }
     }
+}
+
+fn serialize_permissions<S>(permissions: &BitFlags<PermissionFlag>, serializer:S)->Result<S::Ok, S::Error> where S: serde::Serializer{
+    let permissions: Vec<PermissionFlag> = permissions.iter().collect();
+    serializer.serialize_some(&permissions)
 }
 
 fn hash_id<S>(id: &Option<u64>, serializer: S) -> Result<S::Ok, S::Error>
