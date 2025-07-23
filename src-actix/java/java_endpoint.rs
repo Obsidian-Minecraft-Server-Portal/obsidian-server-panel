@@ -1,7 +1,10 @@
 use crate::actix_util::http_error::Result;
 use crate::java::versions::JavaVersion;
 use actix_web::{delete, get, web, HttpResponse, Responder};
+use actix_web_lab::sse;
+use log::error;
 use serde_json::json;
+use std::time::Duration;
 
 #[get("/versions")]
 pub async fn get_java_versions() -> Result<impl Responder> {
@@ -31,12 +34,36 @@ pub async fn uninstall_java_version(runtime: web::Path<String>) -> impl Responde
         Err(e) => HttpResponse::BadRequest().json(json!({ "error": e.to_string() })),
     }
 }
+
+#[get("/install/{runtime}")]
+pub async fn install_java_version(runtime: web::Path<String>) -> Result<impl Responder> {
+    let (sender, receiver) = tokio::sync::mpsc::channel(10);
+    tokio::spawn(async move {
+        let runtime = runtime.into_inner();
+        if let Ok(version) = JavaVersion::from_runtime(&runtime).await {
+            if let Err(e) = version.install(sender.clone()).await {
+                error!("Error installing java version: {}", e);
+                let data = json!({"message": "Error installing java version", "stacktrace": e.to_string()});
+                let message = serde_json::to_string(&data).unwrap();
+                let event_data = sse::Data::new(message).event("error");
+                sender.try_send(event_data.into()).unwrap();
+            }
+        }
+    });
+    Ok(sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/java").service(get_java_versions).service(get_installation_files).service(uninstall_java_version).default_service(
-        web::to(|| async {
-            HttpResponse::NotFound().json(json!({
-                "error": "API endpoint not found".to_string(),
-            }))
-        }),
-    ));
+    cfg.service(
+        web::scope("/java")
+            .service(install_java_version)
+            .service(get_java_versions)
+            .service(get_installation_files)
+            .service(uninstall_java_version)
+            .default_service(web::to(|| async {
+                HttpResponse::NotFound().json(json!({
+                    "error": "API endpoint not found".to_string(),
+                }))
+            })),
+    );
 }
