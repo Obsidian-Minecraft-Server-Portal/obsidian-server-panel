@@ -206,16 +206,26 @@ export default function NewServerModal(props: NewServerProperties)
     );
 }
 
+type LoaderSelectorProps = {
+    selectedLoader: string;
+    version: string | undefined;
+    onUrlChange: (url: string | undefined) => void;
+}
 
-function LoaderSelector({selectedLoader, version}: { selectedLoader: string, version: string | undefined })
+function LoaderSelector(props: LoaderSelectorProps)
 {
+    const {
+        selectedLoader,
+        version,
+        onUrlChange
+    } = props;
     if (!version) return <p className={"text-danger font-minecraft-body text-tiny italic underline"}>Please select a Minecraft version first.</p>;
     switch (selectedLoader)
     {
         case "fabric":
             return <FabricVersionSelector minecraftVersion={version}/>;
         case "forge":
-            return <ForgeVersionSelector minecraftVersion={version}/>;
+            return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onUrlChange}/>;
         case "quilt":
             return <QuiltVersionSelector minecraftVersion={version}/>;
         case "neo_forge":

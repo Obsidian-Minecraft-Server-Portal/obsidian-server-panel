@@ -4,6 +4,7 @@ import {useForgeVersions} from "../../../providers/LoaderVersionProviders/ForgeV
 
 type ForgeVersionSelectorProps = {
     minecraftVersion: string;
+    onVersionChange: (url: string | undefined) => void;
 }
 
 export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
@@ -26,6 +27,12 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
             setSelectedVersion(undefined);
         }
     }, [props]);
+
+    useEffect(() =>
+    {
+        props.onVersionChange(getForgeInstallerUrl(minecraftVersion, selectedVersion));
+    }, [selectedVersion, minecraftVersion]);
+
     return (
         <Autocomplete
             label={`Forge Version`}
@@ -54,4 +61,13 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
             ))}
         </Autocomplete>
     );
+}
+
+function getForgeInstallerUrl(minecraftVersion: string, forgeVersion: string): string | undefined
+{
+    const forgeVersions = useForgeVersions().forgeVersions;
+    if (!forgeVersions || !forgeVersions[minecraftVersion]) return undefined;
+    const version = forgeVersions[minecraftVersion].find(v => v === forgeVersion);
+    if (!version) return undefined;
+    return `https://maven.minecraftforge.net/net/minecraftforge/forge/${minecraftVersion}-${version}/forge-${minecraftVersion}-${version}-installer.jar`;
 }

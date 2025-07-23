@@ -5,7 +5,7 @@ import {useEffect, useState} from "react";
 import {useMinecraftVersions} from "../../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 
 type MinecraftVersionSelectorProps = {
-    onVersionChange?: (version: string | undefined) => void;
+    onVersionChange?: (version: string | undefined, url: string|undefined) => void;
     version?: string | undefined;
 }
 
@@ -26,8 +26,12 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
 
     useEffect(() =>
     {
-        if (props.onVersionChange) props.onVersionChange(selectedVersion);
-    }, [selectedVersion, showOlderVersions, showSnapshots]);
+        if (props.onVersionChange)
+        {
+            const url = minecraftVersions?.versions.find(i => i.id === selectedVersion)?.url;
+            props.onVersionChange(selectedVersion, url);
+        }
+    }, [selectedVersion, showOlderVersions, showSnapshots, minecraftVersions]);
 
     return (
         <div className={"flex flex-row gap-2 items-center"}>
