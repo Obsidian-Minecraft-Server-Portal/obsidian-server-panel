@@ -20,7 +20,7 @@ export default function Login()
 
     return (
         <AnimatePresence>
-            <div className={"flex flex-col items-center justify-center grow"}>
+            <div className={"flex flex-col items-center justify-center grow mt-48"}>
                 <motion.h1
                     className={"text-7xl text-primary"}
                     initial={{opacity: 0, y: -20}}
