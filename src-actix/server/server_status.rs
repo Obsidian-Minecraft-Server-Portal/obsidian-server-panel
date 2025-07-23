@@ -14,6 +14,7 @@ pub enum ServerStatus {
     Starting,
     Stopping,
     Crashed,
+    Hanging, // Added Hanging status
 }
 
 impl From<String> for ServerStatus {
@@ -35,6 +36,7 @@ impl Display for ServerStatus {
                 ServerStatus::Starting => "starting",
                 ServerStatus::Stopping => "stopping",
                 ServerStatus::Crashed => "crashed",
+                ServerStatus::Hanging => "hanging", // Display for Hanging status
             }
         )
     }
@@ -52,6 +54,7 @@ impl std::str::FromStr for ServerStatus {
             "starting" => Ok(ServerStatus::Starting),
             "stopping" => Ok(ServerStatus::Stopping),
             "crashed" => Ok(ServerStatus::Crashed),
+            "hanging" => Ok(ServerStatus::Hanging), // Parse for Hanging status
             _ => Err(format!("Invalid server status: {}", s)),
         }
     }
@@ -67,6 +70,7 @@ impl From<u8> for ServerStatus {
             4 => ServerStatus::Starting,
             5 => ServerStatus::Stopping,
             6 => ServerStatus::Crashed,
+            7 => ServerStatus::Hanging, // Added Hanging status
             _ => ServerStatus::Idle,
         }
     }
@@ -82,10 +86,10 @@ impl From<ServerStatus> for u8 {
             ServerStatus::Starting => 4,
             ServerStatus::Stopping => 5,
             ServerStatus::Crashed => 6,
+            ServerStatus::Hanging => 7, // Added Hanging status
         }
     }
 }
-
 
 impl Encode<'_, Sqlite> for ServerStatus {
     fn encode(self, buf: &mut <Sqlite as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError>

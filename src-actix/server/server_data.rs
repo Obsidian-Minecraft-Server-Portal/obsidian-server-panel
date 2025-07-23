@@ -50,6 +50,7 @@ pub struct ServerData {
     /// Loader version e.g. '0.14.0', '1.20.1-44.1.23', or 'custom'
     pub loader_version: Option<String>,
     /// ID of the user who owns this server
+    #[hash]
     pub owner_id: u64,
     /// Timestamp of when the server was created (seconds since epoch)
     pub created_at: u64,

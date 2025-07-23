@@ -3,9 +3,11 @@ import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import NewServerModal from "./NewServerModal.tsx";
 import {useState} from "react";
+import {useServer} from "../../providers/ServerProvider.tsx";
 
 export default function ServerList()
 {
+    const {servers} = useServer();
     const [isNewServerModalOpen, setIsNewServerModalOpen] = useState(false);
     return (
         <>
@@ -20,8 +22,13 @@ export default function ServerList()
                     </div>
                 </CardHeader>
                 <CardBody className={"overflow-y-auto flex flex-col gap-2 grow shrink min-h-[200px] h-full"}>
-                    {Array.from({length: 50}).map((_, i) => (
-                        <ServerItem key={i} serverId={i.toString(36)} serverName={`Server ${i + 1}`}/>
+                    {servers.length === 0 && (
+                        <div className={"flex flex-col items-center justify-center h-full"}>
+                            <p className={"text-gray-400/50 text-sm font-minecraft-body"}>No servers found. Create a new server to get started.</p>
+                        </div>
+                    )}
+                    {servers.map((server) => (
+                        <ServerItem key={server.id} serverId={server.id} serverName={server.name}/>
                     ))}
                 </CardBody>
             </Card>

@@ -3,13 +3,15 @@ import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {MinecraftVersionSelector} from "./version-selectors/MinecraftVersionSelector.tsx";
 import {ForgeVersionSelector} from "./version-selectors/ForgeVersionSelector.tsx";
 import {FabricVersionSelector} from "./version-selectors/FabricVersionSelector.tsx";
 import {FileInput} from "../extended/FileInput.tsx";
 import {QuiltVersionSelector} from "./version-selectors/QuiltVersionSelector.tsx";
 import {NeoForgeVersionSelector} from "./version-selectors/NeoForgeVersionSelector.tsx";
+import {useServer} from "../../providers/ServerProvider.tsx";
+import {useHostInfo} from "../../providers/HostInfoProvider.tsx";
 
 type NewServerProperties = {
     isOpen: boolean;
@@ -18,9 +20,40 @@ type NewServerProperties = {
 
 export default function NewServerModal(props: NewServerProperties)
 {
+    const {createServer} = useServer();
+    const {hostInfo, resources} = useHostInfo();
     const [selectedLoader, setSelectedLoader] = useState("vanilla"); // Default selected loader
     const [selectedMinecraftVersion, setSelectedMinecraftVersion] = useState<string | undefined>(undefined);
     const [ram, setRam] = useState(4); // Default RAM value
+    const [maxRam, setMaxRam] = useState(4); // Default max RAM value
+    const [message, setMessage] = useState("");
+    const [isInvalid, setIsInvalid] = useState(false);
+
+    useEffect(() =>
+    {
+        // Update max RAM based on available resources
+        if (hostInfo && hostInfo.resources.total_memory)
+            setMaxRam(Math.floor(hostInfo.resources.total_memory / Math.pow(1024, 3))); // Convert B to GB
+
+    }, [hostInfo]);
+
+    useEffect(() =>
+    {
+        if (ram >= (maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3))))
+        {
+            setMessage("Using more RAM than available to be allocated can cause performance issues or crashes.");
+            setIsInvalid(true);
+        } else if (ram > 16)
+        {
+            setMessage("Too much RAM can cause performance issues. It's recommended to use 2-16 GB for most servers.");
+            setIsInvalid(false);
+        } else
+        {
+            setMessage("");
+            setIsInvalid(false);
+        }
+    }, [ram, maxRam, resources]);
+
     return (
         <Modal
             isOpen={props.isOpen}
@@ -76,40 +109,91 @@ export default function NewServerModal(props: NewServerProperties)
                             <MinecraftVersionSelector onVersionChange={setSelectedMinecraftVersion} version={selectedMinecraftVersion}/>
                             <LoaderSelector selectedLoader={selectedLoader} version={selectedMinecraftVersion}/>
 
-                            <Slider
-                                minValue={2}
-                                maxValue={64}
-                                defaultValue={4}
-                                step={1}
-                                label={"Configured RAM (GB)"}
-                                className={"font-minecraft-body text-nowrap"}
-                                showTooltip
-                                value={ram}
-                                onChange={value => setRam(value as number)}
-                                tooltipValueFormatOptions={{}}
-                                marks={[
+                            <div className="relative">
+                                {/* Custom track segments for warning/danger zones */}
+                                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10">
+                                    {/* Calculate positions for warning and danger zones */}
+                                    {(() =>
                                     {
-                                        value: 2,
-                                        label: "2 GB"
-                                    },
-                                    {
-                                        value: 64,
-                                        label: "64 GB"
-                                    }
-                                ]}
+                                        const warningStart = 16; // Start warning at 16GB
+                                        const dangerStart = maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)); // Start danger when approaching max available
 
-                                renderValue={() =>
-                                    <Input
-                                        radius={"none"}
-                                        className={"w-16"}
-                                        size={"sm"}
-                                        value={ram.toString()}
-                                        onChange={e => setRam(+e.target.value)}
-                                        maxLength={3}
-                                        type={"number"}
-                                    />
-                                }
-                            />
+                                        const trackWidth = 100; // percentage
+                                        const warningStartPercent = Math.max(0, ((warningStart - 2) / (maxRam - 2)) * trackWidth);
+                                        const dangerStartPercent = Math.max(0, ((dangerStart - 2) / (maxRam - 2)) * trackWidth);
+
+                                        return (
+                                            <>
+                                                {/* Warning zone (10GB to near max available) */}
+                                                {warningStart < dangerStart && (
+                                                    <div
+                                                        className="absolute h-full bg-warning-400 rounded-full opacity-60"
+                                                        style={{
+                                                            left: `${warningStartPercent}%`,
+                                                            width: `${dangerStartPercent - warningStartPercent}%`
+                                                        }}
+                                                    />
+                                                )}
+                                                {/* Danger zone (near max available to max) */}
+                                                {dangerStart < maxRam && (
+                                                    <div
+                                                        className="absolute h-full bg-danger-400 rounded-full opacity-60"
+                                                        style={{
+                                                            left: `${dangerStartPercent}%`,
+                                                            width: `${trackWidth - dangerStartPercent}%`
+                                                        }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+
+                                <Slider
+                                    minValue={2}
+                                    maxValue={maxRam}
+                                    defaultValue={4}
+                                    step={1}
+                                    label={"Configured RAM (GB)"}
+                                    className={"font-minecraft-body text-nowrap relative z-20"}
+                                    showTooltip
+                                    value={ram}
+                                    onChange={value => setRam(value as number)}
+                                    tooltipValueFormatOptions={{}}
+                                    color={message === "" ? "primary" : isInvalid ? "danger" : "warning"}
+                                    marks={[
+                                        {
+                                            value: 2,
+                                            label: "2 GB"
+                                        },
+                                        {
+                                            value: maxRam,
+                                            label: `${maxRam} GB`
+                                        },
+                                        // Add marks for warning and danger thresholds
+                                        ...(maxRam > 10 ? [{
+                                            value: 10,
+                                            label: "Warning"
+                                        }] : []),
+                                        ...(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)) > 2 ? [{
+                                            value: Math.floor(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3))),
+                                            label: "Danger"
+                                        }] : [])
+                                    ]}
+                                    renderValue={() =>
+                                        <Input
+                                            radius={"none"}
+                                            className={"w-16"}
+                                            size={"sm"}
+                                            value={ram.toString()}
+                                            onChange={e => setRam(+e.target.value)}
+                                            maxLength={3}
+                                            type={"number"}
+                                        />
+                                    }
+                                />
+                            </div>
+                            {message && <p className={"data-[invalid=true]:text-danger text-warning font-minecraft-body italic"} data-invalid={isInvalid}>{message}</p>}
                         </ModalBody>
                         <ModalFooter>
                             <Button onPress={onClose} radius={"none"} variant={"ghost"} color={"primary"}>Create</Button>

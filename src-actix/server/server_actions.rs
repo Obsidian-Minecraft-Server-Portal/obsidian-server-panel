@@ -1,7 +1,6 @@
-use crate::app_db;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use log::{debug, error};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
@@ -45,13 +44,32 @@ impl ServerData {
         debug!("Server started with pid {}", pid);
         self.last_started = Some(chrono::Utc::now().timestamp() as u64);
         self.save().await?;
-        
+
         let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+
+        let hang_duration = Duration::from_secs(120); // 2 minutes
+
+        let id = self.id;
+        let owner_id = self.owner_id;
+        tokio::spawn(async move {
+            tokio::time::sleep(hang_duration).await;
+            let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+            let servers = servers.lock().await;
+            let pid = *servers.get(&id).expect("Server not running");
+            let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+            if !process.is_process_running().await {
+                return;
+            }
+            let server = ServerData::get(id, owner_id).await.expect("Server not found").expect("Server not found");
+            if server.status == ServerStatus::Starting{
+
+            }
+        });
 
         loop {
             let line = process.receive_output().await?;
             if let Some(line) = line {
-                if line.contains("Done (") {
+                if line.contains("Done (") && line.contains(r#")! For help, type "help""#) {
                     self.status = ServerStatus::Running;
                     self.save().await?;
                     break;
