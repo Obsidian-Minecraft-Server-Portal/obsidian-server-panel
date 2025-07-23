@@ -1,6 +1,6 @@
-use enumflags2::{bitflags, BitFlags};
+use enumflags2::bitflags;
 use serde::ser::SerializeMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::Display;
 
 #[bitflags]
