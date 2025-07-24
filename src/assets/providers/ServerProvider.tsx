@@ -24,7 +24,7 @@ export type Server =
         /** Whether UPnP port forwarding is enabled */
         upnp: boolean;
         /** Server status: 'stopped', 'starting', 'running', 'stopping', 'error' */
-        status: "stopped" | "starting" | "running" | "stopping" | "error" | "crashed";
+        status: ServerStatus;
         /** Whether server should start automatically on boot */
         auto_start: boolean;
         /** Whether server should restart automatically if it crashes */
@@ -38,7 +38,7 @@ export type Server =
         /** Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom' */
         minecraft_version: string | null;
         /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', or 'custom' */
-        server_type: "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom" | null;
+        server_type: LoaderType | null;
         /** Loader version e.g. '0.14.0', '1.20.1-44.1.23', or 'custom' */
         loader_version: string | null;
         /** ID of the user who owns this server */
@@ -53,10 +53,13 @@ export type Server =
 
 export type CreateServerData = {
     name: string;
-    server_type: "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom";
+    server_type: LoaderType;
     minecraft_version: string;
     loader_version: string;
 }
+
+export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom";
+export type ServerStatus = "stopped" | "starting" | "running" | "stopping" | "error" | "crashed";
 
 interface ServerContextType
 {
@@ -64,7 +67,7 @@ interface ServerContextType
     servers: Server[];
     loadServer: (id: string) => Promise<void>;
     loadServers: () => Promise<void>;
-    createServer: (server: CreateServerData) => Promise<void>;
+    createServer: (server: CreateServerData) => Promise<string>;
     updateServer: (server: Partial<Server>) => Promise<void>;
     deleteServer: (serverId?: string) => Promise<void>;
     startServer: (serverId?: string) => Promise<void>;
@@ -96,17 +99,23 @@ export function ServerProvider({children}: { children: ReactNode })
         setServers(servers);
     };
 
-    const createServer = async (server: CreateServerData) =>
+    const createServer = async (server: CreateServerData): Promise<string> =>
     {
-        let newServer: Server = await $.ajax({
+        // Example response: { "message": "Server created successfully","server_id": "lW97O03zR32QygKY" }
+        let response = await $.ajax({
             url: "/api/server",
             type: "PUT",
             contentType: "application/json",
             data: JSON.stringify(server)
         });
-        setServer(newServer);
+        if (!response || !response.server_id)
+        {
+            throw new Error("Server creation failed");
+        }
+        
         // Refresh servers list
         await loadServers();
+        return response.server_id;
     };
 
     const updateServer = useCallback(async (updates: Partial<Server>) =>
