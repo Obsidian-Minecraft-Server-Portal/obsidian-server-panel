@@ -35,7 +35,7 @@ pub async fn uninstall_java_version(runtime: web::Path<String>) -> impl Responde
     }
 }
 
-#[get("/install/{runtime}")]
+#[get("/versions/{runtime}/install")]
 pub async fn install_java_version(runtime: web::Path<String>) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::mpsc::channel(10);
     tokio::spawn(async move {
@@ -44,10 +44,11 @@ pub async fn install_java_version(runtime: web::Path<String>) -> Result<impl Res
             if let Err(e) = version.install(sender.clone()).await {
                 error!("Error installing java version: {}", e);
                 let data = json!({"message": "Error installing java version", "stacktrace": e.to_string()});
-                let message = serde_json::to_string(&data).unwrap();
-                let event_data = sse::Data::new(message).event("error");
+                let event_data = sse::Data::new_json(&data).unwrap().event("error");
                 sender.try_send(event_data.into()).unwrap();
             }
+
+            sender.try_send(sse::Data::new_json(json!({"message": "Installation completed!"})).unwrap().event("completed").into()).unwrap();
         }
     });
     Ok(sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
