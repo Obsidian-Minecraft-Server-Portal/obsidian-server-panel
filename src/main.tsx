@@ -17,6 +17,7 @@ import ErrorPage from "./assets/pages/ErrorPage.tsx";
 import {MinecraftVersionsProvider} from "./assets/providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 import {ServerProvider} from "./assets/providers/ServerProvider.tsx";
 import {MessageProvider} from "./assets/providers/MessageProvider.tsx";
+import {JavaVersionProvider} from "./assets/providers/JavaVersionProvider.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
@@ -27,7 +28,9 @@ ReactDOM.createRoot($("#root")[0]!).render(
                         <MinecraftVersionsProvider>
                             <ServerProvider>
                                 <MessageProvider>
-                                    <MainContentRenderer/>
+                                    <JavaVersionProvider>
+                                        <MainContentRenderer/>
+                                    </JavaVersionProvider>
                                 </MessageProvider>
                             </ServerProvider>
                         </MinecraftVersionsProvider>
