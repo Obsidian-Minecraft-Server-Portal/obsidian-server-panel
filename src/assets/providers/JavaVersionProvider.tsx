@@ -1,4 +1,4 @@
-import {createContext, ReactNode, useContext, useState} from "react";
+import {createContext, ReactNode, useContext, useEffect, useState} from "react";
 import {getJavaVersions, getRuntimeFiles as getFiles, installRuntime, JavaRuntime, JavaVersion, uninstallRuntime} from "../ts/java-versions.ts";
 
 interface JavaVersionContextType
@@ -57,6 +57,11 @@ export function JavaVersionProvider({children}: { children: ReactNode })
         if (!runtime) throw new Error("Invalid version provided for fetching files");
         return await getFiles(runtime);
     };
+
+    useEffect(() =>
+    {
+        refreshJavaVersions().catch(console.error);
+    }, []);
 
     return (
         <JavaVersionContext.Provider value={{refreshJavaVersions, javaVersions, installVersion, uninstallVersion, getRuntimeFiles}}>
