@@ -1,9 +1,9 @@
-import {Button, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Slider, Tab, Tabs} from "@heroui/react";
+import {addToast, Button, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import {MinecraftVersionSelector} from "./version-selectors/MinecraftVersionSelector.tsx";
 import {ForgeVersionSelector} from "./version-selectors/ForgeVersionSelector.tsx";
 import {FabricVersionSelector} from "./version-selectors/FabricVersionSelector.tsx";
@@ -11,7 +11,7 @@ import {FileInput} from "../extended/FileInput.tsx";
 import {QuiltVersionSelector} from "./version-selectors/QuiltVersionSelector.tsx";
 import {NeoForgeVersionSelector} from "./version-selectors/NeoForgeVersionSelector.tsx";
 import {LoaderType, useServer} from "../../providers/ServerProvider.tsx";
-import {useHostInfo} from "../../providers/HostInfoProvider.tsx";
+import RamSlider from "./RamSlider.tsx";
 
 type NewServerProperties = {
     isOpen: boolean;
@@ -20,53 +20,22 @@ type NewServerProperties = {
 
 export default function NewServerModal(props: NewServerProperties)
 {
-    const {createServer} = useServer();
-    const {hostInfo, resources} = useHostInfo();
+    const {createServer, uploadFromUrl, uploadFile} = useServer();
+    const [ram, setRam] = useState(4); // Default RAM value
     const [selectedLoader, setSelectedLoader] = useState<LoaderType>("vanilla"); // Default selected loader
     const [loaderVersion, setLoaderVersion] = useState<string | undefined>(undefined);
     const [selectedMinecraftVersion, setSelectedMinecraftVersion] = useState<string | undefined>(undefined);
-    const [ram, setRam] = useState(4); // Default RAM value
-    const [maxRam, setMaxRam] = useState(4); // Default max RAM value
-    const [message, setMessage] = useState("");
-    const [isInvalid, setIsInvalid] = useState(false);
+    const [selectedJavaExecutable, setSelectedJavaExecutable] = useState<string | undefined>(undefined);
+
     const [loaderUrl, setLoaderUrl] = useState<string | undefined>(undefined); // For custom loader URLs
+    const [name, setName] = useState("");
+    const [customJarFile, setCustomJarFile] = useState<File | undefined>(undefined); // For custom jar file uploads
 
-    useEffect(() =>
-    {
-        // Update max RAM based on available resources
-        if (hostInfo && hostInfo.resources.total_memory)
-            setMaxRam(Math.floor(hostInfo.resources.total_memory / Math.pow(1024, 3))); // Convert B to GB
-
-    }, [hostInfo]);
-
-    useEffect(() =>
-    {
-        if (ram >= (maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3))))
-        {
-            setMessage("Using more RAM than available to be allocated can cause performance issues or crashes.");
-            setIsInvalid(true);
-        } else if (ram > 16)
-        {
-            setMessage("Too much RAM can cause performance issues. It's recommended to use 2-16 GB for most servers.");
-            setIsInvalid(false);
-        } else
-        {
-            setMessage("");
-            setIsInvalid(false);
-        }
-    }, [ram, maxRam, resources]);
 
     const submit = useCallback(async () =>
     {
         if (!selectedMinecraftVersion)
         {
-            setMessage("Please select a Minecraft version.");
-            setIsInvalid(true);
-            return;
-        }
-        if (isInvalid || message !== "")
-        {
-            setMessage("Please fix the errors before creating the server.");
             return;
         }
         try
@@ -77,15 +46,81 @@ export default function NewServerModal(props: NewServerProperties)
                 minecraft_version: selectedMinecraftVersion,
                 loader_version: loaderVersion ?? ""
             });
-            
+
+            if (!serverId)
+            {
+                addToast({
+                    title: "Error",
+                    description: "Failed to create server. Please try again.",
+                    color: "danger"
+                });
+            }
+
+            if (selectedLoader !== "custom")
+            {
+                if (!loaderUrl)
+                {
+                    console.error("Loader URL is not defined for selected loader:", selectedLoader);
+                    addToast({
+                        title: "Error",
+                        description: `Loader URL is not defined for selected loader: ${selectedLoader}. Please select a valid loader version.`,
+                        color: "danger"
+                    });
+                    return;
+                }
+                const filepath = `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
+                const onProgress = (progress: number, downloaded: number, total: number) =>
+                {
+                    console.log(`Downloading ${selectedLoader} server: ${progress}% (${downloaded}/${total} bytes)`);
+                };
+                const onSuccess = () =>
+                {
+                };
+                const onError = (error: string) =>
+                {
+                    console.error("Error uploading server jar:", error);
+                };
+                await uploadFromUrl(loaderUrl, filepath, onProgress, onSuccess, onError, serverId);
+            } else
+            {
+                if (!customJarFile)
+                {
+                    addToast({
+                        title: "Error",
+                        description: "Please upload a custom jar file.",
+                        color: "danger"
+                    });
+                    return;
+                }
+                const filepath = `${name}-${selectedMinecraftVersion}-server.jar`;
+                const onProgress = (bytes: number) =>
+                {
+                    console.log(`Uploading custom server jar: ${bytes} bytes uploaded of ${customJarFile.size} bytes ${Math.round((bytes / customJarFile.size) * 100)}%`);
+                };
+                const onCancel = () =>
+                {
+                };
+                await uploadFile(customJarFile, filepath, onProgress, onCancel, serverId);
+            }
+
+
             props.onClose();
         } catch (error)
         {
             console.error("Error creating server:", error);
-            setMessage("Failed to create server. Please try again.");
-            setIsInvalid(true);
+
+            addToast({
+                title: "Error",
+                description: "Failed to create server. Please try again.",
+                color: "danger"
+            });
         }
     }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram]);
+
+    const isValidForm = useCallback(() =>
+    {
+        return name.trim() !== "" && selectedMinecraftVersion !== undefined && (selectedLoader !== "custom" || loaderUrl !== undefined) && selectedJavaExecutable !== undefined;
+    }, [loaderUrl, selectedLoader, selectedMinecraftVersion, name, selectedJavaExecutable]);
 
     return (
         <Modal
@@ -110,6 +145,8 @@ export default function NewServerModal(props: NewServerProperties)
                                 radius={"none"}
                                 size={"sm"}
                                 endContent={<Icon icon={""}/>}
+                                value={name}
+                                onValueChange={setName}
                             />
                             <div className={"mx-auto"}>
                                 <Tabs
@@ -140,96 +177,20 @@ export default function NewServerModal(props: NewServerProperties)
                             </div>
 
                             <MinecraftVersionSelector onVersionChange={setSelectedMinecraftVersion} version={selectedMinecraftVersion}/>
-                            <LoaderSelector selectedLoader={selectedLoader} version={selectedMinecraftVersion} onUrlChange={setLoaderUrl}/>
-
-                            <div className="relative">
-                                {/* Custom track segments for warning/danger zones */}
-                                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 pointer-events-none z-10">
-                                    {/* Calculate positions for warning and danger zones */}
-                                    {(() =>
-                                    {
-                                        const warningStart = 16; // Start warning at 16GB
-                                        const dangerStart = maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)); // Start danger when approaching max available
-
-                                        const trackWidth = 100; // percentage
-                                        const warningStartPercent = Math.max(0, ((warningStart - 2) / (maxRam - 2)) * trackWidth);
-                                        const dangerStartPercent = Math.max(0, ((dangerStart - 2) / (maxRam - 2)) * trackWidth);
-
-                                        return (
-                                            <>
-                                                {/* Warning zone (10GB to near max available) */}
-                                                {warningStart < dangerStart && (
-                                                    <div
-                                                        className="absolute h-full bg-warning-400 rounded-full opacity-60"
-                                                        style={{
-                                                            left: `${warningStartPercent}%`,
-                                                            width: `${dangerStartPercent - warningStartPercent}%`
-                                                        }}
-                                                    />
-                                                )}
-                                                {/* Danger zone (near max available to max) */}
-                                                {dangerStart < maxRam && (
-                                                    <div
-                                                        className="absolute h-full bg-danger-400 rounded-full opacity-60"
-                                                        style={{
-                                                            left: `${dangerStartPercent}%`,
-                                                            width: `${trackWidth - dangerStartPercent}%`
-                                                        }}
-                                                    />
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-
-                                <Slider
-                                    minValue={2}
-                                    maxValue={maxRam}
-                                    defaultValue={4}
-                                    step={1}
-                                    label={"Configured RAM (GB)"}
-                                    className={"font-minecraft-body text-nowrap relative z-20"}
-                                    showTooltip
-                                    value={ram}
-                                    onChange={value => setRam(value as number)}
-                                    tooltipValueFormatOptions={{}}
-                                    color={message === "" ? "primary" : isInvalid ? "danger" : "warning"}
-                                    marks={[
-                                        {
-                                            value: 2,
-                                            label: "2 GB"
-                                        },
-                                        {
-                                            value: maxRam,
-                                            label: `${maxRam} GB`
-                                        },
-                                        // Add marks for warning and danger thresholds
-                                        ...(maxRam > 10 ? [{
-                                            value: 10,
-                                            label: "Warning"
-                                        }] : []),
-                                        ...(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)) > 2 ? [{
-                                            value: Math.floor(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3))),
-                                            label: "Danger"
-                                        }] : [])
-                                    ]}
-                                    renderValue={() =>
-                                        <Input
-                                            radius={"none"}
-                                            className={"w-16"}
-                                            size={"sm"}
-                                            value={ram.toString()}
-                                            onChange={e => setRam(+e.target.value)}
-                                            maxLength={3}
-                                            type={"number"}
-                                        />
-                                    }
-                                />
-                            </div>
-                            {message && <p className={"data-[invalid=true]:text-danger text-warning font-minecraft-body italic"} data-invalid={isInvalid}>{message}</p>}
+                            <LoaderSelector
+                                selectedLoader={selectedLoader}
+                                version={selectedMinecraftVersion}
+                                onChange={(url, version) =>
+                                {
+                                    setLoaderUrl(url);
+                                    setLoaderVersion(version);
+                                }}
+                                onCustomJarChange={setCustomJarFile}
+                            />
+                            <RamSlider value={ram} onValueChange={setRam}/>
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={onClose} radius={"none"} variant={"ghost"} color={"primary"}>Create</Button>
+                            <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm()}>Create</Button>
                             <Button onPress={onClose} radius={"none"} variant={"light"} color={"danger"}>Cancel</Button>
                         </ModalFooter>
                     </>
@@ -242,7 +203,8 @@ export default function NewServerModal(props: NewServerProperties)
 type LoaderSelectorProps = {
     selectedLoader: string;
     version: string | undefined;
-    onUrlChange: (url: string | undefined) => void;
+    onChange: (url: string | undefined, version: string | undefined) => void;
+    onCustomJarChange: (file: File | undefined) => void;
 }
 
 function LoaderSelector(props: LoaderSelectorProps)
@@ -250,15 +212,15 @@ function LoaderSelector(props: LoaderSelectorProps)
     const {
         selectedLoader,
         version,
-        onUrlChange
+        onChange
     } = props;
     if (!version) return <p className={"text-danger font-minecraft-body text-tiny italic underline"}>Please select a Minecraft version first.</p>;
     switch (selectedLoader)
     {
         case "fabric":
-            return <FabricVersionSelector minecraftVersion={version}/>;
+            return <FabricVersionSelector minecraftVersion={version} onVersionChange={onChange}/>;
         case "forge":
-            return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onUrlChange}/>;
+            return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onChange}/>;
         case "quilt":
             return <QuiltVersionSelector minecraftVersion={version}/>;
         case "neo_forge":
@@ -268,6 +230,8 @@ function LoaderSelector(props: LoaderSelectorProps)
                 <FileInput
                     accept={".jar,.zip,.tar.gz,.tar"}
                     description={"Upload your custom jar file or modpack archive."}
+                    multiple={false}
+                    onChange={file => props.onCustomJarChange(file as File | undefined)}
                 />
             );
         default:
