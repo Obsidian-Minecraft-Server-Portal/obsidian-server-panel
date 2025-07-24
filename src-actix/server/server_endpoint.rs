@@ -66,9 +66,10 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     let server_type: String = body.get("server_type").ok_or(anyhow!("Server type not found"))?.as_str().unwrap().to_string();
     let minecraft_version: String = body.get("minecraft_version").ok_or(anyhow!("Minecraft version not found"))?.as_str().unwrap().to_string();
     let loader_version: Option<String> = body.get("loader_version").and_then(|v| v.as_str().map(String::from));
+    let java_executable: String = body.get("java_executable").ok_or(anyhow!("Java executable not found"))?.as_str().unwrap().to_string();
 
     let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, user_id);
+    let server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
     server.create(&pool).await?;
     pool.close().await;
 

@@ -3,7 +3,7 @@ import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
-import {useCallback, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {MinecraftVersionSelector} from "./version-selectors/MinecraftVersionSelector.tsx";
 import {ForgeVersionSelector} from "./version-selectors/ForgeVersionSelector.tsx";
 import {FabricVersionSelector} from "./version-selectors/FabricVersionSelector.tsx";
@@ -13,6 +13,7 @@ import {NeoForgeVersionSelector} from "./version-selectors/NeoForgeVersionSelect
 import {LoaderType, useServer} from "../../providers/ServerProvider.tsx";
 import RamSlider from "./RamSlider.tsx";
 import JavaExecutableSelector from "./JavaExecutableSelector.tsx";
+import {getMinecraftVersionDownloadUrl} from "../../ts/minecraft-versions.ts";
 
 type NewServerProperties = {
     isOpen: boolean;
@@ -21,7 +22,7 @@ type NewServerProperties = {
 
 export default function NewServerModal(props: NewServerProperties)
 {
-    const {createServer, uploadFromUrl, uploadFile} = useServer();
+    const {createServer, uploadFromUrl, uploadFile, updateServer} = useServer();
     const [ram, setRam] = useState(4); // Default RAM value
     const [selectedLoader, setSelectedLoader] = useState<LoaderType>("vanilla"); // Default selected loader
     const [loaderVersion, setLoaderVersion] = useState<string | undefined>(undefined);
@@ -31,21 +32,26 @@ export default function NewServerModal(props: NewServerProperties)
     const [loaderUrl, setLoaderUrl] = useState<string | undefined>(undefined); // For custom loader URLs
     const [name, setName] = useState("");
     const [customJarFile, setCustomJarFile] = useState<File | undefined>(undefined); // For custom jar file uploads
+    const [isCreatingServer, setIsCreatingServer] = useState(false);
+    const [isValidForm, setIsValidForm] = useState(false);
 
 
     const submit = useCallback(async () =>
     {
-        if (!selectedMinecraftVersion)
+        if (!selectedMinecraftVersion || !selectedLoader || !selectedJavaExecutable || !isValidForm)
         {
+            console.log(`Invalid form submission: Minecraft Version: ${selectedMinecraftVersion}, Loader: ${selectedLoader}, Java Executable: ${selectedJavaExecutable}, Is Valid Form: ${isValidForm}`);
             return;
         }
+        setIsCreatingServer(true);
         try
         {
             let serverId = await createServer({
-                name: "New Server",
+                name,
                 server_type: selectedLoader,
                 minecraft_version: selectedMinecraftVersion,
-                loader_version: loaderVersion ?? ""
+                loader_version: loaderVersion ?? "",
+                java_executable: selectedJavaExecutable
             });
 
             if (!serverId)
@@ -55,11 +61,13 @@ export default function NewServerModal(props: NewServerProperties)
                     description: "Failed to create server. Please try again.",
                     color: "danger"
                 });
+                setIsCreatingServer(false);
+                return;
             }
 
             if (selectedLoader !== "custom")
             {
-                if (!loaderUrl)
+                if (!loaderUrl && selectedLoader !== "vanilla")
                 {
                     console.error("Loader URL is not defined for selected loader:", selectedLoader);
                     addToast({
@@ -67,9 +75,10 @@ export default function NewServerModal(props: NewServerProperties)
                         description: `Loader URL is not defined for selected loader: ${selectedLoader}. Please select a valid loader version.`,
                         color: "danger"
                     });
+                    setIsCreatingServer(false);
                     return;
                 }
-                const filepath = `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
+                const filepath = selectedLoader === "vanilla" ? `server-${selectedMinecraftVersion}.jar` : `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
                 const onProgress = (progress: number, downloaded: number, total: number) =>
                 {
                     console.log(`Downloading ${selectedLoader} server: ${progress}% (${downloaded}/${total} bytes)`);
@@ -81,7 +90,7 @@ export default function NewServerModal(props: NewServerProperties)
                 {
                     console.error("Error uploading server jar:", error);
                 };
-                await uploadFromUrl(loaderUrl, filepath, onProgress, onSuccess, onError, serverId);
+                await uploadFromUrl(loaderUrl ?? await getMinecraftVersionDownloadUrl(selectedMinecraftVersion), filepath, onProgress, onSuccess, onError, serverId);
             } else
             {
                 if (!customJarFile)
@@ -104,7 +113,9 @@ export default function NewServerModal(props: NewServerProperties)
                 await uploadFile(customJarFile, filepath, onProgress, onCancel, serverId);
             }
 
+            await updateServer({max_memory: ram}, serverId);
 
+            setIsCreatingServer(false);
             props.onClose();
         } catch (error)
         {
@@ -118,9 +129,10 @@ export default function NewServerModal(props: NewServerProperties)
         }
     }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram]);
 
-    const isValidForm = useCallback(() =>
+    useEffect(() =>
     {
-        return name.trim() !== "" && selectedMinecraftVersion !== undefined && (selectedLoader !== "custom" || loaderUrl !== undefined) && selectedJavaExecutable !== undefined;
+        console.log(`Validating form inputs: Loader Url: ${loaderUrl} - Selected Loader: ${selectedLoader} - Minecraft Version: ${selectedMinecraftVersion} - Name: "${name}" - Java Executable: ${selectedJavaExecutable}`);
+        setIsValidForm(name.trim() !== "" && selectedMinecraftVersion !== undefined && (selectedLoader !== "custom" || loaderUrl !== undefined) && selectedJavaExecutable !== undefined);
     }, [loaderUrl, selectedLoader, selectedMinecraftVersion, name, selectedJavaExecutable]);
 
     return (
@@ -133,6 +145,8 @@ export default function NewServerModal(props: NewServerProperties)
             classNames={{closeButton: "rounded-none"}}
             size={"3xl"}
             scrollBehavior={"inside"}
+            isDismissable={!isCreatingServer}
+            hideCloseButton={isCreatingServer}
         >
             <ModalContent>
                 {onClose => (
@@ -192,8 +206,8 @@ export default function NewServerModal(props: NewServerProperties)
                             <JavaExecutableSelector onVersionChange={setSelectedJavaExecutable}/>
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm()}>Create</Button>
-                            <Button onPress={onClose} radius={"none"} variant={"light"} color={"danger"}>Cancel</Button>
+                            <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm} isLoading={isCreatingServer}>Create</Button>
+                            <Button onPress={onClose} radius={"none"} variant={"light"} color={"danger"} isLoading={isCreatingServer}>Cancel</Button>
                         </ModalFooter>
                     </>
                 )}

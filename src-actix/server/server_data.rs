@@ -18,7 +18,7 @@ pub struct ServerData {
     /// Directory name where server files are stored, e.g. 'my_minecraft_server'
     pub directory: String,
     /// Path to Java executable, e.g. '/usr/bin/java' or 'java' for system PATH
-    pub java_executable: Option<String>,
+    pub java_executable: String,
     /// Additional JVM arguments excluding -Xmx and -Xms
     pub java_args: String,
     /// Maximum memory in GB for JVM -Xmx argument
@@ -66,7 +66,7 @@ impl Default for ServerData {
             id: 0,
             name: String::new(),
             directory: String::new(),
-            java_executable: None,
+            java_executable: String::new(),
             java_args: String::new(),
             max_memory: 2,
             min_memory: 1,
@@ -91,13 +91,21 @@ impl Default for ServerData {
 }
 
 impl ServerData {
-    pub fn new(name: String, server_type: ServerType, minecraft_version: String, loader_version: Option<String>, owner_id: u64) -> Self {
+    pub fn new(
+        name: String,
+        server_type: ServerType,
+        minecraft_version: String,
+        loader_version: Option<String>,
+        java_executable: String,
+        owner_id: u64,
+    ) -> Self {
         Self {
             name: name.clone(),
             directory: Self::generate_directory_name(name.as_str()),
             minecraft_version: Some(minecraft_version),
             server_type: Some(server_type),
             loader_version,
+            java_executable,
             owner_id,
             ..Self::default()
         }

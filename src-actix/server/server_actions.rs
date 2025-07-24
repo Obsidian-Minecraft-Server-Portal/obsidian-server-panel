@@ -1,6 +1,6 @@
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
-use anyhow::{Result, bail};
+use anyhow::Result;
 use log::{debug, error};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
@@ -14,12 +14,10 @@ impl ServerData {
     pub async fn start_server(&mut self) -> Result<()> {
         self.status = ServerStatus::Starting;
         self.save().await?;
-        let java_executable =
-            if let Some(java_executable) = self.java_executable.clone() { java_executable } else { bail!("java_executable is not set") };
         let arguments = format!("{} {} {}", &self.java_args, &self.server_jar, &self.minecraft_args);
 
         let self_clone = self.clone();
-        let pid = AsynchronousInteractiveProcess::new(java_executable)
+        let pid = AsynchronousInteractiveProcess::new(&self.java_executable)
             .with_argument(arguments)
             .with_working_directory(self.get_directory_path())
             .process_exit_callback(move |exit_code| {
@@ -61,9 +59,7 @@ impl ServerData {
                 return;
             }
             let server = ServerData::get(id, owner_id).await.expect("Server not found").expect("Server not found");
-            if server.status == ServerStatus::Starting{
-
-            }
+            if server.status == ServerStatus::Starting {}
         });
 
         loop {

@@ -1,6 +1,6 @@
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
 import {Button, Progress, Select, SelectItem, SelectSection} from "@heroui/react";
-import {useCallback, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {JavaVersion} from "../../ts/java-versions.ts";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
@@ -20,6 +20,31 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
     const [installationProgress, setInstallationProgress] = useState(0);
     const [isInstalling, setIsInstalling] = useState(false);
 
+    // Update the parent component whenever selectedVersion or javaVersions change
+    useEffect(() =>
+    {
+        if (selectedVersion && selectedVersion.installed && selectedVersion.executable)
+        {
+            onVersionChange(selectedVersion.executable);
+        } else
+        {
+            onVersionChange(undefined);
+        }
+    }, [selectedVersion, onVersionChange]);
+
+    // Update selectedVersion when javaVersions change (after install/uninstall)
+    useEffect(() =>
+    {
+        if (selectedVersion)
+        {
+            const updatedVersion = javaVersions.find(v => v.runtime === selectedVersion.runtime);
+            if (updatedVersion && (updatedVersion.installed !== selectedVersion.installed || updatedVersion.executable !== selectedVersion.executable))
+            {
+                setSelectedVersion(updatedVersion);
+            }
+        }
+    }, [javaVersions, selectedVersion]);
+
     const handleInstall = useCallback(async () =>
     {
         if (!selectedVersion || selectedVersion.installed) return;
@@ -27,25 +52,33 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
         setInstallationProgress(0);
         setIsInstalling(true);
 
-        await installVersion(selectedVersion.runtime, (progress) => setInstallationProgress(progress.progress));
-        setSelectedVersion({...selectedVersion, installed: true});
-        if (selectedVersion.executable) onVersionChange(selectedVersion.executable);
-
-        setIsInstalling(false);
-        setInstallationProgress(0);
-        await refreshJavaVersions();
-    }, [selectedVersion, installVersion, onVersionChange]);
+        try
+        {
+            await installVersion(selectedVersion.runtime, (progress) => setInstallationProgress(progress.progress));
+            await refreshJavaVersions();
+        } catch (error)
+        {
+            console.error("Failed to install Java version:", error);
+        } finally
+        {
+            setIsInstalling(false);
+            setInstallationProgress(0);
+        }
+    }, [selectedVersion, installVersion, refreshJavaVersions]);
 
     const handleUninstall = useCallback(async () =>
     {
         if (!selectedVersion || !selectedVersion.installed) return;
 
-        await uninstallVersion(selectedVersion.runtime);
-        onVersionChange(undefined);
-        setSelectedVersion({...selectedVersion, installed: false});
-
-        await refreshJavaVersions();
-    }, [selectedVersion, uninstallVersion, onVersionChange]);
+        try
+        {
+            await uninstallVersion(selectedVersion.runtime);
+            await refreshJavaVersions();
+        } catch (error)
+        {
+            console.error("Failed to uninstall Java version:", error);
+        }
+    }, [selectedVersion, uninstallVersion, refreshJavaVersions]);
 
     return (
         <div className={"flex flex-col gap-1"}>
@@ -57,15 +90,15 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                     size={"sm"}
                     className={"font-minecraft-body"}
                     classNames={{listbox: "font-minecraft-body"}}
+                    disallowEmptySelection
+                    selectedKeys={selectedVersion ? [selectedVersion.runtime] : []}
                     onSelectionChange={keys =>
                     {
                         const key = [...keys][0];
-                        console.log("Selected key:", key);
                         const selected = javaVersions.find(v => v.runtime == key);
                         if (selected)
                         {
                             setSelectedVersion(selected);
-                            if (selected.installed && selected.executable) onVersionChange(selected.executable);
                         }
                     }}
                 >
@@ -145,7 +178,6 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                     minValue={0}
                     maxValue={1}
                     value={installationProgress}
-                    // isIndeterminate={installationProgress === 0}
                 />
             }
         </div>

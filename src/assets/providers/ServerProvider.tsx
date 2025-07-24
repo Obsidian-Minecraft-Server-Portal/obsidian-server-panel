@@ -6,12 +6,8 @@ export type Server =
     {
         /** Unique identifier for the server */
         id: string;
-        /** Name of the server, e.g. 'My Minecraft Server' */
-        name: string;
         /** Directory name where server files are stored, e.g. 'my_minecraft_server' */
         directory: string;
-        /** Path to Java executable, e.g. '/usr/bin/java' or 'java' for system PATH */
-        java_executable: string | null;
         /** Additional JVM arguments excluding -Xmx and -Xms */
         java_args: string;
         /** Maximum memory in GB for JVM -Xmx argument */
@@ -26,9 +22,9 @@ export type Server =
         upnp: boolean;
         /** Server status: 'stopped', 'starting', 'running', 'stopping', 'error' */
         status: ServerStatus;
-        /** Whether server should start automatically on boot */
+        /** Whether the server should start automatically on boot */
         auto_start: boolean;
-        /** Whether server should restart automatically if it crashes */
+        /** Whether the server should restart automatically if it crashes */
         auto_restart: boolean;
         /** Whether automatic backups are enabled */
         backup_enabled: boolean;
@@ -36,12 +32,6 @@ export type Server =
         backup_interval: number;
         /** Optional server description */
         description: string | null;
-        /** Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom' */
-        minecraft_version: string | null;
-        /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', or 'custom' */
-        server_type: LoaderType | null;
-        /** Loader version e.g. '0.14.0', '1.20.1-44.1.23', or 'custom' */
-        loader_version: string | null;
         /** ID of the user who owns this server */
         owner_id: number;
         /** Timestamp of when the server was created (seconds since epoch) */
@@ -50,13 +40,19 @@ export type Server =
         updated_at: number;
         /** Timestamp of when the server was last started (seconds since epoch) */
         last_started: number | null;
-    }
+    } & CreateServerData
 
 export type CreateServerData = {
+    /** Name of the server, e.g. 'My Minecraft Server' */
     name: string;
+    /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', or 'custom' */
     server_type: LoaderType;
+    /** Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom' */
     minecraft_version: string;
+    /** Loader version e.g. '0.14.0', '1.20.1-44.1.23', or 'custom' */
     loader_version: string;
+    /** Path to Java executable, e.g. '/usr/bin/java' or 'java' for system PATH */
+    java_executable: string;
 }
 
 export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom";
@@ -69,7 +65,7 @@ interface ServerContextType
     loadServer: (id: string) => Promise<void>;
     loadServers: () => Promise<void>;
     createServer: (server: CreateServerData) => Promise<string>;
-    updateServer: (server: Partial<Server>) => Promise<void>;
+    updateServer: (server: Partial<Server>, serverId?: string) => Promise<void>;
     deleteServer: (serverId?: string) => Promise<void>;
     startServer: (serverId?: string) => Promise<void>;
     stopServer: (serverId?: string) => Promise<void>;
@@ -132,21 +128,22 @@ export function ServerProvider({children}: { children: ReactNode })
         return response.server_id;
     };
 
-    const updateServer = useCallback(async (updates: Partial<Server>) =>
+    const updateServer = useCallback(async (updates: Partial<Server>, serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        let targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+        let targetServer: Server | null = servers.find(s => s.id === targetServerId) || server;
 
-        const updatedServer = {...server, ...updates};
+        if (!targetServerId) throw new Error("No server loaded");
+
+        const updatedServer = {...targetServer, ...updates};
         await $.ajax({
-            url: `/api/server/${server.id}`,
+            url: `/api/server/${targetServerId}`,
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify(updatedServer)
         });
-
-        setServer(updatedServer);
-        // Update in servers list if present
-        setServers(prev => prev.map(s => s.id === server.id ? updatedServer : s));
+        await loadServers();
     }, [server]);
 
     const deleteServer = useCallback(async (serverId?: string) =>
