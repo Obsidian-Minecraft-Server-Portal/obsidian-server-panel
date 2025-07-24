@@ -66,14 +66,14 @@ export default function MessageModal(props: MessageProperties)
                             {({
                                 [MessageResponseType.YesNo]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)}>Yes</Button>
-                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"} color={"danger"}>No</Button>
+                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : undefined}>Yes</Button>
+                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"} color={severity !== "danger" ? "danger" : undefined}>No</Button>
                                     </>
                                 ),
                                 [MessageResponseType.OkayCancel]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)}>Okay</Button>
-                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"} color={"danger"}>Cancel</Button>
+                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : undefined}>Okay</Button>
+                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"} color={severity !== "danger" ? "danger" : undefined}>Cancel</Button>
                                     </>
                                 ),
                                 [MessageResponseType.Close]: (
