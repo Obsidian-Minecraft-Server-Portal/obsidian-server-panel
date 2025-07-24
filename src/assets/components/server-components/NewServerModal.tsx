@@ -3,14 +3,14 @@ import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {MinecraftVersionSelector} from "./version-selectors/MinecraftVersionSelector.tsx";
 import {ForgeVersionSelector} from "./version-selectors/ForgeVersionSelector.tsx";
 import {FabricVersionSelector} from "./version-selectors/FabricVersionSelector.tsx";
 import {FileInput} from "../extended/FileInput.tsx";
 import {QuiltVersionSelector} from "./version-selectors/QuiltVersionSelector.tsx";
 import {NeoForgeVersionSelector} from "./version-selectors/NeoForgeVersionSelector.tsx";
-import {useServer} from "../../providers/ServerProvider.tsx";
+import {LoaderType, useServer} from "../../providers/ServerProvider.tsx";
 import {useHostInfo} from "../../providers/HostInfoProvider.tsx";
 
 type NewServerProperties = {
@@ -22,12 +22,14 @@ export default function NewServerModal(props: NewServerProperties)
 {
     const {createServer} = useServer();
     const {hostInfo, resources} = useHostInfo();
-    const [selectedLoader, setSelectedLoader] = useState("vanilla"); // Default selected loader
+    const [selectedLoader, setSelectedLoader] = useState<LoaderType>("vanilla"); // Default selected loader
+    const [loaderVersion, setLoaderVersion] = useState<string | undefined>(undefined);
     const [selectedMinecraftVersion, setSelectedMinecraftVersion] = useState<string | undefined>(undefined);
     const [ram, setRam] = useState(4); // Default RAM value
     const [maxRam, setMaxRam] = useState(4); // Default max RAM value
     const [message, setMessage] = useState("");
     const [isInvalid, setIsInvalid] = useState(false);
+    const [loaderUrl, setLoaderUrl] = useState<string | undefined>(undefined); // For custom loader URLs
 
     useEffect(() =>
     {
@@ -53,6 +55,37 @@ export default function NewServerModal(props: NewServerProperties)
             setIsInvalid(false);
         }
     }, [ram, maxRam, resources]);
+
+    const submit = useCallback(async () =>
+    {
+        if (!selectedMinecraftVersion)
+        {
+            setMessage("Please select a Minecraft version.");
+            setIsInvalid(true);
+            return;
+        }
+        if (isInvalid || message !== "")
+        {
+            setMessage("Please fix the errors before creating the server.");
+            return;
+        }
+        try
+        {
+            let serverId = await createServer({
+                name: "New Server",
+                server_type: selectedLoader,
+                minecraft_version: selectedMinecraftVersion,
+                loader_version: loaderVersion ?? ""
+            });
+            
+            props.onClose();
+        } catch (error)
+        {
+            console.error("Error creating server:", error);
+            setMessage("Failed to create server. Please try again.");
+            setIsInvalid(true);
+        }
+    }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram]);
 
     return (
         <Modal
@@ -89,7 +122,7 @@ export default function NewServerModal(props: NewServerProperties)
                                         tab: "flex flex-col items-center justify-center h-24 w-28"
                                     }}
                                     selectedKey={selectedLoader}
-                                    onSelectionChange={key => setSelectedLoader(key as string)}
+                                    onSelectionChange={key => setSelectedLoader(key as LoaderType)}
                                 >
                                     <Tab key={"vanilla"} title={<><Icon icon={"heroicons:cube-transparent-16-solid"} width={32}/><p>Vanilla</p></>}/>
                                     <Tab key={"fabric"} title={<div className={"relative"}><Icon icon={"file-icons:fabric"} width={32}/><p>Fabric</p></div>}/>
@@ -107,7 +140,7 @@ export default function NewServerModal(props: NewServerProperties)
                             </div>
 
                             <MinecraftVersionSelector onVersionChange={setSelectedMinecraftVersion} version={selectedMinecraftVersion}/>
-                            <LoaderSelector selectedLoader={selectedLoader} version={selectedMinecraftVersion}/>
+                            <LoaderSelector selectedLoader={selectedLoader} version={selectedMinecraftVersion} onUrlChange={setLoaderUrl}/>
 
                             <div className="relative">
                                 {/* Custom track segments for warning/danger zones */}
