@@ -1,4 +1,4 @@
-import {createContext, ReactNode, useCallback, useContext, useState} from "react";
+import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import $ from "jquery";
 
 export type Server =
@@ -66,15 +66,15 @@ interface ServerContextType
     loadServers: () => Promise<void>;
     createServer: (server: CreateServerData) => Promise<void>;
     updateServer: (server: Partial<Server>) => Promise<void>;
-    deleteServer: () => Promise<void>;
-    startServer: () => Promise<void>;
-    stopServer: () => Promise<void>;
-    restartServer: () => Promise<void>;
-    killServer: () => Promise<void>;
-    sendCommand: (command: string) => Promise<void>;
-    subscribeToConsole: (callback: (data: string) => void) => () => void;
-    backupServer: () => Promise<void>;
-    getServerStatus: () => Promise<string>;
+    deleteServer: (serverId?: string) => Promise<void>;
+    startServer: (serverId?: string) => Promise<void>;
+    stopServer: (serverId?: string) => Promise<void>;
+    restartServer: (serverId?: string) => Promise<void>;
+    killServer: (serverId?: string) => Promise<void>;
+    sendCommand: (command: string, serverId?: string) => Promise<void>;
+    subscribeToConsole: (callback: (data: string) => void, serverId?: string) => () => void;
+    backupServer: (serverId?: string) => Promise<void>;
+    getServerStatus: (serverId?: string) => Promise<string>;
 }
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
@@ -126,147 +126,208 @@ export function ServerProvider({children}: { children: ReactNode })
         setServers(prev => prev.map(s => s.id === server.id ? updatedServer : s));
     }, [server]);
 
-    const deleteServer = useCallback(async () =>
+    const deleteServer = useCallback(async (serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
         await $.ajax({
-            url: `/api/server/${server.id}`,
+            url: `/api/server/${targetServerId}`,
             type: "DELETE"
         });
 
-        setServer(null);
+        // If deleting the currently loaded server, clear it
+        if (server && server.id === targetServerId)
+        {
+            setServer(null);
+        }
+
         // Remove from servers list
-        setServers(prev => prev.filter(s => s.id !== server.id));
+        setServers(prev => prev.filter(s => s.id !== targetServerId));
     }, [server]);
 
-    const startServer = useCallback(async () =>
+    const startServer = useCallback(async (serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
-        await $.post(`/api/server/${server.id}/start`);
-        setServer(prev => prev ? {...prev, status: "starting"} : null);
-        let id = server.id;
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        await $.post(`/api/server/${targetServerId}/start`);
+
+        // Update status for currently loaded server if it matches
+        if (server && server.id === targetServerId)
+        {
+            setServer(prev => prev ? {...prev, status: "starting"} : null);
+        }
 
         let statusPoll = setInterval(async () =>
         {
-            let server: Server = await $.get(`/api/server/${id}`);
-            if (server.status === "running" || server.status === "error" || server.status === "crashed")
+            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
+            if (updatedServer.status === "running" || updatedServer.status === "error" || updatedServer.status === "crashed")
             {
-                setServer(server);
-                setServers(prev => prev.map(s => s.id === id ? server : s));
+                // Update currently loaded server if it matches
+                if (server && server.id === targetServerId)
+                {
+                    setServer(updatedServer);
+                }
+                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
                 clearInterval(statusPoll);
             }
         }, 1000);
     }, [server]);
 
-    const stopServer = useCallback(async () =>
+    const stopServer = useCallback(async (serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        await $.post(`/api/server/${server.id}/stop`);
-        setServer(prev => prev ? {...prev, status: "stopping"} : null);
-        let id = server.id;
+        await $.post(`/api/server/${targetServerId}/stop`);
+
+        // Update status for currently loaded server if it matches
+        if (server && server.id === targetServerId)
+        {
+            setServer(prev => prev ? {...prev, status: "stopping"} : null);
+        }
 
         let statusPoll = setInterval(async () =>
         {
-            let server: Server = await $.get(`/api/server/${id}`);
-            if (server.status === "stopped" || server.status === "error" || server.status === "crashed")
+            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
+            if (updatedServer.status === "stopped" || updatedServer.status === "error" || updatedServer.status === "crashed")
             {
-                setServer(server);
-                setServers(prev => prev.map(s => s.id === id ? server : s));
+                // Update currently loaded server if it matches
+                if (server && server.id === targetServerId)
+                {
+                    setServer(updatedServer);
+                }
+                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
                 clearInterval(statusPoll);
             }
         }, 1000);
     }, [server]);
 
-    const restartServer = useCallback(async () =>
+    const restartServer = useCallback(async (serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        await $.post(`/api/server/${server.id}/restart`);
-        setServer(prev => prev ? {...prev, status: "stopping"} : null);
-        let id = server.id;
+        await $.post(`/api/server/${targetServerId}/restart`);
+
+        // Update status for currently loaded server if it matches
+        if (server && server.id === targetServerId)
+        {
+            setServer(prev => prev ? {...prev, status: "stopping"} : null);
+        }
 
         let statusPoll = setInterval(async () =>
         {
-            let server: Server = await $.get(`/api/server/${id}`);
-            if (server.status === "running" || server.status === "error" || server.status === "crashed")
+            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
+            if (updatedServer.status === "running" || updatedServer.status === "error" || updatedServer.status === "crashed")
             {
-                setServer(server);
-                setServers(prev => prev.map(s => s.id === id ? server : s));
+                // Update currently loaded server if it matches
+                if (server && server.id === targetServerId)
+                {
+                    setServer(updatedServer);
+                }
+                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
                 clearInterval(statusPoll);
             }
         }, 1000);
     }, [server]);
 
-    const killServer = useCallback(async () =>
+    const killServer = useCallback(async (serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        await $.post(`/api/server/${server.id}/kill`);
-        setServer(prev => prev ? {...prev, status: "stopping"} : null);
-        let id = server.id;
+        await $.post(`/api/server/${targetServerId}/kill`);
+
+        // Update status for currently loaded server if it matches
+        if (server && server.id === targetServerId)
+        {
+            setServer(prev => prev ? {...prev, status: "stopping"} : null);
+        }
 
         let statusPoll = setInterval(async () =>
         {
-            let server: Server = await $.get(`/api/server/${id}`);
-            if (server.status === "stopped" || server.status === "error" || server.status === "crashed")
+            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
+            if (updatedServer.status === "stopped" || updatedServer.status === "error" || updatedServer.status === "crashed")
             {
-                setServer(server);
-                setServers(prev => prev.map(s => s.id === id ? server : s));
+                // Update currently loaded server if it matches
+                if (server && server.id === targetServerId)
+                {
+                    setServer(updatedServer);
+                }
+                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
                 clearInterval(statusPoll);
             }
         }, 1000);
     }, [server]);
 
-    const sendCommand = useCallback(async (command: string) =>
+    const sendCommand = useCallback(async (command: string, serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
         await $.ajax({
-            url: `/api/server/${server.id}/send-command`,
+            url: `/api/server/${targetServerId}/send-command`,
             type: "POST",
             contentType: "text/plain",
             data: command
         });
     }, [server]);
 
-    const subscribeToConsole = useCallback((callback: (data: string) => void): (() => void) =>
+    const subscribeToConsole = useCallback((callback: (data: string) => void, serverId?: string): (() => void) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        const eventSource = new EventSource(`/api/server/${server.id}/console`);
-        const eventName = `server-${server.id}-console`;
+        const eventSource = new EventSource(`/api/server/${targetServerId}/console`);
+        const eventName = `server-${targetServerId}-console`;
 
-        const handleMessage = (event: MessageEvent) => {
+        const handleMessage = (event: MessageEvent) =>
+        {
             callback(event.data);
         };
 
         eventSource.addEventListener(eventName, handleMessage);
 
         // Return cleanup function
-        return () => {
+        return () =>
+        {
             eventSource.removeEventListener(eventName, handleMessage);
             eventSource.close();
         };
     }, [server]);
 
-    const backupServer = useCallback(async () =>
+    const backupServer = useCallback(async (serverId?: string) =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
         // Note: There's no backup endpoint in the server_endpoint.rs file
         // You may need to implement this endpoint on the backend
         throw new Error("Backup endpoint not implemented");
     }, [server]);
 
-    const getServerStatus = useCallback(async (): Promise<string> =>
+    const getServerStatus = useCallback(async (serverId?: string): Promise<string> =>
     {
-        if (!server) throw new Error("No server loaded");
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        const serverData: Server = await $.get(`/api/server/${server.id}`);
+        const serverData: Server = await $.get(`/api/server/${targetServerId}`);
         return serverData.status;
     }, [server]);
+
+    useEffect(() =>
+    {
+        // Load servers on initial mount
+        loadServers().catch(console.error);
+
+        // If a server is already loaded, load its details
+        if (server)
+        {
+            loadServer(server.id).catch(console.error);
+        }
+    }, []);
 
     return (
         <ServerContext.Provider value={{
