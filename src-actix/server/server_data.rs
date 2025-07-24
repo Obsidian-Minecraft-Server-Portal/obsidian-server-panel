@@ -103,18 +103,6 @@ impl ServerData {
         }
     }
 
-    pub fn get_start_command(&self) -> String {
-        let java_executable = if let Some(java_executable) = &self.java_executable { java_executable.clone() } else { "java".to_string() };
-        let mut command = format!("{} -Xmx{}G -Xms{}G {}", java_executable, self.max_memory, self.min_memory, self.java_args);
-
-        if !self.minecraft_args.is_empty() {
-            command.push_str(&format!(" {}", self.minecraft_args));
-        }
-
-        command.push_str(&format!(" -jar {} nogui", self.server_jar));
-        command
-    }
-
     pub fn get_directory_path(&self) -> PathBuf {
         PathBuf::from(SERVER_DIRECTORY).join(&self.directory)
     }
