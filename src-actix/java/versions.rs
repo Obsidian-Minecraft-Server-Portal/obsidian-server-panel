@@ -5,7 +5,7 @@ use futures::stream::StreamExt;
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value};
+use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::{fs::File, io::Write, sync::Arc};
@@ -156,7 +156,7 @@ impl JavaVersion {
                             progress[index] = item;
 
                             let sender = sender.lock().unwrap();
-                            let data = actix_web_lab::sse::Data::new(serde_json::to_string(&progress.clone()).unwrap()).event("progress");
+                            let data = actix_web_lab::sse::Data::new_json(&progress.clone()).unwrap().event("progress");
                             sender.try_send(data.into()).unwrap()
                         })
                         .await
