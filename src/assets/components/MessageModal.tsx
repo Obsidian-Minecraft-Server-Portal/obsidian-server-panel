@@ -46,6 +46,7 @@ export default function MessageModal(props: MessageProperties)
                 backdrop: severity === "danger" ? "bg-danger/10" : ""
             }}
             data-severity={severity}
+            isDismissable={false}
         >
             <ModalContent>
                 {() => (
@@ -66,14 +67,14 @@ export default function MessageModal(props: MessageProperties)
                             {({
                                 [MessageResponseType.YesNo]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : undefined}>Yes</Button>
-                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"} color={severity !== "danger" ? "danger" : undefined}>No</Button>
+                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"}>Yes</Button>
+                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"}>No</Button>
                                     </>
                                 ),
                                 [MessageResponseType.OkayCancel]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : undefined}>Okay</Button>
-                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"} color={severity !== "danger" ? "danger" : undefined}>Cancel</Button>
+                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"}>Okay</Button>
+                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"}>Cancel</Button>
                                     </>
                                 ),
                                 [MessageResponseType.Close]: (
