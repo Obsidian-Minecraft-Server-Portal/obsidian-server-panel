@@ -47,8 +47,8 @@ export default function Dashboard()
                     >
                         <ResourceGraph variant={"cpu"} showCPUCores showHistory={true} size={graphSize} decimalPlaces={2}/>
                         <ResourceGraph variant={"memory"} unit={"gb"} size={graphSize} showMaxValue decimalPlaces={2}/>
-                        <ResourceGraph variant={"network"} unit={"mb"} size={graphSize} isUnitOverTime={true} showHistory={false} decimalPlaces={1}/>
-                        <ResourceGraph variant={"disk"} unit={"gb"} size={graphSize} showHistory={false} decimalPlaces={1}/>
+                        <ResourceGraph variant={"network"} unit={"mb"} size={graphSize} isUnitOverTime showHistory={false} decimalPlaces={1}/>
+                        <ResourceGraph variant={"disk"} unit={"mb"} size={graphSize} showHistory={false} decimalPlaces={1} isUnitOverTime/>
                     </motion.div>
                 </div>
                 <motion.div

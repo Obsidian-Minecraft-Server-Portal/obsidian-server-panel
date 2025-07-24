@@ -48,12 +48,14 @@ impl StaticHostResourceData {
 impl HostResourceData {
     pub async fn fetch_continuously(sender: tokio::sync::mpsc::Sender<sse::Event>, cancellation_token: Option<CancellationToken>) -> Result<()> {
         let mut system = System::new_all();
+        let mut disks = Disks::new();
+        let mut networks = Networks::new();
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Burst);
         loop {
             tokio::select! {
                 _ = interval.tick() => {
-                    let data = Self::fetch(&mut system);
+                    let data = Self::fetch(&mut system, &mut disks, &mut networks);
                     let message = sse::Data::new(serde_json::to_string(&data)?).event("resource_update");
                     if sender.send(message.into()).await.is_err() {
                         warn!("Failed to send resource update event to client, this is most likely due to the client disconnecting.");
@@ -73,10 +75,10 @@ impl HostResourceData {
 
         Ok(())
     }
-    pub fn fetch(system: &mut System) -> Self {
+    pub fn fetch(system: &mut System, disks: &mut Disks, networks: &mut Networks) -> Self {
         system.refresh_all();
-        let disks = Disks::new_with_refreshed_list();
-        let networks = Networks::new_with_refreshed_list();
+        networks.refresh(true);
+        disks.refresh(true);
 
         let cpu_usage = system.global_cpu_usage();
         let cores = system.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();

@@ -146,8 +146,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
             setMaxValue(convertBytesToUnit(hostInfo.resources.total_memory, targetUnit));
         } else if ((variant === "network" || variant === "disk") && typeof currentValue === "object" && currentValue.mtu)
         {
-            const targetUnit = unit === "auto" ? autoUnit : unit;
-            setMaxValue(convertBytesToUnit(currentValue.mtu, targetUnit));
+            setMaxValue(currentValue.mtu);
         } else if (!props.maxValue)
         {
             // Keep existing default behavior if no MTU and no explicit maxValue
@@ -175,7 +174,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                 newValue = resources.allocated_memory ?? 0;
                 break;
             case "network":
-                newValue = resources.network_usage?.[0] ?? {device: "", read: 0, write: 0};
+                newValue = resources.network_usage?.reduce((a, b) => ({read: (a.read + b.read), write: (a.write + b.write), mtu: ((a.mtu ?? 0) + (b.mtu ?? 0)), device: "Network"})) ?? {device: "", read: 0, write: 0};
                 break;
             case "disk":
                 newValue = resources.disk_usage?.[0] ?? {device: "", read: 0, write: 0};
