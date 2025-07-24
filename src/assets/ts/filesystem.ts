@@ -42,17 +42,16 @@ export class FileSystem
     /**
      * Get filesystem entries for the specified path
      * @param path Directory path to browse
+     * @param serverId Server ID to target
      * @returns Promise with the filesystem data
      */
-    static async getEntries(path: string): Promise<FilesystemData>
+    static async getEntries(path: string, serverId: string): Promise<FilesystemData>
     {
         try
         {
-            const response = await fetch(`/api/filesystem/`, {
-                headers: {
-                    "X-Filesystem-Path": decodeURIComponent(path)
-                }
-            });
+            const url = new URL(`/api/${serverId}/fs/`, window.location.origin);
+            url.searchParams.set("path", decodeURIComponent(path));
+            const response = await fetch(url.toString());
 
             if (!response.ok)
             {
@@ -110,12 +109,13 @@ export class FileSystem
     /**
      * Download a file or directory
      * @param entry Filesystem entry to download
+     * @param serverId Server ID to target
      * @returns Promise that resolves when download is initiated
      */
-    static async download(entry: FilesystemEntry | FilesystemEntry[]): Promise<void>
+    static async download(entry: FilesystemEntry | FilesystemEntry[], serverId: string): Promise<void>
     {
         const cwd = window.location.pathname.replace("/files/", "");
-        const url = new URL(`/api/filesystem/download`, window.location.href);
+        const url = new URL(`/api/${serverId}/fs/download`, window.location.origin);
 
         const items = entry instanceof Array ? entry : [entry];
         url.searchParams.set("items", JSON.stringify(items.map(e => e.path.replace(cwd, ""))));
@@ -129,9 +129,9 @@ export class FileSystem
     }
 
 
-    static async copyEntry(sourcePaths: string[], destinationPath: string): Promise<void>
+    static async copyEntry(sourcePaths: string[], destinationPath: string, serverId: string): Promise<void>
     {
-        const response = await fetch("/api/filesystem/copy", {
+        const response = await fetch(`/api/${serverId}/fs/copy`, {
             method: "POST",
             body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
             headers: {"Content-Type": "application/json"}
@@ -144,9 +144,9 @@ export class FileSystem
         }
     }
 
-    static async moveEntry(sourcePaths: string[], destinationPath: string): Promise<void>
+    static async moveEntry(sourcePaths: string[], destinationPath: string, serverId: string): Promise<void>
     {
-        const response = await fetch("/api/filesystem/move", {
+        const response = await fetch(`/api/${serverId}/fs/move`, {
             method: "POST",
             body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
             headers: {"Content-Type": "application/json"}
@@ -158,9 +158,10 @@ export class FileSystem
             throw new Error(errorData.error || `Failed to move: ${response.statusText}`);
         }
     }
-    static async renameEntry(source: string, destination: string): Promise<void>
+
+    static async renameEntry(source: string, destination: string, serverId: string): Promise<void>
     {
-        const response = await fetch("/api/filesystem/rename", {
+        const response = await fetch(`/api/${serverId}/fs/rename`, {
             method: "POST",
             body: JSON.stringify({source, destination}),
             headers: {"Content-Type": "application/json"}
@@ -173,9 +174,9 @@ export class FileSystem
         }
     }
 
-    static async deleteEntry(path: string | string[]): Promise<void>
+    static async deleteEntry(path: string | string[], serverId: string): Promise<void>
     {
-        const response = await fetch("/api/filesystem/", {
+        const response = await fetch(`/api/${serverId}/fs/`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json"
@@ -209,13 +210,14 @@ export class FileSystem
     /**
      * Check if a path exists
      * @param path Path to check
+     * @param serverId Server ID to target
      * @returns Promise indicating if the path exists
      */
-    public static async pathExists(path: string): Promise<boolean>
+    public static async pathExists(path: string, serverId: string): Promise<boolean>
     {
         try
         {
-            await FileSystem.getEntries(path);
+            await FileSystem.getEntries(path, serverId);
             return true;
         } catch (error)
         {
@@ -226,16 +228,17 @@ export class FileSystem
     /**
      * Get file or directory information
      * @param path Path to the file or directory
+     * @param serverId Server ID to target
      * @returns Promise with the filesystem entry
      */
-    public static async getInfo(path: string): Promise<FilesystemEntry | null>
+    public static async getInfo(path: string, serverId: string): Promise<FilesystemEntry | null>
     {
         try
         {
             const dirname = FileSystem.getDirectoryName(path);
             const filename = FileSystem.getFileName(path);
 
-            const data = await FileSystem.getEntries(dirname);
+            const data = await FileSystem.getEntries(dirname, serverId);
             return data.entries.find(entry => entry.filename === filename) || null;
         } catch (error)
         {
@@ -267,23 +270,27 @@ export class FileSystem
         return path.substring(lastSlashIndex + 1);
     }
 
-    public static async upload(file: File, path: string, updateProgress: (bytes: number) => void, onCancelled?: () => void): Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }>
+    public static async upload(file: File, path: string, serverId: string, updateProgress: (bytes: number) => void, onCancelled?: () => void): Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }>
     {
         // Generate unique upload ID
         const uploadId = Math.random().toString(36);
 
         // Function to cancel the upload
-        const cancel = async () => {
-            try {
-                const response = await fetch(`/api/filesystem/upload/cancel/${uploadId}`, {
+        const cancel = async () =>
+        {
+            try
+            {
+                const response = await fetch(`/api/${serverId}/fs/upload/cancel/${uploadId}`, {
                     method: "POST"
                 });
 
-                if (!response.ok) {
+                if (!response.ok)
+                {
                     const errorData = await response.json();
                     console.error("Failed to cancel upload:", errorData.message || "Unknown error");
                 }
-            } catch (e: Error | any) {
+            } catch (e: Error | any)
+            {
                 console.error("Error cancelling upload:", e);
             }
         };
@@ -291,7 +298,7 @@ export class FileSystem
         const promise = new Promise<void>((resolve, reject) =>
         {
             // Set up the SSE listener for progress
-            const events = new EventSource(`/api/filesystem/upload/progress/${uploadId}`);
+            const events = new EventSource(`/api/${serverId}/fs/upload/progress/${uploadId}`);
 
             events.onmessage = (event) =>
             {
@@ -310,7 +317,8 @@ export class FileSystem
                     case "cancelled":
                         console.log(`Upload cancelled: ${data.bytesUploaded} bytes`);
                         events.close();
-                        if (onCancelled) {
+                        if (onCancelled)
+                        {
                             onCancelled();
                         }
                         resolve(); // Resolve instead of reject to avoid error handling
@@ -331,12 +339,12 @@ export class FileSystem
             events.onopen = () =>
             {
                 // Start the upload once connected
-                fetch(`/api/filesystem/upload`, {
+                const uploadUrl = new URL(`/api/${serverId}/fs/upload`, window.location.origin);
+                uploadUrl.searchParams.set("path", `${path}/${file.name}`);
+                uploadUrl.searchParams.set("upload_id", uploadId);
+
+                fetch(uploadUrl.toString(), {
                     method: "POST",
-                    headers: {
-                        "X-Filesystem-Path": `${path}/${file.name}`,
-                        "X-Upload-ID": uploadId
-                    },
                     body: file
                 }).then(response =>
                 {
@@ -353,12 +361,12 @@ export class FileSystem
             };
         });
 
-        return { promise, cancel, uploadId };
+        return {promise, cancel, uploadId};
     }
 
-    static async createEntry(filename: string, cwd: string, isDirectory: boolean)
+    static async createEntry(filename: string, cwd: string, isDirectory: boolean, serverId: string)
     {
-        const response = await fetch("/api/filesystem/new", {
+        const response = await fetch(`/api/${serverId}/fs/new`, {
             headers: {
                 "Content-Type": "application/json"
             },
@@ -372,9 +380,9 @@ export class FileSystem
         }
     }
 
-    static async search(query: string, filename_only: boolean, abortSignal: AbortSignal): Promise<FilesystemEntry[]>
+    static async search(query: string, filename_only: boolean, serverId: string, abortSignal: AbortSignal): Promise<FilesystemEntry[]>
     {
-        const response = await fetch(`/api/filesystem/search?q=${encodeURIComponent(query)}&filename_only=${filename_only}`, {signal: abortSignal});
+        const response = await fetch(`/api/${serverId}/fs/search?q=${encodeURIComponent(query)}&filename_only=${filename_only}`, {signal: abortSignal});
         if (!response.ok)
         {
             const errorData = await response.json();
@@ -406,20 +414,23 @@ export class FileSystem
         });
     }
 
-    static archive(filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void): { cancel: () => Promise<void>, trackerId: string }
+    static archive(filename: string, filenames: string[], cwd: string, serverId: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void): { cancel: () => Promise<void>, trackerId: string }
     {
         const id = `${filename}-${Math.random().toString(36)}`;
-        const event = new EventSource(`/api/filesystem/archive/status/${id}`);
+        const event = new EventSource(`/api/${serverId}/fs/archive/status/${id}`);
         if (event == null) throw new Error("Failed to create SSE connection");
 
         // Function to cancel the archive operation
-        const cancel = async () => {
-            try {
-                const response = await fetch(`/api/filesystem/archive/cancel/${id}`, {
+        const cancel = async () =>
+        {
+            try
+            {
+                const response = await fetch(`/api/${serverId}/fs/archive/cancel/${id}`, {
                     method: "POST"
                 });
 
-                if (!response.ok) {
+                if (!response.ok)
+                {
                     const errorData = await response.json();
                     console.error("Failed to cancel archive:", errorData.message || "Unknown error");
                 }
@@ -428,10 +439,12 @@ export class FileSystem
                 event.close();
 
                 // Call the cancelled callback if provided
-                if (on_cancelled) {
+                if (on_cancelled)
+                {
                     on_cancelled();
                 }
-            } catch (e: Error | any) {
+            } catch (e: Error | any)
+            {
                 console.error("Error cancelling archive:", e);
             }
         };
@@ -441,7 +454,7 @@ export class FileSystem
             on_progress(0);
             try
             {
-                const response = await fetch("/api/filesystem/archive", {
+                const response = await fetch(`/api/${serverId}/fs/archive`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -474,7 +487,8 @@ export class FileSystem
             const data = JSON.parse(event.data);
 
             // Check if the operation was cancelled
-            if (data.status === "cancelled" && on_cancelled) {
+            if (data.status === "cancelled" && on_cancelled)
+            {
                 on_cancelled();
                 return;
             }
@@ -493,14 +507,99 @@ export class FileSystem
         };
     }
 
-    static async cancelArchive(trackerId: string): Promise<void> {
-        const response = await fetch(`/api/filesystem/archive/cancel/${trackerId}`, {
+    static async cancelArchive(trackerId: string, serverId: string): Promise<void>
+    {
+        const response = await fetch(`/api/${serverId}/fs/archive/cancel/${trackerId}`, {
             method: "POST"
         });
 
-        if (!response.ok) {
+        if (!response.ok)
+        {
             const errorData = await response.json();
             throw new Error(errorData.message || "Failed to cancel archive operation");
+        }
+    }
+
+    /**
+     * Upload a file from a URL to the server
+     * @param url URL to download the file from
+     * @param filepath Path where the file should be saved (relative to server directory)
+     * @param serverId Server ID to target
+     * @param onProgress Callback for progress updates (progress: 0-1, downloaded: bytes, total: bytes)
+     * @param onSuccess Callback when upload completes successfully
+     * @param onError Callback when an error occurs
+     * @returns Promise that resolves when the upload starts (not when it completes)
+     */
+    static async uploadFromUrl(
+        url: string, 
+        filepath: string, 
+        serverId: string, 
+        onProgress: (progress: number, downloaded: number, total: number) => void,
+        onSuccess: () => void,
+        onError: (error: string) => void
+    ): Promise<void>
+    {
+        try
+        {
+            const uploadUrl = new URL(`/api/${serverId}/fs/upload-url`, window.location.origin);
+            uploadUrl.searchParams.set("url", url);
+            uploadUrl.searchParams.set("filepath", filepath);
+
+            const eventSource = new EventSource(uploadUrl.toString());
+
+            eventSource.onopen = () =>
+            {
+                console.log("Upload from URL started:", url);
+            };
+
+            eventSource.onmessage = (event) =>
+            {
+                try
+                {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.progress !== undefined && data.downloaded !== undefined && data.total !== undefined)
+                    {
+                        onProgress(data.progress, data.downloaded, data.total);
+                    }
+                } catch (e)
+                {
+                    console.error("Error parsing progress data:", e);
+                }
+            };
+
+            eventSource.addEventListener('error', (event: any) =>
+            {
+                try
+                {
+                    const data = JSON.parse(event.data);
+                    eventSource.close();
+                    onError(data.error || "Unknown error occurred during upload from URL");
+                } catch (e)
+                {
+                    eventSource.close();
+                    onError("Failed to upload from URL");
+                }
+            });
+
+            eventSource.onerror = () =>
+            {
+                // Check if the connection closed normally (readyState 2 = CLOSED)
+                if (eventSource.readyState === EventSource.CLOSED)
+                {
+                    // Connection closed normally, assume success
+                    onSuccess();
+                } else
+                {
+                    // Connection error
+                    eventSource.close();
+                    onError("Connection error during upload from URL");
+                }
+            };
+
+        } catch (error: Error | any)
+        {
+            onError(error.message || error.toString() || "Failed to start upload from URL");
         }
     }
 }

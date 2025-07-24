@@ -1,5 +1,6 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import $ from "jquery";
+import {FileSystem, FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 
 export type Server =
     {
@@ -78,6 +79,19 @@ interface ServerContextType
     subscribeToConsole: (callback: (data: string) => void, serverId?: string) => () => void;
     backupServer: (serverId?: string) => Promise<void>;
     getServerStatus: (serverId?: string) => Promise<string>;
+    // Filesystem functions
+    getEntries: (path: string, serverId?: string) => Promise<FilesystemData>;
+    downloadEntry: (entry: FilesystemEntry | FilesystemEntry[], serverId?: string) => Promise<void>;
+    copyEntry: (sourcePaths: string[], destinationPath: string, serverId?: string) => Promise<void>;
+    moveEntry: (sourcePaths: string[], destinationPath: string, serverId?: string) => Promise<void>;
+    renameEntry: (source: string, destination: string, serverId?: string) => Promise<void>;
+    deleteEntry: (path: string | string[], serverId?: string) => Promise<void>;
+    uploadFile: (file: File, path: string, updateProgress: (bytes: number) => void, onCancelled?: () => void, serverId?: string) => Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }>;
+    createEntry: (filename: string, cwd: string, isDirectory: boolean, serverId?: string) => Promise<void>;
+    searchFiles: (query: string, filename_only: boolean, abortSignal: AbortSignal, serverId?: string) => Promise<FilesystemEntry[]>;
+    archiveFiles: (filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string) => { cancel: () => Promise<void>, trackerId: string };
+    cancelArchive: (trackerId: string, serverId?: string) => Promise<void>;
+    uploadFromUrl: (url: string, filepath: string, onProgress: (progress: number, downloaded: number, total: number) => void, onSuccess: () => void, onError: (error: string) => void, serverId?: string) => Promise<void>;
 }
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
@@ -112,7 +126,7 @@ export function ServerProvider({children}: { children: ReactNode })
         {
             throw new Error("Server creation failed");
         }
-        
+
         // Refresh servers list
         await loadServers();
         return response.server_id;
@@ -326,16 +340,120 @@ export function ServerProvider({children}: { children: ReactNode })
         return serverData.status;
     }, [server]);
 
+    // Filesystem functions
+    const getEntries = useCallback(async (path: string, serverId?: string): Promise<FilesystemData> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.getEntries(path, targetServerId);
+    }, [server]);
+
+    const downloadEntry = useCallback(async (entry: FilesystemEntry | FilesystemEntry[], serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.download(entry, targetServerId);
+    }, [server]);
+
+    const copyEntry = useCallback(async (sourcePaths: string[], destinationPath: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.copyEntry(sourcePaths, destinationPath, targetServerId);
+    }, [server]);
+
+    const moveEntry = useCallback(async (sourcePaths: string[], destinationPath: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.moveEntry(sourcePaths, destinationPath, targetServerId);
+    }, [server]);
+
+    const renameEntry = useCallback(async (source: string, destination: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.renameEntry(source, destination, targetServerId);
+    }, [server]);
+
+    const deleteEntry = useCallback(async (path: string | string[], serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.deleteEntry(path, targetServerId);
+    }, [server]);
+
+    const uploadFile = useCallback(async (file: File, path: string, updateProgress: (bytes: number) => void, onCancelled?: () => void, serverId?: string): Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.upload(file, path, targetServerId, updateProgress, onCancelled);
+    }, [server]);
+
+    const createEntry = useCallback(async (filename: string, cwd: string, isDirectory: boolean, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.createEntry(filename, cwd, isDirectory, targetServerId);
+    }, [server]);
+
+    const searchFiles = useCallback(async (query: string, filename_only: boolean, abortSignal: AbortSignal, serverId?: string): Promise<FilesystemEntry[]> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.search(query, filename_only, targetServerId, abortSignal);
+    }, [server]);
+
+    const archiveFiles = useCallback((filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string): { cancel: () => Promise<void>, trackerId: string } =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return FileSystem.archive(filename, filenames, cwd, targetServerId, on_progress, on_success, on_error, on_cancelled);
+    }, [server]);
+
+    const cancelArchive = useCallback(async (trackerId: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.cancelArchive(trackerId, targetServerId);
+    }, [server]);
+
+    const uploadFromUrl = useCallback(async (url: string, filepath: string, onProgress: (progress: number, downloaded: number, total: number) => void, onSuccess: () => void, onError: (error: string) => void, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.uploadFromUrl(url, filepath, targetServerId, onProgress, onSuccess, onError);
+    }, [server]);
+
     useEffect(() =>
     {
         // Load servers on initial mount
         loadServers().catch(console.error);
+
+        const updateInterval = setInterval(() =>
+        {
+            loadServers().catch(console.error);
+        }, 5000);
 
         // If a server is already loaded, load its details
         if (server)
         {
             loadServer(server.id).catch(console.error);
         }
+
+        return () => clearInterval(updateInterval);
     }, []);
 
     return (
@@ -354,7 +472,20 @@ export function ServerProvider({children}: { children: ReactNode })
             sendCommand,
             subscribeToConsole,
             backupServer,
-            getServerStatus
+            getServerStatus,
+            // Filesystem functions
+            getEntries,
+            downloadEntry,
+            copyEntry,
+            moveEntry,
+            renameEntry,
+            deleteEntry,
+            uploadFile,
+            createEntry,
+            searchFiles,
+            archiveFiles,
+            cancelArchive,
+            uploadFromUrl
         }}>
             {children}
         </ServerContext.Provider>
