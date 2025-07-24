@@ -18,6 +18,7 @@ pub struct JavaVersion {
     pub installed: bool,
     #[serde(skip_serializing)]
     manifest: Manifest,
+    #[serde(serialize_with = "serialize_executable_path")]
     executable: Option<PathBuf>,
 }
 
@@ -253,4 +254,18 @@ fn get_current_os() -> Option<OS> {
         return Some(OS::WindowsX64);
     }
     None
+}
+
+fn serialize_executable_path<S>(executable: &Option<PathBuf>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if let Some(executable) = executable {
+        let executable = executable.to_string_lossy();
+        // replace the \\?\ from the beginning of the Windows path
+        let executable = executable.trim_start_matches(r#"\\?\"#);
+        serializer.serialize_str(&executable)
+    } else {
+        serializer.serialize_none()
+    }
 }
