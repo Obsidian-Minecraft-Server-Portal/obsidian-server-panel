@@ -12,6 +12,7 @@ import {QuiltVersionSelector} from "./version-selectors/QuiltVersionSelector.tsx
 import {NeoForgeVersionSelector} from "./version-selectors/NeoForgeVersionSelector.tsx";
 import {LoaderType, useServer} from "../../providers/ServerProvider.tsx";
 import RamSlider from "./RamSlider.tsx";
+import JavaExecutableSelector from "./JavaExecutableSelector.tsx";
 
 type NewServerProperties = {
     isOpen: boolean;
@@ -188,6 +189,7 @@ export default function NewServerModal(props: NewServerProperties)
                                 onCustomJarChange={setCustomJarFile}
                             />
                             <RamSlider value={ram} onValueChange={setRam}/>
+                            <JavaExecutableSelector onVersionChange={setSelectedJavaExecutable}/>
                         </ModalBody>
                         <ModalFooter>
                             <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm()}>Create</Button>

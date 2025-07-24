@@ -18,11 +18,11 @@ export type JavaInstallationProgressReport = {
 export const getJavaVersions = async (): Promise<JavaVersion[]> => $.get("/api/java/versions");
 export const getRuntimeFiles = async (runtime: JavaRuntime): Promise<string[]> => $.get(`/api/java/versions/${runtime}/files`);
 export const uninstallRuntime = async (runtime: JavaRuntime): Promise<void> => $.ajax({url: `/api/java/versions/${runtime}`, method: "DELETE"});
-export const installRuntime = async (runtime: JavaRuntime, onProgress: (report: JavaInstallationProgressReport) => void, onComplete: () => void): Promise<void> =>
+export const installRuntime = async (runtime: JavaRuntime, onProgress: (report: JavaInstallationProgressReport[]) => void, onComplete: () => void): Promise<void> =>
 {
     let event = new EventSource(`/api/java/versions/${runtime}/install`);
     event.addEventListener("open", () => console.log("Installation started"));
-    event.addEventListener("progress", (e) => onProgress(e.data));
+    event.addEventListener("progress", (e) => onProgress(JSON.parse(e.data) as JavaInstallationProgressReport[]));
     event.addEventListener("error", console.error);
     event.addEventListener("completed", () =>
     {

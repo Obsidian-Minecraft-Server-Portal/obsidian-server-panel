@@ -4,9 +4,9 @@ import {getJavaVersions, getRuntimeFiles as getFiles, installRuntime, JavaRuntim
 interface JavaVersionContextType
 {
     javaVersions: JavaVersion[],
-    refreshJavaVersions: () => void;
-    installVersion: (version: JavaVersion | JavaRuntime, onUpdate: (progress: JavaInstallationProgress) => void, onComplete: () => void) => void;
-    uninstallVersion: (version: JavaVersion | JavaRuntime) => void;
+    refreshJavaVersions: () => Promise<void>;
+    installVersion: (version: JavaVersion | JavaRuntime, onUpdate: (progress: JavaInstallationProgress) => void) => Promise<void>;
+    uninstallVersion: (version: JavaVersion | JavaRuntime) => Promise<void>;
     getRuntimeFiles: (version: JavaVersion | JavaRuntime) => Promise<string[]>;
 }
 
@@ -23,24 +23,24 @@ export function JavaVersionProvider({children}: { children: ReactNode })
     const [javaVersions, setJavaVersions] = useState<JavaVersion[]>([]);
 
     const refreshJavaVersions = async () => setJavaVersions(await getJavaVersions());
-    const installVersion = async (version: JavaVersion | JavaRuntime, onUpdate: (progress: JavaInstallationProgress) => void, onComplete: () => void) =>
+    const installVersion = async (version: JavaVersion | JavaRuntime, onUpdate: (progress: JavaInstallationProgress) => void) =>
     {
         const runtime = typeof version === "string" ? version : version.runtime;
         if (!runtime) throw new Error("Invalid version provided for installation");
         const filesToInstall = await getFiles(runtime);
         let installedFiles: string[] = [];
-        await installRuntime(runtime, (report) =>
+        return new Promise<void>((resolve) =>
         {
-            if (report.completed)
+            installRuntime(runtime, (report) =>
             {
-                installedFiles.push(report.file);
+                installedFiles = report.filter(r => r.completed).map(r => r.file);
                 onUpdate({
                     filesInstalled: installedFiles,
                     filesToInstall,
                     progress: (installedFiles.length / filesToInstall.length)
                 });
-            }
-        }, onComplete);
+            }, resolve);
+        });
     };
 
     const uninstallVersion = async (version: JavaVersion | JavaRuntime) =>
