@@ -25,3 +25,5 @@ export async function getFabricVersions(): Promise<FabricVersionList>
 {
     return $.get("https://meta.fabricmc.net/v2/versions/");
 }
+
+export const getFabricServerUrl = (loaderVersion: string, minecraftVersion: string, installerVersion: string) => `https://meta.fabricmc.net/v2/versions/loader/${minecraftVersion}/${loaderVersion}/${installerVersion}/server/jar`;

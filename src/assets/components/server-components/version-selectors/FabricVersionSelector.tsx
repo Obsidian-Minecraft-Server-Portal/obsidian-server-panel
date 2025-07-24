@@ -1,9 +1,11 @@
-import {Autocomplete, AutocompleteItem} from "@heroui/react";
+import {addToast, Autocomplete, AutocompleteItem} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {useFabricVersions} from "../../../providers/LoaderVersionProviders/FabricVersionsProvider.tsx";
+import {getFabricServerUrl} from "../../../ts/fabric-versions.ts";
 
 type FabricVersionSelectorProps = {
     minecraftVersion: string;
+    onVersionChange: (url: string | undefined, version: string | undefined) => void
 }
 
 export function FabricVersionSelector(props: FabricVersionSelectorProps)
@@ -32,6 +34,24 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
             setSelectedVersion(undefined);
         }
     }, [props]);
+
+    useEffect(() =>
+    {
+        let installer: string | undefined = fabricVersions?.installer?.find(i => i.stable)?.version;
+        if (!installer)
+        {
+            addToast({
+                title: "Error",
+                description: "No stable Fabric installer version found.",
+                color: "danger"
+            });
+            return;
+        }
+        if (!selectedVersion || !minecraftVersion) return;
+        const url = getFabricServerUrl(selectedVersion, minecraftVersion, installer);
+        console.log(`Selected Fabric version: ${selectedVersion}, URL: ${url}`);
+    }, [selectedVersion]);
+
     return (
         <Autocomplete
             label={`Fabric Version`}
