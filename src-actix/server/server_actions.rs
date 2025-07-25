@@ -166,12 +166,17 @@ impl ServerData {
 
 		Ok(())
 	}
-
 	pub async fn send_command(&self, command: impl Into<String>) -> Result<()> {
 		let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
 		let servers = servers.lock().await;
-		let pid = *servers.get(&self.id).expect("Server not running");
-		let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+		let pid = match servers.get(&self.id) {
+			Some(pid) => *pid,
+			None => return Err(anyhow::anyhow!("Server not running")),
+		};
+		let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
+			Some(process) => process,
+			None => return Err(anyhow::anyhow!("Server process not found")),
+		};
 		process.send_input(command).await?;
 
 		Ok(())
@@ -180,8 +185,14 @@ impl ServerData {
 	pub async fn attach_to_stdout(&self, sender: tokio::sync::mpsc::Sender<actix_web_lab::sse::Event>) -> Result<()> {
 		let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
 		let servers = servers.lock().await;
-		let pid = *servers.get(&self.id).expect("Server not running");
-		let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+		let pid = match servers.get(&self.id) {
+			Some(pid) => *pid,
+			None => return Err(anyhow::anyhow!("Server not running")),
+		};
+		let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
+			Some(process) => process,
+			None => return Err(anyhow::anyhow!("Server process not found")),
+		};
 		loop {
 			let line = process.receive_output().await?;
 			if let Some(line) = line {
