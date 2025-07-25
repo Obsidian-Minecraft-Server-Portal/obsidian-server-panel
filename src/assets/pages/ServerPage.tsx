@@ -23,7 +23,6 @@ export default function ServerPage()
         }
     }, [id, servers]);
 
-
     if (!server || !id) return null;
     return (
         <div className={"flex flex-col gap-4 px-8"}>

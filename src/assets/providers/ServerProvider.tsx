@@ -88,6 +88,9 @@ interface ServerContextType
     archiveFiles: (filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string) => { cancel: () => Promise<void>, trackerId: string };
     cancelArchive: (trackerId: string, serverId?: string) => Promise<void>;
     uploadFromUrl: (url: string, filepath: string, onProgress: (progress: number, downloaded: number, total: number) => void, onSuccess: () => void, onError: (error: string) => void, serverId?: string) => Promise<void>;
+    // Logging and console functions
+    getLogs: (serverId?: string) => Promise<string[]>;
+    getLog: (filename: string, serverId?: string) => Promise<string>;
 }
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
@@ -381,6 +384,23 @@ export function ServerProvider({children}: { children: ReactNode })
         return await FileSystem.uploadFromUrl(url, filepath, targetServerId, onProgress, onSuccess, onError);
     }, [server]);
 
+    const getLogs = useCallback(async (serverId?: string): Promise<string[]> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return $.get(`/api/server/${targetServerId}/logs`);
+    }, [server]);
+
+    const getLog = useCallback(async (filename: string, serverId?: string): Promise<string> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return $.get(`/api/server/${targetServerId}/logs/${filename}`);
+    }, [server]);
+
+
     useEffect(() =>
     {
         // Load servers on initial mount
@@ -429,7 +449,9 @@ export function ServerProvider({children}: { children: ReactNode })
             searchFiles,
             archiveFiles,
             cancelArchive,
-            uploadFromUrl
+            uploadFromUrl,
+            getLogs,
+            getLog
         }}>
             {children}
         </ServerContext.Provider>

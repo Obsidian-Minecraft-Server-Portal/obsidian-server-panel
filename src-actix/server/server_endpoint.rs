@@ -3,11 +3,13 @@ use crate::authentication::auth_data::UserData;
 use crate::server::filesystem;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
+use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
+use flate2::read::GzDecoder;
 use log::error;
 use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
+use std::io::Read;
 use std::time::Duration;
 
 #[get("")]
@@ -198,6 +200,93 @@ pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> 
     Ok(HttpResponse::Ok().content_type("image/png").body(icon))
 }
 
+#[get("{server_id}/logs")]
+pub async fn get_log_files(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let server = match ServerData::get(server_id, user_id).await? {
+        Some(server) => server,
+        None => {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": "Server not found".to_string()
+            })));
+        }
+    };
+
+    let log_directory = server.get_directory_path().join("logs");
+
+    if !log_directory.exists() {
+        return Ok(HttpResponse::NotFound().json(json!({
+            "error": "Log directory not found".to_string()
+        })));
+    }
+
+    let files = match std::fs::read_dir(log_directory) {
+        Ok(files) => files.filter_map(|f| f.ok()).map(|f| f.file_name().to_string_lossy().to_string()).collect::<Vec<String>>(),
+        Err(e) => {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": format!("Failed to read log directory: {}", e)
+            })));
+        }
+    };
+
+    Ok(HttpResponse::Ok().json(files))
+}
+
+#[get("{server_id}/logs/{log_file}")]
+pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpRequest) -> Result<impl Responder> {
+    let (server_id, log_file) = path.into_inner();
+    let server_id = decode_single(server_id)?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let server = match ServerData::get(server_id, user_id).await? {
+        Some(server) => server,
+        None => {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": "Server not found".to_string()
+            })));
+        }
+    };
+
+    let log_directory = server.get_directory_path().join("logs");
+    let log_file_path = log_directory.join(log_file);
+
+    if !log_file_path.exists() {
+        return Ok(HttpResponse::NotFound().json(json!({
+            "error": "Log file not found".to_string(),
+        })));
+    }
+
+    if let Some(extension) = log_file_path.extension() {
+        if extension == "gz" {
+            return match (|| -> anyhow::Result<String> {
+                let file = std::fs::File::open(&log_file_path).map_err(|e| anyhow!("Failed to open compressed file: {}", e))?;
+
+                let mut decoder = GzDecoder::new(file);
+                let mut contents = String::new();
+                decoder.read_to_string(&mut contents).map_err(|e| anyhow!("Failed to decompress file: {}", e))?;
+
+                Ok(contents)
+            })() {
+                Ok(contents) => Ok(HttpResponse::Ok().body(contents)),
+                Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
+                    "error": format!("Error reading compressed log file: {}", e)
+                }))),
+            };
+        }
+    }
+
+    match std::fs::read_to_string(log_file_path) {
+        Ok(contents) => Ok(HttpResponse::Ok().body(contents)),
+        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
+            "error": format!("Error reading log file: {}", e)
+        }))),
+    }
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
@@ -213,6 +302,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(kill_server)
             .service(send_command)
             .service(get_console_out)
+            .service(get_log_files)
+            .service(get_log_file_contents)
             .service(web::scope("/{server_id}").configure(filesystem::configure))
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({

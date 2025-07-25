@@ -1,0 +1,16 @@
+meta {
+  name: Get Log File
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/logs/:log-file
+  body: none
+  auth: inherit
+}
+
+params:path {
+  log-file: latest.log
+  server-id: 1xA48qD2L3E7NZdJ
+}
