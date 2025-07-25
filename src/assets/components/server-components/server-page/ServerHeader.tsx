@@ -1,5 +1,6 @@
 import {Button, cn, Divider, Image} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
+import {useServer} from "../../../providers/ServerProvider.tsx";
 
 type ServerHeaderProps = {
     id: string,
@@ -13,6 +14,7 @@ type ServerHeaderProps = {
 export function ServerHeader(props: ServerHeaderProps)
 {
     const {id, name, minecraft_version, server_type, loader_version, status} = props;
+    const {startServer, stopServer, restartServer} = useServer();
     return (
         <div className={"flex flex-row gap-4 mt-8"}>
             <Image src={`/api/server/${id}/icon`}/>
@@ -55,11 +57,11 @@ export function ServerHeader(props: ServerHeaderProps)
                 {
                     // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
                     (status.toLowerCase() === "idle" || status.toLowerCase() === "stopped" || status.toLowerCase() === "error" || status.toLowerCase() === "crashed") ? (
-                        <Button radius={"none"} color={"primary"} variant={"solid"} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>}>Start</Button>
+                        <Button radius={"none"} color={"primary"} variant={"solid"} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={() => startServer(id)}>Start</Button>
                     ) : status.toLowerCase() === "running" ? (
                         <>
-                            <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>}>Stop</Button>
-                            <Button radius={"none"} variant={"solid"} startContent={<Icon icon={"pixelarticons:repeat"} className={"text-xl"}/>}>Restart</Button>
+                            <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
+                            <Button radius={"none"} variant={"solid"} startContent={<Icon icon={"pixelarticons:repeat"} className={"text-xl"}/>} onPress={() => restartServer(id)}>Restart</Button>
                         </>
                     ) : null}
 

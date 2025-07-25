@@ -41,7 +41,7 @@ regex = { version = "1.11.1", features = ["perf"] }
 uuid = { version = "1.17.0", features = ["v4"] }
 zip = "3.0.0"
 archflow = { version = "0.1.4", features = ["tokio"] }
-tokio-interactive = { version = "0.1.1" }
+tokio-interactive = { version = "0.1.2" }
 
 
 [build-dependencies]

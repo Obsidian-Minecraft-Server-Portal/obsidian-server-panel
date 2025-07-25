@@ -183,21 +183,6 @@ export function ServerProvider({children}: { children: ReactNode })
         {
             setServer(prev => prev ? {...prev, status: "starting"} : null);
         }
-
-        let statusPoll = setInterval(async () =>
-        {
-            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
-            if (updatedServer.status === "running" || updatedServer.status === "error" || updatedServer.status === "crashed")
-            {
-                // Update currently loaded server if it matches
-                if (server && server.id === targetServerId)
-                {
-                    setServer(updatedServer);
-                }
-                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
-                clearInterval(statusPoll);
-            }
-        }, 1000);
     }, [server]);
 
     const stopServer = useCallback(async (serverId?: string) =>
@@ -212,21 +197,6 @@ export function ServerProvider({children}: { children: ReactNode })
         {
             setServer(prev => prev ? {...prev, status: "stopping"} : null);
         }
-
-        let statusPoll = setInterval(async () =>
-        {
-            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
-            if (updatedServer.status === "stopped" || updatedServer.status === "error" || updatedServer.status === "crashed")
-            {
-                // Update currently loaded server if it matches
-                if (server && server.id === targetServerId)
-                {
-                    setServer(updatedServer);
-                }
-                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
-                clearInterval(statusPoll);
-            }
-        }, 1000);
     }, [server]);
 
     const restartServer = useCallback(async (serverId?: string) =>
@@ -242,20 +212,6 @@ export function ServerProvider({children}: { children: ReactNode })
             setServer(prev => prev ? {...prev, status: "stopping"} : null);
         }
 
-        let statusPoll = setInterval(async () =>
-        {
-            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
-            if (updatedServer.status === "running" || updatedServer.status === "error" || updatedServer.status === "crashed")
-            {
-                // Update currently loaded server if it matches
-                if (server && server.id === targetServerId)
-                {
-                    setServer(updatedServer);
-                }
-                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
-                clearInterval(statusPoll);
-            }
-        }, 1000);
     }, [server]);
 
     const killServer = useCallback(async (serverId?: string) =>
@@ -271,20 +227,6 @@ export function ServerProvider({children}: { children: ReactNode })
             setServer(prev => prev ? {...prev, status: "stopping"} : null);
         }
 
-        let statusPoll = setInterval(async () =>
-        {
-            let updatedServer: Server = await $.get(`/api/server/${targetServerId}`);
-            if (updatedServer.status === "stopped" || updatedServer.status === "error" || updatedServer.status === "crashed")
-            {
-                // Update currently loaded server if it matches
-                if (server && server.id === targetServerId)
-                {
-                    setServer(updatedServer);
-                }
-                setServers(prev => prev.map(s => s.id === targetServerId ? updatedServer : s));
-                clearInterval(statusPoll);
-            }
-        }, 1000);
     }, [server]);
 
     const sendCommand = useCallback(async (command: string, serverId?: string) =>
