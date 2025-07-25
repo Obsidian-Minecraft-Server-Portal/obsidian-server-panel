@@ -1,4 +1,4 @@
-use crate::app_db;
+use crate::{app_db, ICON};
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
@@ -161,6 +161,14 @@ impl ServerData {
         self.save_with_pool(&pool).await?;
         pool.close().await;
         Ok(())
+    }
+
+    pub fn get_icon(&self)-> Vec<u8>{
+        let icon_path = self.get_directory_path().join("server-icon.png");
+        if icon_path.exists() {
+            if let Ok(data) = std::fs::read(icon_path) { return data }
+        }
+        ICON.to_vec()
     }
 
     fn generate_directory_name(name: &str) -> String {

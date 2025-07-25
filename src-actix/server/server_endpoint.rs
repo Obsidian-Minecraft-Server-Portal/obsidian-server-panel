@@ -2,13 +2,13 @@ use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
 use crate::server::filesystem;
 use crate::server::server_data::ServerData;
-use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use crate::server::server_status::ServerStatus;
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
 use anyhow::anyhow;
+use log::error;
 use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
 use std::time::Duration;
-use log::error;
-use crate::server::server_status::ServerStatus;
 
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
@@ -69,7 +69,7 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     let java_executable: String = body.get("java_executable").ok_or(anyhow!("Java executable not found"))?.as_str().unwrap().to_string();
 
     let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
+    let mut server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
     server.create(&pool).await?;
     pool.close().await;
 
@@ -181,10 +181,28 @@ pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> 
     Ok(actix_web_lab::sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
 }
 
+#[get("{server_id}/icon")]
+pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let icon = server.get_icon();
+    if icon.is_empty() {
+        return Ok(HttpResponse::NotFound().json(json!({
+            "error": "Icon not found".to_string(),
+        })));
+    }
+
+    Ok(HttpResponse::Ok().content_type("image/png").body(icon))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
             .service(get_servers)
+            .service(get_server_icon)
             .service(create_server)
             .service(get_server)
             .service(update_server)
