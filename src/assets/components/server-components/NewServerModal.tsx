@@ -1,4 +1,4 @@
-import {addToast, Button, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
+import {addToast, Button, CircularProgress, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
@@ -34,6 +34,7 @@ export default function NewServerModal(props: NewServerProperties)
     const [customJarFile, setCustomJarFile] = useState<File | undefined>(undefined); // For custom jar file uploads
     const [isCreatingServer, setIsCreatingServer] = useState(false);
     const [isValidForm, setIsValidForm] = useState(false);
+    const [creationProgress, setCreationProgress] = useState(0);
 
 
     const submit = useCallback(async () =>
@@ -44,6 +45,8 @@ export default function NewServerModal(props: NewServerProperties)
             return;
         }
         setIsCreatingServer(true);
+        setCreationProgress(0.1); // Started creating server
+        const filepath = selectedLoader === "vanilla" || selectedLoader === "custom" ? `server-${selectedMinecraftVersion}.jar` : `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
         try
         {
             let serverId = await createServer({
@@ -53,6 +56,8 @@ export default function NewServerModal(props: NewServerProperties)
                 loader_version: loaderVersion ?? "",
                 java_executable: selectedJavaExecutable
             });
+
+            setCreationProgress(0.3); // Server created
 
             if (!serverId)
             {
@@ -78,19 +83,33 @@ export default function NewServerModal(props: NewServerProperties)
                     setIsCreatingServer(false);
                     return;
                 }
-                const filepath = selectedLoader === "vanilla" ? `server-${selectedMinecraftVersion}.jar` : `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
                 const onProgress = (progress: number, downloaded: number, total: number) =>
                 {
+                    setCreationProgress(0.3 + (progress / 100 * 0.5)); // Progress from 30% to 80%
                     console.log(`Downloading ${selectedLoader} server: ${progress}% (${downloaded}/${total} bytes)`);
                 };
                 const onSuccess = () =>
                 {
+                    setCreationProgress(0.8); // Download complete
                 };
                 const onError = (error: string) =>
                 {
                     console.error("Error uploading server jar:", error);
                 };
-                await uploadFromUrl(loaderUrl ?? await getMinecraftVersionDownloadUrl(selectedMinecraftVersion), filepath, onProgress, onSuccess, onError, serverId);
+                try
+                {
+                    await uploadFromUrl(loaderUrl ?? await getMinecraftVersionDownloadUrl(selectedMinecraftVersion), filepath, onProgress, onSuccess, onError, serverId);
+                } catch (error)
+                {
+                    console.error("Error uploading server jar:", error);
+                    addToast({
+                        title: "Error",
+                        description: "Failed to upload server jar. Please check the URL or try again.",
+                        color: "danger"
+                    });
+                    setIsCreatingServer(false);
+                    return;
+                }
             } else
             {
                 if (!customJarFile)
@@ -102,18 +121,47 @@ export default function NewServerModal(props: NewServerProperties)
                     });
                     return;
                 }
-                const filepath = `${name}-${selectedMinecraftVersion}-server.jar`;
                 const onProgress = (bytes: number) =>
                 {
-                    console.log(`Uploading custom server jar: ${bytes} bytes uploaded of ${customJarFile.size} bytes ${Math.round((bytes / customJarFile.size) * 100)}%`);
+                    const percentage = bytes / customJarFile.size;
+                    setCreationProgress(0.3 + (percentage * 0.5)); // Progress from 30% to 80%
+                    console.log(`Uploading custom server jar: ${bytes} bytes uploaded of ${customJarFile.size} bytes ${Math.round(percentage * 100)}%`);
                 };
                 const onCancel = () =>
                 {
                 };
-                await uploadFile(customJarFile, filepath, onProgress, onCancel, serverId);
+                try
+                {
+                    await uploadFile(customJarFile, filepath, onProgress, onCancel, serverId);
+                    setCreationProgress(0.8); // Upload complete
+                } catch (error)
+                {
+                    console.error("Error uploading custom jar file:", error);
+                    addToast({
+                        title: "Error",
+                        description: "Failed to upload custom jar file. Please try again.",
+                        color: "danger"
+                    });
+                    setIsCreatingServer(false);
+                    return;
+                }
             }
 
-            await updateServer({max_memory: ram}, serverId);
+            try
+            {
+                await updateServer({max_memory: ram, server_jar: filepath}, serverId);
+                setCreationProgress(1); // Server settings updated
+            } catch (error)
+            {
+                console.error("Error updating server RAM:", error);
+                addToast({
+                    title: "Error",
+                    description: "Failed to update server RAM. Please try again.",
+                    color: "danger"
+                });
+                setIsCreatingServer(false);
+                return;
+            }
 
             setIsCreatingServer(false);
             props.onClose();
@@ -127,11 +175,10 @@ export default function NewServerModal(props: NewServerProperties)
                 color: "danger"
             });
         }
-    }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram]);
+    }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram, selectedJavaExecutable, isValidForm]);
 
     useEffect(() =>
     {
-        console.log(`Validating form inputs: Loader Url: ${loaderUrl} - Selected Loader: ${selectedLoader} - Minecraft Version: ${selectedMinecraftVersion} - Name: "${name}" - Java Executable: ${selectedJavaExecutable}`);
         setIsValidForm(name.trim() !== "" && selectedMinecraftVersion !== undefined && (selectedLoader !== "custom" || loaderUrl !== undefined) && selectedJavaExecutable !== undefined);
     }, [loaderUrl, selectedLoader, selectedMinecraftVersion, name, selectedJavaExecutable]);
 
@@ -162,6 +209,7 @@ export default function NewServerModal(props: NewServerProperties)
                                 endContent={<Icon icon={""}/>}
                                 value={name}
                                 onValueChange={setName}
+                                isDisabled={isCreatingServer}
                             />
                             <div className={"mx-auto"}>
                                 <Tabs
@@ -173,6 +221,7 @@ export default function NewServerModal(props: NewServerProperties)
                                     classNames={{
                                         tab: "flex flex-col items-center justify-center h-24 w-28"
                                     }}
+                                    isDisabled={isCreatingServer}
                                     selectedKey={selectedLoader}
                                     onSelectionChange={key => setSelectedLoader(key as LoaderType)}
                                 >
@@ -191,7 +240,7 @@ export default function NewServerModal(props: NewServerProperties)
                                 <p>You can change these settings later in your server options.</p>
                             </div>
 
-                            <MinecraftVersionSelector onVersionChange={setSelectedMinecraftVersion} version={selectedMinecraftVersion}/>
+                            <MinecraftVersionSelector onVersionChange={setSelectedMinecraftVersion} version={selectedMinecraftVersion} isDisabled={isCreatingServer}/>
                             <LoaderSelector
                                 selectedLoader={selectedLoader}
                                 version={selectedMinecraftVersion}
@@ -201,12 +250,27 @@ export default function NewServerModal(props: NewServerProperties)
                                     setLoaderVersion(version);
                                 }}
                                 onCustomJarChange={setCustomJarFile}
+                                isDisabled={isCreatingServer}
                             />
-                            <RamSlider value={ram} onValueChange={setRam}/>
-                            <JavaExecutableSelector onVersionChange={setSelectedJavaExecutable}/>
+                            <RamSlider value={ram} onValueChange={setRam} isDisabled={isCreatingServer}/>
+                            <JavaExecutableSelector onVersionChange={setSelectedJavaExecutable} isDisabled={isCreatingServer}/>
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm} isLoading={isCreatingServer}>Create</Button>
+                            <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm || isCreatingServer}>
+                                {isCreatingServer &&
+                                    <CircularProgress
+                                        minValue={0}
+                                        maxValue={1}
+                                        value={creationProgress}
+                                        color={"primary"}
+                                        size={"sm"}
+                                        classNames={{
+                                            svg: "h-6 w-6"
+                                        }}
+                                    />
+                                }
+                                Create
+                            </Button>
                             <Button onPress={onClose} radius={"none"} variant={"light"} color={"danger"} isLoading={isCreatingServer}>Cancel</Button>
                         </ModalFooter>
                     </>
@@ -221,6 +285,7 @@ type LoaderSelectorProps = {
     version: string | undefined;
     onChange: (url: string | undefined, version: string | undefined) => void;
     onCustomJarChange: (file: File | undefined) => void;
+    isDisabled: boolean;
 }
 
 function LoaderSelector(props: LoaderSelectorProps)
@@ -228,19 +293,20 @@ function LoaderSelector(props: LoaderSelectorProps)
     const {
         selectedLoader,
         version,
-        onChange
+        onChange,
+        isDisabled
     } = props;
     if (!version) return <p className={"text-danger font-minecraft-body text-tiny italic underline"}>Please select a Minecraft version first.</p>;
     switch (selectedLoader)
     {
         case "fabric":
-            return <FabricVersionSelector minecraftVersion={version} onVersionChange={onChange}/>;
+            return <FabricVersionSelector minecraftVersion={version} onVersionChange={onChange} isDisabled={isDisabled}/>;
         case "forge":
-            return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onChange}/>;
+            return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onChange} isDisabled={isDisabled}/>;
         case "quilt":
-            return <QuiltVersionSelector minecraftVersion={version}/>;
+            return <QuiltVersionSelector minecraftVersion={version} isDisabled={isDisabled}/>;
         case "neo_forge":
-            return <NeoForgeVersionSelector minecraftVersion={version}/>;
+            return <NeoForgeVersionSelector minecraftVersion={version} isDisabled={isDisabled}/>;
         case "custom":
             return (
                 <FileInput
@@ -248,6 +314,7 @@ function LoaderSelector(props: LoaderSelectorProps)
                     description={"Upload your custom jar file or modpack archive."}
                     multiple={false}
                     onChange={file => props.onCustomJarChange(file as File | undefined)}
+                    readOnly={isDisabled}
                 />
             );
         default:

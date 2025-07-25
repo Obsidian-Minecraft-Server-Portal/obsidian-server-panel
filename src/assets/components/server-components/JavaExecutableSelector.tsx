@@ -9,6 +9,7 @@ import {MessageResponseType} from "../MessageModal.tsx";
 
 type JavaExecutableSelectorProps = {
     onVersionChange: (version: string | undefined) => void;
+    isDisabled: boolean
 }
 
 export default function JavaExecutableSelector(props: JavaExecutableSelectorProps)
@@ -92,6 +93,7 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                     classNames={{listbox: "font-minecraft-body"}}
                     disallowEmptySelection
                     selectedKeys={selectedVersion ? [selectedVersion.runtime] : []}
+                    isDisabled={props.isDisabled}
                     onSelectionChange={keys =>
                     {
                         const key = [...keys][0];

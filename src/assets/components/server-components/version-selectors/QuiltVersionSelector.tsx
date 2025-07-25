@@ -4,6 +4,7 @@ import {useQuiltVersions} from "../../../providers/LoaderVersionProviders/QuiltV
 
 type QuiltVersionSelectorProps = {
     minecraftVersion: string;
+    isDisabled: boolean
 }
 
 export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
@@ -48,6 +49,7 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
             listboxProps={{
                 emptyContent: `No Quilt versions available for Minecraft versions below 1.14`
             }}
+            isDisabled={props.isDisabled}
         >
             {versions.map((version) => (
                 <AutocompleteItem

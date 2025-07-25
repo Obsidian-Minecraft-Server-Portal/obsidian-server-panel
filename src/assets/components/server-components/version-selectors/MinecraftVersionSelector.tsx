@@ -5,14 +5,16 @@ import {useEffect, useState} from "react";
 import {useMinecraftVersions} from "../../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 
 type MinecraftVersionSelectorProps = {
-    onVersionChange?: (version: string | undefined, url: string|undefined) => void;
+    onVersionChange?: (version: string | undefined, url: string | undefined) => void;
     version?: string | undefined;
+    isDisabled?: boolean;
 }
 
 export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
 {
+    const {onVersionChange, version, isDisabled} = props;
     const {minecraftVersions} = useMinecraftVersions();
-    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(props.version);
+    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(version);
     const [versions, setVersions] = useState<string[]>([]);
     const [showSnapshots, setShowSnapshots] = useState(false);
     const [showOlderVersions, setShowOlderVersions] = useState(false);
@@ -26,10 +28,10 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
 
     useEffect(() =>
     {
-        if (props.onVersionChange)
+        if (onVersionChange)
         {
             const url = minecraftVersions?.versions.find(i => i.id === selectedVersion)?.url;
-            props.onVersionChange(selectedVersion, url);
+            onVersionChange(selectedVersion, url);
         }
     }, [selectedVersion, showOlderVersions, showSnapshots, minecraftVersions]);
 
@@ -47,6 +49,7 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
                 selectedKey={selectedVersion}
                 onSelectionChange={value => setSelectedVersion(value as string)}
                 showScrollIndicators
+                isDisabled={isDisabled}
             >
                 {versions.map((version) => (
                     <AutocompleteItem
@@ -59,12 +62,12 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
                 ))}
             </Autocomplete>
             <Tooltip content={"Show snapshots"}>
-                <Button isIconOnly radius={"none"} size={"lg"} color={showSnapshots ? "primary" : "default"} onPress={() => setShowSnapshots(prev => !prev)}>
+                <Button isIconOnly radius={"none"} size={"lg"} color={showSnapshots ? "primary" : "default"} onPress={() => setShowSnapshots(prev => !prev)} isDisabled={props.isDisabled}>
                     <Icon icon={"pixelarticons:bug"}/>
                 </Button>
             </Tooltip>
             <Tooltip content={"Show Older Versions"}>
-                <Button isIconOnly radius={"none"} size={"lg"} color={showOlderVersions ? "primary" : "default"} onPress={() => setShowOlderVersions(prev => !prev)}>
+                <Button isIconOnly radius={"none"} size={"lg"} color={showOlderVersions ? "primary" : "default"} onPress={() => setShowOlderVersions(prev => !prev)} isDisabled={props.isDisabled}>
                     <Icon icon={"pixelarticons:archive"}/>
                 </Button>
             </Tooltip>

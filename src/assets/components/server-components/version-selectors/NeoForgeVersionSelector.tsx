@@ -4,6 +4,7 @@ import {useNeoForgeVersions} from "../../../providers/LoaderVersionProviders/Neo
 
 type ForgeVersionSelectorProps = {
     minecraftVersion: string;
+    isDisabled:boolean
 }
 
 export function NeoForgeVersionSelector(props: ForgeVersionSelectorProps)
@@ -41,6 +42,7 @@ export function NeoForgeVersionSelector(props: ForgeVersionSelectorProps)
             listboxProps={{
                 emptyContent: `No NeoForge versions available for ${minecraftVersion}`
             }}
+            isDisabled={props.isDisabled}
         >
             {versions.map((version) => (
                 <AutocompleteItem

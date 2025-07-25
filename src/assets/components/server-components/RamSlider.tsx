@@ -6,6 +6,7 @@ import "../../ts/math-ext.ts";
 type RamSliderProps = {
     value: number;
     onValueChange: (value: number) => void;
+    isDisabled: boolean
 }
 
 export default function RamSlider(props: RamSliderProps)
@@ -100,6 +101,7 @@ export default function RamSlider(props: RamSliderProps)
                     onChange={value => onValueChange(value as number)}
                     tooltipValueFormatOptions={{}}
                     color={message === "" ? "primary" : isInvalid ? "danger" : "warning"}
+                    isDisabled={props.isDisabled}
                     marks={[
                         {
                             value: 2,

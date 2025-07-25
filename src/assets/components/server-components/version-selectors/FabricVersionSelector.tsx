@@ -6,6 +6,7 @@ import {getFabricServerUrl} from "../../../ts/fabric-versions.ts";
 type FabricVersionSelectorProps = {
     minecraftVersion: string;
     onVersionChange: (url: string | undefined, version: string | undefined) => void
+    isDisabled: boolean
 }
 
 export function FabricVersionSelector(props: FabricVersionSelectorProps)
@@ -68,6 +69,7 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
             listboxProps={{
                 emptyContent: `No Fabric versions available for Minecraft versions below 1.14`
             }}
+            isDisabled={props.isDisabled}
         >
             {versions.map((version) => (
                 <AutocompleteItem

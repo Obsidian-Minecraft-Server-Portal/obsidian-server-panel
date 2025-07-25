@@ -5,6 +5,7 @@ import {useForgeVersions} from "../../../providers/LoaderVersionProviders/ForgeV
 type ForgeVersionSelectorProps = {
     minecraftVersion: string;
     onVersionChange: (url: string | undefined, version: string | undefined) => void
+    isDisabled: boolean
 }
 
 export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
@@ -47,6 +48,7 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
             selectedKey={selectedVersion}
             onSelectionChange={value => setSelectedVersion(value as string)}
             showScrollIndicators
+            isDisabled={props.isDisabled}
             listboxProps={{
                 emptyContent: `No Forge versions available for ${minecraftVersion}`
             }}
