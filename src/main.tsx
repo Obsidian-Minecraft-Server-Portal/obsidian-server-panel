@@ -18,6 +18,7 @@ import {MinecraftVersionsProvider} from "./assets/providers/LoaderVersionProvide
 import {ServerProvider} from "./assets/providers/ServerProvider.tsx";
 import {MessageProvider} from "./assets/providers/MessageProvider.tsx";
 import {JavaVersionProvider} from "./assets/providers/JavaVersionProvider.tsx";
+import ServerPage from "./assets/pages/ServerPage.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
@@ -67,6 +68,7 @@ export function MainContentRenderer()
                         <Route>
                             <Route path="/" element={<Login/>}/>
                             <Route path="/app" element={<Dashboard/>}/>
+                            <Route path="/app/servers/:id" element={<ServerPage/>}/>
                             <Route path="*" element={<ErrorPage/>}/>
                         </Route>
                     </Routes>
