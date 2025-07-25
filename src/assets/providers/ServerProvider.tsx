@@ -56,7 +56,7 @@ export type CreateServerData = {
 }
 
 export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom";
-export type ServerStatus = "stopped" | "starting" | "running" | "stopping" | "error" | "crashed";
+export type ServerStatus = "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging";
 
 interface ServerContextType
 {
@@ -132,10 +132,15 @@ export function ServerProvider({children}: { children: ReactNode })
     {
         let targetServerId = serverId || server?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
-        let targetServer: Server | null = servers.find(s => s.id === targetServerId) || server;
+        let targetServer: Server | null | undefined = serverId != undefined ? servers.find(s => s.id === targetServerId) : server;
+        console.log("Servers List:", servers, "Target Server ID:", targetServerId, "Target Server:", targetServer);
+        if (targetServer == null)
+        {
+            targetServer = await $.get(`/api/server/${targetServerId}`);
+            if (!targetServer) throw new Error("No server loaded");
+        }
 
-        if (!targetServerId) throw new Error("No server loaded");
-
+        console.log("Updating server", targetServerId, updates, "Original server:", targetServer);
         const updatedServer = {...targetServer, ...updates};
         await $.ajax({
             url: `/api/server/${targetServerId}`,
@@ -144,7 +149,7 @@ export function ServerProvider({children}: { children: ReactNode })
             data: JSON.stringify(updatedServer)
         });
         await loadServers();
-    }, [server]);
+    }, [server, servers]);
 
     const deleteServer = useCallback(async (serverId?: string) =>
     {
