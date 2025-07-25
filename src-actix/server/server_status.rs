@@ -36,7 +36,7 @@ impl Display for ServerStatus {
                 ServerStatus::Starting => "starting",
                 ServerStatus::Stopping => "stopping",
                 ServerStatus::Crashed => "crashed",
-                ServerStatus::Hanging => "hanging", // Display for Hanging status
+                ServerStatus::Hanging => "hanging",
             }
         )
     }
