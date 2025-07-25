@@ -55,7 +55,7 @@ export function ServerHeader(props: ServerHeaderProps)
                 {
                     // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
                     (status.toLowerCase() === "idle" || status.toLowerCase() === "stopped" || status.toLowerCase() === "error" || status.toLowerCase() === "crashed") ? (
-                        <Button radius={"none"} color={"primary"} variant={"ghost"} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>}>Start Server</Button>
+                        <Button radius={"none"} color={"primary"} variant={"solid"} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>}>Start</Button>
                     ) : status.toLowerCase() === "running" ? (
                         <>
                             <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>}>Stop</Button>
