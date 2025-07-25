@@ -16,7 +16,7 @@ impl ServerData {
     pub async fn get_with_pool(id: u64, user_id: u64, pool: &SqlitePool) -> Result<Option<Self>> {
         Ok(sqlx::query_as(r#"select * from servers WHERE id = ? and owner_id = ?"#).bind(id as i64).bind(user_id as i64).fetch_optional(pool).await?)
     }
-    pub async fn create(&self, pool: &SqlitePool) -> Result<()> {
+    pub async fn create(&mut self, pool: &SqlitePool) -> Result<()> {
         sqlx::query(
             r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_interval, description, minecraft_version, server_type, loader_version, owner_id) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
@@ -41,6 +41,9 @@ impl ServerData {
             .bind(self.owner_id as i64)
             .execute(pool)
             .await?;
+
+        let last_inserted_id: i64 = sqlx::query_scalar("SELECT seq from sqlite_sequence where name = 'servers';").fetch_one(pool).await?;
+        self.id = last_inserted_id as u64;
 
         Ok(())
     }
