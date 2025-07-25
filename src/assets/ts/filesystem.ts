@@ -49,7 +49,7 @@ export class FileSystem
     {
         try
         {
-            const url = new URL(`/api/${serverId}/fs/`, window.location.origin);
+            const url = new URL(`/api/server/${serverId}/fs/`, window.location.origin);
             url.searchParams.set("path", decodeURIComponent(path));
             const response = await fetch(url.toString());
 
@@ -115,7 +115,7 @@ export class FileSystem
     static async download(entry: FilesystemEntry | FilesystemEntry[], serverId: string): Promise<void>
     {
         const cwd = window.location.pathname.replace("/files/", "");
-        const url = new URL(`/api/${serverId}/fs/download`, window.location.origin);
+        const url = new URL(`/api/server/${serverId}/fs/download`, window.location.origin);
 
         const items = entry instanceof Array ? entry : [entry];
         url.searchParams.set("items", JSON.stringify(items.map(e => e.path.replace(cwd, ""))));
@@ -131,7 +131,7 @@ export class FileSystem
 
     static async copyEntry(sourcePaths: string[], destinationPath: string, serverId: string): Promise<void>
     {
-        const response = await fetch(`/api/${serverId}/fs/copy`, {
+        const response = await fetch(`/api/server/${serverId}/fs/copy`, {
             method: "POST",
             body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
             headers: {"Content-Type": "application/json"}
@@ -146,7 +146,7 @@ export class FileSystem
 
     static async moveEntry(sourcePaths: string[], destinationPath: string, serverId: string): Promise<void>
     {
-        const response = await fetch(`/api/${serverId}/fs/move`, {
+        const response = await fetch(`/api/server/${serverId}/fs/move`, {
             method: "POST",
             body: JSON.stringify({entries: sourcePaths, path: destinationPath}),
             headers: {"Content-Type": "application/json"}
@@ -161,7 +161,7 @@ export class FileSystem
 
     static async renameEntry(source: string, destination: string, serverId: string): Promise<void>
     {
-        const response = await fetch(`/api/${serverId}/fs/rename`, {
+        const response = await fetch(`/api/server/${serverId}/fs/rename`, {
             method: "POST",
             body: JSON.stringify({source, destination}),
             headers: {"Content-Type": "application/json"}
@@ -176,7 +176,7 @@ export class FileSystem
 
     static async deleteEntry(path: string | string[], serverId: string): Promise<void>
     {
-        const response = await fetch(`/api/${serverId}/fs/`, {
+        const response = await fetch(`/api/server/${serverId}/fs/`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json"
@@ -280,7 +280,7 @@ export class FileSystem
         {
             try
             {
-                const response = await fetch(`/api/${serverId}/fs/upload/cancel/${uploadId}`, {
+                const response = await fetch(`/api/server/${serverId}/fs/upload/cancel/${uploadId}`, {
                     method: "POST"
                 });
 
@@ -298,7 +298,7 @@ export class FileSystem
         const promise = new Promise<void>((resolve, reject) =>
         {
             // Set up the SSE listener for progress
-            const events = new EventSource(`/api/${serverId}/fs/upload/progress/${uploadId}`);
+            const events = new EventSource(`/api/server/${serverId}/fs/upload/progress/${uploadId}`);
 
             events.onmessage = (event) =>
             {
@@ -339,7 +339,7 @@ export class FileSystem
             events.onopen = () =>
             {
                 // Start the upload once connected
-                const uploadUrl = new URL(`/api/${serverId}/fs/upload`, window.location.origin);
+                const uploadUrl = new URL(`/api/server/${serverId}/fs/upload`, window.location.origin);
                 uploadUrl.searchParams.set("path", `${path}/${file.name}`);
                 uploadUrl.searchParams.set("upload_id", uploadId);
 
@@ -366,7 +366,7 @@ export class FileSystem
 
     static async createEntry(filename: string, cwd: string, isDirectory: boolean, serverId: string)
     {
-        const response = await fetch(`/api/${serverId}/fs/new`, {
+        const response = await fetch(`/api/server/${serverId}/fs/new`, {
             headers: {
                 "Content-Type": "application/json"
             },
@@ -382,7 +382,7 @@ export class FileSystem
 
     static async search(query: string, filename_only: boolean, serverId: string, abortSignal: AbortSignal): Promise<FilesystemEntry[]>
     {
-        const response = await fetch(`/api/${serverId}/fs/search?q=${encodeURIComponent(query)}&filename_only=${filename_only}`, {signal: abortSignal});
+        const response = await fetch(`/api/server/${serverId}/fs/search?q=${encodeURIComponent(query)}&filename_only=${filename_only}`, {signal: abortSignal});
         if (!response.ok)
         {
             const errorData = await response.json();
@@ -417,7 +417,7 @@ export class FileSystem
     static archive(filename: string, filenames: string[], cwd: string, serverId: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void): { cancel: () => Promise<void>, trackerId: string }
     {
         const id = `${filename}-${Math.random().toString(36)}`;
-        const event = new EventSource(`/api/${serverId}/fs/archive/status/${id}`);
+        const event = new EventSource(`/api/server/${serverId}/fs/archive/status/${id}`);
         if (event == null) throw new Error("Failed to create SSE connection");
 
         // Function to cancel the archive operation
@@ -425,7 +425,7 @@ export class FileSystem
         {
             try
             {
-                const response = await fetch(`/api/${serverId}/fs/archive/cancel/${id}`, {
+                const response = await fetch(`/api/server/${serverId}/fs/archive/cancel/${id}`, {
                     method: "POST"
                 });
 
@@ -454,7 +454,7 @@ export class FileSystem
             on_progress(0);
             try
             {
-                const response = await fetch(`/api/${serverId}/fs/archive`, {
+                const response = await fetch(`/api/server/${serverId}/fs/archive`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -509,7 +509,7 @@ export class FileSystem
 
     static async cancelArchive(trackerId: string, serverId: string): Promise<void>
     {
-        const response = await fetch(`/api/${serverId}/fs/archive/cancel/${trackerId}`, {
+        const response = await fetch(`/api/server/${serverId}/fs/archive/cancel/${trackerId}`, {
             method: "POST"
         });
 
@@ -531,75 +531,103 @@ export class FileSystem
      * @returns Promise that resolves when the upload starts (not when it completes)
      */
     static async uploadFromUrl(
-        url: string, 
-        filepath: string, 
-        serverId: string, 
+        url: string,
+        filepath: string,
+        serverId: string,
         onProgress: (progress: number, downloaded: number, total: number) => void,
         onSuccess: () => void,
         onError: (error: string) => void
     ): Promise<void>
     {
-        try
+        return new Promise((resolve, reject) =>
         {
-            const uploadUrl = new URL(`/api/${serverId}/fs/upload-url`, window.location.origin);
-            uploadUrl.searchParams.set("url", url);
-            uploadUrl.searchParams.set("filepath", filepath);
+            let isCompleted = false; // Add flag to prevent multiple completions
 
-            const eventSource = new EventSource(uploadUrl.toString());
-
-            eventSource.onopen = () =>
+            try
             {
-                console.log("Upload from URL started:", url);
-            };
+                const uploadUrl = new URL(`/api/server/${serverId}/fs/upload-url`, window.location.origin);
+                uploadUrl.searchParams.set("url", url);
+                uploadUrl.searchParams.set("filepath", filepath);
 
-            eventSource.onmessage = (event) =>
-            {
-                try
+                const eventSource = new EventSource(uploadUrl.toString());
+
+                // Add error handler for connection issues
+                eventSource.onerror = (error) =>
                 {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.progress !== undefined && data.downloaded !== undefined && data.total !== undefined)
+                    if (!isCompleted)
                     {
-                        onProgress(data.progress, data.downloaded, data.total);
+                        console.error("EventSource connection error:", error);
+                        eventSource.close();
+                        isCompleted = true;
+                        onError("Connection error during upload");
+                        reject(new Error("Connection error during upload"));
                     }
-                } catch (e)
-                {
-                    console.error("Error parsing progress data:", e);
-                }
-            };
+                };
 
-            eventSource.addEventListener('error', (event: any) =>
-            {
-                try
+                eventSource.onopen = () =>
                 {
-                    const data = JSON.parse(event.data);
-                    eventSource.close();
-                    onError(data.error || "Unknown error occurred during upload from URL");
-                } catch (e)
-                {
-                    eventSource.close();
-                    onError("Failed to upload from URL");
-                }
-            });
+                    console.log("Upload from URL started:", url);
+                    resolve(); // Resolve immediately when connection opens
+                };
 
-            eventSource.onerror = () =>
-            {
-                // Check if the connection closed normally (readyState 2 = CLOSED)
-                if (eventSource.readyState === EventSource.CLOSED)
+                eventSource.addEventListener("progress", (event: MessageEvent) =>
                 {
-                    // Connection closed normally, assume success
+                    if (isCompleted) return; // Prevent processing after completion
+
+                    try
+                    {
+                        const data = JSON.parse(event.data);
+
+                        if (data.progress !== undefined && data.downloaded !== undefined && data.total !== undefined)
+                        {
+                            onProgress(data.progress, data.downloaded, data.total);
+                        }
+                    } catch (e)
+                    {
+                        console.error("Error parsing progress data:", e);
+                    }
+                });
+
+                eventSource.addEventListener("error", (event: any) =>
+                {
+                    if (isCompleted) return; // Prevent multiple error handling
+
+                    try
+                    {
+                        const data = JSON.parse(event.data);
+                        eventSource.close();
+                        isCompleted = true;
+                        onError(data.error || "Unknown error occurred during upload from URL");
+                        reject(new Error(data.error || "Unknown error occurred during upload from URL"));
+                    } catch (parseError)
+                    {
+                        console.error("Error parsing error event data:", parseError);
+                        eventSource.close();
+                        isCompleted = true;
+                        onError("Failed to parse error response");
+                        reject(new Error("Failed to parse error response"));
+                    }
+                });
+
+                eventSource.addEventListener("complete", () =>
+                {
+                    if (isCompleted) return; // Prevent multiple completion handling
+
+                    eventSource.close();
+                    isCompleted = true;
+                    console.log("Upload from URL completed:", url);
                     onSuccess();
-                } else
-                {
-                    // Connection error
-                    eventSource.close();
-                    onError("Connection error during upload from URL");
-                }
-            };
+                });
 
-        } catch (error: Error | any)
-        {
-            onError(error.message || error.toString() || "Failed to start upload from URL");
-        }
+            } catch (error: Error | any)
+            {
+                if (!isCompleted)
+                {
+                    isCompleted = true;
+                    onError(error.message || error.toString() || "Failed to start upload from URL");
+                    reject(error);
+                }
+            }
+        });
     }
 }
