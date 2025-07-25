@@ -3,7 +3,7 @@ import {Autocomplete, AutocompleteItem, Button, Input} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 import {useServer} from "../../../providers/ServerProvider.tsx";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 
 
 type ServerOverviewProps = {
@@ -18,6 +18,39 @@ export default function ServerConsole(props: ServerOverviewProps)
     const [logFiles, setLogFiles] = useState<string[]>([]);
     const [selectedLogFile, setSelectedLogFile] = useState("latest.log");
     const [isRunning, setIsRunning] = useState(false);
+    const [isAutoscrollEnabled, setIsAutoscrollEnabled] = useState(true);
+
+    const isAtBottom = useCallback(() =>
+    {
+        const logView = document.querySelector("#log-view");
+        if (!logView) return false;
+
+        // Consider "at bottom" if within 5 pixels of the bottom
+        const threshold = 5;
+        return logView.scrollTop + logView.clientHeight >= logView.scrollHeight - threshold;
+    }, []);
+
+    const handleScroll = useCallback(() =>
+    {
+        if (isAtBottom())
+        {
+            setIsAutoscrollEnabled(true);
+        } else
+        {
+            setIsAutoscrollEnabled(false);
+        }
+    }, [isAtBottom]);
+
+    const scrollToBottom = useCallback(() =>
+    {
+        const logView = document.querySelector("#log-view");
+        if (logView)
+        {
+            logView.scrollTop = logView.scrollHeight;
+            setIsAutoscrollEnabled(true);
+        }
+    }, []);
+
     useEffect(() =>
     {
         const server = servers.find(s => s.id === id);
@@ -26,7 +59,8 @@ export default function ServerConsole(props: ServerOverviewProps)
             console.error(`Server with id ${id} not found.`);
             return;
         }
-        const isRunning = server.status === "running" || server.status === "starting" || server.status === "stopping" || server.status === "hanging";
+        let status = server.status.toLowerCase();
+        const isRunning = status === "running" || status === "starting" || status === "stopping" || status === "hanging";
         setIsRunning(isRunning);
 
         if (!isRunning)
@@ -53,24 +87,45 @@ export default function ServerConsole(props: ServerOverviewProps)
                 });
         } else
         {
-            // Subscribe to console updates
-            subscribeToConsole((newLog) =>
+            (async () =>
             {
-                setLog(prev => prev + newLog);
-                scrollToBottom();
-            }, server.id);
+                try
+                {
+                    const logContent = await getLog("latest.log", server.id);
+                    setLog(logContent.split("\n").slice(-100).join("\n")); // Fetch only the last 100 lines for performance
+                } catch (e)
+                {
+                    console.error(`Failed to fetch log latest.log for server ${server.id}:`, e);
+                    setLog("");
+                }
+
+                subscribeToConsole((newLog) =>
+                {
+                    setLog(prev => prev + newLog);
+                    // Only autoscroll if autoscroll is enabled
+                    if (isAutoscrollEnabled)
+                    {
+                        scrollToBottom();
+                    }
+                }, server.id);
+            })();
         }
 
-    }, [servers, id]);
+    }, [servers, id, isAutoscrollEnabled, scrollToBottom]);
 
-    const scrollToBottom = () =>
+    // Add scroll event listener
+    useEffect(() =>
     {
         const logView = document.querySelector("#log-view");
         if (logView)
         {
-            logView.scrollTop = logView.scrollHeight;
+            logView.addEventListener("scroll", handleScroll);
+            return () =>
+            {
+                logView.removeEventListener("scroll", handleScroll);
+            };
         }
-    };
+    }, [handleScroll]);
 
     return (
         <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}>
@@ -119,20 +174,49 @@ export default function ServerConsole(props: ServerOverviewProps)
             <Tooltip content={"Scroll to bottom"}>
                 <Button isIconOnly size={"sm"} radius={"none"} className={"absolute bottom-8 right-8 text-xl"} onPress={scrollToBottom}><Icon icon={"pixelarticons:arrow-down"}/></Button>
             </Tooltip>
-            {isRunning && (
-                <div className={"absolute bottom-8 left-8 right-8 font-minecraft-body"}>
-                    <Input
-                        placeholder={"Send a command..."}
-                        radius={"none"}
-                        startContent={<Icon icon={"mdi:console"}/>}
-                        endContent={
-                            <Tooltip content={"Send Command"}>
-                                <Button isIconOnly variant={"light"} size={"sm"} radius={"none"}><Icon icon={"mdi:send"}/></Button>
-                            </Tooltip>
-                        }
-                    />
-                </div>
-            )}
+            {isRunning && <CommandInput id={id}/>}
+        </div>
+    );
+}
+
+
+function CommandInput({id}: { id: string })
+{
+    const {sendCommand} = useServer();
+    const [value, setValue] = useState("");
+
+    const handleCommandSubmit = async () =>
+    {
+        if (value.trim() === "") return;
+        try
+        {
+            await sendCommand(value.trim(), id);
+            setValue(""); // Clear the input after sending the command
+        } catch (error)
+        {
+            console.error("Failed to send command:", error);
+        }
+    };
+
+    return (
+
+        <div className={"absolute bottom-8 left-8 right-8 font-minecraft-body"}>
+            <Input
+                placeholder={"Send a command..."}
+                radius={"none"}
+                value={value}
+                onValueChange={setValue}
+                startContent={<Icon icon={"mdi:console"}/>}
+                endContent={
+                    <Tooltip content={"Send Command"}>
+                        <Button isIconOnly variant={"light"} size={"sm"} radius={"none"} onPress={handleCommandSubmit}><Icon icon={"mdi:send"}/></Button>
+                    </Tooltip>
+                }
+                onKeyUp={async (e) =>
+                {
+                    if (e.key === "Enter" && e.currentTarget.value.trim() !== "") await handleCommandSubmit();
+                }}
+            />
         </div>
     );
 }
