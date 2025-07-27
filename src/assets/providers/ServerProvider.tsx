@@ -1,4 +1,4 @@
-import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
+import {createContext, ReactNode, useCallback, useContext, useRef, useState} from "react";
 import $ from "jquery";
 import {FileSystem, FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 
@@ -63,6 +63,7 @@ interface ServerContextType
     server: Server | null;
     servers: Server[];
     loadServer: (id: string) => Promise<void>;
+    unloadServer: () => void;
     loadServers: () => Promise<void>;
     createServer: (server: CreateServerData) => Promise<string>;
     updateServer: (server: Partial<Server>, serverId?: string) => Promise<void>;
@@ -77,6 +78,7 @@ interface ServerContextType
     hasActiveConsoleConnection: (serverId?: string) => boolean;
     backupServer: (serverId?: string) => Promise<void>;
     getServerStatus: (serverId?: string) => Promise<string>;
+    isServerRunning: (serverId?: string) => boolean;
     // Filesystem functions
     getEntries: (path: string, serverId?: string) => Promise<FilesystemData>;
     downloadEntry: (entry: FilesystemEntry | FilesystemEntry[], serverId?: string) => Promise<void>;
@@ -101,19 +103,26 @@ export function ServerProvider({children}: { children: ReactNode })
 {
     const [server, setServer] = useState<Server | null>(null);
     const [servers, setServers] = useState<Server[]>([]);
-    
+
     // Connection tracking for console subscriptions
     const consoleConnections = useRef<Map<string, () => void>>(new Map());
 
     const loadServer = async (id: string) =>
     {
         let server: Server = await $.get(`/api/server/${id}`);
+        server.status = server.status.toLowerCase() as ServerStatus; // Ensure server_type is lowercase
         setServer(server);
+    };
+
+    const unloadServer = () =>
+    {
+        setServer(null);
     };
 
     const loadServers = async () =>
     {
         let servers: Server[] = await $.get("/api/server");
+        servers = servers.map(s => ({...s, status: s.status.toLowerCase()} as Server));
         setServers(servers);
     };
 
@@ -136,12 +145,18 @@ export function ServerProvider({children}: { children: ReactNode })
         return response.server_id;
     };
 
+    const isServerRunning = useCallback((serverId?: string): boolean =>
+    {
+        let targetServer = serverId ? servers.find(s => s.id === serverId) : server;
+        if (!targetServer) return false;
+        return targetServer.status === "running" || targetServer.status === "starting" || targetServer.status === "stopping" || targetServer.status === "hanging";
+    }, [server, servers]);
+
     const updateServer = useCallback(async (updates: Partial<Server>, serverId?: string) =>
     {
         let targetServerId = serverId || server?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
         let targetServer: Server | null | undefined = serverId != undefined ? servers.find(s => s.id === targetServerId) : server;
-        console.log("Servers List:", servers, "Target Server ID:", targetServerId, "Target Server:", targetServer);
         if (targetServer == null)
         {
             targetServer = await $.get(`/api/server/${targetServerId}`);
@@ -252,7 +267,8 @@ export function ServerProvider({children}: { children: ReactNode })
 
     const cleanupConsoleConnection = useCallback((serverId?: string) =>
     {
-        const targetServerId = serverId || server?.id;
+        let targetServer = serverId ? servers.find(s => s.id === serverId) : server;
+        const targetServerId = serverId || targetServer?.id;
         if (!targetServerId) return;
 
         const existingCleanup = consoleConnections.current.get(targetServerId);
@@ -265,23 +281,21 @@ export function ServerProvider({children}: { children: ReactNode })
 
     const hasActiveConsoleConnection = useCallback((serverId?: string): boolean =>
     {
-        const targetServerId = serverId || server?.id;
+        let targetServer = serverId ? servers.find(s => s.id === serverId) : server;
+        const targetServerId = targetServer?.id;
         if (!targetServerId) return false;
-        
+
         return consoleConnections.current.has(targetServerId);
     }, [server]);
 
     const subscribeToConsole = useCallback((callback: (data: string) => void, serverId?: string): (() => void) =>
     {
-        const targetServerId = serverId || server?.id;
+        let targetServer = serverId ? servers.find(s => s.id === serverId) : server;
+        const targetServerId = targetServer?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        // Clean up existing connection first
         cleanupConsoleConnection(targetServerId);
 
-        // Create AbortController for graceful cancellation
-        const abortController = new AbortController();
-        
         try
         {
             const eventSource = new EventSource(`/api/server/${targetServerId}/console`);
@@ -289,53 +303,44 @@ export function ServerProvider({children}: { children: ReactNode })
 
             const handleMessage = (event: MessageEvent) =>
             {
-                if (abortController.signal.aborted)
-                {
-                    console.warn(`EventSource for server ${targetServerId} was aborted before processing message.`);
-                    return;
-                }
+                console.log(`Received console message for server ${targetServerId}:`, event.data);
                 callback(event.data);
             };
 
             const handleError = (event: Event) =>
             {
                 console.error(`EventSource error for server ${targetServerId}:`, event);
-                if (!abortController.signal.aborted)
-                {
-                    // Clean up on error
-                    cleanup();
-                }
             };
 
-            eventSource.addEventListener(eventName, handleMessage);
-            eventSource.addEventListener('error', handleError);
+            const handleOpen = () =>
+            {
+                console.log(`Console EventSource for server ${targetServerId} opened successfully.`);
+            };
 
-            // Create cleanup function
+            eventSource.addEventListener("open", handleOpen);
+            eventSource.addEventListener(eventName, handleMessage);
+            eventSource.addEventListener("message", handleMessage);
+            eventSource.addEventListener("error", handleError);
+
             const cleanup = () =>
             {
-                if (!abortController.signal.aborted)
-                {
-                    abortController.abort();
-                }
                 eventSource.removeEventListener(eventName, handleMessage);
-                eventSource.removeEventListener('error', handleError);
+                eventSource.removeEventListener("message", handleMessage);
+                eventSource.removeEventListener("error", handleError);
                 eventSource.close();
                 consoleConnections.current.delete(targetServerId);
+                console.log(`EventSource for server ${targetServerId} closed and cleaned up.`);
             };
 
             // Store cleanup function in connection map
             consoleConnections.current.set(targetServerId, cleanup);
 
-            // Handle abort signal
-            abortController.signal.addEventListener('abort', cleanup);
 
             // Return cleanup function
             return cleanup;
-        }
-        catch (error)
+        } catch (error)
         {
             console.error(`Failed to create EventSource for server ${targetServerId}:`, error);
-            abortController.abort();
             throw error;
         }
     }, [server, cleanupConsoleConnection]);
@@ -473,30 +478,12 @@ export function ServerProvider({children}: { children: ReactNode })
     }, [server]);
 
 
-    useEffect(() =>
-    {
-        // Load servers on initial mount
-        loadServers().catch(console.error);
-
-        const updateInterval = setInterval(() =>
-        {
-            loadServers().catch(console.error);
-        }, 5000);
-
-        // If a server is already loaded, load its details
-        if (server)
-        {
-            loadServer(server.id).catch(console.error);
-        }
-
-        return () => clearInterval(updateInterval);
-    }, []);
-
     return (
         <ServerContext.Provider value={{
             server,
             servers,
             loadServer,
+            unloadServer,
             loadServers,
             createServer,
             updateServer,
@@ -511,6 +498,7 @@ export function ServerProvider({children}: { children: ReactNode })
             hasActiveConsoleConnection,
             backupServer,
             getServerStatus,
+            isServerRunning,
             // Filesystem functions
             getEntries,
             downloadEntry,

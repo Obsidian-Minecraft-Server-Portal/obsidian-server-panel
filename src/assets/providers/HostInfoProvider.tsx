@@ -53,12 +53,12 @@ export function HostInfoProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
-        getHostInfo().then(console.log);
+        getHostInfo();
         let connection = new EventSource("/api/info/resources", {withCredentials: true});
         connection.onopen = () =>
         {
-            console.log("SSE connection established.");
-            getHostInfo().then(console.log);
+            console.log("Resource connection established.");
+            getHostInfo();
         };
         connection.addEventListener("resource_update", (event) =>
         {
@@ -67,7 +67,7 @@ export function HostInfoProvider({children}: { children: ReactNode })
         });
         connection.onerror = (error) =>
         {
-            console.error("Error in SSE connection:", error);
+            console.error("Error in Resource connection:", error);
             connection.close();
         };
         return () =>

@@ -67,8 +67,6 @@ impl ServerData {
         self.last_started = Some(chrono::Utc::now().timestamp() as u64);
         self.save().await?;
 
-        let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
-
         let hang_duration = Duration::from_secs(120); // 2 minutes
 
         let id = self.id;
@@ -85,9 +83,9 @@ impl ServerData {
                 let server = ServerData::get(id, owner_id).await.expect("Server not found").expect("Server not found");
                 if server.status == ServerStatus::Starting {}
             }
-              
         });
 
+        let mut process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
         loop {
             let line = process.receive_output().await?;
             if let Some(line) = line {
@@ -196,20 +194,55 @@ impl ServerData {
                 None => return Err(anyhow::anyhow!("Server not running")),
             }
         };
-        let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
+        let mut process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
             Some(process) => process,
             None => return Err(anyhow::anyhow!("Server process not found")),
         };
-        loop {
-            let line = process.receive_output().await?;
-            if let Some(line) = line {
-                debug!("Sending message to client: {}", line);
-                let message = actix_web_lab::sse::Data::new(line).event("console");
 
-                // Send the message to the client
-                if sender.send(message.into()).await.is_err() {
-                    warn!("Failed to send message to client, client may have disconnected");
-                    break;
+        loop {
+            // Add timeout to detect stale connections
+            let output_future = process.receive_output();
+            let timeout_future = tokio::time::sleep(Duration::from_secs(30));
+
+            tokio::select! {
+                line_result = output_future => {
+                    let line = line_result?;
+                    if let Some(line) = line {
+                        debug!("Sending message to client: {}", line);
+                        let message = actix_web_lab::sse::Data::new(line).event("console");
+
+                        // Check if sender is closed first
+                        if sender.is_closed() {
+                            warn!("Client connection closed, stopping console output forwarding");
+                            break;
+                        }
+
+                        // Try to send with timeout
+                        match tokio::time::timeout(Duration::from_secs(5), sender.send(message.into())).await {
+                            Ok(Ok(_)) => {}, // Successfully sent
+                            Ok(Err(e)) => {
+                                warn!("Failed to send message to client, client may have disconnected: {}", e);
+                                break;
+                            }
+                            Err(_) => {
+                                warn!("Timeout sending message to client, assuming disconnected");
+                                break;
+                            }
+                        }
+                    }
+                }
+                _ = timeout_future => {
+                    // Periodic check for closed connection
+                    if sender.is_closed() {
+                        warn!("Client connection closed during timeout check, stopping console output forwarding");
+                        break;
+                    }
+                    // Send a heartbeat to test connection
+                    let heartbeat = actix_web_lab::sse::Data::new("").event("heartbeat");
+                    if let Err(e) = sender.try_send(heartbeat.into()) {
+                        warn!("Heartbeat failed, client likely disconnected: {}", e);
+                        break;
+                    }
                 }
             }
         }

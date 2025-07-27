@@ -3,7 +3,7 @@ use crate::authentication::auth_data::UserData;
 use crate::server::filesystem;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
-use actix_web::{delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
 use anyhow::anyhow;
 use flate2::read::GzDecoder;
 use log::error;
@@ -178,9 +178,19 @@ pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> 
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
-    tokio::spawn(async move { server.attach_to_stdout(sender).await });
 
-    Ok(actix_web_lab::sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
+    // Spawn the attachment in a separate task to handle connection cleanup
+    let sender_clone = sender.clone();
+    tokio::spawn(async move {
+        if let Err(e) = server.attach_to_stdout(sender_clone).await {
+            error!("Failed to attach to server {} stdout: {}", server.name, e);
+        }
+    });
+
+    // Use a shorter keep-alive interval and add connection timeout
+    Ok(actix_web_lab::sse::Sse::from_infallible_receiver(receiver)
+        .with_keep_alive(Duration::from_secs(5)) // Shorter keep-alive
+        .with_retry_duration(Duration::from_secs(3))) // Add retry duration
 }
 
 #[get("{server_id}/icon")]

@@ -1,6 +1,7 @@
 import {Button, cn, Divider, Image} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
+import {useState} from "react";
 
 type ServerHeaderProps = {
     id: string,
@@ -15,6 +16,7 @@ export function ServerHeader(props: ServerHeaderProps)
 {
     const {id, name, minecraft_version, server_type, loader_version, status} = props;
     const {startServer, stopServer, restartServer} = useServer();
+    const [isServerStarting, setIsServerStarting] = useState<boolean>(false);
     return (
         <div className={"flex flex-row gap-4 mt-8"}>
             <Image src={`/api/server/${id}/icon`}/>
@@ -43,12 +45,13 @@ export function ServerHeader(props: ServerHeaderProps)
                                     "data-[status=idle]:text-warning data-[status=hanging]:text-warning",
                                     "data-[status=running]:text-success data-[status=starting]:text-success/90",
                                     "data-[status=stopped]:text-danger data-[status=stopping]:text-danger/90",
-                                    "data-[status=error]:text-red-600 data-[status=crashed]:text-red-500"
+                                    "data-[status=error]:text-red-600 data-[status=crashed]:text-red-500",
+                                    "capitalize"
                                 )
                             }
-                            data-status={status.toLowerCase()}
+                            data-status={isServerStarting ? "starting" : status.toLowerCase()}
                         >
-                                {status}
+                                {isServerStarting ? "Starting" : status}
                             </span>
                     </p>
                 </div>
@@ -57,7 +60,12 @@ export function ServerHeader(props: ServerHeaderProps)
                 {
                     // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
                     (status.toLowerCase() === "idle" || status.toLowerCase() === "stopped" || status.toLowerCase() === "error" || status.toLowerCase() === "crashed") ? (
-                        <Button radius={"none"} color={"primary"} variant={"solid"} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={() => startServer(id)}>Start</Button>
+                        <Button radius={"none"} color={"primary"} variant={"solid"} isLoading={isServerStarting} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={async () =>
+                        {
+                            setIsServerStarting(true);
+                            await startServer(id);
+                            setIsServerStarting(false);
+                        }}>Start</Button>
                     ) : status.toLowerCase() === "running" ? (
                         <>
                             <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
