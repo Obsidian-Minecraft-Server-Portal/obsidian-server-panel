@@ -1,4 +1,4 @@
-import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
+import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
 import $ from "jquery";
 import {FileSystem, FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 
@@ -73,6 +73,8 @@ interface ServerContextType
     killServer: (serverId?: string) => Promise<void>;
     sendCommand: (command: string, serverId?: string) => Promise<void>;
     subscribeToConsole: (callback: (data: string) => void, serverId?: string) => () => void;
+    cleanupConsoleConnection: (serverId?: string) => void;
+    hasActiveConsoleConnection: (serverId?: string) => boolean;
     backupServer: (serverId?: string) => Promise<void>;
     getServerStatus: (serverId?: string) => Promise<string>;
     // Filesystem functions
@@ -99,6 +101,9 @@ export function ServerProvider({children}: { children: ReactNode })
 {
     const [server, setServer] = useState<Server | null>(null);
     const [servers, setServers] = useState<Server[]>([]);
+    
+    // Connection tracking for console subscriptions
+    const consoleConnections = useRef<Map<string, () => void>>(new Map());
 
     const loadServer = async (id: string) =>
     {
@@ -245,28 +250,95 @@ export function ServerProvider({children}: { children: ReactNode })
         });
     }, [server]);
 
+    const cleanupConsoleConnection = useCallback((serverId?: string) =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) return;
+
+        const existingCleanup = consoleConnections.current.get(targetServerId);
+        if (existingCleanup)
+        {
+            existingCleanup();
+            consoleConnections.current.delete(targetServerId);
+        }
+    }, [server]);
+
+    const hasActiveConsoleConnection = useCallback((serverId?: string): boolean =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) return false;
+        
+        return consoleConnections.current.has(targetServerId);
+    }, [server]);
+
     const subscribeToConsole = useCallback((callback: (data: string) => void, serverId?: string): (() => void) =>
     {
         const targetServerId = serverId || server?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
 
-        const eventSource = new EventSource(`/api/server/${targetServerId}/console`);
-        const eventName = `server-${targetServerId}-console`;
+        // Clean up existing connection first
+        cleanupConsoleConnection(targetServerId);
 
-        const handleMessage = (event: MessageEvent) =>
+        // Create AbortController for graceful cancellation
+        const abortController = new AbortController();
+        
+        try
         {
-            callback(event.data);
-        };
+            const eventSource = new EventSource(`/api/server/${targetServerId}/console`);
+            const eventName = `console`;
 
-        eventSource.addEventListener(eventName, handleMessage);
+            const handleMessage = (event: MessageEvent) =>
+            {
+                if (abortController.signal.aborted)
+                {
+                    console.warn(`EventSource for server ${targetServerId} was aborted before processing message.`);
+                    return;
+                }
+                callback(event.data);
+            };
 
-        // Return cleanup function
-        return () =>
+            const handleError = (event: Event) =>
+            {
+                console.error(`EventSource error for server ${targetServerId}:`, event);
+                if (!abortController.signal.aborted)
+                {
+                    // Clean up on error
+                    cleanup();
+                }
+            };
+
+            eventSource.addEventListener(eventName, handleMessage);
+            eventSource.addEventListener('error', handleError);
+
+            // Create cleanup function
+            const cleanup = () =>
+            {
+                if (!abortController.signal.aborted)
+                {
+                    abortController.abort();
+                }
+                eventSource.removeEventListener(eventName, handleMessage);
+                eventSource.removeEventListener('error', handleError);
+                eventSource.close();
+                consoleConnections.current.delete(targetServerId);
+            };
+
+            // Store cleanup function in connection map
+            consoleConnections.current.set(targetServerId, cleanup);
+
+            // Handle abort signal
+            abortController.signal.addEventListener('abort', cleanup);
+
+            // Return cleanup function
+            return cleanup;
+        }
+        catch (error)
         {
-            eventSource.removeEventListener(eventName, handleMessage);
-            eventSource.close();
-        };
-    }, [server]);
+            console.error(`Failed to create EventSource for server ${targetServerId}:`, error);
+            abortController.abort();
+            throw error;
+        }
+    }, [server, cleanupConsoleConnection]);
 
     const backupServer = useCallback(async (serverId?: string) =>
     {
@@ -435,6 +507,8 @@ export function ServerProvider({children}: { children: ReactNode })
             killServer,
             sendCommand,
             subscribeToConsole,
+            cleanupConsoleConnection,
+            hasActiveConsoleConnection,
             backupServer,
             getServerStatus,
             // Filesystem functions
