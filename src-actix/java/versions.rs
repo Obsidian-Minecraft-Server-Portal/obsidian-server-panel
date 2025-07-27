@@ -81,16 +81,16 @@ impl JavaVersion {
         Err(anyhow!("Version not found"))
     }
 
-    pub async fn from_version(version: impl AsRef<str>) -> Result<Self> {
-        let version_id = version.as_ref();
-        let all_versions = Self::list().await?;
-        for version in all_versions {
-            if version.version == version_id {
-                return Ok(version);
-            }
-        }
-        Err(anyhow!("Version not found"))
-    }
+//    pub async fn from_version(version: impl AsRef<str>) -> Result<Self> {
+//        let version_id = version.as_ref();
+//        let all_versions = Self::list().await?;
+//        for version in all_versions {
+//            if version.version == version_id {
+//                return Ok(version);
+//            }
+//        }
+//        Err(anyhow!("Version not found"))
+//    }
 
     fn check_if_version_installed(&mut self) -> bool {
         self.installed = self.get_executable().exists();
@@ -113,16 +113,16 @@ impl JavaVersion {
         executable
     }
 
-    pub async fn get_installed_versions() -> Result<Vec<Self>> {
-        let mut versions: Vec<Self> = vec![];
-        let all_versions = Self::list().await?;
-        for mut version in all_versions {
-            if version.check_if_version_installed() {
-                versions.push(version);
-            }
-        }
-        Ok(versions)
-    }
+//    pub async fn get_installed_versions() -> Result<Vec<Self>> {
+//        let mut versions: Vec<Self> = vec![];
+//        let all_versions = Self::list().await?;
+//        for mut version in all_versions {
+//            if version.check_if_version_installed() {
+//                versions.push(version);
+//            }
+//        }
+//        Ok(versions)
+//    }
 
     pub async fn install(&self, sender: tokio::sync::mpsc::Sender<actix_web_lab::sse::Event>) -> Result<()> {
         let now = std::time::Instant::now();
