@@ -6,6 +6,7 @@ static CREATE_SERVER_TABLE_SQL: &str = include_str!("../../resources/sql/server.
 
 pub async fn initialize(pool: &SqlitePool) -> Result<()> {
     pool.execute(CREATE_SERVER_TABLE_SQL).await?;
+    pool.execute(r#"UPDATE servers SET status = 0;"#).await?; // Reset all server statuses to 0 (idle)
     Ok(())
 }
 

@@ -271,7 +271,7 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
 
                 Ok(contents)
             })() {
-                Ok(contents) => Ok(HttpResponse::Ok().body(contents)),
+                Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),
                 Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
                     "error": format!("Error reading compressed log file: {}", e)
                 }))),
@@ -280,7 +280,7 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
     }
 
     match std::fs::read_to_string(log_file_path) {
-        Ok(contents) => Ok(HttpResponse::Ok().body(contents)),
+        Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": format!("Error reading log file: {}", e)
         }))),
