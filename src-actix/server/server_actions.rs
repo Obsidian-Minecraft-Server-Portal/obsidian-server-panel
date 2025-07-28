@@ -106,25 +106,9 @@ impl ServerData {
     }
 
     pub async fn stop_server(&mut self) -> Result<()> {
+        self.status = ServerStatus::Stopping;
+        self.save().await?;
         self.send_command("stop").await?;
-
-        let mut iterations = 0;
-        loop {
-            let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-            let servers = servers.lock().await;
-            if servers.get(&self.id).is_none() {
-                break;
-            }
-            iterations += 1;
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            if iterations >= 30 {
-                // 30 seconds
-                return self.kill_server().await;
-            }
-        }
-
-        self.remove_server().await?;
-
         Ok(())
     }
 
@@ -133,7 +117,7 @@ impl ServerData {
         let servers = servers.lock().await;
         let pid = *servers.get(&self.id).expect("Server not running");
         let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
-        process.shutdown(Duration::from_secs(10)).await?; // tries to gracefully shutdown, but after 10 seconds it will kill the process.
+        process.kill().await?;
         self.remove_server().await?;
 
         Ok(())
