@@ -9,7 +9,7 @@ import {CommandInput} from "./CommandInput.tsx";
 
 export default function ServerConsole()
 {
-    const {server, isServerRunning, subscribeToConsole, hasActiveConsoleConnection, getLogs, getLog} = useServer();
+    const {server, isServerRunning, subscribeToConsole, hasActiveConsoleConnection, getLogs, getLog, downloadEntry} = useServer();
     const [log, setLog] = useState<string[]>([]);
     const [logFiles, setLogFiles] = useState<string[]>([]);
     const [selectedLogFile, setSelectedLogFile] = useState("latest.log");
@@ -43,6 +43,12 @@ export default function ServerConsole()
             }
         }
     }, [isAutoscrollEnabled]);
+
+    const downloadSelectedLogFile = useCallback(async () =>
+    {
+        await downloadEntry(`logs/${selectedLogFile}`);
+    }, [selectedLogFile]);
+
 
     useEffect(() =>
     {
@@ -117,7 +123,6 @@ export default function ServerConsole()
         }
     }, [isRunning]);
 
-
     if (!server) return null;
     return (
         <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}>
@@ -148,7 +153,7 @@ export default function ServerConsole()
                         }}
                         endContent={
                             <Tooltip content={"Download Log"}>
-                                <Button isIconOnly variant={"light"} size={"sm"} radius={"none"}>
+                                <Button isIconOnly variant={"light"} size={"sm"} radius={"none"} onPress={downloadSelectedLogFile}>
                                     <Icon icon={"pixelarticons:flatten"}/>
                                 </Button>
                             </Tooltip>
