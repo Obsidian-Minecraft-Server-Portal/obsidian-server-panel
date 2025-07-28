@@ -57,7 +57,7 @@ export default function Navigation()
                         <NavbarItem>
                             <Dropdown>
                                 <DropdownTrigger>
-                                    <Button radius={"full"} isIconOnly><Icon icon={"pixelarticons:user"}/></Button>
+                                    <Button radius={"none"} isIconOnly><Icon icon={"pixelarticons:user"}/></Button>
                                 </DropdownTrigger>
                                 <DropdownMenu itemClasses={{base: "rounded-none font-minecraft-body"}}>
                                     <DropdownSection title={user.username}>
