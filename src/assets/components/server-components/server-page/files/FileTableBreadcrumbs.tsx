@@ -10,7 +10,7 @@ export function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperties)
     const {paths, onNavigate} = props;
 
     return (
-        <Breadcrumbs variant={"bordered"}>
+        <Breadcrumbs variant={"solid"} radius={"none"}>
             <BreadcrumbItem
                 key="root"
                 onPress={() =>

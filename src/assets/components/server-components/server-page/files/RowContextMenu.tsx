@@ -5,8 +5,6 @@ import {useCallback, useEffect, useState} from "react";
 import $ from "jquery";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
-import {MessageResponseType} from "../../../MessageModal.tsx";
-import {useMessage} from "../../../../providers/MessageProvider.tsx";
 
 export type ContextMenuOptions = {
     entry?: FilesystemEntry | FilesystemEntry[];
@@ -15,13 +13,15 @@ export type ContextMenuOptions = {
     isOpen: boolean;
 }
 type RowContextMenuProps = {
+    onRename: (entry: FilesystemEntry) => void;
+    onDelete: (entry: FilesystemEntry[]) => void;
+    onArchive: (entry: FilesystemEntry[]) => void;
     onClose: () => void;
 } & ContextMenuOptions;
 
-export function RowContextMenu({entry, y, x, isOpen, onClose}: RowContextMenuProps)
+export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive}: RowContextMenuProps)
 {
     const {downloadEntry} = useServer();
-    const {open} = useMessage();
     const [position, setPosition] = useState({x, y});
 
 
@@ -37,16 +37,8 @@ export function RowContextMenu({entry, y, x, isOpen, onClose}: RowContextMenuPro
         if (!entry || !isOpen) return;
 
         onClose();
-        let response = await open({
-            title: "Delete Files",
-            body: `Are you sure you want to delete ${Array.isArray(entry) ? `${entry.length} files` : entry.filename}? This action cannot be undone.`,
-            responseType: MessageResponseType.OkayCancel,
-            severity: "danger"
-        });
-        if (response)
-        {
-            // Implement delete logic here
-        }
+        if (Array.isArray(entry)) onDelete(entry);
+        else onDelete([entry]);
     }, [entry, isOpen]);
 
     useEffect(() =>
@@ -74,7 +66,7 @@ export function RowContextMenu({entry, y, x, isOpen, onClose}: RowContextMenuPro
             newY = (offset.top + parentHeight) - menuHeight - 10; // 10px padding
         }
 
-        setPosition({x: newX, y: newY});
+        setPosition({x: newX - 50, y: newY - 340});
 
     }, [x, y]);
     return (
@@ -101,11 +93,15 @@ export function RowContextMenu({entry, y, x, isOpen, onClose}: RowContextMenuPro
                     return (
                         <>
                             {...singleItemOptions}
-                            <ListboxItem key={"rename"} endContent={<Icon icon={"pixelarticons:unlink"}/>}>Rename</ListboxItem>
+                            <ListboxItem key={"rename"} endContent={<Icon icon={"pixelarticons:unlink"}/>} onPress={() =>
+                            {
+                                onRename(entry);
+                                onClose();
+                            }}>Rename</ListboxItem>
                         </>
                     );
                 })() : null}
-                <ListboxItem key={"archive"} endContent={<Icon icon={"pixelarticons:archive"}/>}>Archive</ListboxItem>
+                <ListboxItem key={"archive"} endContent={<Icon icon={"pixelarticons:archive"}/>} onPress={() => onArchive(Array.isArray(entry) ? entry : [entry] as FilesystemEntry[])}>Archive</ListboxItem>
                 <ListboxItem key={"download"} endContent={<Icon icon={"pixelarticons:flatten"}/>} onPress={downloadSelectedEntries}>Download</ListboxItem>
                 <ListboxItem key={"delete"} color={"danger"} className={"text-danger"} endContent={<Icon icon={"pixelarticons:trash"}/>} onPress={deleteSelectedEntries}>Delete</ListboxItem>
             </ListboxSection>

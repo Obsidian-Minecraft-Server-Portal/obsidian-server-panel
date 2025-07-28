@@ -67,7 +67,7 @@ export class FileSystem
 
             let tmp = await response.json() as FilesystemData;
 
-            tmp.entries.map(entry =>
+            tmp.entries = tmp.entries.map(entry =>
             {
                 if ((entry as any).created)
                 {
@@ -91,8 +91,14 @@ export class FileSystem
                     entry.file_type = getFileType(entry.filename)?.description ?? "File";
                 }
 
+                if (entry.path.startsWith("\\"))
+                {
+                    // alert("Detected Windows path format. This may cause issues in some browsers. Please use forward slashes (/) for paths.");
+                    entry.path = entry.path.substring(1); // Remove leading \\ for Windows paths}
+                }
                 return entry;
             });
+            console.log("Loading files", tmp);
             return tmp;
         } catch (error: Error | any)
         {
@@ -159,6 +165,11 @@ export class FileSystem
 
     static async renameEntry(source: string, destination: string, serverId: string): Promise<void>
     {
+        if (destination.startsWith("/"))
+            destination = destination.substring(1);
+        if (source.startsWith("/"))
+            source = source.substring(1);
+
         const response = await fetch(`/api/server/${serverId}/fs/rename`, {
             method: "POST",
             body: JSON.stringify({source, destination}),
@@ -364,12 +375,15 @@ export class FileSystem
 
     static async createEntry(filename: string, cwd: string, isDirectory: boolean, serverId: string)
     {
+        let path = `${cwd}/${filename}`;
+        if (path.startsWith("/"))
+            path = path.substring(1); // Remove leading slash for consistency
         const response = await fetch(`/api/server/${serverId}/fs/new`, {
             headers: {
                 "Content-Type": "application/json"
             },
             method: "POST",
-            body: JSON.stringify({path: `${cwd}/${filename}`, is_directory: isDirectory})
+            body: JSON.stringify({path, is_directory: isDirectory})
         });
         if (!response.ok)
         {
@@ -417,7 +431,7 @@ export class FileSystem
         const id = `${filename}-${Math.random().toString(36)}`;
         const event = new EventSource(`/api/server/${serverId}/fs/archive/status/${id}`);
         if (event == null) throw new Error("Failed to create SSE connection");
-
+        filenames = filenames.map(f => f.startsWith("/") ? f.substring(1) : f);
         // Function to cancel the archive operation
         const cancel = async () =>
         {

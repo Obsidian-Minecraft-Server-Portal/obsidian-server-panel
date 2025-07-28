@@ -5,6 +5,8 @@ import {ServerHeader} from "../components/server-components/server-page/ServerHe
 import {Tab, Tabs} from "@heroui/react";
 import ServerConsole from "../components/server-components/server-page/console/ServerConsole.tsx";
 import {ServerFiles} from "../components/server-components/server-page/files/ServerFiles.tsx";
+import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
+import {AnimatePresence, motion} from "framer-motion";
 
 export default function ServerPage()
 {
@@ -48,15 +50,24 @@ export default function ServerPage()
 
     if (!server || !id) return null;
     return (
-        <div className={"flex flex-col gap-4 px-8"}>
-            <ServerHeader id={id} name={server.name} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
-            <Tabs className={"mt-4 font-minecraft-body"} radius={"none"} color={"primary"} onSelectionChange={value => setSelectedTab(value as string)} selectedKey={selectedTab}>
-                <Tab key={"console"} title={"Console"}><ServerConsole/></Tab>
-                <Tab key={"content"} title={"Content"}/>
-                <Tab key={"files"} title={"Files"}><ServerFiles/></Tab>
-                <Tab key={"backups"} title={"Backups"}/>
-                <Tab key={"options"} title={"Options"}/>
-            </Tabs>
-        </div>
+        <AnimatePresence>
+            <div className={"flex flex-col gap-4 px-8"}>
+                <ServerHeader id={id} name={server.name} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
+                <motion.div
+                    initial={{opacity: 0, y: 20}}
+                    animate={{opacity: 1, y: 0}}
+                    exit={{opacity: 0, y: -20}}
+                    transition={{duration: 0.3, ease: "easeInOut"}}
+                >
+                    <Tabs className={"mt-4 font-minecraft-body"} radius={"none"} color={"primary"} onSelectionChange={value => setSelectedTab(value as string)} selectedKey={selectedTab}>
+                        <Tab key={"console"} title={"Console"}><ErrorBoundary><ServerConsole/></ErrorBoundary></Tab>
+                        <Tab key={"content"} title={"Content"}/>
+                        <Tab key={"files"} title={"Files"}><ErrorBoundary><ServerFiles/></ErrorBoundary></Tab>
+                        <Tab key={"backups"} title={"Backups"}/>
+                        <Tab key={"options"} title={"Options"}/>
+                    </Tabs>
+                </motion.div>
+            </div>
+        </AnimatePresence>
     );
 }

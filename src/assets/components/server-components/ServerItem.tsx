@@ -27,15 +27,8 @@ export function ServerItem(props: ServerItemProps)
                             radius={"none"}
                             variant={"ghost"}
                             size={"sm"}
-                            onPress={async () =>
-                            {
-                                await open({
-                                    title: "Edit Server",
-                                    body: "This is not implemented yet.",
-                                    responseType: MessageResponseType.Close,
-                                    severity: "warning"
-                                });
-                            }}
+                            as={Link}
+                            href={`/app/servers/${serverId}?tab=options`}
                         >
                             <Icon icon={"pixelarticons:edit"} width={16}/>
                         </Button>

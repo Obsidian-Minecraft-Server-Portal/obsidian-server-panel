@@ -4,6 +4,7 @@ import {useServer} from "../../../providers/ServerProvider.tsx";
 import {useState} from "react";
 import {useMessage} from "../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../MessageModal.tsx";
+import {motion} from "framer-motion";
 
 type ServerHeaderProps = {
     id: string,
@@ -22,44 +23,58 @@ export function ServerHeader(props: ServerHeaderProps)
     const {open} = useMessage();
     return (
         <div className={"flex flex-row gap-4 mt-8"}>
-            <Image src={`/api/server/${id}/icon`}/>
-            <div className={"flex flex-col gap-4"}>
-                <h1 className={"text-4xl"}>{name}</h1>
-                <div className={"flex flex-row gap-4 font-minecraft-body items-center"}>
-                    <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}><span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"streamline:controller-1-remix"} className={"text-xl"}/>  Minecraft</span> <span className={"text-primary"}>{minecraft_version}</span></p>
-                    {server_type.toLowerCase() !== "vanilla" && (
-                        <>
-                            <Divider orientation={"vertical"}/>
+            <motion.div
+                initial={{opacity: 0, x: -20}}
+                animate={{opacity: 1, x: 0}}
+                exit={{opacity: 0, x: -40}}
+                transition={{duration: 0.3, ease: "easeInOut"}}
+                className={"flex flex-row gap-4 mt-8"}
+            >
+                <Image src={`/api/server/${id}/icon`}/>
+                <div className={"flex flex-col gap-4"}>
+                    <h1 className={"text-4xl"}>{name}</h1>
+                    <div className={"flex flex-row gap-4 font-minecraft-body items-center"}>
+                        <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}><span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"streamline:controller-1-remix"} className={"text-xl"}/>  Minecraft</span> <span className={"text-primary"}>{minecraft_version}</span></p>
+                        {server_type.toLowerCase() !== "vanilla" && (
+                            <>
+                                <Divider orientation={"vertical"}/>
 
-                            <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
-                                <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:flatten"} className={"text-xl"}/> {server_type}</span>
-                                <span className={"text-primary"}>{loader_version}</span>
-                            </p>
-                        </>
-                    )}
+                                <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
+                                    <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:flatten"} className={"text-xl"}/> {server_type}</span>
+                                    <span className={"text-primary"}>{loader_version}</span>
+                                </p>
+                            </>
+                        )}
 
-                    <Divider orientation={"vertical"}/>
-                    <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
-                        <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:zap"} className={"text-xl"}/>  <span>Status</span> </span>
-                        <span
-                            className={
-                                // "idle", "running", "stopped", "error", "starting", "stopping", "crashed", "hanging"
-                                cn(
-                                    "data-[status=idle]:text-warning data-[status=hanging]:text-warning",
-                                    "data-[status=running]:text-success data-[status=starting]:text-success/90",
-                                    "data-[status=stopped]:text-danger data-[status=stopping]:text-danger/90",
-                                    "data-[status=error]:text-red-600 data-[status=crashed]:text-red-500",
-                                    "capitalize"
-                                )
-                            }
-                            data-status={isServerStarting ? "starting" : status.toLowerCase()}
-                        >
+                        <Divider orientation={"vertical"}/>
+                        <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
+                            <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:zap"} className={"text-xl"}/>  <span>Status</span> </span>
+                            <span
+                                className={
+                                    // "idle", "running", "stopped", "error", "starting", "stopping", "crashed", "hanging"
+                                    cn(
+                                        "data-[status=idle]:text-warning data-[status=hanging]:text-warning",
+                                        "data-[status=running]:text-success data-[status=starting]:text-success/90",
+                                        "data-[status=stopped]:text-danger data-[status=stopping]:text-danger/90",
+                                        "data-[status=error]:text-red-600 data-[status=crashed]:text-red-500",
+                                        "capitalize"
+                                    )
+                                }
+                                data-status={isServerStarting ? "starting" : status.toLowerCase()}
+                            >
                                 {isServerStarting ? "Starting" : status}
                             </span>
-                    </p>
+                        </p>
+                    </div>
                 </div>
-            </div>
-            <div className={"flex flex-row ml-auto items-center gap-4 font-minecraft-body"}>
+            </motion.div>
+            <motion.div
+                className={"flex flex-row ml-auto items-center gap-4 font-minecraft-body"}
+                initial={{opacity: 0, x: 20}}
+                animate={{opacity: 1, x: 0}}
+                exit={{opacity: 0, x: 40}}
+                transition={{duration: 0.3, ease: "easeInOut"}}
+            >
                 {
                     // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
                     (status.toLowerCase() === "idle" || status.toLowerCase() === "stopped" || status.toLowerCase() === "error" || status.toLowerCase() === "crashed") ? (
@@ -87,7 +102,7 @@ export function ServerHeader(props: ServerHeaderProps)
                         }}>Kill</Button>
                     ) : null}
 
-            </div>
+            </motion.div>
 
         </div>
     );
