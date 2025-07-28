@@ -1,16 +1,17 @@
 use crate::actix_util::http_error::Result;
-use crate::server::filesystem::filesystem_data::FilesystemData;
+use crate::server::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
 use crate::server::server_data::ServerData;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use serde_hash::hashids::decode_single;
 use serde_json::json;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 
 use crate::server::filesystem::download_parameters::DownloadParameters;
+use actix_web::dev::Path;
 use actix_web::http::header::ContentDisposition;
 use actix_web_lab::sse::Sse;
 use actix_web_lab::sse::{Data, Event};
@@ -20,11 +21,12 @@ use log::{debug, error, warn};
 use serde::Deserialize;
 use std::ffi::OsStr;
 use std::io::ErrorKind;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tokio::io::duplex;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 
@@ -86,7 +88,7 @@ struct ArchiveRequest {
     tracker_id: String,
 }
 
-#[get("/")]
+#[get("/files")]
 pub async fn get_files(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
     let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
@@ -96,12 +98,22 @@ pub async fn get_files(server_id: web::Path<String>, query: web::Query<HashMap<S
     // get server from server id
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
+    let server_directory = server.get_directory_path();
     let directory = server.get_directory_path().join(&path);
     if !directory.exists() {
         return Err(anyhow::anyhow!("Directory not found").into());
     }
 
-    let entries: FilesystemData = directory.try_into()?;
+    let mut entries: FilesystemData = directory.try_into()?;
+    entries.entries = entries
+        .entries
+        .into_iter()
+        .map(|mut entry| {
+            entry.path = entry.path.trim_start_matches(server_directory.as_os_str().to_string_lossy().to_string().as_str()).to_string();
+            entry
+        })
+        .collect();
+
     Ok(HttpResponse::Ok().json(entries))
 }
 
@@ -384,8 +396,8 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
     // get server from server id
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
-    let filepath = server.get_directory_path();
-    let items: Vec<PathBuf> = query.items.iter().map(|item| filepath.join(item)).collect();
+    let server_directory = server.get_directory_path();
+    let items: Vec<PathBuf> = query.items.iter().map(|item| server_directory.join(item.trim_start_matches("\\").trim_start_matches("/"))).collect();
 
     let is_single_entry = items.len() == 1;
     let is_single_entry_directory = is_single_entry && items[0].is_dir();
@@ -412,6 +424,8 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
             .insert_header(ContentDisposition::attachment(filename))
             .streaming(stream));
     }
+
+    debug!("Downloading multiple files: {:?}", items);
 
     // For directories or multiple files, create a zip archive
     let (w, r) = duplex(4096);
@@ -450,7 +464,7 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
 
                     for entry in walker.into_iter().flatten() {
                         let path = entry.path();
-                        let relative_path = path.strip_prefix(&filepath).unwrap_or(path);
+                        let relative_path = path.strip_prefix(&server_directory).unwrap_or(path);
 
                         if path.is_dir() {
                             debug!("Adding directory to zip archive: {} -> {}", path.display(), relative_path.display());

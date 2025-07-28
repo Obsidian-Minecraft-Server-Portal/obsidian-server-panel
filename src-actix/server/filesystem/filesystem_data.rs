@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct FilesystemEntry {
     pub filename: String,
     pub path: String,
@@ -16,6 +16,7 @@ pub struct FilesystemEntry {
 #[derive(Serialize)]
 pub struct FilesystemData {
     pub parent: Option<String>,
+    pub current_path: String,
     pub entries: Vec<FilesystemEntry>,
 }
 
@@ -109,7 +110,7 @@ impl TryFrom<PathBuf> for FilesystemData {
             }
         });
 
-        Ok(FilesystemData { parent, entries })
+        Ok(FilesystemData { parent, current_path: path.as_os_str().to_string_lossy().to_string(), entries })
     }
 }
 
