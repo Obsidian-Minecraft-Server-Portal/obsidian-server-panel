@@ -1,4 +1,4 @@
-import {Button, Listbox, ListboxItem, ListboxSection, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useEffect, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
@@ -6,24 +6,25 @@ import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import "../../../../ts/math-ext.ts";
 import {Icon} from "@iconify-icon/react";
 import $ from "jquery";
+import {ContextMenuOptions, RowContextMenu} from "./RowContextMenu.tsx";
+import {useMessage} from "../../../../providers/MessageProvider.tsx";
+import {MessageResponseType} from "../../../MessageModal.tsx";
+import {FileTableBreadcrumbs} from "./FileTableBreadcrumbs.tsx";
 
-type ContextMenuOptions = {
-    entry?: FilesystemEntry | FilesystemEntry[];
-    x: number;
-    y: number;
-    isOpen: boolean;
-}
 
 export function ServerFiles()
 {
     const {getEntries} = useServer();
+    const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
     const [selectedEntries, setSelectedEntries] = useState<FilesystemEntry[]>([]);
     const [contextMenuOptions, setContextMenuOptions] = useState<ContextMenuOptions>({entry: undefined, x: 0, y: 0, isOpen: false});
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() =>
     {
+        setIsLoading(true);
         getEntries(path)
             .then(data =>
             {
@@ -35,7 +36,8 @@ export function ServerFiles()
                 });
                 return data;
             })
-            .then(setData);
+            .then(setData)
+            .finally(() => setIsLoading(false));
     }, [path]);
 
     useEffect(() =>
@@ -47,8 +49,7 @@ export function ServerFiles()
             {
                 setContextMenuOptions(prev => ({...prev, isOpen: false}));
             }
-        });
-        $(document).on("blur", e =>
+        }).on("blur", e =>
         {
             // Close context menu when focus is lost
             if (!$(e.target).closest("#server-files-context-menu").length)
@@ -56,11 +57,24 @@ export function ServerFiles()
                 setContextMenuOptions(prev => ({...prev, isOpen: false}));
             }
         });
+        $("#server-files-table").parent().on("scroll", () =>
+        {
+            // Close context menu when scrolling
+            setContextMenuOptions(prev => ({...prev, isOpen: false}));
+        });
+        return () =>
+        {
+            $(document).off("click");
+            $(document).off("blur");
+            $("#server-files-table").parent().off("scroll");
+        };
     }, []);
 
     return (
-        <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px]"}>
+        <div id={"server-file-browser"} className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px]"}>
+            <FileTableBreadcrumbs onNavigate={setPath} paths={path.split("/").filter(p => p.trim() !== "")}/>
             <Table
+                id={"server-files-table"}
                 removeWrapper
                 radius={"none"}
                 className={"font-minecraft-body overflow-y-auto"}
@@ -82,6 +96,34 @@ export function ServerFiles()
                     const selected = [...keys].map(key => data?.entries.find(entry => entry.filename === key)).filter(Boolean) as FilesystemEntry[];
                     setSelectedEntries(selected);
                 }}
+                onKeyDown={async e =>
+                {
+                    e.preventDefault();
+                    console.log("hi");
+                    if (e.key === "Escape")
+                    {
+                        setContextMenuOptions(prev => ({...prev, isOpen: false}));
+                    }
+                    if (e.key === "Delete" || e.key === "Backspace")
+                    {
+                        e.preventDefault();
+                        // Handle delete action for selected entries
+                        if (selectedEntries.length > 0)
+                        {
+                            let response = await open({
+                                title: "Delete Files",
+                                body: `Are you sure you want to delete ${selectedEntries.length > 1 ? `${selectedEntries.length} files` : selectedEntries[0].filename}? This action cannot be undone.`,
+                                responseType: MessageResponseType.OkayCancel,
+                                severity: "danger"
+                            });
+                            if (response)
+                            {
+                                // Implement delete logic here
+                                setSelectedEntries([]);
+                            }
+                        }
+                    }
+                }}
             >
                 <TableHeader>
                     <TableColumn>Name</TableColumn>
@@ -90,30 +132,86 @@ export function ServerFiles()
                     <TableColumn width={48} hideHeader>Action</TableColumn>
                 </TableHeader>
                 <TableBody>
-                    {data?.entries.map(entry => (
-                        <TableRow
-                            key={entry.filename}
-                            onContextMenu={e =>
-                            {
-                                e.preventDefault();
-                                setContextMenuOptions({entry: selectedEntries.length > 1 ? selectedEntries : entry, x: e.clientX - 30, y: e.clientY - 50, isOpen: true});
-                            }}
-                            data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
-                            className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
-                        >
-                            <TableCell className={"flex items-center h-14 gap-2"}><FileEntryIcon entry={entry}/> {entry.filename}</TableCell>
-                            <TableCell className={"text-gray-500"}>{entry.file_type}</TableCell>
-                            <TableCell className={"text-gray-500"}>{entry.is_dir ? "-" : Math.convertToByteString(entry.size)}</TableCell>
-                            <TableCell className={"text-gray-500"}>
-                                <Button isIconOnly radius={"none"} variant={"light"} onPress={e =>
-                                {
-                                    setContextMenuOptions({entry, x: e.x - 30, y: e.y - 50, isOpen: true});
-                                }}>
-                                    <Icon icon={"pixelarticons:more-horizontal"}/>
-                                </Button>
+                    {isLoading ? Array.from({length: 5}, (_, i) => (
+                        <TableRow key={`skeleton-${i}`}>
+                            <TableCell className={"flex items-center h-14 gap-2"}>
+                                <Skeleton className={"w-8 h-8"}/>
+                                <Skeleton className={"w-32 h-6"}/>
+                            </TableCell>
+                            <TableCell>
+                                <Skeleton className={"w-24 h-6"}/>
+                            </TableCell>
+                            <TableCell>
+                                <Skeleton className={"w-16 h-6"}/>
+                            </TableCell>
+                            <TableCell>
+                                <Skeleton className={"w-8 h-6"}/>
                             </TableCell>
                         </TableRow>
-                    )) || (<></>)}
+                    )) : (
+                        <>
+                            {data?.entries?.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-gray-500">
+                                        This directory is empty
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                data?.entries.map(entry => (
+                                    <TableRow
+                                        key={entry.filename}
+                                        onContextMenu={e =>
+                                        {
+                                            e.preventDefault();
+                                            setContextMenuOptions({
+                                                entry: selectedEntries.length > 1 ? selectedEntries : entry,
+                                                x: e.clientX - 30,
+                                                y: e.clientY - 50,
+                                                isOpen: true
+                                            });
+                                        }}
+                                        data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
+                                        className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
+                                        onDoubleClick={() =>
+                                        {
+                                            if (entry.is_dir)
+                                            {
+                                                setPath(prev => prev ? `${prev}/${entry.filename}` : entry.filename);
+                                            }
+                                        }}
+                                    >
+                                        <TableCell className={"flex items-center h-14 gap-2"}>
+                                            <FileEntryIcon entry={entry}/> {entry.filename}
+                                        </TableCell>
+                                        <TableCell className={"text-gray-500"}>{entry.file_type}</TableCell>
+                                        <TableCell className={"text-gray-500"}>
+                                            {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
+                                        </TableCell>
+                                        <TableCell className={"text-gray-500"}>
+                                            <Button
+                                                isIconOnly
+                                                radius={"none"}
+                                                variant={"light"}
+                                                onPress={e =>
+                                                {
+                                                    let position = $(e.target).offset();
+                                                    if (!position) return;
+                                                    setContextMenuOptions({
+                                                        entry,
+                                                        x: position.left - 264,
+                                                        y: position.top,
+                                                        isOpen: true
+                                                    });
+                                                }}
+                                            >
+                                                <Icon icon={"pixelarticons:more-horizontal"}/>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </>
+                    )}
                 </TableBody>
             </Table>
             <RowContextMenu {...contextMenuOptions} onClose={() => setContextMenuOptions(prev => ({...prev, isOpen: false}))}/>
@@ -121,26 +219,3 @@ export function ServerFiles()
     );
 }
 
-type RowContextMenuProps = {
-    onClose: () => void;
-} & ContextMenuOptions;
-
-function RowContextMenu({entry, y, x, isOpen, onClose}: RowContextMenuProps)
-{
-    return (
-        <Listbox
-            id={"server-files-context-menu"}
-            className={"absolute z-50 w-64 bg-background/50 backdrop-blur-sm border border-primary/50 shadow-lg data-[open=true]:opacity-100 data-[open=false]:opacity-0 transition-opacity duration-200 data-[open=false]:pointer-events-none"}
-            style={{top: y, left: x}}
-            itemClasses={{base: "rounded-none font-minecraft-body"}}
-            data-open={isOpen}
-            onSelectionChange={() => onClose()}
-        >
-            <ListboxSection title={Array.isArray(entry) ? `${entry.length} Items Selected` : entry?.filename ?? ""} itemClasses={{base: "rounded-none font-minecraft-body"}}>
-                <ListboxItem key={"archive"} endContent={<Icon icon={"pixelarticons:flatten"}/>}>Archive</ListboxItem>
-                <ListboxItem key={"download"} endContent={<Icon icon={"pixelarticons:flatten"}/>}>Download</ListboxItem>
-                <ListboxItem key={"delete"} color={"danger"} className={"text-danger"} endContent={<Icon icon={"pixelarticons:trash"}/>}>Delete</ListboxItem>
-            </ListboxSection>
-        </Listbox>
-    );
-}
