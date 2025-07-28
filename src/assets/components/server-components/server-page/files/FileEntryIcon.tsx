@@ -1,9 +1,10 @@
 import {Icon} from "@iconify-icon/react";
-import {getFileExtension} from "../../ts/file-type-match.ts";
+import {FilesystemEntry} from "../../../../ts/filesystem.ts";
+import {getFileExtension} from "../../../../ts/file-type-match.ts";
 
-export function FileEntryIcon({entry, isDirectory}: { entry: string, isDirectory: boolean })
+export   function FileEntryIcon({entry}: { entry: FilesystemEntry })
 {
-    const extension = getFileExtension(entry);
+    const extension = getFileExtension(entry.filename);
     switch (extension)
     {
         /// Excel File Extensions
@@ -568,9 +569,9 @@ export function FileEntryIcon({entry, isDirectory}: { entry: string, isDirectory
 
         default:
             return <Icon
-                icon={isDirectory ? "mage:folder-fill" : "mage:file-fill"}
+                icon={entry.is_dir ? "mage:folder-fill" : "mage:file-fill"}
                 className={"text-2xl data-[directory=true]:text-blue-500"}
-                data-directory={isDirectory ? "true" : "false"}
+                data-directory={entry.is_dir ? "true" : "false"}
                 aria-hidden="true"
             />;
     }
