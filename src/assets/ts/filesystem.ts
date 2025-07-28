@@ -49,7 +49,7 @@ export class FileSystem
     {
         try
         {
-            const url = new URL(`/api/server/${serverId}/fs/`, window.location.origin);
+            const url = new URL(`/api/server/${serverId}/fs/files`, window.location.origin);
             url.searchParams.set("path", decodeURIComponent(path));
             const response = await fetch(url.toString());
 
@@ -112,15 +112,13 @@ export class FileSystem
      * @param serverId Server ID to target
      * @returns Promise that resolves when download is initiated
      */
-    static async download(entry: FilesystemEntry | FilesystemEntry[], serverId: string): Promise<void>
+    static async download(entry: string | string[], serverId: string): Promise<void>
     {
         const cwd = window.location.pathname.replace("/files/", "");
         const url = new URL(`/api/server/${serverId}/fs/download`, window.location.origin);
 
         const items = entry instanceof Array ? entry : [entry];
-        url.searchParams.set("items", JSON.stringify(items.map(e => e.path.replace(cwd, ""))));
-
-        url.searchParams.set("cwd", cwd);
+        url.searchParams.set("items", JSON.stringify(items.map(e => e.replace(cwd, ""))));
 
         const anchor = document.createElement("a");
         // anchor.target = "_blank";
