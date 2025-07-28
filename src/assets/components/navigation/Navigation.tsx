@@ -38,7 +38,7 @@ export default function Navigation()
                                 <DropdownTrigger>
                                     <Button startContent={<Icon icon={"pixelarticons:map"}/>} radius={"none"} variant={"light"}>Discover</Button>
                                 </DropdownTrigger>
-                                <DropdownMenu classNames={{base: "rounded-none font-minecraft-body"}}>
+                                <DropdownMenu itemClasses={{base: "rounded-none font-minecraft-body"}}>
                                     <DropdownItem key={"packs"} as={Link} href={"/app/discover/packs"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:subscriptions"}/>}>Modpacks</DropdownItem>
                                     <DropdownItem key={"mods"} as={Link} href={"/app/discover/mods"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:note-multiple"}/>}>Mods</DropdownItem>
                                     <DropdownItem key={"worlds"} as={Link} href={"/app/discover/worlds"} className={"text-foreground"} startContent={<Icon icon={"pixel:globe-americas-solid"}/>}>Worlds</DropdownItem>
@@ -59,7 +59,7 @@ export default function Navigation()
                                 <DropdownTrigger>
                                     <Button radius={"full"} isIconOnly><Icon icon={"pixelarticons:user"}/></Button>
                                 </DropdownTrigger>
-                                <DropdownMenu classNames={{base: "rounded-none font-minecraft-body"}}>
+                                <DropdownMenu itemClasses={{base: "rounded-none font-minecraft-body"}}>
                                     <DropdownSection title={user.username}>
                                         <DropdownItem key={"account"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:users"}/>} as={Link} href={`/app/user/${user.id}`}> Account </DropdownItem>
                                         <DropdownItem key={"settings"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:sliders"}/>} as={Link} href={`/app/user/${user.id}/settings`}> Settings </DropdownItem>
