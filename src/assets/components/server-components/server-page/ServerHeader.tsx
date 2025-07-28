@@ -2,6 +2,8 @@ import {Button, cn, Divider, Image} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
 import {useState} from "react";
+import {useMessage} from "../../../providers/MessageProvider.tsx";
+import {MessageResponseType} from "../../MessageModal.tsx";
 
 type ServerHeaderProps = {
     id: string,
@@ -15,8 +17,9 @@ type ServerHeaderProps = {
 export function ServerHeader(props: ServerHeaderProps)
 {
     const {id, name, minecraft_version, server_type, loader_version, status} = props;
-    const {startServer, stopServer, restartServer} = useServer();
+    const {startServer, stopServer, restartServer, killServer} = useServer();
     const [isServerStarting, setIsServerStarting] = useState<boolean>(false);
+    const {open} = useMessage();
     return (
         <div className={"flex flex-row gap-4 mt-8"}>
             <Image src={`/api/server/${id}/icon`}/>
@@ -71,6 +74,17 @@ export function ServerHeader(props: ServerHeaderProps)
                             <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
                             <Button radius={"none"} variant={"solid"} startContent={<Icon icon={"pixelarticons:repeat"} className={"text-xl"}/>} onPress={() => restartServer(id)}>Restart</Button>
                         </>
+                    ) : status === "stopping" ? (
+                        <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"tabler:cancel"} className={"text-xl"}/>} onPress={async () =>
+                        {
+                            const response = await open({
+                                title: "Kill Server",
+                                body: "Are you sure you want to kill the server? This will forcefully stop the server and may cause data loss.",
+                                severity: "danger",
+                                responseType: MessageResponseType.YesNo
+                            });
+                            if (response) await killServer();
+                        }}>Kill</Button>
                     ) : null}
 
             </div>
