@@ -25,7 +25,7 @@ static WWWROOT: Dir = include_dir!("target/wwwroot");
 // An `impl Responder` which can either be a successful HTTP response containing
 // the `index.html` file, or an internal server error.
 pub async fn index(_req: HttpRequest) -> anyhow::Result<impl Responder, Error> {
-    if let Some(file) = WWWROOT.get_file("../../index.html") {
+    if let Some(file) = WWWROOT.get_file("index.html") {
         let body = file.contents();
         return Ok(HttpResponse::Ok().content_type("text/html").body(body));
     }
