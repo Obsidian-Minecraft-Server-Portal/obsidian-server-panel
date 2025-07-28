@@ -1,8 +1,8 @@
-import {useServer} from "../../../providers/ServerProvider.tsx";
+import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useState} from "react";
 import {Button, Input} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {Tooltip} from "../../extended/Tooltip.tsx";
+import {Tooltip} from "../../../extended/Tooltip.tsx";
 
 export function CommandInput()
 {

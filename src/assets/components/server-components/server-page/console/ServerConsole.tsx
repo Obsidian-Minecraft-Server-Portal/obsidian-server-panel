@@ -1,8 +1,8 @@
 import {LogView} from "./LogView.tsx";
 import {Autocomplete, AutocompleteItem, Button} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {Tooltip} from "../../extended/Tooltip.tsx";
-import {useServer} from "../../../providers/ServerProvider.tsx";
+import {Tooltip} from "../../../extended/Tooltip.tsx";
+import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useCallback, useEffect, useState} from "react";
 import {CommandInput} from "./CommandInput.tsx";
 
@@ -109,7 +109,11 @@ export default function ServerConsole()
             });
         } else
         {
-            getLogs().then((logFiles) => setLogFiles(logFiles.sort((a, b) => a === "latest.log" ? -1 : b === "latest.log" ? 1 : 0)));
+            getLogs().then((logFiles) => setLogFiles(logFiles.sort((a, b) => a === "latest.log" ? -1 : b === "latest.log" ? 1 : 0))).finally(async () =>
+            {
+                const logContent = await getLog("latest.log");
+                setLog(logContent.split("\n"));
+            });
         }
     }, [isRunning]);
 

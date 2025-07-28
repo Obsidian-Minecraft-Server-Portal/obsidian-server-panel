@@ -2,7 +2,7 @@
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 // @ts-ignore
 import {duotoneSea} from "react-syntax-highlighter/dist/esm/styles/prism";
-import "../../../css/log-view.css";
+import "../../../../css/log-view.css";
 
 type LogViewProps = {
     log: string[];
