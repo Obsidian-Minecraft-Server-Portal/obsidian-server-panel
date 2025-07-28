@@ -81,7 +81,7 @@ interface ServerContextType
     isServerRunning: (serverId?: string) => boolean;
     // Filesystem functions
     getEntries: (path: string, serverId?: string) => Promise<FilesystemData>;
-    downloadEntry: (entry: FilesystemEntry | FilesystemEntry[], serverId?: string) => Promise<void>;
+    downloadEntry: (entry: FilesystemEntry | FilesystemEntry[] | string | string[], serverId?: string) => Promise<void>;
     copyEntry: (sourcePaths: string[], destinationPath: string, serverId?: string) => Promise<void>;
     moveEntry: (sourcePaths: string[], destinationPath: string, serverId?: string) => Promise<void>;
     renameEntry: (source: string, destination: string, serverId?: string) => Promise<void>;
@@ -373,12 +373,24 @@ export function ServerProvider({children}: { children: ReactNode })
         return await FileSystem.getEntries(path, targetServerId);
     }, [server]);
 
-    const downloadEntry = useCallback(async (entry: FilesystemEntry | FilesystemEntry[], serverId?: string): Promise<void> =>
+    const downloadEntry = useCallback(async (entry: FilesystemEntry | FilesystemEntry[] | string | string[], serverId?: string): Promise<void> =>
     {
-        const targetServerId = serverId || server?.id;
+        const targetServer = serverId ? servers.find(s => s.id === serverId) : server;
+        const targetServerId = targetServer?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+        // if the entry is FileSystemEntry or FilesystemEntry[], convert it to string[]
+        if (Array.isArray(entry))
+        {
+            if (entry[0] && typeof entry[0] === "object")
+            {
+                entry = (entry as FilesystemEntry[]).map(e => e.path);
+            }
+        } else if (typeof entry === "object")
+        {
+            entry = [(entry as FilesystemEntry).path];
+        }
 
-        return await FileSystem.download(entry, targetServerId);
+        return await FileSystem.download(entry as string[], targetServerId);
     }, [server]);
 
     const copyEntry = useCallback(async (sourcePaths: string[], destinationPath: string, serverId?: string): Promise<void> =>
