@@ -471,6 +471,10 @@ export const extensionFileTypeMap: FileTypeMap[] = [
     {
         extensions: ["dat", "bin"],
         description: "Binary Data"
+    },
+    {
+        extensions: ["properties", "prop"],
+        description: "Properties File"
     }
 ];
 
@@ -517,4 +521,11 @@ export function getFileExtension(path: string): string | undefined
         console.warn(`No extension match found for filename: ${filename}`);
     }
     return multi_extension.join(".");
+}
+
+export function isTextFile(path: string): boolean
+{
+    const fileType = getFileType(path);
+    if (!fileType) return false;
+    return fileType.extensions.some(ext => ["txt", "md", "json", "xml", "csv", "yaml", "yml", "toml", "properties", "ini", "cfg", "conf", "log", "sh", "bash", "bat", "cmd", "ps1", "sql", "html", "htm", "xhtml", "css", "scss", "sass", "less", "js", "jsx", "ts", "tsx", "php", "py", "java", "c", "cpp", "h", "hpp", "cs", "go", "rs", "rb", "swift", "kt", "kts"].includes(ext));
 }
