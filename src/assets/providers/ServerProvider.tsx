@@ -92,6 +92,8 @@ interface ServerContextType
     archiveFiles: (filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string) => { cancel: () => Promise<void>, trackerId: string };
     cancelArchive: (trackerId: string, serverId?: string) => Promise<void>;
     uploadFromUrl: (url: string, filepath: string, onProgress: (progress: number, downloaded: number, total: number) => void, onSuccess: () => void, onError: (error: string) => void, serverId?: string) => Promise<void>;
+    getFileContents: (path: string, serverId?: string) => Promise<string>;
+    setFileContents: (path: string, contents: string, serverId?: string) => Promise<void>;
     // Logging and console functions
     getLogs: (serverId?: string) => Promise<string[]>;
     getLog: (filename: string, serverId?: string) => Promise<string>;
@@ -488,6 +490,22 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return $.get(`/api/server/${targetServerId}/logs/${filename}`);
     }, [server]);
+    
+    const getFileContents = useCallback(async (path: string, serverId?: string): Promise<string> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.getFileContents(path, targetServerId);
+    }, [server]);
+    
+    const setFileContents = useCallback(async (path: string, contents: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.setFileContents(path, contents, targetServerId);
+    }, [server]);
 
 
     return (
@@ -524,6 +542,8 @@ export function ServerProvider({children}: { children: ReactNode })
             archiveFiles,
             cancelArchive,
             uploadFromUrl,
+            getFileContents,
+            setFileContents,
             getLogs,
             getLog
         }}>

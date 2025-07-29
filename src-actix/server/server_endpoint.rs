@@ -111,6 +111,11 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    if server.has_server_process().await {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Server is already running".to_string(),
+        })));
+    }
     tokio::spawn(async move {
         if let Err(e) = server.start_server().await {
             error!("Failed to start server {}: {}", server.name, e);

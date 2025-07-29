@@ -1,10 +1,11 @@
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
-use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
 use anyhow::Result;
 use log::*;
 use serde_json::json;
 use std::env::set_current_dir;
+use obsidian_upnp::open_port;
 use vite_actix::start_vite_server;
 
 mod actix_util;
@@ -64,6 +65,8 @@ pub async fn run() -> Result<()> {
         #[allow(clippy::zombie_processes)]
         start_vite_server().expect("Failed to start vite server");
     }
+
+    open_port!(PORT, "Obsidian Minecraft Server Panel");
 
     let stop_result = server.await;
     debug!("Server stopped");

@@ -12,6 +12,9 @@ static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, u32>>>> = OnceLock::new()
 
 impl ServerData {
     pub async fn start_server(&mut self) -> Result<()> {
+        if self.has_server_process().await {
+            return Err(anyhow::anyhow!("Server is already running"));
+        }
         self.status = ServerStatus::Starting;
         self.save().await?;
 
@@ -232,5 +235,10 @@ impl ServerData {
         }
 
         Ok(())
+    }
+    pub async fn has_server_process(&self) -> bool {
+        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+        let servers = servers.lock().await;
+        servers.contains_key(&self.id)
     }
 }

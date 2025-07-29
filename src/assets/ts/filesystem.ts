@@ -642,4 +642,50 @@ export class FileSystem
             }
         });
     }
+
+    static async getFileContents(path: string, serverId: string): Promise<string>
+    {
+        const url = new URL(`/api/server/${serverId}/fs/contents`, window.location.origin);
+        url.searchParams.set("filepath", path);
+        const response = await fetch(url.toString());
+
+        if (!response.ok)
+        {
+            let body = await response.text();
+            if (body)
+            {
+                throw new Error(body);
+            } else
+            {
+                throw new Error(`Error: ${response.status} - ${response.statusText}`);
+            }
+        }
+
+        return await response.text();
+    }
+
+    static async setFileContents(path: string, content: string, serverId: string): Promise<void>
+    {
+        const url = new URL(`/api/server/${serverId}/fs/contents`, window.location.origin);
+        url.searchParams.set("filepath", path);
+        const response = await fetch(url.toString(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "text/plain"
+            },
+            body: content
+        });
+
+        if (!response.ok)
+        {
+            let body = await response.text();
+            if (body)
+            {
+                throw new Error(body);
+            } else
+            {
+                throw new Error(`Error: ${response.status} - ${response.statusText}`);
+            }
+        }
+    }
 }

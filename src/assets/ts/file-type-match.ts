@@ -529,3 +529,47 @@ export function isTextFile(path: string): boolean
     if (!fileType) return false;
     return fileType.extensions.some(ext => ["txt", "md", "json", "xml", "csv", "yaml", "yml", "toml", "properties", "ini", "cfg", "conf", "log", "sh", "bash", "bat", "cmd", "ps1", "sql", "html", "htm", "xhtml", "css", "scss", "sass", "less", "js", "jsx", "ts", "tsx", "php", "py", "java", "c", "cpp", "h", "hpp", "cs", "go", "rs", "rb", "swift", "kt", "kts"].includes(ext));
 }
+
+export function getMonacoLanguage(path: string): string | undefined
+{
+    const fileType = getFileType(path);
+    if (!fileType) return undefined;
+    switch (fileType.description)
+    {
+        case "JavaScript File":
+            return "javascript";
+        case "TypeScript File":
+            return "typescript";
+        case "JSON File":
+            return "json";
+        case "HTML Document":
+            return "html";
+        case "CSS Stylesheet":
+            return "css";
+        case "Python File":
+            return "python";
+        case "Java File":
+            return "java";
+        case "C File":
+            return "c";
+        case "C++ File":
+            return "cpp";
+        case "C# File":
+            return "csharp";
+        case "Go File":
+            return "go";
+        case "Rust File":
+            return "rust";
+        case "Ruby File":
+            return "ruby";
+        case "Swift File":
+            return "swift";
+        case "Kotlin File":
+            return "kotlin";
+        case "Properties File":
+            return "properties";
+        default:
+            console.warn(`No Monaco language mapping for file type: ${fileType.description}`);
+            return undefined;
+    }
+}

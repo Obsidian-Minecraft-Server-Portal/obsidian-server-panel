@@ -175,7 +175,7 @@ export default function NewServerModal(props: NewServerProperties)
                 color: "danger"
             });
         }
-    }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram, selectedJavaExecutable, isValidForm]);
+    }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram, selectedJavaExecutable, isValidForm, name]);
 
     useEffect(() =>
     {
@@ -244,6 +244,7 @@ export default function NewServerModal(props: NewServerProperties)
                             <LoaderSelector
                                 selectedLoader={selectedLoader}
                                 version={selectedMinecraftVersion}
+                                isSnapshot={(selectedMinecraftVersion?.includes("snapshot") || selectedMinecraftVersion?.includes("pre-release")) ?? false}
                                 onChange={(url, version) =>
                                 {
                                     setLoaderUrl(url);
@@ -286,6 +287,7 @@ type LoaderSelectorProps = {
     onChange: (url: string | undefined, version: string | undefined) => void;
     onCustomJarChange: (file: File | undefined) => void;
     isDisabled: boolean;
+    isSnapshot: boolean;
 }
 
 function LoaderSelector(props: LoaderSelectorProps)
@@ -300,7 +302,7 @@ function LoaderSelector(props: LoaderSelectorProps)
     switch (selectedLoader)
     {
         case "fabric":
-            return <FabricVersionSelector minecraftVersion={version} onVersionChange={onChange} isDisabled={isDisabled}/>;
+            return <FabricVersionSelector minecraftVersion={version} onVersionChange={onChange} isDisabled={isDisabled} isSnapshot={props.isSnapshot}/>;
         case "forge":
             return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onChange} isDisabled={isDisabled}/>;
         case "quilt":

@@ -39,7 +39,7 @@ export default function ServerPage()
         loadServer(id).catch(error => console.error("Failed to load server:", error));
         const pollingInterval = setInterval(() =>
         {
-            // loadServer(id).catch(error => console.error("Failed to load server:", error));
+            loadServer(id).catch(error => console.error("Failed to load server:", error));
         }, 1000);
         return () =>
         {

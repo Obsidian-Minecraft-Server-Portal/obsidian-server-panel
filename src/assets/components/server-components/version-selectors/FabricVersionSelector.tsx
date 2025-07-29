@@ -5,6 +5,7 @@ import {getFabricServerUrl} from "../../../ts/fabric-versions.ts";
 
 type FabricVersionSelectorProps = {
     minecraftVersion: string;
+    isSnapshot: boolean;
     onVersionChange: (url: string | undefined, version: string | undefined) => void
     isDisabled: boolean
 }
@@ -34,7 +35,7 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
             setVersions([]);
             setSelectedVersion(undefined);
         }
-    }, [props]);
+    }, [props, fabricVersions, selectedVersion]);
 
     useEffect(() =>
     {
@@ -50,8 +51,9 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
         }
         if (!selectedVersion || !minecraftVersion) return;
         const url = getFabricServerUrl(selectedVersion, minecraftVersion, installer);
+        props.onVersionChange(url, selectedVersion);
         console.log(`Selected Fabric version: ${selectedVersion}, URL: ${url}`);
-    }, [selectedVersion]);
+    }, [selectedVersion, props]);
 
     return (
         <Autocomplete

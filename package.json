@@ -20,6 +20,7 @@
     "@heroicons/react": "^2.2.0",
     "@heroui/react": "2.7.11",
     "@iconify-icon/react": "2.3.0",
+    "@monaco-editor/react": "^4.7.0",
     "framer-motion": "12.19.2",
     "jquery": "3.7.1",
     "react": "18.2.0",
