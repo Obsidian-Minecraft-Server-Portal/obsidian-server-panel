@@ -1,0 +1,22 @@
+meta {
+  name: Create New Entry
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/new
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+}
+
+body:json {
+  {
+    "path": "new-folder",
+    "is_directory": true
+  }
+}

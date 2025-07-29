@@ -1,0 +1,22 @@
+meta {
+  name: Rename File
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/rename
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+}
+
+body:json {
+  {
+    "source": "oldfile.txt",
+    "destination": "newfile.txt"
+  }
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Set File Contents
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/contents?filepath=server.properties
+  body: text
+  auth: inherit
+}
+
+params:query {
+  filepath: server.properties
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+}
+
+body:text {
+  # Minecraft server properties
+  server-port=25565
+  gamemode=survival
+  difficulty=normal
+  max-players=20
+}

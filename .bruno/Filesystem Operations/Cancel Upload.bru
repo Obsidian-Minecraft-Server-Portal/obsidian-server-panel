@@ -1,0 +1,16 @@
+meta {
+  name: Cancel Upload
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/upload/cancel/:upload-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+  upload-id: upload123
+}

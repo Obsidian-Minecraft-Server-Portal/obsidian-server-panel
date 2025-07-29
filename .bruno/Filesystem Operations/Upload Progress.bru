@@ -1,0 +1,16 @@
+meta {
+  name: Upload Progress
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/fs/upload/progress/:upload-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+  upload-id: upload123
+}

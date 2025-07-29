@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Files.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Archive Files&#10;  type: http&#10;  seq: 13&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/archive&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;entries&quot;: [&quot;logs&quot;, &quot;config&quot;],&#10;    &quot;cwd&quot;: &quot;&quot;,&#10;    &quot;filename&quot;: &quot;server-backup.zip&quot;,&#10;    &quot;tracker_id&quot;: &quot;archive123&quot;&#10;  }&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Status.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Status.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Archive Status&#10;  type: http&#10;  seq: 14&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/archive/status/:tracker-id&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;  tracker-id: archive123&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Cancel Archive.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Cancel Archive.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Cancel Archive&#10;  type: http&#10;  seq: 15&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/archive/cancel/:tracker-id&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;  tracker-id: archive123&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Cancel Upload.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Cancel Upload.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Cancel Upload&#10;  type: http&#10;  seq: 6&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/upload/cancel/:upload-id&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;  upload-id: upload123&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Copy Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Copy Files.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Copy Files&#10;  type: http&#10;  seq: 7&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/copy&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;entries&quot;: [&quot;file1.txt&quot;, &quot;folder1&quot;],&#10;    &quot;path&quot;: &quot;destination/folder&quot;&#10;  }&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Create New Entry.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Create New Entry.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Create New Entry&#10;  type: http&#10;  seq: 11&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/new&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;path&quot;: &quot;new-folder&quot;,&#10;    &quot;is_directory&quot;: true&#10;  }&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Delete Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Delete Files.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Delete Files&#10;  type: http&#10;  seq: 10&#10;}&#10;&#10;delete {&#10;  url: {{baseurl}}/server/:server-id/fs/&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;paths&quot;: [&quot;file1.txt&quot;, &quot;folder1&quot;, &quot;file2.txt&quot;]&#10;  }&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Download Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Download Files.bru" />
+              <option name="originalContent" value="meta {&#10;  name: Download Files&#10;  type: http&#10;  seq: 4&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/download?items=logs&amp;items=config&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  items: logs&#10;  items: config&#10;}&#10;&#10;params:path {&#10;  server-id: &#10;}" />
+              <option name="updatedContent" value="meta {&#10;  name: Download Files&#10;  type: http&#10;  seq: 4&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/download?items=logs&amp;items=config&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  items: logs&#10;  items: config&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Get File Contents.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Get File Contents.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Get File Contents&#10;  type: http&#10;  seq: 16&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/contents?filepath=server.properties&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  filepath: server.properties&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Get Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Get Files.bru" />
+              <option name="originalContent" value="meta {&#10;  name: Get Files&#10;  type: http&#10;  seq: 1&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/files?filepath&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  filepath: &#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;" />
+              <option name="updatedContent" value="meta {&#10;  name: Get Files&#10;  type: http&#10;  seq: 1&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/files?path=&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  path: &#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Move Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Move Files.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Move Files&#10;  type: http&#10;  seq: 8&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/move&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;entries&quot;: [&quot;file1.txt&quot;, &quot;folder1&quot;],&#10;    &quot;path&quot;: &quot;destination/folder&quot;&#10;  }&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Rename File.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Rename File.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Rename File&#10;  type: http&#10;  seq: 9&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/rename&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;source&quot;: &quot;oldfile.txt&quot;,&#10;    &quot;destination&quot;: &quot;newfile.txt&quot;&#10;  }&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Search Files.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Search Files.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Search Files&#10;  type: http&#10;  seq: 12&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/search?q=config&amp;filename_only=false&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  q: config&#10;  filename_only: false&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Set File Contents.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Set File Contents.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Set File Contents&#10;  type: http&#10;  seq: 17&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/contents?filepath=server.properties&#10;  body: text&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  filepath: server.properties&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:text {&#10;  # Minecraft server properties&#10;  server-port=25565&#10;  gamemode=survival&#10;  difficulty=normal&#10;  max-players=20&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Upload File.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Upload File.bru" />
+              <option name="originalContent" value="meta {&#10;  name: Upload File&#10;  type: http&#10;  seq: 2&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/upload?filepath=example.txt&#10;  body: text&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  filepath: example.txt&#10;}&#10;&#10;params:path {&#10;  server-id: &#10;}&#10;&#10;body:text {&#10;  This is the content of the uploaded file.&#10;}&#10;" />
+              <option name="updatedContent" value="meta {&#10;  name: Upload File&#10;  type: http&#10;  seq: 2&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/upload?upload_id=upload123&amp;path=example.txt&#10;  body: text&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  upload_id: upload123&#10;  path: example.txt&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:text {&#10;  This is the content of the uploaded file.&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Upload Progress.bru">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Upload Progress.bru" />
+              <option name="updatedContent" value="meta {&#10;  name: Upload Progress&#10;  type: http&#10;  seq: 5&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/upload/progress/:upload-id&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;  upload-id: upload123&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

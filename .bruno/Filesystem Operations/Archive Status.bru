@@ -1,0 +1,16 @@
+meta {
+  name: Archive Status
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/fs/archive/status/:tracker-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+  tracker-id: archive123
+}

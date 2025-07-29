@@ -1,0 +1,24 @@
+meta {
+  name: Archive Files
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/archive
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+}
+
+body:json {
+  {
+    "entries": ["logs", "config"],
+    "cwd": "",
+    "filename": "server-backup.zip",
+    "tracker_id": "archive123"
+  }
+}

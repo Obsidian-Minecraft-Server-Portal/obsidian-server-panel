@@ -1,0 +1,22 @@
+meta {
+  name: Move Files
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/move
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+}
+
+body:json {
+  {
+    "entries": ["file1.txt", "folder1"],
+    "path": "destination/folder"
+  }
+}

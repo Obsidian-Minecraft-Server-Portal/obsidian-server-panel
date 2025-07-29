@@ -1,0 +1,16 @@
+meta {
+  name: Cancel Archive
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/archive/cancel/:tracker-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+  tracker-id: archive123
+}

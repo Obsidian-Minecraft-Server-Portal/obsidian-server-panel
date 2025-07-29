@@ -5,17 +5,18 @@ meta {
 }
 
 post {
-  url: {{baseurl}}/server/:server-id/fs/upload?filepath=example.txt
+  url: {{baseurl}}/server/:server-id/fs/upload?upload_id=upload123&path=example.txt
   body: text
   auth: inherit
 }
 
 params:query {
-  filepath: example.txt
+  upload_id: upload123
+  path: example.txt
 }
 
 params:path {
-  server-id: 
+  server-id: lW97O03zR32QygKY
 }
 
 body:text {

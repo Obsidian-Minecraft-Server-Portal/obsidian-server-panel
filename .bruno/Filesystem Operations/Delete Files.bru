@@ -1,0 +1,21 @@
+meta {
+  name: Delete Files
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseurl}}/server/:server-id/fs/
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id: lW97O03zR32QygKY
+}
+
+body:json {
+  {
+    "paths": ["file1.txt", "folder1", "file2.txt"]
+  }
+}

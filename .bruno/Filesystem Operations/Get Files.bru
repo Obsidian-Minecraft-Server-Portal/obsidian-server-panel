@@ -5,13 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseurl}}/server/:server-id/fs/files?filepath
+  url: {{baseurl}}/server/:server-id/fs/files?path=
   body: none
   auth: inherit
 }
 
 params:query {
-  filepath: 
+  path:
 }
 
 params:path {
