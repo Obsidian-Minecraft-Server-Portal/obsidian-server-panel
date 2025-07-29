@@ -1,5 +1,5 @@
 use crate::actix_util::http_error::Result;
-use crate::server::filesystem::filesystem_data::{FilesystemData, FilesystemEntry};
+use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
 use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use serde_hash::hashids::decode_single;
@@ -11,8 +11,7 @@ use std::sync::OnceLock;
 use tokio::sync::Mutex;
 
 use crate::server::filesystem::download_parameters::DownloadParameters;
-use actix_web::dev::Path;
-use actix_web::http::header::ContentDisposition;
+use actix_web::http::header::{ContentDisposition, ContentType};
 use actix_web_lab::sse::Sse;
 use actix_web_lab::sse::{Data, Event};
 use anyhow::anyhow;
@@ -21,9 +20,9 @@ use log::{debug, error, warn};
 use serde::Deserialize;
 use std::ffi::OsStr;
 use std::io::ErrorKind;
-use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::Duration;
+use actix_web::test::default_service;
 use tokio::fs::File;
 use tokio::io::duplex;
 use tokio::io::AsyncWriteExt;
@@ -754,6 +753,43 @@ pub async fn cancel_archive(tracker_id: web::Path<String>) -> Result<impl Respon
     }
 }
 
+#[get("/contents")]
+pub async fn get_file_contents(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.as_str())?;
+    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
+
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
+    let base_path = server.get_directory_path();
+    let filepath = query.get("filepath").ok_or(anyhow::anyhow!("Missing 'filepath' query parameter"))?;
+    let filepath = base_path.join(filepath);
+    if !filepath.exists() || !filepath.is_file() {
+        return Err(anyhow::anyhow!("File not found").into());
+    }
+    let content = tokio::fs::read_to_string(filepath).await?;
+    Ok(HttpResponse::Ok().content_type(ContentType::plaintext()).body(content))
+}
+#[post("/contents")]
+pub async fn set_file_contents(
+    server_id: web::Path<String>,
+    query: web::Query<HashMap<String, String>>,
+    body: web::Bytes,
+    req: HttpRequest,
+) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.as_str())?;
+    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
+
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
+    let base_path = server.get_directory_path();
+    let filepath = base_path.join(query.get("filepath").ok_or(anyhow::anyhow!("Missing 'filepath' query parameter"))?);
+    if !filepath.exists() || !filepath.is_file() {
+        return Err(anyhow::anyhow!("File not found").into());
+    }
+    tokio::fs::write(filepath, body.to_vec()).await?;
+    Ok(HttpResponse::Ok().json(json!({"status": "success"})))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/fs")
@@ -772,6 +808,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(archive_files)
             .service(archive_status)
             .service(cancel_archive)
+            .service(get_file_contents)
+            .service(set_file_contents)
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),
