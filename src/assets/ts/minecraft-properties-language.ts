@@ -266,19 +266,4 @@ export function registerMinecraftPropertiesLanguage(monaco: any)
             };
         }
     });
-
-    // Define custom theme for Minecraft properties
-    monaco.editor.defineTheme("obsidian-editor-theme", {
-        base: "vs-dark",
-        inherit: true,
-        rules: [
-            {token: "key", foreground: "#46da84"},
-            {token: "value", foreground: "#CE9178"},
-            {token: "comment", foreground: "#393f49", fontStyle: "italic"},
-            {token: "operator", foreground: "#D4D4D4"}
-        ],
-        colors: {
-            "editor.background": "#18181b",
-        }
-    });
 }

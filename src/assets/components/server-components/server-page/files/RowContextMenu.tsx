@@ -16,10 +16,11 @@ type RowContextMenuProps = {
     onRename: (entry: FilesystemEntry) => void;
     onDelete: (entry: FilesystemEntry[]) => void;
     onArchive: (entry: FilesystemEntry[]) => void;
+    onEdit: (entry: FilesystemEntry) => void;
     onClose: () => void;
 } & ContextMenuOptions;
 
-export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive}: RowContextMenuProps)
+export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive, onEdit}: RowContextMenuProps)
 {
     const {downloadEntry} = useServer();
     const [position, setPosition] = useState({x, y});
@@ -85,7 +86,7 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
                     if (!entry?.is_dir && isTextFile(entry?.path))
                     {
                         singleItemOptions.push(
-                            <ListboxItem key={"edit"} endContent={<Icon icon={"pixelarticons:edit-box"}/>}>Edit</ListboxItem>
+                            <ListboxItem key={"edit"} endContent={<Icon icon={"pixelarticons:edit-box"}/>} onPress={()=>onEdit(entry)}>Edit</ListboxItem>
                         );
                     }
 
