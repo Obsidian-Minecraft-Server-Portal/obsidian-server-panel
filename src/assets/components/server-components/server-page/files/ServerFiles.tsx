@@ -34,8 +34,15 @@ export function ServerFiles()
     const [newArchiveEntry, setNewArchiveEntry] = useState<ArchiveProgress | undefined>(undefined);
     const [isDraggingOver, setIsDraggingOver] = useState(false);
 
+    const scrollToTop = useCallback(() =>
+    {
+        $("#server-files-table").parent().scrollTop(0);
+    }, [path]);
+
+
     const refresh = useCallback(async () =>
     {
+        scrollToTop();
         setIsLoading(true);
         const data = await getEntries(path);
         data.entries = data.entries.sort((a, b) =>
@@ -79,6 +86,7 @@ export function ServerFiles()
 
     const startEntryCreation = useCallback(async (directory: boolean) =>
     {
+        scrollToTop();
         let filename = `New ${directory ? "Directory" : "File"}`;
         let index = 0;
         while (data?.entries.some(entry => entry.filename === filename))
@@ -119,6 +127,7 @@ export function ServerFiles()
 
     const startArchiveCreation = useCallback(async () =>
     {
+        scrollToTop();
         let filename = "New Archive.zip";
         let index = 0;
         while (data?.entries.some(entry => entry.filename === filename))
@@ -162,7 +171,7 @@ export function ServerFiles()
         } catch (error)
         {
             console.error("Failed to create archive:", error);
-            open({
+            await open({
                 title: "Archive Creation Failed",
                 body: "An error occurred while creating the archive. Please try again.",
                 responseType: MessageResponseType.Close,
