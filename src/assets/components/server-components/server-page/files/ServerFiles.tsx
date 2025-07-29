@@ -1,6 +1,6 @@
 import {Button, ButtonGroup, Chip, cn, Input, Progress, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
-import {KeyboardEvent, useCallback, useEffect, useState} from "react";
+import {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
 import "../../../../ts/math-ext.ts";
 import {Icon} from "@iconify-icon/react";
@@ -14,6 +14,7 @@ import {ErrorBoundary} from "../../../ErrorBoundry.tsx";
 import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {Editor} from "@monaco-editor/react";
 import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";
+import {registerMinecraftPropertiesLanguage} from "../../../../ts/minecraft-properties-language.ts";
 import {motion} from "framer-motion";
 
 type UploadProgress = {
@@ -27,7 +28,7 @@ type UploadProgress = {
 
 export function ServerFiles()
 {
-    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, getFileContents, setFileContents} = useServer();
+    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, getFileContents} = useServer();
     const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
@@ -41,6 +42,8 @@ export function ServerFiles()
     const [isDraggingOver, setIsDraggingOver] = useState(false);
     const [isEditingFile, setIsEditingFile] = useState(true);
     const [selectedFileContents, setSelectedFileContents] = useState("");
+    const editorRef = useRef<any>(null);
+    const monacoRef = useRef<any>(null);
 
     const scrollToTop = useCallback(() =>
     {
@@ -303,8 +306,10 @@ export function ServerFiles()
 
     useEffect(() =>
     {
-        if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path))
+        if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile)
         {
+            setSelectedFileContents("");
+
             // Load file contents for single text file selection
             getFileContents(selectedEntries[0].path).then(contents =>
             {
@@ -324,8 +329,44 @@ export function ServerFiles()
         {
             // Reset file contents when selection changes or multiple files are selected
             setSelectedFileContents("");
-            setIsEditingFile(false);
+            // setIsEditingFile(false);
         }
+    }, [selectedEntries, isEditingFile]);
+
+    const handleEditorMount = useCallback((editor: any, monaco: any) =>
+    {
+        editorRef.current = editor;
+        monacoRef.current = monaco;
+        // Register the Minecraft properties language
+        registerMinecraftPropertiesLanguage(monaco);
+
+        // Override the toggle line comment keybinding
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyC,
+            () =>
+            {
+                editor.trigger("keyboard", "editor.action.commentLine", {});
+            }
+        );
+
+        // Optional: Disable the original Ctrl+/ keybinding
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash,
+            () =>
+            {
+                // Do nothing to disable the original keybinding
+            }
+        );
+
+        // Add custom command for formatting SQL
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
+            () =>
+            {
+                editor.trigger("keyboard", "editor.action.formatDocument", {});
+            }
+        );
+
     }, [selectedEntries, isEditingFile]);
 
     return (
@@ -372,6 +413,11 @@ export function ServerFiles()
                         <Tooltip content={"New Directory"}>
                             <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => startEntryCreation(true)}>
                                 <Icon icon={"pixelarticons:folder-plus"}/>
+                            </Button>
+                        </Tooltip>
+                        <Tooltip content={"Toggle File Editor"}>
+                            <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => setIsEditingFile(prev => !prev)} color={isEditingFile ? "primary" : "default"}>
+                                <Icon icon={"pixelarticons:notes"}/>
                             </Button>
                         </Tooltip>
                         <Tooltip content={"Refresh Files"}>
@@ -586,16 +632,17 @@ export function ServerFiles()
             <motion.div
                 className={"max-h-[calc(100dvh_-_400px)] w-full h-screen min-h-[300px]"}
                 initial={{opacity: 0, width: 0}}
-                animate={{opacity: 1, width: isEditingFile && selectedEntries.length === 1 ? "100%" : "0"}}
+                animate={{opacity: isEditingFile && selectedEntries.length === 1 ? 1 : 0, width: isEditingFile && selectedEntries.length === 1 ? "100%" : "0"}}
                 exit={{opacity: 0, width: 0}}
                 transition={{duration: 0.3, ease: "easeInOut"}}
                 data-editing-file={isEditingFile && selectedEntries.length === 1}
             >
                 <Editor
                     className={"w-full h-full"}
-                    theme={"vs-dark"}
+                    theme={"obsidian-editor-theme"}
                     value={isEditingFile ? selectedFileContents : ""}
                     language={getMonacoLanguage(selectedEntries[0]?.path ?? "") ?? "auto"}
+                    onMount={handleEditorMount}
                     options={{
                         fontSize: 14,
                         minimap: {enabled: false},

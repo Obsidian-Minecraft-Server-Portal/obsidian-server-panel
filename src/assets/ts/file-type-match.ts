@@ -533,6 +533,19 @@ export function isTextFile(path: string): boolean
 export function getMonacoLanguage(path: string): string | undefined
 {
     const fileType = getFileType(path);
+    const filename = path.split("/").pop()?.toLowerCase();
+
+    // Special handling for server.properties
+    if (filename === "server.properties")
+    {
+        return "minecraft-properties";
+    }
+
+    if (filename === "eula.txt")
+    {
+        return "ini";
+    }
+
     if (!fileType) return undefined;
     switch (fileType.description)
     {
@@ -568,6 +581,8 @@ export function getMonacoLanguage(path: string): string | undefined
             return "kotlin";
         case "Properties File":
             return "properties";
+        case "Log File":
+            return "log";
         default:
             console.warn(`No Monaco language mapping for file type: ${fileType.description}`);
             return undefined;

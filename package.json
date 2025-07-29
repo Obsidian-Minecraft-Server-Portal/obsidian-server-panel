@@ -23,6 +23,7 @@
     "@monaco-editor/react": "^4.7.0",
     "framer-motion": "12.19.2",
     "jquery": "3.7.1",
+    "monaco-editor": "^0.52.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-router-dom": "7.1.3",
