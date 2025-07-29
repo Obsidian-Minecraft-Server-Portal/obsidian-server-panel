@@ -702,7 +702,7 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
         // Use the archive_wrapper to create the archive
         crate::server::filesystem::archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag)
             .await
-            .map_err(|_| anyhow::anyhow!("Failed to create archive: {}", archive_path.display()))?;
+            .map_err(|e| anyhow::anyhow!("Failed to create archive: {} - {}", archive_path.display(), e))?;
 
         // Clean up the cancellation flag
         {
@@ -717,7 +717,8 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
 }
 
 #[get("/archive/status/{tracker_id}")]
-pub async fn archive_status(tracker_id: web::Path<String>) -> impl Responder {
+pub async fn archive_status(params: web::Path<(String, String)>) -> impl Responder {
+    let (_, tracker_id) = params.into_inner();
     let (tx, rx) = tokio::sync::mpsc::channel(100);
 
     // Store the sender in our tracker

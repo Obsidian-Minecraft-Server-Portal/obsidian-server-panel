@@ -3,22 +3,6 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
-        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Files.bru">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Files.bru" />
-              <option name="updatedContent" value="meta {&#10;  name: Archive Files&#10;  type: http&#10;  seq: 13&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/archive&#10;  body: json&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:json {&#10;  {&#10;    &quot;entries&quot;: [&quot;logs&quot;, &quot;config&quot;],&#10;    &quot;cwd&quot;: &quot;&quot;,&#10;    &quot;filename&quot;: &quot;server-backup.zip&quot;,&#10;    &quot;tracker_id&quot;: &quot;archive123&quot;&#10;  }&#10;}" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
-        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Status.bru">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Archive Status.bru" />
-              <option name="updatedContent" value="meta {&#10;  name: Archive Status&#10;  type: http&#10;  seq: 14&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/archive/status/:tracker-id&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;  tracker-id: archive123&#10;}" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
         <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Cancel Archive.bru">
           <value>
             <PendingDiffInfo>
@@ -68,14 +52,6 @@
             </PendingDiffInfo>
           </value>
         </entry>
-        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Get File Contents.bru">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Get File Contents.bru" />
-              <option name="updatedContent" value="meta {&#10;  name: Get File Contents&#10;  type: http&#10;  seq: 16&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/contents?filepath=server.properties&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  filepath: server.properties&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
         <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Get Files.bru">
           <value>
             <PendingDiffInfo>
@@ -106,14 +82,6 @@
             <PendingDiffInfo>
               <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Search Files.bru" />
               <option name="updatedContent" value="meta {&#10;  name: Search Files&#10;  type: http&#10;  seq: 12&#10;}&#10;&#10;get {&#10;  url: {{baseurl}}/server/:server-id/fs/search?q=config&amp;filename_only=false&#10;  body: none&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  q: config&#10;  filename_only: false&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
-        <entry key="$PROJECT_DIR$/.bruno/Filesystem Operations/Set File Contents.bru">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/.bruno/Filesystem Operations/Set File Contents.bru" />
-              <option name="updatedContent" value="meta {&#10;  name: Set File Contents&#10;  type: http&#10;  seq: 17&#10;}&#10;&#10;post {&#10;  url: {{baseurl}}/server/:server-id/fs/contents?filepath=server.properties&#10;  body: text&#10;  auth: inherit&#10;}&#10;&#10;params:query {&#10;  filepath: server.properties&#10;}&#10;&#10;params:path {&#10;  server-id: lW97O03zR32QygKY&#10;}&#10;&#10;body:text {&#10;  # Minecraft server properties&#10;  server-port=25565&#10;  gamemode=survival&#10;  difficulty=normal&#10;  max-players=20&#10;}" />
             </PendingDiffInfo>
           </value>
         </entry>

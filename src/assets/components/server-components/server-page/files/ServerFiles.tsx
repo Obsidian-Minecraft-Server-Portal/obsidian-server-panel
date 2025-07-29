@@ -1,4 +1,4 @@
-import {Button, ButtonGroup, Chip, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, ButtonGroup, Chip, cn, Input, Progress, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {KeyboardEvent, useCallback, useEffect, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
@@ -17,6 +17,7 @@ type ArchiveProgress = {
     entry: FilesystemEntry;
     progress: number;
     files: string[]
+    isUploading: boolean;
 }
 
 
@@ -127,20 +128,24 @@ export function ServerFiles()
 
     const startArchiveCreation = useCallback(async () =>
     {
+        setContextMenuOptions(prev => ({...prev, isOpen: false}));
         scrollToTop();
-        let filename = "New Archive.zip";
+        let filename = "New Archive";
         let index = 0;
-        while (data?.entries.some(entry => entry.filename === filename))
+        while (data?.entries.some(entry => entry.filename === `${filename}.zip`))
         {
             index++;
-            filename = `New Archive (${index}).zip`;
+            filename = `New Archive (${index})`;
         }
         let entry = {filename, path, is_dir: false, size: 0, file_type: "Archive"} as FilesystemEntry;
         setData(prev => ({...prev, entries: [entry, ...(prev?.entries || [])]} as FilesystemData));
-        setNewArchiveEntry({entry, progress: 0, files: selectedEntries.map(entry => entry.path)});
-    }, [path, data]);
+        setNewArchiveEntry({entry, progress: 0, files: selectedEntries.map(entry => entry.path), isUploading: false});
+    }, [path, data, selectedEntries]);
     const completeArchiveCreation = useCallback(async (newName: string) =>
     {
+        // setNewArchiveEntry(prev => prev ? {...prev, isUploading: true, entry: {...prev.entry, filename: `${newName}.zip`}} : undefined);
+        setNewArchiveEntry(prev => prev ? {...prev, isUploading: true} : undefined);
+        // setData(prev => ({...prev, entries: prev?.entries.map(entry => entry.filename === newArchiveEntry?.entry.filename ? {...entry, filename: `${newName}.zip`} : entry)} as FilesystemData));
         if (!newArchiveEntry || newName.trim() === "")
         {
             setNewArchiveEntry(undefined);
@@ -152,8 +157,8 @@ export function ServerFiles()
         {
             archiveFiles(`${newName}.zip`, newArchiveEntry.files, path, progress =>
             {
-                setNewArchiveEntry(prev =>
-                    prev ? {...prev, progress} : undefined);
+                setNewArchiveEntry(prev => prev ? {...prev, progress} : undefined);
+                console.log("Archive progress:", progress);
             }, async () =>
             {
                 setNewArchiveEntry(undefined);
@@ -421,7 +426,7 @@ export function ServerFiles()
                                                             radius={"none"}
                                                             className={"font-minecraft-body"}
                                                         />
-                                                        : newArchiveEntry?.entry === entry ?
+                                                        : (newArchiveEntry?.entry === entry && !newArchiveEntry.isUploading) ?
                                                             <Input
                                                                 startContent={<FileEntryIcon entry={{filename: ".zip"} as FilesystemEntry}/>}
                                                                 defaultValue={entry.filename}
@@ -441,7 +446,20 @@ export function ServerFiles()
                                             </TableCell>
                                             <TableCell className={"text-gray-500"}>{entry.file_type}</TableCell>
                                             <TableCell className={"text-gray-500"}>
-                                                {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
+                                                {entry === newArchiveEntry?.entry ?
+                                                    <>
+                                                        <Progress
+                                                            minValue={0}
+                                                            maxValue={100}
+                                                            value={newArchiveEntry.progress}
+                                                            size={"sm"}
+                                                        />
+                                                    </>
+                                                    :
+                                                    <>
+                                                        {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
+                                                    </>
+                                                }
                                             </TableCell>
                                             <TableCell className={"text-gray-500"}>
                                                 <Button
@@ -475,7 +493,7 @@ export function ServerFiles()
                 {...contextMenuOptions}
                 onRename={setRenamingEntry}
                 onDelete={deleteSelected}
-                onCreateArchive={startArchiveCreation}
+                onArchive={startArchiveCreation}
                 onClose={() => setContextMenuOptions(prev => ({...prev, isOpen: false}))}
             />
         </div>

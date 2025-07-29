@@ -17,7 +17,8 @@ pub async fn archive(
     info!("Created archive file at: {}", archive_path.as_ref().display());
     let file = file.into_std().await;
     let mut archive = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored).unix_permissions(0o755);
+    let options =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored).unix_permissions(0o755).large_file(true);
     debug!("Using zip options: compression=Stored, permissions=0o755");
     // Calculate total bytes to process
     let mut total_bytes: u64 = 0;
