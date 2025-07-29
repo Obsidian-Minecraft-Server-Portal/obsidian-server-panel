@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 
 use crate::server::filesystem::download_parameters::DownloadParameters;
 use actix_web::http::header::{ContentDisposition, ContentType};
+use actix_web::test::default_service;
 use actix_web_lab::sse::Sse;
 use actix_web_lab::sse::{Data, Event};
 use anyhow::anyhow;
@@ -22,7 +23,6 @@ use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
-use actix_web::test::default_service;
 use tokio::fs::File;
 use tokio::io::duplex;
 use tokio::io::AsyncWriteExt;
@@ -250,7 +250,8 @@ pub async fn upload_file(
 }
 
 #[get("/upload/progress/{upload_id}")]
-pub async fn upload_progress(upload_id: web::Path<String>) -> impl Responder {
+pub async fn upload_progress(params: web::Path<(String, String)>) -> impl Responder {
+    let (_, upload_id) = params.into_inner();
     let (tx, rx) = tokio::sync::mpsc::channel(100);
 
     // Store the sender in our tracker

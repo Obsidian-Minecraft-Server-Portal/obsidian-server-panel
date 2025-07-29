@@ -13,7 +13,7 @@ import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {ErrorBoundary} from "../../../ErrorBoundry.tsx";
 import {FileEntryIcon} from "./FileEntryIcon.tsx";
 
-type ArchiveProgress = {
+type UploadProgress = {
     entry: FilesystemEntry;
     progress: number;
     files: string[]
@@ -32,13 +32,45 @@ export function ServerFiles()
     const [isLoading, setIsLoading] = useState(false);
     const [renamingEntry, setRenamingEntry] = useState<FilesystemEntry | undefined>(undefined);
     const [newItemCreationEntry, setNewItemCreationEntry] = useState<FilesystemEntry | undefined>(undefined);
-    const [newArchiveEntry, setNewArchiveEntry] = useState<ArchiveProgress | undefined>(undefined);
+    const [newArchiveEntry, setNewArchiveEntry] = useState<UploadProgress | undefined>(undefined);
+    const [fileUploadEntries, setFileUploadEntries] = useState<UploadProgress[]>([]);
     const [isDraggingOver, setIsDraggingOver] = useState(false);
 
     const scrollToTop = useCallback(() =>
     {
         $("#server-files-table").parent().scrollTop(0);
     }, [path]);
+
+
+    const upload = useCallback(async (files: File[]) =>
+    {
+        let promises = [];
+        for (let file of files)
+        {
+            let entry = {filename: file.name, path, is_dir: false, size: file.size, file_type: file.type} as FilesystemEntry;
+            setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true}]);
+            promises.push(
+                (async () =>
+                {
+                    await uploadFile(file, entry.path, progress =>
+                        {
+                            setFileUploadEntries(prev => prev.map(upload => upload.entry === entry ? {...upload, progress} : upload));
+                            console.log("Upload progress:", progress);
+                        }, async () =>
+                        {
+                            // On Canceled
+                            setFileUploadEntries(prev => prev.filter(upload => upload.entry !== entry));
+                            await refresh();
+                        }
+                    );
+                    setFileUploadEntries(prev => prev.filter(upload => upload.entry !== entry));
+                    await refresh();
+                })()
+            );
+        }
+        await Promise.all(promises);
+        await refresh();
+    }, [setFileUploadEntries]);
 
 
     const refresh = useCallback(async () =>
@@ -143,9 +175,7 @@ export function ServerFiles()
     }, [path, data, selectedEntries]);
     const completeArchiveCreation = useCallback(async (newName: string) =>
     {
-        // setNewArchiveEntry(prev => prev ? {...prev, isUploading: true, entry: {...prev.entry, filename: `${newName}.zip`}} : undefined);
         setNewArchiveEntry(prev => prev ? {...prev, isUploading: true} : undefined);
-        // setData(prev => ({...prev, entries: prev?.entries.map(entry => entry.filename === newArchiveEntry?.entry.filename ? {...entry, filename: `${newName}.zip`} : entry)} as FilesystemData));
         if (!newArchiveEntry || newName.trim() === "")
         {
             setNewArchiveEntry(undefined);
@@ -286,6 +316,7 @@ export function ServerFiles()
             {
                 e.preventDefault();
                 console.log("Files dropped:", e.dataTransfer.files);
+                await upload([...e.dataTransfer.files]);
                 setIsDraggingOver(false);
             }}
             data-dragging-over={isDraggingOver}
@@ -375,114 +406,135 @@ export function ServerFiles()
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    data?.entries.map(entry =>
+                                    <>
+                                        {fileUploadEntries.map(upload => (
+                                            <TableRow key={upload.entry.filename}>
+                                                <TableCell className={"flex items-center h-14 gap-2"}>
+                                                    <FileEntryIcon entry={upload.entry}/> {upload.entry.filename}
+                                                </TableCell>
+                                                <TableCell className={"text-gray-500"}>{upload.entry.file_type}</TableCell>
+                                                <TableCell className={"text-gray-500"}>
+                                                    <Progress
+                                                        minValue={0}
+                                                        maxValue={100}
+                                                        value={upload.progress}
+                                                        size={"sm"}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <></>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {data?.entries.map(entry =>
 
-                                        <TableRow
-                                            key={entry.filename}
-                                            onContextMenu={e =>
-                                            {
-                                                e.preventDefault();
-                                                setContextMenuOptions({
-                                                    entry: selectedEntries.length > 1 ? selectedEntries : entry,
-                                                    x: e.clientX - 30,
-                                                    y: e.clientY - 50,
-                                                    isOpen: true
-                                                });
-                                            }}
-                                            data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
-                                            className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
-                                            onDoubleClick={() =>
-                                            {
-                                                if (entry.is_dir && !renamingEntry && !newItemCreationEntry)
+                                            <TableRow
+                                                key={entry.filename}
+                                                onContextMenu={e =>
                                                 {
-                                                    setPath(prev => prev ? `${prev}/${entry.filename}` : entry.filename);
-                                                }
-                                            }}
-                                        >
-                                            <TableCell className={"flex items-center h-14 gap-2"}>
-                                                {renamingEntry === entry ?
-                                                    <Input
-                                                        startContent={<FileEntryIcon entry={entry}/>}
-                                                        defaultValue={entry.filename}
-                                                        autoFocus
-                                                        onBlur={e => renameSelectedEntry(e.currentTarget.value)}
-                                                        onKeyDown={async e =>
-                                                        {
-                                                            if (e.key === "Enter") await renameSelectedEntry(e.currentTarget.value);
-                                                        }}
-                                                        radius={"none"}
-                                                        className={"font-minecraft-body"}
-                                                    /> :
-                                                    newItemCreationEntry === entry ?
+                                                    e.preventDefault();
+                                                    setContextMenuOptions({
+                                                        entry: selectedEntries.length > 1 ? selectedEntries : entry,
+                                                        x: e.clientX - 30,
+                                                        y: e.clientY - 50,
+                                                        isOpen: true
+                                                    });
+                                                }}
+                                                data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
+                                                className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
+                                                onDoubleClick={() =>
+                                                {
+                                                    if (entry.is_dir && !renamingEntry && !newItemCreationEntry)
+                                                    {
+                                                        setPath(prev => prev ? `${prev}/${entry.filename}` : entry.filename);
+                                                    }
+                                                }}
+                                            >
+                                                <TableCell className={"flex items-center h-14 gap-2"}>
+                                                    {renamingEntry === entry ?
                                                         <Input
                                                             startContent={<FileEntryIcon entry={entry}/>}
                                                             defaultValue={entry.filename}
                                                             autoFocus
-                                                            onBlur={e => completeEntryCreation(e.currentTarget.value)}
+                                                            onBlur={e => renameSelectedEntry(e.currentTarget.value)}
                                                             onKeyDown={async e =>
                                                             {
-                                                                if (e.key === "Enter") await completeEntryCreation(e.currentTarget.value);
+                                                                if (e.key === "Enter") await renameSelectedEntry(e.currentTarget.value);
                                                             }}
                                                             radius={"none"}
                                                             className={"font-minecraft-body"}
-                                                        />
-                                                        : (newArchiveEntry?.entry === entry && !newArchiveEntry.isUploading) ?
+                                                        /> :
+                                                        newItemCreationEntry === entry ?
                                                             <Input
-                                                                startContent={<FileEntryIcon entry={{filename: ".zip"} as FilesystemEntry}/>}
+                                                                startContent={<FileEntryIcon entry={entry}/>}
                                                                 defaultValue={entry.filename}
                                                                 autoFocus
-                                                                onBlur={e => completeArchiveCreation(e.currentTarget.value)}
+                                                                onBlur={e => completeEntryCreation(e.currentTarget.value)}
                                                                 onKeyDown={async e =>
                                                                 {
-                                                                    if (e.key === "Enter") await completeArchiveCreation(e.currentTarget.value);
+                                                                    if (e.key === "Enter") await completeEntryCreation(e.currentTarget.value);
                                                                 }}
                                                                 radius={"none"}
                                                                 className={"font-minecraft-body"}
-                                                                endContent={<Chip>.zip</Chip>}
                                                             />
-                                                            :
-                                                            <><FileEntryIcon entry={entry}/> {entry.filename}</>
-                                                }
-                                            </TableCell>
-                                            <TableCell className={"text-gray-500"}>{entry.file_type}</TableCell>
-                                            <TableCell className={"text-gray-500"}>
-                                                {entry === newArchiveEntry?.entry ?
-                                                    <>
-                                                        <Progress
-                                                            minValue={0}
-                                                            maxValue={100}
-                                                            value={newArchiveEntry.progress}
-                                                            size={"sm"}
-                                                        />
-                                                    </>
-                                                    :
-                                                    <>
-                                                        {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
-                                                    </>
-                                                }
-                                            </TableCell>
-                                            <TableCell className={"text-gray-500"}>
-                                                <Button
-                                                    isIconOnly
-                                                    radius={"none"}
-                                                    variant={"light"}
-                                                    onPress={e =>
-                                                    {
-                                                        let position = $(e.target).offset();
-                                                        if (!position) return;
-                                                        setContextMenuOptions({
-                                                            entry,
-                                                            x: position.left - 264,
-                                                            y: position.top,
-                                                            isOpen: true
-                                                        });
-                                                    }}
-                                                >
-                                                    <Icon icon={"pixelarticons:more-horizontal"}/>
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
+                                                            : (newArchiveEntry?.entry === entry && !newArchiveEntry.isUploading) ?
+                                                                <Input
+                                                                    startContent={<FileEntryIcon entry={{filename: ".zip"} as FilesystemEntry}/>}
+                                                                    defaultValue={entry.filename}
+                                                                    autoFocus
+                                                                    onBlur={e => completeArchiveCreation(e.currentTarget.value)}
+                                                                    onKeyDown={async e =>
+                                                                    {
+                                                                        if (e.key === "Enter") await completeArchiveCreation(e.currentTarget.value);
+                                                                    }}
+                                                                    radius={"none"}
+                                                                    className={"font-minecraft-body"}
+                                                                    endContent={<Chip>.zip</Chip>}
+                                                                />
+                                                                :
+                                                                <><FileEntryIcon entry={entry}/> {entry.filename}</>
+                                                    }
+                                                </TableCell>
+                                                <TableCell className={"text-gray-500"}>{entry.file_type}</TableCell>
+                                                <TableCell className={"text-gray-500"}>
+                                                    {entry === newArchiveEntry?.entry ?
+                                                        <>
+                                                            <Progress
+                                                                minValue={0}
+                                                                maxValue={100}
+                                                                value={newArchiveEntry.progress}
+                                                                size={"sm"}
+                                                            />
+                                                        </>
+                                                        :
+                                                        <>
+                                                            {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
+                                                        </>
+                                                    }
+                                                </TableCell>
+                                                <TableCell className={"text-gray-500"}>
+                                                    <Button
+                                                        isIconOnly
+                                                        radius={"none"}
+                                                        variant={"light"}
+                                                        onPress={e =>
+                                                        {
+                                                            let position = $(e.target).offset();
+                                                            if (!position) return;
+                                                            setContextMenuOptions({
+                                                                entry,
+                                                                x: position.left - 264,
+                                                                y: position.top,
+                                                                isOpen: true
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Icon icon={"pixelarticons:more-horizontal"}/>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </>
                                 )}
                             </>
                         )}
