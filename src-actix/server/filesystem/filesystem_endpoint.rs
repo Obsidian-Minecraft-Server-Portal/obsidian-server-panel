@@ -1,13 +1,13 @@
 use crate::actix_util::http_error::Result;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
-use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, web};
 use serde_hash::hashids::decode_single;
 use serde_json::json;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 
 use crate::server::filesystem::download_parameters::DownloadParameters;
@@ -24,8 +24,8 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::fs::File;
-use tokio::io::duplex;
 use tokio::io::AsyncWriteExt;
+use tokio::io::duplex;
 use tokio::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 
@@ -130,6 +130,8 @@ pub async fn upload_file(
     // Extract upload ID and file path from query parameters
     let upload_id = query.get("upload_id").ok_or(anyhow::anyhow!("upload_id parameter is required"))?.clone();
     let file_path = query.get("path").ok_or(anyhow::anyhow!("path parameter is required"))?.clone();
+    // trim leading slashes from file path
+    let file_path = file_path.trim_start_matches('/').trim_start_matches('\\').to_string();
 
     // get server from server id
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;

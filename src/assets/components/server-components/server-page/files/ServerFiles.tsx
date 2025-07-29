@@ -18,6 +18,7 @@ type UploadProgress = {
     progress: number;
     files: string[]
     isUploading: boolean;
+    uploadGroup?: string;
 }
 
 
@@ -41,36 +42,33 @@ export function ServerFiles()
         $("#server-files-table").parent().scrollTop(0);
     }, [path]);
 
-
     const upload = useCallback(async (files: File[]) =>
     {
+        let uploadGroup = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         let promises = [];
         for (let file of files)
         {
             let entry = {filename: file.name, path, is_dir: false, size: file.size, file_type: file.type} as FilesystemEntry;
-            setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true}]);
-            promises.push(
-                (async () =>
+            setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true, uploadGroup}]);
+            let totalSize = file.size;
+            const {promise} = await uploadFile(file, entry.path, async bytes =>
                 {
-                    await uploadFile(file, entry.path, progress =>
-                        {
-                            setFileUploadEntries(prev => prev.map(upload => upload.entry === entry ? {...upload, progress} : upload));
-                            console.log("Upload progress:", progress);
-                        }, async () =>
-                        {
-                            // On Canceled
-                            setFileUploadEntries(prev => prev.filter(upload => upload.entry !== entry));
-                            await refresh();
-                        }
-                    );
+                    let progress = bytes / totalSize;
+                    setFileUploadEntries(prev => prev.map(upload => upload.entry === entry ? {...upload, progress} : upload));
+                    console.log("Upload progress:", progress);
+                }, async () =>
+                {
+                    // On Canceled
                     setFileUploadEntries(prev => prev.filter(upload => upload.entry !== entry));
                     await refresh();
-                })()
+                }
             );
+            promises.push(promise);
         }
         await Promise.all(promises);
         await refresh();
-    }, [setFileUploadEntries]);
+        setFileUploadEntries(prev => prev.filter(upload => upload.uploadGroup !== uploadGroup));
+    }, [setFileUploadEntries, fileUploadEntries, path]);
 
 
     const refresh = useCallback(async () =>
@@ -88,8 +86,7 @@ export function ServerFiles()
         setIsLoading(false);
         setSelectedEntries([]);
         setContextMenuOptions({entry: undefined, x: 0, y: 0, isOpen: false});
-
-    }, [path]);
+    }, [path, data]);
 
     const renameSelectedEntry = useCallback(async (newName: string) =>
     {
@@ -120,12 +117,12 @@ export function ServerFiles()
     const startEntryCreation = useCallback(async (directory: boolean) =>
     {
         scrollToTop();
-        let filename = `New ${directory ? "Directory" : "File"}`;
+        let filename = `New ${directory ? "Directory" : "File.txt"}`;
         let index = 0;
         while (data?.entries.some(entry => entry.filename === filename))
         {
             index++;
-            filename = `New ${directory ? "Directory" : "File"} (${index})`;
+            filename = `New ${directory ? "Directory" : "File"} (${index}).txt`;
         }
         let entry = {filename, path, is_dir: directory, size: 0, file_type: directory ? "Directory" : "File"} as FilesystemEntry;
         setData(prev => ({...prev, entries: [entry, ...(prev?.entries || [])]} as FilesystemData));
@@ -134,7 +131,7 @@ export function ServerFiles()
 
     const completeEntryCreation = useCallback(async (newName: string) =>
     {
-        if (!newItemCreationEntry || newName.trim() === "" || newName === newItemCreationEntry.filename)
+        if (!newItemCreationEntry || newName.trim() === "")
         {
             setNewItemCreationEntry(undefined);
             await refresh();
@@ -262,7 +259,7 @@ export function ServerFiles()
                 await refresh();
             }
         }
-    }, []);
+    }, [path]);
 
     useEffect(() =>
     {
@@ -316,8 +313,8 @@ export function ServerFiles()
             {
                 e.preventDefault();
                 console.log("Files dropped:", e.dataTransfer.files);
-                await upload([...e.dataTransfer.files]);
                 setIsDraggingOver(false);
+                await upload([...e.dataTransfer.files]);
             }}
             data-dragging-over={isDraggingOver}
         >
@@ -399,7 +396,7 @@ export function ServerFiles()
                             </TableRow>
                         )) : (
                             <>
-                                {data?.entries?.length === 0 ? (
+                                {data?.entries?.length === 0 && fileUploadEntries.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={4} className="text-center text-gray-500">
                                             This directory is empty
@@ -408,7 +405,7 @@ export function ServerFiles()
                                 ) : (
                                     <>
                                         {fileUploadEntries.map(upload => (
-                                            <TableRow key={upload.entry.filename}>
+                                            <TableRow key={`upload-${upload.entry.filename}`}>
                                                 <TableCell className={"flex items-center h-14 gap-2"}>
                                                     <FileEntryIcon entry={upload.entry}/> {upload.entry.filename}
                                                 </TableCell>
@@ -416,7 +413,7 @@ export function ServerFiles()
                                                 <TableCell className={"text-gray-500"}>
                                                     <Progress
                                                         minValue={0}
-                                                        maxValue={100}
+                                                        maxValue={1}
                                                         value={upload.progress}
                                                         size={"sm"}
                                                     />
