@@ -32,6 +32,9 @@ importers:
       react:
         specifier: 18.2.0
         version: 18.2.0
+      react-cropper:
+        specifier: ^2.3.3
+        version: 2.3.3(react@18.2.0)
       react-dom:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
@@ -1954,6 +1957,9 @@ packages:
     resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
     engines: {node: '>=18'}
 
+  cropperjs@1.6.2:
+    resolution: {integrity: sha512-nhymn9GdnV3CqiEHJVai54TULFAE3VshJTXSqSJKa8yXAKyBKDWdhHarnlIPrshJ0WMFTGuFvG02YjLXfPiuOA==}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -2576,6 +2582,11 @@ packages:
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
+
+  react-cropper@2.3.3:
+    resolution: {integrity: sha512-zghiEYkUb41kqtu+2jpX2Ntigf+Jj1dF9ew4lAobPzI2adaPE31z0p+5TcWngK6TvmWQUwK3lj4G+NDh1PDQ1w==}
+    peerDependencies:
+      react: '>=17.0.2'
 
   react-dom@18.2.0:
     resolution: {integrity: sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==}
@@ -5576,6 +5587,8 @@ snapshots:
 
   cookie@1.0.2: {}
 
+  cropperjs@1.6.2: {}
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -6164,6 +6177,11 @@ snapshots:
   punycode@2.3.1: {}
 
   queue-microtask@1.2.3: {}
+
+  react-cropper@2.3.3(react@18.2.0):
+    dependencies:
+      cropperjs: 1.6.2
+      react: 18.2.0
 
   react-dom@18.2.0(react@18.2.0):
     dependencies:
