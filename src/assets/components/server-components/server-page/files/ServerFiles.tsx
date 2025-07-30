@@ -328,6 +328,15 @@ export function ServerFiles()
                 return;
             }
         }
+
+        if (e.ctrlKey && e.key === "a")
+        {
+            // Select all entries
+            e.preventDefault();
+            setSelectedEntries(data?.entries || []);
+            return;
+        }
+
         if (e.key === "Delete" || e.key === "Backspace")
         {
             await deleteSelected(selectedEntries);
@@ -490,7 +499,7 @@ export function ServerFiles()
     return (
         <div className={
             cn(
-                "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10",
+                "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10"
             )
         }>
             <div

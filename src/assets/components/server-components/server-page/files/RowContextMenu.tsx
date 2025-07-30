@@ -69,7 +69,26 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
 
         setPosition({x: newX - 50, y: newY - 340});
 
-    }, [x, y]);
+        const handleClickOutside = (event: MouseEvent) =>
+        {
+            const clickTarget = event.target as HTMLElement;
+            if (!menu[0].contains(clickTarget) && !parent[0].contains(clickTarget))
+            {
+                onClose();
+            }
+        };
+
+        if (isOpen)
+        {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+
+        return () =>
+        {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+
+    }, [x, y, isOpen, onClose]);
     return (
         <Listbox
             id={"server-files-context-menu"}
@@ -86,7 +105,7 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
                     if (!entry?.is_dir && isTextFile(entry?.path))
                     {
                         singleItemOptions.push(
-                            <ListboxItem key={"edit"} endContent={<Icon icon={"pixelarticons:edit-box"}/>} onPress={()=>onEdit(entry)}>Edit</ListboxItem>
+                            <ListboxItem key={"edit"} endContent={<Icon icon={"pixelarticons:edit-box"}/>} onPress={() => onEdit(entry)}>Edit</ListboxItem>
                         );
                     }
 
