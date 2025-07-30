@@ -1,14 +1,23 @@
-import {Button, Divider, Input, Select, SelectItem, Switch, Textarea} from "@heroui/react";
+import {Button, Divider, Input, Select, SelectItem, Switch, Tab, Tabs, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useServer} from "../../../../providers/ServerProvider.tsx";
+import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";
 import RamSlider from "../../RamSlider.tsx";
 import JavaExecutableSelector from "../../JavaExecutableSelector.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
+import {MinecraftVersionSelector} from "../../version-selectors/MinecraftVersionSelector.tsx";
+import {ForgeVersionSelector} from "../../version-selectors/ForgeVersionSelector.tsx";
+import {FabricVersionSelector} from "../../version-selectors/FabricVersionSelector.tsx";
+import {QuiltVersionSelector} from "../../version-selectors/QuiltVersionSelector.tsx";
+import {NeoForgeVersionSelector} from "../../version-selectors/NeoForgeVersionSelector.tsx";
+import {FileInput} from "../../../extended/FileInput.tsx";
+import {NeoForge} from "../../../icons/NeoForge.svg.tsx";
+import Quilt from "../../../icons/Quilt.svg.tsx";
+import {getMinecraftVersionDownloadUrl} from "../../../../ts/minecraft-versions.ts";
 
 export function ServerOptions()
 {
-    const {server, updateServer, getEntries} = useServer();
+    const {server, updateServer, getEntries, uploadFromUrl, uploadFile} = useServer();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -24,6 +33,14 @@ export function ServerOptions()
     const [upnpEnabled, setUpnpEnabled] = useState(false);
     const [autoStart, setAutoStart] = useState(false);
     const [autoRestart, setAutoRestart] = useState(false);
+
+    // Loader configuration state
+    const [loaderType, setLoaderType] = useState<LoaderType>("vanilla");
+    const [minecraftVersion, setMinecraftVersion] = useState("");
+    const [loaderVersion, setLoaderVersion] = useState("");
+    const [loaderUrl, setLoaderUrl] = useState<string | undefined>(undefined);
+    const [customJarFile, setCustomJarFile] = useState<File | undefined>(undefined);
+    const [isUploadingLoader, setIsUploadingLoader] = useState(false);
     const firstLoadStateRef = useRef(false);
 
     // Available files
@@ -57,13 +74,83 @@ export function ServerOptions()
         }
     }, [server, getEntries]);
 
+    const handleLoaderChange = useCallback((url: string | undefined, version: string | undefined) =>
+    {
+        setLoaderUrl(url);
+        setLoaderVersion(version || "");
+    }, []);
+
+    const generateNewJarFilename = useCallback(() =>
+    {
+        if (loaderType === "vanilla" || loaderType === "custom")
+        {
+            return `server-${minecraftVersion}.jar`;
+        }
+        return `${loaderType}-${loaderVersion}-${minecraftVersion}-server.jar`;
+    }, [loaderType, loaderVersion, minecraftVersion]);
+
+    const hasLoaderChanges = useCallback(() =>
+    {
+        if (!server) return false;
+        return (
+            loaderType.toLowerCase() !== server.server_type.toLowerCase() ||
+            minecraftVersion !== server.minecraft_version ||
+            loaderVersion !== server.loader_version
+        );
+    }, [server, loaderType, minecraftVersion, loaderVersion]);
+
     const handleSave = useCallback(async () =>
     {
         if (!server) return;
 
         setIsSaving(true);
+
         try
         {
+            let finalServerJar = serverJar;
+
+            // If loader configuration changed, upload a new server jar
+            if (hasLoaderChanges())
+            {
+                setIsUploadingLoader(true);
+                const newJarFilename = generateNewJarFilename();
+
+                if (loaderType !== "custom")
+                {
+                    if (!loaderUrl && loaderType !== "vanilla")
+                    {
+                        throw new Error(`Loader URL is not defined for selected loader: ${loaderType}`);
+                    }
+
+                    await uploadFromUrl(
+                        loaderUrl ?? await getMinecraftVersionDownloadUrl(minecraftVersion),
+                        newJarFilename,
+                        (progress) => console.log(`Downloading ${loaderType} server: ${progress}%`),
+                        () => console.log("Download complete"),
+                        (error) => console.error("Error uploading server jar:", error),
+                        server.id
+                    );
+                } else
+                {
+                    if (!customJarFile)
+                    {
+                        throw new Error("Please select a custom jar file.");
+                    }
+
+                    await uploadFile(
+                        customJarFile,
+                        newJarFilename,
+                        (bytes) => console.log(`Uploading custom jar: ${bytes} bytes`),
+                        () => console.log("Upload cancelled"),
+                        server.id
+                    );
+                }
+
+                finalServerJar = newJarFilename;
+                setServerJar(newJarFilename);
+                setIsUploadingLoader(false);
+            }
+
             await updateServer({
                 name,
                 description: description || null,
@@ -72,22 +159,35 @@ export function ServerOptions()
                 minecraft_args: minecraftArgs,
                 max_memory: maxMemory,
                 min_memory: minMemory,
-                server_jar: serverJar,
+                server_jar: finalServerJar,
                 upnp: upnpEnabled,
                 auto_start: autoStart,
-                auto_restart: autoRestart
+                auto_restart: autoRestart,
+                // Update loader configuration
+                server_type: loaderType,
+                minecraft_version: minecraftVersion,
+                loader_version: loaderVersion
             });
+
+            // Refresh file list after potential jar upload
+            if (hasLoaderChanges())
+            {
+                await loadAvailableFiles();
+            }
         } catch (error)
         {
             console.error("Failed to save server settings:", error);
         } finally
         {
             setIsSaving(false);
+            setIsUploadingLoader(false);
         }
     }, [
         server, updateServer, name, description, javaExecutable, javaArgs,
         minecraftArgs, maxMemory, minMemory, serverJar, upnpEnabled,
-        autoStart, autoRestart
+        autoStart, autoRestart, loaderType, minecraftVersion, loaderVersion, hasLoaderChanges,
+        generateNewJarFilename, loaderUrl, customJarFile, uploadFromUrl,
+        uploadFile, loadAvailableFiles
     ]);
 
     const hasChanges = useCallback(() =>
@@ -105,22 +205,23 @@ export function ServerOptions()
             serverJar !== server.server_jar ||
             upnpEnabled !== server.upnp ||
             autoStart !== server.auto_start ||
-            autoRestart !== server.auto_restart
+            autoRestart !== server.auto_restart ||
+            hasLoaderChanges()
         );
     }, [
         server, name, description, javaExecutable, javaArgs, minecraftArgs,
-        maxMemory, minMemory, serverJar, upnpEnabled, autoStart, autoRestart
+        maxMemory, minMemory, serverJar, upnpEnabled, autoStart, autoRestart,
+        hasLoaderChanges
     ]);
-
-    // Load server data when component mounts or server changes
+    // Load server data when the component mounts or server changes
     useEffect(() =>
     {
-        // Only load data on first render or when server changes
         if (server)
         {
+            // Only load data once when the server is first set or when server ID changes
             if (!firstLoadStateRef.current)
             {
-                firstLoadStateRef.current = true; // Prevent reloading on later renders
+                firstLoadStateRef.current = true;
                 setName(server.name);
                 setDescription(server.description || "");
                 setJavaExecutable(server.java_executable);
@@ -132,13 +233,21 @@ export function ServerOptions()
                 setUpnpEnabled(server.upnp);
                 setAutoStart(server.auto_start);
                 setAutoRestart(server.auto_restart);
+
+                // Load loader configuration
+                setLoaderType(server.server_type);
+                setMinecraftVersion(server.minecraft_version);
+                setLoaderVersion(server.loader_version);
             }
 
-            // Load available server files
-            loadAvailableFiles().then();
+            // Always refresh a file list when server changes
+            loadAvailableFiles();
+        } else
+        {
+            // Reset the ref when no server is selected
+            firstLoadStateRef.current = false;
         }
     }, [server, loadAvailableFiles, firstLoadStateRef]);
-
 
     if (!server)
     {
@@ -150,20 +259,20 @@ export function ServerOptions()
     }
 
     return (
-        <div className="flex flex-col gap-4 p-6 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] overflow-y-auto relative">
+        <div className="flex flex-col gap-4 p-6 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] overflow-y-auto">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-minecraft-header">Server Configuration</h2>
                 <Button
                     color="primary"
                     radius="none"
-                    isLoading={isSaving}
+                    isLoading={isSaving || isUploadingLoader}
                     isDisabled={!hasChanges()}
                     onPress={handleSave}
                     startContent={<Icon icon="pixelarticons:save"/>}
                     className={"data-[has-changes=true]:fixed data-[has-changes=false]:absolute data-[has-changes=false]:right-8 data-[has-changes=true]:right-16 z-10"}
                     data-has-changes={hasChanges()}
                 >
-                    Save Changes
+                    {isUploadingLoader ? "Uploading Server..." : "Save Changes"}
                 </Button>
             </div>
 
@@ -242,6 +351,133 @@ export function ServerOptions()
                         </SelectItem>
                     ))}
                 </Select>
+            </section>
+
+            <Divider/>
+
+            {/* Loader Configuration */}
+            <section className="space-y-4">
+                <h3 className="text-lg font-minecraft-header">Server Type & Version</h3>
+
+                <div className="mx-auto">
+                    <Tabs
+                        radius="none"
+                        className="font-minecraft-body"
+                        fullWidth
+                        variant="solid"
+                        color="primary"
+                        classNames={{
+                            tab: "flex flex-col items-center justify-center h-24 w-28"
+                        }}
+                        isDisabled={isSaving || isUploadingLoader}
+                        selectedKey={loaderType.toLowerCase()}
+                        onSelectionChange={async (key) =>
+                        {
+                            const newLoader = key as LoaderType;
+                            setLoaderType(newLoader);
+                            if (newLoader === "vanilla")
+                            {
+                                // Reset loader URL for vanilla
+                                setLoaderUrl(await getMinecraftVersionDownloadUrl(minecraftVersion));
+                                setLoaderVersion("");
+                            }
+                        }}
+                    >
+                        <Tab
+                            key="vanilla"
+                            title={
+                                <>
+                                    <Icon icon="heroicons:cube-transparent-16-solid" width={32}/>
+                                    <p>Vanilla</p>
+                                </>
+                            }
+                        />
+                        <Tab
+                            key="fabric"
+                            title={
+                                <div className="relative">
+                                    <Icon icon="file-icons:fabric" width={32}/>
+                                    <p>Fabric</p>
+                                </div>
+                            }
+                        />
+                        <Tab
+                            key="forge"
+                            title={
+                                <>
+                                    <Icon icon="simple-icons:curseforge" width={32}/>
+                                    <p>Forge</p>
+                                </>
+                            }
+                        />
+                        <Tab
+                            key="quilt"
+                            title={
+                                <div className="flex justify-center items-center flex-col gap-2">
+                                    <Quilt size={32}/>
+                                    <p>Quilt</p>
+                                </div>
+                            }
+                        />
+                        <Tab
+                            key="neoforge"
+                            title={
+                                <div className="flex justify-center items-center flex-col gap-2">
+                                    <NeoForge size={32}/>
+                                    <p>NeoForge</p>
+                                </div>
+                            }
+                        />
+                        <Tab
+                            key="custom"
+                            title={
+                                <div className="flex justify-center items-center flex-col gap-2">
+                                    <Icon icon="pixelarticons:cloud-upload" width={32}/>
+                                    <p>Custom</p>
+                                </div>
+                            }
+                        />
+                    </Tabs>
+                </div>
+
+                <MinecraftVersionSelector
+                    onVersionChange={(version, url) =>
+                    {
+                        setMinecraftVersion(version || "");
+                        // Store the vanilla server URL if this is for vanilla servers
+                        if (loaderType === "vanilla" && url)
+                        {
+                            setLoaderUrl(url);
+                        }
+                    }}
+                    version={minecraftVersion}
+                    isDisabled={isSaving || isUploadingLoader}
+                />
+
+                <LoaderSelector
+                    selectedLoader={loaderType}
+                    version={minecraftVersion}
+                    isSnapshot={(minecraftVersion?.includes("snapshot") || minecraftVersion?.includes("pre-release")) ?? false}
+                    onChange={handleLoaderChange}
+                    onCustomJarChange={setCustomJarFile}
+                    isDisabled={isSaving || isUploadingLoader}
+                />
+
+                {hasLoaderChanges() && (
+                    <div className="bg-warning-50 border border-warning-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 text-warning-700">
+                            <Icon icon="pixelarticons:info-box"/>
+                            <p className="font-minecraft-body text-sm">
+                                Server type or version changes detected. A new server jar will be downloaded when you save.
+                                {loaderType !== "custom" && loaderUrl && (
+                                    <span className="block mt-1 opacity-75">
+                                        New jar: {generateNewJarFilename()}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+                )}
             </section>
 
             <Divider/>
@@ -358,9 +594,83 @@ export function ServerOptions()
                             <span>Auto-restart on Crash</span>
                         </div>
                     </Switch>
-
                 </div>
             </section>
         </div>
     );
+}
+
+type LoaderSelectorProps = {
+    selectedLoader: string;
+    version: string | undefined;
+    onChange: (url: string | undefined, version: string | undefined) => void;
+    onCustomJarChange: (file: File | undefined) => void;
+    isDisabled: boolean;
+    isSnapshot: boolean;
+}
+
+function LoaderSelector(props: LoaderSelectorProps)
+{
+    const {
+        selectedLoader,
+        version,
+        onChange,
+        isDisabled
+    } = props;
+
+    if (!version)
+    {
+        return (
+            <p className="text-danger font-minecraft-body text-tiny italic underline">
+                Please select a Minecraft version first.
+            </p>
+        );
+    }
+
+    switch (selectedLoader)
+    {
+        case "fabric":
+            return (
+                <FabricVersionSelector
+                    minecraftVersion={version}
+                    onVersionChange={onChange}
+                    isDisabled={isDisabled}
+                    isSnapshot={props.isSnapshot}
+                />
+            );
+        case "forge":
+            return (
+                <ForgeVersionSelector
+                    minecraftVersion={version}
+                    onVersionChange={onChange}
+                    isDisabled={isDisabled}
+                />
+            );
+        case "quilt":
+            return (
+                <QuiltVersionSelector
+                    minecraftVersion={version}
+                    isDisabled={isDisabled}
+                />
+            );
+        case "neoforge":
+            return (
+                <NeoForgeVersionSelector
+                    minecraftVersion={version}
+                    isDisabled={isDisabled}
+                />
+            );
+        case "custom":
+            return (
+                <FileInput
+                    accept=".jar,.zip,.tar.gz,.tar"
+                    description="Upload your custom jar file or modpack archive."
+                    multiple={false}
+                    onChange={(file) => props.onCustomJarChange(file as File | undefined)}
+                    readOnly={isDisabled}
+                />
+            );
+        default:
+            return null;
+    }
 }
