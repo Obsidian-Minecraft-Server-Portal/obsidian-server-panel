@@ -1,18 +1,18 @@
 use crate::actix_util::http_error::Result;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, web};
+use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use serde_hash::hashids::decode_single;
 use serde_json::json;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 
 use crate::server::filesystem::download_parameters::DownloadParameters;
 use actix_web::http::header::{ContentDisposition, ContentType};
-use actix_web::test::default_service;
+use actix_web_lab::sse;
 use actix_web_lab::sse::Sse;
 use actix_web_lab::sse::{Data, Event};
 use anyhow::anyhow;
@@ -24,8 +24,8 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tokio::io::duplex;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
 use tokio_util::io::ReaderStream;
 
@@ -33,11 +33,14 @@ use tokio_util::io::ReaderStream;
 type FileProcessTracker = Arc<Mutex<HashMap<String, Sender<Event>>>>;
 type UploadCancelFlags = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
 type ArchiveCancelFlags = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
+type ExtractCancelFlags = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
 
 static UPLOAD_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
 static ARCHIVE_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
+static EXTRACT_TRACKERS: OnceLock<FileProcessTracker> = OnceLock::new();
 static UPLOAD_CANCEL_FLAGS: OnceLock<UploadCancelFlags> = OnceLock::new();
 static ARCHIVE_CANCEL_FLAGS: OnceLock<ArchiveCancelFlags> = OnceLock::new();
+static EXTRACT_CANCEL_FLAGS: OnceLock<ExtractCancelFlags> = OnceLock::new();
 
 fn get_upload_trackers() -> &'static FileProcessTracker {
     UPLOAD_TRACKERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
@@ -47,12 +50,20 @@ fn get_archive_trackers() -> &'static FileProcessTracker {
     ARCHIVE_TRACKERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
 
+fn get_extract_trackers() -> &'static FileProcessTracker {
+    EXTRACT_TRACKERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+
 fn get_archive_cancel_flags() -> &'static ArchiveCancelFlags {
     ARCHIVE_CANCEL_FLAGS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
 
 fn get_upload_cancel_flags() -> &'static UploadCancelFlags {
     UPLOAD_CANCEL_FLAGS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+
+fn get_extract_cancel_flags() -> &'static ExtractCancelFlags {
+    EXTRACT_CANCEL_FLAGS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
 
 // Request/Response structures
@@ -794,6 +805,114 @@ pub async fn set_file_contents(
     Ok(HttpResponse::Ok().json(json!({"status": "success"})))
 }
 
+#[post("/extract")]
+pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.as_str())?;
+    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
+
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
+    let base_path = server.get_directory_path();
+
+    // Trim leading slashes and get paths relative to server directory
+    let archive_param = query.get("archive").ok_or(anyhow::anyhow!("Missing 'archive' query parameter"))?;
+    let output_param = query.get("directory").ok_or(anyhow::anyhow!("Missing 'directory' query parameter"))?;
+    let tracker_id = query.get("tracker").ok_or(anyhow::anyhow!("Missing 'tracker' query parameter"))?;
+
+    let archive_path = base_path.join(archive_param.trim_start_matches('/').trim_start_matches('\\'));
+    let output_path = base_path.join(output_param.trim_start_matches('/').trim_start_matches('\\'));
+
+    // Validate archive exists
+    if !archive_path.exists() || !archive_path.is_file() {
+        return Err(anyhow::anyhow!("Archive file not found").into());
+    }
+
+    // Get tracker for progress updates
+    let trackers = get_extract_trackers().lock().await;
+    if let Some(tracker) = trackers.get(tracker_id) {
+        // Create a new cancellation flag for this operation
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+
+        // Store the cancellation flag
+        {
+            let mut cancel_flags = get_extract_cancel_flags().lock().await;
+            cancel_flags.insert(tracker_id.clone(), cancel_flag.clone());
+        }
+
+        // Use the extract_wrapper to extract the archive
+        tokio::task::spawn_blocking({
+            let archive_path = archive_path.clone();
+            let output_path = output_path.clone();
+            let tracker = tracker.clone();
+            let cancel_flag = cancel_flag.clone();
+            let tracker_id = tracker_id.clone();
+
+            move || {
+                let rt = tokio::runtime::Handle::current();
+                rt.block_on(async {
+                    let result = crate::server::filesystem::extract_wrapper::extract(archive_path, output_path, &tracker, &cancel_flag).await;
+
+                    if let Err(e) = result {
+                        error!("Failed to extract archive: {}", e);
+                        let _ = tracker
+                            .send(Event::from(sse::Data::new(format!(
+                                "{{ \"progress\": 0, \"status\": \"error\", \"error\": \"{}\" }}",
+                                e.to_string()
+                            ))))
+                            .await;
+                    }
+
+                    // Clean up the cancellation flag
+                    let mut cancel_flags = get_extract_cancel_flags().lock().await;
+                    cancel_flags.remove(&tracker_id);
+                })
+            }
+        });
+    } else {
+        return Err(anyhow::anyhow!("Invalid tracker id").into());
+    }
+
+    Ok(HttpResponse::Ok().json(json!({"status": "success"})))
+}
+
+#[get("/extract/status/{tracker_id}")]
+pub async fn extract_status(params: web::Path<(String, String)>) -> impl Responder {
+    let (_, tracker_id) = params.into_inner();
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
+
+    // Store the sender in our tracker
+    {
+        let mut trackers = get_extract_trackers().lock().await;
+        trackers.insert(tracker_id.to_string(), tx);
+    }
+
+    Sse::from_infallible_receiver(rx).with_keep_alive(Duration::from_secs(3))
+}
+
+#[post("/extract/cancel/{tracker_id}")]
+pub async fn cancel_extract(tracker_id: web::Path<String>) -> Result<impl Responder> {
+    let tracker_id = tracker_id.into_inner();
+
+    // Get the cancellation flag for this tracker
+    let cancel_flags = get_extract_cancel_flags().lock().await;
+
+    if let Some(flag) = cancel_flags.get(&tracker_id) {
+        // Set the flag to true to signal cancellation
+        flag.store(true, Ordering::Relaxed);
+
+        Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "message": "Extract operation cancelled"
+        })))
+    } else {
+        // If the tracker doesn't exist, it might have already completed or never existed
+        Ok(HttpResponse::NotFound().json(json!({
+            "status": "error",
+            "message": "Extract operation not found or already completed"
+        })))
+    }
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/fs")
@@ -814,6 +933,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(cancel_archive)
             .service(get_file_contents)
             .service(set_file_contents)
+            .service(extract_archive)
+            .service(extract_status)
+            .service(cancel_extract)
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),

@@ -45,7 +45,7 @@ export type Server =
 export type CreateServerData = {
     /** Name of the server, e.g. 'My Minecraft Server' */
     name: string;
-    /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', or 'custom' */
+    /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt' , or 'custom' */
     server_type: LoaderType;
     /** Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom' */
     minecraft_version: string;
@@ -91,6 +91,8 @@ interface ServerContextType
     searchFiles: (query: string, filename_only: boolean, abortSignal: AbortSignal, serverId?: string) => Promise<FilesystemEntry[]>;
     archiveFiles: (filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string) => { cancel: () => Promise<void>, trackerId: string };
     cancelArchive: (trackerId: string, serverId?: string) => Promise<void>;
+    extractArchive: (archivePath: string, outputPath: string, on_progress: (progress: number, filesProcessed: number, totalFiles: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string) => { cancel: () => Promise<void>, trackerId: string };
+    cancelExtract: (trackerId: string, serverId?: string) => Promise<void>;
     uploadFromUrl: (url: string, filepath: string, onProgress: (progress: number, downloaded: number, total: number) => void, onSuccess: () => void, onError: (error: string) => void, serverId?: string) => Promise<void>;
     getFileContents: (path: string, serverId?: string) => Promise<string>;
     setFileContents: (path: string, contents: string, serverId?: string) => Promise<void>;
@@ -467,6 +469,22 @@ export function ServerProvider({children}: { children: ReactNode })
         return await FileSystem.cancelArchive(trackerId, targetServerId);
     }, [server]);
 
+    const extractArchive = useCallback((archivePath: string, outputPath: string, on_progress: (progress: number, filesProcessed: number, totalFiles: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string): { cancel: () => Promise<void>, trackerId: string } =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return FileSystem.extract(archivePath, outputPath, targetServerId, on_progress, on_success, on_error, on_cancelled);
+    }, [server]);
+
+    const cancelExtract = useCallback(async (trackerId: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return await FileSystem.cancelExtract(trackerId, targetServerId);
+    }, [server]);
+
     const uploadFromUrl = useCallback(async (url: string, filepath: string, onProgress: (progress: number, downloaded: number, total: number) => void, onSuccess: () => void, onError: (error: string) => void, serverId?: string): Promise<void> =>
     {
         const targetServerId = serverId || server?.id;
@@ -541,6 +559,8 @@ export function ServerProvider({children}: { children: ReactNode })
             searchFiles,
             archiveFiles,
             cancelArchive,
+            extractArchive,
+            cancelExtract,
             uploadFromUrl,
             getFileContents,
             setFileContents,

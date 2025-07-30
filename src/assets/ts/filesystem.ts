@@ -532,6 +532,131 @@ export class FileSystem
         }
     }
 
+    static extract(archivePath: string, outputPath: string, serverId: string, on_progress: (progress: number, filesProcessed: number, totalFiles: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void): { cancel: () => Promise<void>, trackerId: string }
+    {
+        const id = `extract-${Math.random().toString(36)}`;
+        const event = new EventSource(`/api/server/${serverId}/fs/extract/status/${id}`);
+        if (event == null) throw new Error("Failed to create SSE connection");
+
+        // Trim leading slashes from paths
+        archivePath = archivePath.startsWith("/") ? archivePath.substring(1) : archivePath;
+        outputPath = outputPath.startsWith("/") ? outputPath.substring(1) : outputPath;
+
+        // Function to cancel the extract operation
+        const cancel = async () =>
+        {
+            try
+            {
+                const response = await fetch(`/api/server/${serverId}/fs/extract/cancel/${id}`, {
+                    method: "POST"
+                });
+
+                if (!response.ok)
+                {
+                    const errorData = await response.json();
+                    console.error("Failed to cancel extract:", errorData.message || "Unknown error");
+                }
+
+                // Close the event source
+                event.close();
+
+                // Call the cancelled callback if provided
+                if (on_cancelled)
+                {
+                    on_cancelled();
+                }
+            } catch (e: Error | any)
+            {
+                console.error("Error cancelling extract:", e);
+            }
+        };
+
+        event.onopen = (async () =>
+        {
+            on_progress(0, 0, 0);
+            try
+            {
+                const url = new URL(`/api/server/${serverId}/fs/extract`, window.location.origin);
+                url.searchParams.set("archive", archivePath);
+                url.searchParams.set("directory", outputPath);
+                url.searchParams.set("tracker", id);
+
+                const response = await fetch(url.toString(), {
+                    method: "POST"
+                });
+
+                if (!response.ok)
+                {
+                    let body = await response.text();
+                    try
+                    {
+                        const json = JSON.parse(body);
+                        on_error(json.error || json.message || body);
+                    } catch
+                    {
+                        on_error(body);
+                    }
+                }
+            } catch (e: Error | any)
+            {
+                on_error(`Error: ${e.message || e.toString() || "Unknown error occurred while trying to extract the archive."}`);
+            }
+        });
+
+        event.onmessage = (event) =>
+        {
+            const data = JSON.parse(event.data);
+
+            // Check if the operation was cancelled
+            if (data.status === "cancelled" && on_cancelled)
+            {
+                on_cancelled();
+                return;
+            }
+
+            // Check if the operation completed successfully
+            if (data.status === "complete")
+            {
+                on_success();
+                return;
+            }
+
+            // Check if there was an error
+            if (data.status === "error")
+            {
+                on_error(data.error || "Unknown error occurred during extraction");
+                return;
+            }
+
+            // Update progress
+            on_progress(data.progress || 0, data.filesProcessed || 0, data.totalFiles || 0);
+        };
+
+        event.onerror = () =>
+        {
+            on_error("Connection closed unexpectedly");
+            event.close();
+        };
+
+        return {
+            cancel,
+            trackerId: id
+        };
+    }
+
+    static async cancelExtract(trackerId: string, serverId: string): Promise<void>
+    {
+        const response = await fetch(`/api/server/${serverId}/fs/extract/cancel/${trackerId}`, {
+            method: "POST"
+        });
+
+        if (!response.ok)
+        {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to cancel extract operation");
+        }
+    }
+
     /**
      * Upload a file from a URL to the server
      * @param url URL to download the file from

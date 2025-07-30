@@ -6,6 +6,26 @@ import $ from "jquery";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 
+// Helper function to check if a file is an archive
+const isArchiveFile = (filename: string): boolean => {
+    const archiveExtensions = ['.zip', '.tar.gz', '.tgz', '.tar', '.rar', '.7z'];
+    const lowerFilename = filename.toLowerCase();
+    return archiveExtensions.some(ext => lowerFilename.endsWith(ext));
+};
+
+// Helper function to get archive name without extension
+const getArchiveBaseName = (filename: string): string => {
+    if (filename.toLowerCase().endsWith('.tar.gz')) {
+        return filename.slice(0, -7); // Remove .tar.gz
+    } else if (filename.toLowerCase().endsWith('.tgz')) {
+        return filename.slice(0, -4); // Remove .tgz
+    } else {
+        // Remove last extension for other formats
+        const lastDotIndex = filename.lastIndexOf('.');
+        return lastDotIndex > 0 ? filename.slice(0, lastDotIndex) : filename;
+    }
+};
+
 export type ContextMenuOptions = {
     entry?: FilesystemEntry | FilesystemEntry[];
     x: number;
@@ -16,11 +36,12 @@ type RowContextMenuProps = {
     onRename: (entry: FilesystemEntry) => void;
     onDelete: (entry: FilesystemEntry[]) => void;
     onArchive: (entry: FilesystemEntry[]) => void;
+    onExtract: (entry: FilesystemEntry, outputPath?: string) => void;
     onEdit: (entry: FilesystemEntry) => void;
     onClose: () => void;
 } & ContextMenuOptions;
 
-export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive, onEdit}: RowContextMenuProps)
+export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive, onEdit, onExtract}: RowContextMenuProps)
 {
     const {downloadEntry} = useServer();
     const [position, setPosition] = useState({x, y});
@@ -93,6 +114,23 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
                         );
                     }
 
+                    // Add extract options for archive files
+                    if (!entry?.is_dir && isArchiveFile(entry?.filename))
+                    {
+                        const archiveBaseName = getArchiveBaseName(entry.filename);
+                        singleItemOptions.push(
+                            <ListboxItem key={"extract-here"} endContent={<Icon icon={"pixelarticons:extract"}/>} onPress={() => {
+                                onExtract(entry);
+                                onClose();
+                            }}>Extract Here</ListboxItem>
+                        );
+                        singleItemOptions.push(
+                            <ListboxItem key={"extract-to-folder"} endContent={<Icon icon={"pixelarticons:folder-open"}/>} onPress={() => {
+                                onExtract(entry, archiveBaseName);
+                                onClose();
+                            }}>Extract to {archiveBaseName}</ListboxItem>
+                        );
+                    }
 
                     return (
                         <>

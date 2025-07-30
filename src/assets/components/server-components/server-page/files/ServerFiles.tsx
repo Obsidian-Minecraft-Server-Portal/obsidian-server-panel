@@ -15,7 +15,7 @@ import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {Editor} from "@monaco-editor/react";
 import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";
 import {registerMinecraftPropertiesLanguage} from "../../../../ts/minecraft-properties-language.ts";
-import {motion, AnimatePresence} from "framer-motion";
+import {AnimatePresence, motion} from "framer-motion";
 
 // Define the theme outside of the component
 const defineObsidianTheme = (monaco: any) =>
@@ -41,12 +41,14 @@ type UploadProgress = {
     files: string[]
     isUploading: boolean;
     uploadGroup?: string;
+    filesProcessed?: number;
+    totalFiles?: number;
+    operationType: "upload" | "archive" | "extract";
 }
-
 
 export function ServerFiles()
 {
-    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, getFileContents, setFileContents} = useServer();
+    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents} = useServer();
     const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
@@ -81,12 +83,10 @@ export function ServerFiles()
         selectedEntriesRef.current = selectedEntries;
     }, [selectedEntries]);
 
-
     const scrollToTop = useCallback(() =>
     {
         $("#server-files-table").parent().scrollTop(0);
     }, [path]);
-
 
     const saveContent = useCallback(async () =>
     {
@@ -122,7 +122,6 @@ export function ServerFiles()
         }
     }, [newContentRef, editorSaveTimerRef, needsToSave, open]);
 
-
     const reboundSaveContent = useCallback(async () =>
     {
         const currentSelectedEntries = selectedEntriesRef.current;
@@ -141,8 +140,8 @@ export function ServerFiles()
         let promises = [];
         for (let file of files)
         {
-            let entry = {filename: file.name, path, is_dir: false, size: file.size, file_type: file.type} as FilesystemEntry;
-            setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true, uploadGroup}]);
+            let entry = {filename: file.name, path, is_dir: false, size: file.size, file_type: file.type, operationType: "upload"} as FilesystemEntry;
+            setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true, uploadGroup, operationType: "upload"}]);
             let totalSize = file.size;
             const {promise} = await uploadFile(file, entry.path, async bytes =>
                 {
@@ -162,7 +161,6 @@ export function ServerFiles()
         await refresh();
         setFileUploadEntries(prev => prev.filter(upload => upload.uploadGroup !== uploadGroup));
     }, [setFileUploadEntries, fileUploadEntries, path]);
-
 
     const refresh = useCallback(async () =>
     {
@@ -261,11 +259,12 @@ export function ServerFiles()
         }
         let entry = {filename, path, is_dir: false, size: 0, file_type: "Archive"} as FilesystemEntry;
         setData(prev => ({...prev, entries: [entry, ...(prev?.entries || [])]} as FilesystemData));
-        setNewArchiveEntry({entry, progress: 0, files: selectedEntries.map(entry => entry.path), isUploading: false});
+        setNewArchiveEntry({entry, progress: 0, files: selectedEntries.map(entry => entry.path), isUploading: false, operationType: "archive"});
     }, [path, data, selectedEntries]);
+
     const completeArchiveCreation = useCallback(async (newName: string) =>
     {
-        setNewArchiveEntry(prev => prev ? {...prev, isUploading: true} : undefined);
+        setNewArchiveEntry(prev => prev ? {...prev, isUploading: true, operationType: "archive"} : undefined);
         if (!newArchiveEntry || newName.trim() === "")
         {
             setNewArchiveEntry(undefined);
@@ -292,6 +291,10 @@ export function ServerFiles()
                     severity: "danger"
                 });
                 console.error("Failed to create archive:", error);
+                setNewArchiveEntry(undefined);
+            }, () =>
+            {
+                setNewArchiveEntry(undefined);
             });
         } catch (error)
         {
@@ -302,12 +305,109 @@ export function ServerFiles()
                 responseType: MessageResponseType.Close,
                 severity: "danger"
             });
+            setNewArchiveEntry(undefined);
         }
     }, [data, path, newArchiveEntry]);
 
+    const handleExtract = useCallback(async (entry: FilesystemEntry, outputPath?: string) =>
+    {
+        scrollToTop();
+
+        // Determine output path - either provided or current directory
+        const extractPath = outputPath || path;
+
+        // Create a unique ID for this extraction operation
+        const extractId = `extract-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Create a temporary entry to show progress
+        const extractEntry: FilesystemEntry = {
+            filename: `Extracting ${entry.filename}...`,
+            path: `${path}/extracting-${entry.filename}`,
+            is_dir: false,
+            size: 0,
+            file_type: "Extracting"
+        };
+
+        const progressEntry: UploadProgress = {
+            entry: extractEntry,
+            progress: 0,
+            files: [entry.path],
+            isUploading: true,
+            operationType: "extract",
+            filesProcessed: 0,
+            totalFiles: 0,
+            uploadGroup: extractId // Use the unique ID to track this specific extraction
+        };
+
+        setFileUploadEntries(prev => [...prev, progressEntry]);
+
+        // Helper function to remove the progress entry
+        const removeProgressEntry = () =>
+        {
+            setFileUploadEntries(prev => prev.filter(upload => upload.uploadGroup !== extractId));
+        };
+
+        try
+        {
+            const {cancel, trackerId} = extractArchive(
+                entry.path,
+                extractPath,
+                (progress, filesProcessed, totalFiles) =>
+                {
+                    setFileUploadEntries(prev =>
+                        prev.map(upload =>
+                            upload.uploadGroup === extractId
+                                ? {...upload, progress, filesProcessed, totalFiles}
+                                : upload
+                        )
+                    );
+                    console.log("Extract progress:", progress, "Files:", filesProcessed, "/", totalFiles);
+                },
+                async () =>
+                {
+                    // Success - remove progress entry and refresh
+                    console.log("Extract completed successfully, removing progress entry");
+                    removeProgressEntry();
+                    await refresh();
+                },
+                (error) =>
+                {
+                    // Error - remove progress entry and show error
+                    console.error("Failed to extract archive:", error);
+                    removeProgressEntry();
+                    open({
+                        title: "Extract Failed",
+                        body: `An error occurred while extracting the archive: ${error}`,
+                        responseType: MessageResponseType.Close,
+                        severity: "danger"
+                    });
+                },
+                () =>
+                {
+                    // Cancelled - remove progress entry
+                    console.log("Extract cancelled, removing progress entry");
+                    removeProgressEntry();
+                }
+            );
+
+            // Store the cancel function and track ID for potential future use
+            console.log("Extract operation started with track ID:", trackerId);
+
+        } catch (error)
+        {
+            console.error("Failed to start extract:", error);
+            removeProgressEntry();
+            await open({
+                title: "Extract Failed",
+                body: "An error occurred while starting the extraction. Please try again.",
+                responseType: MessageResponseType.Close,
+                severity: "danger"
+            });
+        }
+    }, [path, extractArchive, open, refresh]);
+
     const handleKeyDown = useCallback(async (e: KeyboardEvent<HTMLTableElement>) =>
     {
-
         if (renamingEntry !== undefined)
         {
             e.preventDefault();
@@ -492,8 +592,6 @@ export function ServerFiles()
                 editor.trigger("keyboard", "editor.action.duplicateSelection", {});
             }
         );
-
-
     }, [selectedEntries, isEditingFile]);
 
     return (
@@ -621,12 +719,19 @@ export function ServerFiles()
                                                     </TableCell>
                                                     <TableCell className={"text-gray-500"}>{upload.entry.file_type}</TableCell>
                                                     <TableCell className={"text-gray-500"}>
-                                                        <Progress
-                                                            minValue={0}
-                                                            maxValue={1}
-                                                            value={upload.progress}
-                                                            size={"sm"}
-                                                        />
+                                                        <div className="flex flex-col gap-1">
+                                                            <Progress
+                                                                minValue={0}
+                                                                maxValue={upload.operationType === "upload" ? 1 : 100}
+                                                                value={upload.progress}
+                                                                size={"sm"}
+                                                            />
+                                                            {upload.operationType === "extract" && upload.totalFiles && upload.totalFiles > 0 && (
+                                                                <span className="text-xs text-gray-400">
+                                                                    {upload.filesProcessed || 0}/{upload.totalFiles} files
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         <></>
@@ -634,7 +739,6 @@ export function ServerFiles()
                                                 </TableRow>
                                             ))}
                                             {data?.entries.map(entry =>
-
                                                 <TableRow
                                                     key={entry.filename}
                                                     onContextMenu={e =>
@@ -754,6 +858,7 @@ export function ServerFiles()
                         onRename={setRenamingEntry}
                         onDelete={deleteSelected}
                         onArchive={startArchiveCreation}
+                        onExtract={handleExtract}
                         onEdit={() =>
                         {
                             setIsEditingFile(true);
@@ -907,7 +1012,6 @@ export function ServerFiles()
                                 )
                             }
                         />
-
                     </div>
                 )}
             </motion.div>
@@ -938,4 +1042,3 @@ export function ServerFiles()
         </div>
     );
 }
-

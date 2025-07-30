@@ -43,6 +43,7 @@ zip = "3.0.0"
 archflow = { version = "0.1.4", features = ["tokio"] }
 tokio-interactive = { version = "0.2.0" }
 flate2 = { version = "1.1.2" }
+tar = "0.4.44"
 obsidian-upnp = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/upnp.git" }
 
 [build-dependencies]
