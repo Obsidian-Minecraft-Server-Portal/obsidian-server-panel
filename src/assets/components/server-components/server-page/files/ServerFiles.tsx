@@ -41,7 +41,7 @@ export function ServerFiles()
     const [newArchiveEntry, setNewArchiveEntry] = useState<UploadProgress | undefined>(undefined);
     const [fileUploadEntries, setFileUploadEntries] = useState<UploadProgress[]>([]);
     const [isDraggingOver, setIsDraggingOver] = useState(false);
-    const [isEditingFile, setIsEditingFile] = useState(false);
+    const [isEditingFile, setIsEditingFile] = useState(localStorage.getItem("is-editing-file") === "true");
     const [selectedFileContents, setSelectedFileContents] = useState("");
     const [isDragging, setIsDragging] = useState(false);
     const [editorWidth, setEditorWidth] = useState(() =>
@@ -60,6 +60,11 @@ export function ServerFiles()
     {
         selectedEntriesRef.current = selectedEntries;
     }, [selectedEntries]);
+
+    useEffect(() =>
+    {
+        localStorage.setItem("is-editing-file", isEditingFile.toString());
+    }, [isEditingFile]);
 
     const scrollToTop = useCallback(() =>
     {
@@ -99,21 +104,25 @@ export function ServerFiles()
         }
     }, [newContentRef, needsToSave, open, setFileContents]);
 
-    const handleContentChange = useCallback((content: string) => {
+    const handleContentChange = useCallback((content: string) =>
+    {
         console.log("Editor content changed:", content);
         newContentRef.current = content;
         setNeedsToSave(true);
     }, []);
 
-    const handleDragStart = useCallback(() => {
+    const handleDragStart = useCallback(() =>
+    {
         setIsDragging(true);
     }, []);
 
-    const handleDragEnd = useCallback(() => {
+    const handleDragEnd = useCallback(() =>
+    {
         setIsDragging(false);
     }, []);
 
-    const handleWidthChange = useCallback((width: number) => {
+    const handleWidthChange = useCallback((width: number) =>
+    {
         setEditorWidth(width);
     }, []);
 
@@ -597,9 +606,9 @@ export function ServerFiles()
                     >
                         <TableHeader>
                             <TableColumn>Name</TableColumn>
-                            <TableColumn hidden={isEditingFile}>Type</TableColumn>
-                            <TableColumn hidden={isEditingFile}>Size</TableColumn>
-                            <TableColumn width={48} hideHeader hidden={isEditingFile}>Action</TableColumn>
+                            <TableColumn hidden={isEditingFile && selectedEntries.length === 1}>Type</TableColumn>
+                            <TableColumn hidden={isEditingFile && selectedEntries.length === 1}>Size</TableColumn>
+                            <TableColumn width={48} hideHeader hidden={isEditingFile && selectedEntries.length === 1}>Action</TableColumn>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? Array.from({length: 5}, (_, i) => (

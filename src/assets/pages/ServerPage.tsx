@@ -7,6 +7,9 @@ import ServerConsole from "../components/server-components/server-page/console/S
 import {ServerFiles} from "../components/server-components/server-page/files/ServerFiles.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
 import {AnimatePresence, motion} from "framer-motion";
+import {ServerOptions} from "../components/server-components/server-page/options/ServerOptions.tsx";
+import {ServerBackups} from "../components/server-components/server-page/backups/ServerBackups.tsx";
+import {ServerContent} from "../components/server-components/server-page/content/ServerContent.tsx";
 
 export default function ServerPage()
 {
@@ -18,6 +21,7 @@ export default function ServerPage()
     useEffect(() =>
     {
         const tab = searchParams.get("tab");
+        if (!tab || tab === selectedTab) return;
         if (tab && ["console", "content", "files", "backups", "options"].includes(tab))
         {
             setSelectedTab(tab);
@@ -30,6 +34,7 @@ export default function ServerPage()
 
     useEffect(() =>
     {
+        if (!selectedTab) return;
         setSearchParams({tab: selectedTab, ...searchParams}, {replace: true});
     }, [selectedTab]);
 
@@ -61,10 +66,10 @@ export default function ServerPage()
                 >
                     <Tabs className={"mt-4 font-minecraft-body"} radius={"none"} color={"primary"} onSelectionChange={value => setSelectedTab(value as string)} selectedKey={selectedTab}>
                         <Tab key={"console"} title={"Console"}><ErrorBoundary><ServerConsole/></ErrorBoundary></Tab>
-                        <Tab key={"content"} title={"Content"}/>
+                        <Tab key={"content"} title={"Content"}><ErrorBoundary><ServerContent/></ErrorBoundary></Tab>
                         <Tab key={"files"} title={"Files"}><ErrorBoundary><ServerFiles/></ErrorBoundary></Tab>
-                        <Tab key={"backups"} title={"Backups"}/>
-                        <Tab key={"options"} title={"Options"}/>
+                        <Tab key={"backups"} title={"Backups"}><ErrorBoundary><ServerBackups/></ErrorBoundary></Tab>
+                        <Tab key={"options"} title={"Options"}><ErrorBoundary><ServerOptions/></ErrorBoundary></Tab>
                     </Tabs>
                 </motion.div>
             </div>
