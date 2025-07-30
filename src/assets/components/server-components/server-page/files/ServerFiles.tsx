@@ -17,7 +17,7 @@ import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";
 import {registerMinecraftPropertiesLanguage} from "../../../../ts/minecraft-properties-language.ts";
 import {AnimatePresence, motion} from "framer-motion";
 
-// Define the theme outside of the component
+// Define the theme outside the component
 const defineObsidianTheme = (monaco: any) =>
 {
     monaco.editor.defineTheme("obsidian-editor-theme", {
@@ -313,11 +313,11 @@ export function ServerFiles()
     {
         scrollToTop();
 
-        // Determine output path - either provided or current directory
+        // Determine the output path - either provided or current directory
         const extractPath = outputPath || path;
 
         // Create a unique ID for this extraction operation
-        const extractId = `extract-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const extractId = `extract-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
         // Create a temporary entry to show progress
         const extractEntry: FilesystemEntry = {
@@ -349,7 +349,7 @@ export function ServerFiles()
 
         try
         {
-            const {cancel, trackerId} = extractArchive(
+            const {trackerId} = extractArchive(
                 entry.path,
                 extractPath,
                 (progress, filesProcessed, totalFiles) =>
@@ -372,7 +372,7 @@ export function ServerFiles()
                 },
                 (error) =>
                 {
-                    // Error - remove progress entry and show error
+                    // Error - remove progress entry and show an error
                     console.error("Failed to extract archive:", error);
                     removeProgressEntry();
                     open({
@@ -445,7 +445,7 @@ export function ServerFiles()
 
     const deleteSelected = useCallback(async (entries: FilesystemEntry[]) =>
     {
-        // Handle delete action for selected entries
+        // Handle the delete action for selected entries
         if (entries.length > 0)
         {
             let response = await open({
@@ -472,14 +472,14 @@ export function ServerFiles()
     {
         $(document).on("click", e =>
         {
-            // Close context menu when clicking outside
+            // Close the context menu when clicking outside
             if (!$(e.target).closest("#server-files-context-menu").length)
             {
                 setContextMenuOptions(prev => ({...prev, isOpen: false}));
             }
         }).on("blur", e =>
         {
-            // Close context menu when focus is lost
+            // Close the context menu when focus is lost
             if (!$(e.target).closest("#server-files-context-menu").length)
             {
                 setContextMenuOptions(prev => ({...prev, isOpen: false}));
@@ -487,7 +487,7 @@ export function ServerFiles()
         });
         $("#server-files-table").parent().on("scroll", () =>
         {
-            // Close context menu when scrolling
+            // Close the context menu when scrolling
             setContextMenuOptions(prev => ({...prev, isOpen: false}));
         });
         return () =>
@@ -506,15 +506,15 @@ export function ServerFiles()
             setSelectedFileContents("");
             setNeedsToSave(false);
 
-            // Load file contents for single text file selection
+            // Load file contents for a single text file selection
             getFileContents(selectedEntries[0].path).then(async contents =>
             {
                 setSelectedFileContents(contents);
                 setIsEditingFile(true);
-            }).catch(error =>
+            }).catch(async error =>
             {
                 console.error("Failed to load file contents:", error);
-                open({
+                await open({
                     title: "Load File Failed",
                     body: "An error occurred while loading the file contents. Please try again.",
                     responseType: MessageResponseType.Close,
@@ -534,7 +534,7 @@ export function ServerFiles()
         editorRef.current = editor;
         monacoRef.current = monaco;
 
-        // Define theme first
+        // Define the theme first
         defineObsidianTheme(monaco);
 
         // Register the Minecraft properties language
