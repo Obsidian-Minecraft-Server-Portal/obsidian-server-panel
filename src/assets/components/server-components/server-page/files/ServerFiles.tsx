@@ -46,7 +46,7 @@ type UploadProgress = {
 
 export function ServerFiles()
 {
-    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, getFileContents} = useServer();
+    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, getFileContents, setFileContents} = useServer();
     const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
@@ -70,12 +70,70 @@ export function ServerFiles()
     const editorRef = useRef<any>(null);
     const monacoRef = useRef<any>(null);
     const editorWrapperRef = useRef<HTMLDivElement>(null);
+    const editorSaveTimerRef = useRef<number | undefined>(undefined);
+    const [needsToSave, setNeedsToSave] = useState(false);
+    const newContentRef = useRef<string>("");
+
+    const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
+
+    useEffect(() =>
+    {
+        selectedEntriesRef.current = selectedEntries;
+    }, [selectedEntries]);
 
 
     const scrollToTop = useCallback(() =>
     {
         $("#server-files-table").parent().scrollTop(0);
     }, [path]);
+
+
+    const saveContent = useCallback(async () =>
+    {
+        const currentSelectedEntries = selectedEntriesRef.current;
+        const file = currentSelectedEntries[0]?.path;
+
+        console.log("Attempting to save content:", newContentRef, "Needs to save:", needsToSave, "File:", currentSelectedEntries);
+
+        if (editorSaveTimerRef.current) clearTimeout(editorSaveTimerRef.current);
+        setNeedsToSave(false);
+
+        try
+        {
+            if (!file || !newContentRef.current)
+            {
+                console.warn("No file selected or content is empty, skipping save.");
+                return;
+            }
+
+            // Save the content to the file
+            console.log("Saving file:", file, newContentRef.current);
+            await setFileContents(file, newContentRef.current);
+            newContentRef.current = "";
+        } catch (error)
+        {
+            console.error("Failed to save file:", error);
+            await open({
+                title: "Save File Failed",
+                body: "An error occurred while saving the file. Please try again.",
+                responseType: MessageResponseType.Close,
+                severity: "danger"
+            });
+        }
+    }, [newContentRef, editorSaveTimerRef, needsToSave, open]);
+
+
+    const reboundSaveContent = useCallback(async () =>
+    {
+        const currentSelectedEntries = selectedEntriesRef.current;
+        if (!currentSelectedEntries || currentSelectedEntries.length !== 1 || !isTextFile(currentSelectedEntries[0].path)) return;
+
+        if (editorSaveTimerRef.current) clearTimeout(editorSaveTimerRef.current);
+        editorSaveTimerRef.current = setTimeout(async () =>
+        {
+            await saveContent();
+        }, 5000);
+    }, [saveContent]);
 
     const upload = useCallback(async (files: File[]) =>
     {
@@ -335,10 +393,12 @@ export function ServerFiles()
     {
         if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile)
         {
+            if (editorSaveTimerRef.current) clearTimeout(editorSaveTimerRef.current);
             setSelectedFileContents("");
+            setNeedsToSave(false);
 
             // Load file contents for single text file selection
-            getFileContents(selectedEntries[0].path).then(contents =>
+            getFileContents(selectedEntries[0].path).then(async contents =>
             {
                 setSelectedFileContents(contents);
                 setIsEditingFile(true);
@@ -388,11 +448,9 @@ export function ServerFiles()
             monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash,
             () =>
             {
-                // Do nothing to disable the original keybinding
             }
         );
 
-        // Add custom command for formatting SQL
         editor.addCommand(
             monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
             () =>
@@ -401,19 +459,45 @@ export function ServerFiles()
             }
         );
 
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+            async () =>
+            {
+                console.log("Saving content from editor");
+                await saveContent();
+            }
+        );
+
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD,
+            async () =>
+            {
+                editor.trigger("keyboard", "editor.action.deleteLines", {});
+            }
+        );
+
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD,
+            async () =>
+            {
+                editor.trigger("keyboard", "editor.action.duplicateSelection", {});
+            }
+        );
+
+
     }, [selectedEntries, isEditingFile]);
 
     return (
         <div className={
             cn(
-                "flex flex-row gap-2 bg-default-50"
+                "flex flex-row gap-2 bg-default-50 overflow-x-hidden"
             )
         }>
             <div
                 id={"server-file-browser"}
                 className={
                     cn(
-                        "flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative grow min-w-[200px]"
+                        "flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative grow min-w-[300px]"
                     )
                 }
                 onDragStart={() => setIsDraggingOver(false)}
@@ -609,8 +693,8 @@ export function ServerFiles()
                                                                     <><FileEntryIcon entry={entry}/> {entry.filename}</>
                                                         }
                                                     </TableCell>
-                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile}>{entry.file_type}</TableCell>
-                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile}>
+                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>{entry.file_type}</TableCell>
+                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
                                                         {entry === newArchiveEntry?.entry ?
                                                             <>
                                                                 <Progress
@@ -626,7 +710,7 @@ export function ServerFiles()
                                                             </>
                                                         }
                                                     </TableCell>
-                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile}>
+                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
                                                         <Button
                                                             isIconOnly
                                                             radius={"none"}
@@ -691,6 +775,13 @@ export function ServerFiles()
                         language={getMonacoLanguage(selectedEntries[0]?.path ?? "") ?? "auto"}
                         onMount={handleEditorMount}
                         width={`${editorWidth}px`}
+                        onChange={async content =>
+                        {
+                            console.log("Editor content changed:", content);
+                            newContentRef.current = content ?? "";
+                            setNeedsToSave(true);
+                            await reboundSaveContent();
+                        }}
                         options={{
                             fontSize: 14,
                             minimap: {enabled: false},
@@ -811,6 +902,16 @@ export function ServerFiles()
                     </div>
                 )}
             </motion.div>
+
+            {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && (
+                <div className={"absolute bottom-8 right-8 z-50"}>
+                    <Tooltip content={"Save Content"}>
+                        <Button radius={"none"} onPress={saveContent} isIconOnly isDisabled={!needsToSave} color={needsToSave ? "primary" : "default"} size={"lg"}>
+                            <Icon icon={"pixelarticons:save"}/>
+                        </Button>
+                    </Tooltip>
+                </div>
+            )}
 
             {/* Overlay to prevent clicks during dragging */}
             <AnimatePresence>
