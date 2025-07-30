@@ -537,11 +537,11 @@ export class FileSystem
         const id = `extract-${Math.random().toString(36)}`;
         const event = new EventSource(`/api/server/${serverId}/fs/extract/status/${id}`);
         if (event == null) throw new Error("Failed to create SSE connection");
-
+        
         // Trim leading slashes from paths
         archivePath = archivePath.startsWith("/") ? archivePath.substring(1) : archivePath;
         outputPath = outputPath.startsWith("/") ? outputPath.substring(1) : outputPath;
-
+        
         // Function to cancel the extract operation
         const cancel = async () =>
         {
@@ -580,11 +580,11 @@ export class FileSystem
                 url.searchParams.set("archive", archivePath);
                 url.searchParams.set("directory", outputPath);
                 url.searchParams.set("tracker", id);
-
+                
                 const response = await fetch(url.toString(), {
                     method: "POST"
                 });
-
+                
                 if (!response.ok)
                 {
                     let body = await response.text();
@@ -602,7 +602,7 @@ export class FileSystem
                 on_error(`Error: ${e.message || e.toString() || "Unknown error occurred while trying to extract the archive."}`);
             }
         });
-
+        
         event.onmessage = (event) =>
         {
             const data = JSON.parse(event.data);
@@ -613,14 +613,14 @@ export class FileSystem
                 on_cancelled();
                 return;
             }
-
+            
             // Check if the operation completed successfully
             if (data.status === "complete")
             {
                 on_success();
                 return;
             }
-
+            
             // Check if there was an error
             if (data.status === "error")
             {
@@ -631,7 +631,7 @@ export class FileSystem
             // Update progress
             on_progress(data.progress || 0, data.filesProcessed || 0, data.totalFiles || 0);
         };
-
+        
         event.onerror = () =>
         {
             on_error("Connection closed unexpectedly");

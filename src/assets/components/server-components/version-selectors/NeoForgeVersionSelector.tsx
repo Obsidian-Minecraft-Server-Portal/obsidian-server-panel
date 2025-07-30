@@ -4,7 +4,7 @@ import {useNeoForgeVersions} from "../../../providers/LoaderVersionProviders/Neo
 
 type ForgeVersionSelectorProps = {
     minecraftVersion: string;
-    isDisabled:boolean
+    isDisabled: boolean
 }
 
 export function NeoForgeVersionSelector(props: ForgeVersionSelectorProps)
@@ -40,8 +40,12 @@ export function NeoForgeVersionSelector(props: ForgeVersionSelectorProps)
             onSelectionChange={value => setSelectedVersion(value as string)}
             showScrollIndicators
             listboxProps={{
-                emptyContent: `No NeoForge versions available for ${minecraftVersion}`
+                emptyContent: `No NeoForge versions available for ${minecraftVersion}`,
+                itemClasses: {
+                    base: "rounded-none font-minecraft-body"
+                }
             }}
+
             isDisabled={props.isDisabled}
         >
             {versions.map((version) => (

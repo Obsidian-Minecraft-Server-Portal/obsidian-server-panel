@@ -45,7 +45,7 @@ export default function ServerPage()
         const pollingInterval = setInterval(() =>
         {
             loadServer(id).catch(error => console.error("Failed to load server:", error));
-        }, 1000);
+        }, 5000);
         return () =>
         {
             clearInterval(pollingInterval);

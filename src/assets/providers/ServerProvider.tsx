@@ -169,6 +169,9 @@ export function ServerProvider({children}: { children: ReactNode })
 
         console.log("Updating server", targetServerId, updates, "Original server:", targetServer);
         const updatedServer = {...targetServer, ...updates};
+        // the server status must be capitalized
+        // `Idle`, `Running`, `Stopped`, `Error`, `Starting`, `Stopping`, `Crashed`, `Hanging`
+        updatedServer.status = updatedServer.status.charAt(0).toUpperCase() + updatedServer.status.slice(1).toLowerCase() as ServerStatus;
         await $.ajax({
             url: `/api/server/${targetServerId}`,
             type: "POST",

@@ -8,18 +8,28 @@ import {useMessage} from "../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../MessageModal.tsx";
 
 type JavaExecutableSelectorProps = {
+    defaultSelectedExecutable?: string
     onVersionChange: (version: string | undefined) => void;
     isDisabled: boolean
 }
 
 export default function JavaExecutableSelector(props: JavaExecutableSelectorProps)
 {
-    const {onVersionChange} = props;
+    const {onVersionChange, defaultSelectedExecutable} = props;
     const {open} = useMessage();
     const {javaVersions, installVersion, refreshJavaVersions, uninstallVersion} = useJavaVersion();
     const [selectedVersion, setSelectedVersion] = useState<JavaVersion | undefined>(undefined);
     const [installationProgress, setInstallationProgress] = useState(0);
     const [isInstalling, setIsInstalling] = useState(false);
+
+
+    useEffect(() =>
+    {
+        if (selectedVersion || !defaultSelectedExecutable) return;
+        const selected = javaVersions.find(v => v.executable === defaultSelectedExecutable);
+        if (selected) setSelectedVersion(selected);
+
+    }, [defaultSelectedExecutable, selectedVersion, javaVersions]);
 
     // Update the parent component whenever selectedVersion or javaVersions change
     useEffect(() =>

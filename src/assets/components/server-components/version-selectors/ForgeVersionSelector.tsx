@@ -50,7 +50,10 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
             showScrollIndicators
             isDisabled={props.isDisabled}
             listboxProps={{
-                emptyContent: `No Forge versions available for ${minecraftVersion}`
+                emptyContent: `No Forge versions available for ${minecraftVersion}`,
+                itemClasses: {
+                    base: "rounded-none font-minecraft-body"
+                }
             }}
         >
             {versions.map((version) => (

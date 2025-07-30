@@ -69,7 +69,10 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
             onSelectionChange={value => setSelectedVersion(value as string)}
             showScrollIndicators
             listboxProps={{
-                emptyContent: `No Fabric versions available for Minecraft versions below 1.14`
+                emptyContent: `No Fabric versions available for Minecraft versions below 1.14`,
+                itemClasses: {
+                    base: "rounded-none font-minecraft-body"
+                }
             }}
             isDisabled={props.isDisabled}
         >

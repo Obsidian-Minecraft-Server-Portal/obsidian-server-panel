@@ -50,6 +50,11 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
                 onSelectionChange={value => setSelectedVersion(value as string)}
                 showScrollIndicators
                 isDisabled={isDisabled}
+                listboxProps={{
+                    itemClasses: {
+                        base: "rounded-none font-minecraft-body"
+                    }
+                }}
             >
                 {versions.map((version) => (
                     <AutocompleteItem

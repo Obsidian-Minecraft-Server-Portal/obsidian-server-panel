@@ -47,7 +47,10 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
             onSelectionChange={value => setSelectedVersion(value as string)}
             showScrollIndicators
             listboxProps={{
-                emptyContent: `No Quilt versions available for Minecraft versions below 1.14`
+                emptyContent: `No Quilt versions available for Minecraft versions below 1.14`,
+                itemClasses: {
+                    base: "rounded-none font-minecraft-body"
+                }
             }}
             isDisabled={props.isDisabled}
         >
