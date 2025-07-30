@@ -166,8 +166,11 @@ impl ServerData {
     pub fn get_icon(&self) -> Vec<u8> {
         let icon_path = self.get_directory_path().join("server-icon.png");
         if icon_path.exists() {
-            if let Ok(data) = std::fs::read(icon_path) {
+            let result = std::fs::read(icon_path);
+            if let Ok(data) = result {
                 return data;
+            }else if let Err(e) = result {
+                log::error!("Failed to read server icon: {}", e);
             }
         }
         ICON.to_vec()
