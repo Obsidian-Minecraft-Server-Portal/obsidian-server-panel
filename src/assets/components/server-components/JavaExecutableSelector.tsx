@@ -25,8 +25,9 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
 
     useEffect(() =>
     {
-        if (selectedVersion || !defaultSelectedExecutable) return;
+        if (!defaultSelectedExecutable || selectedVersion) return;
         const selected = javaVersions.find(v => v.executable === defaultSelectedExecutable);
+        console.log("Default selected executable:", defaultSelectedExecutable, "Found version:", selected);
         if (selected) setSelectedVersion(selected);
 
     }, [defaultSelectedExecutable, selectedVersion, javaVersions]);
@@ -101,6 +102,7 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                     size={"sm"}
                     className={"font-minecraft-body"}
                     classNames={{listbox: "font-minecraft-body"}}
+                    listboxProps={{itemClasses: {base: "rounded-none"}}}
                     disallowEmptySelection
                     selectedKeys={selectedVersion ? [selectedVersion.runtime] : []}
                     isDisabled={props.isDisabled}
