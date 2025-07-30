@@ -5,6 +5,8 @@ mod filesystem;
 mod server_actions;
 mod server_status;
 mod server_type;
+mod server_properties;
+mod server_ping;
 
 pub use server_endpoint::configure;
 pub use server_db::initialize;

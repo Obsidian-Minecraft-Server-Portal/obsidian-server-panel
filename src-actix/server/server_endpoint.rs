@@ -83,6 +83,16 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     })))
 }
 
+#[get("{server_id}/ping")]
+pub async fn ping_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
+    let ping_response = server.get_ping().await?;
+    Ok(HttpResponse::Ok().json(ping_response))
+}
+
 #[post("{server_id}")]
 pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerData>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
@@ -124,6 +134,7 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
             if let Err(save_err) = server.save().await {
                 error!("Failed to save server status after start failure: {}", save_err);
             }
+
         }
     });
 
@@ -317,6 +328,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(kill_server)
             .service(send_command)
             .service(get_console_out)
+            .service(ping_server)
             .service(get_log_files)
             .service(get_log_file_contents)
             .service(web::scope("/{server_id}").configure(filesystem::configure))

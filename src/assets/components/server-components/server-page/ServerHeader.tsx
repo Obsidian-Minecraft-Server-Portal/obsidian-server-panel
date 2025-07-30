@@ -1,12 +1,14 @@
 import {Button, cn, Divider} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useMessage} from "../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../MessageModal.tsx";
 import {motion} from "framer-motion";
 import {ServerIcon} from "./ServerIcon.tsx";
 import ReactMarkdown from "react-markdown";
+import $ from "jquery";
+import {Tooltip} from "../../extended/Tooltip.tsx";
 
 type ServerHeaderProps = {
     id: string,
@@ -18,12 +20,47 @@ type ServerHeaderProps = {
     status: string
 }
 
+type Player =
+    {
+        name: string;
+        id: string;
+    }
+
+type PingResponse = {
+    sample?: Player[];
+    online_players?: number;
+    max_players?: number;
+}
+
 export function ServerHeader(props: ServerHeaderProps)
 {
     const {id, name, description, minecraft_version, server_type, loader_version, status} = props;
-    const {startServer, stopServer, restartServer, killServer} = useServer();
+    const {startServer, stopServer, restartServer, killServer, isServerRunning} = useServer();
     const [isServerStarting, setIsServerStarting] = useState<boolean>(false);
+    const [ping, setPing] = useState<PingResponse>();
     const {open} = useMessage();
+    const pingTimerRef = useRef(0);
+
+
+    useEffect(() =>
+    {
+        if (status.toLowerCase() !== "running") return;
+        if (pingTimerRef.current) clearInterval(pingTimerRef.current);
+        pingTimerRef.current = setInterval(async () =>
+        {
+            // Ping the server to check if it's running
+            try
+            {
+                const pingResponse: PingResponse = await $.get(`/api/server/${id}/ping`);
+                setPing(pingResponse);
+            } catch
+            {
+                // If the ping fails, we assume the server is not running
+                setPing(undefined);
+            }
+        }, 5000); // Ping every 5 seconds
+
+    }, [status]);
     return (
         <div className={"flex flex-row gap-4 mt-8"}>
             <motion.div
@@ -112,6 +149,26 @@ export function ServerHeader(props: ServerHeaderProps)
                                 {isServerStarting ? "Starting" : status}
                             </span>
                         </p>
+                        {isServerRunning() && ping &&
+                            <>
+                                <Divider orientation={"vertical"}/>
+                                <Tooltip
+                                    content={
+                                        <div className={"flex flex-col gap-2"}>
+                                            <p className={"text-sm text-gray-500"}>Online Players: {ping.online_players ?? "Unknown"}</p>
+                                            {ping.sample?.map(player => (
+                                                <p key={player.id} className={"text-sm text-gray-500"}>{player.name}</p>
+                                            ))}
+                                        </div>
+                                    }
+                                >
+                                    <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
+                                        <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:users"} className={"text-xl"}/>  <span>Players</span> </span>
+                                        <span className={"capitalize"}>{ping.online_players}</span>
+                                    </p>
+                                </Tooltip>
+                            </>
+                        }
                     </div>
                 </div>
             </motion.div>

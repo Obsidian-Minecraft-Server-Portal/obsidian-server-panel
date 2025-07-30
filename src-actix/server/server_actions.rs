@@ -2,6 +2,7 @@ use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::Result;
 use log::{debug, error, warn};
+use obsidian_upnp::open_port;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -17,6 +18,19 @@ impl ServerData {
         }
         self.status = ServerStatus::Starting;
         self.save().await?;
+
+        if self.upnp {
+            let properties = self.get_server_properties();
+            if let Err(e) = properties {
+                self.status = ServerStatus::Crashed;
+                self.save().await?;
+                return Err(anyhow::anyhow!("Failed to get server properties: {}", e));
+            } else if let Ok(properties) = properties {
+                debug!("Opening port {} for server {}", properties.server_port.unwrap_or(25565) as u16, self.id);
+                open_port!(properties.server_port.unwrap_or(25565) as u16, format!("Minecraft Server {}", self.id))
+            }
+        }
+        debug!("Starting server {}", self.id);
 
         let directory_path = self.get_directory_path().canonicalize()?;
         let self_clone = self.clone();

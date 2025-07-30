@@ -21,7 +21,7 @@ export function ServerItem(props: ServerItemProps)
         <div className={"flex flex-col gap-2"}>
             <div className={"flex flex-row items-center justify-between p-2 hover:bg-gray-600/20 transition-all duration-200"}>
                 <div className={"flex flex-row items-center gap-2"}>
-                    <ServerIcon id={serverId} size={"sm"}/>
+                    <ServerIcon id={serverId} size={"tiny"}/>
                     <Link href={`/app/servers/${serverId}`} className={"text-gray-400 text-sm cursor-pointer w-full py-2 font-minecraft-body"}>{serverName}</Link>
                 </div>
                 <div className={"flex flex-row gap-2 items-center"}>

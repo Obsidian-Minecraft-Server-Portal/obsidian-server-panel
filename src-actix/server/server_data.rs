@@ -1,3 +1,4 @@
+use crate::server::server_properties::ServerProperties;
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
@@ -169,11 +170,16 @@ impl ServerData {
             let result = std::fs::read(icon_path);
             if let Ok(data) = result {
                 return data;
-            }else if let Err(e) = result {
+            } else if let Err(e) = result {
                 log::error!("Failed to read server icon: {}", e);
             }
         }
         ICON.to_vec()
+    }
+
+    pub fn get_server_properties(&self) -> Result<ServerProperties> {
+        let properties_path = self.get_directory_path().join("server.properties");
+        ServerProperties::load(properties_path)
     }
 
     fn generate_directory_name(name: &str) -> String {
