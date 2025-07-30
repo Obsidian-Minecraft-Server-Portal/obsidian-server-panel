@@ -14,6 +14,7 @@ import {FileInput} from "../../../extended/FileInput.tsx";
 import {NeoForge} from "../../../icons/NeoForge.svg.tsx";
 import Quilt from "../../../icons/Quilt.svg.tsx";
 import {getMinecraftVersionDownloadUrl} from "../../../../ts/minecraft-versions.ts";
+import {ServerIcon} from "../ServerIcon.tsx";
 
 export function ServerOptions()
 {
@@ -221,6 +222,7 @@ export function ServerOptions()
             // Only load data once when the server is first set or when server ID changes
             if (!firstLoadStateRef.current)
             {
+                console.log("Options Server", server);
                 firstLoadStateRef.current = true;
                 setName(server.name);
                 setDescription(server.description || "");
@@ -269,7 +271,8 @@ export function ServerOptions()
                     isDisabled={!hasChanges()}
                     onPress={handleSave}
                     startContent={<Icon icon="pixelarticons:save"/>}
-                    className={"data-[has-changes=true]:fixed data-[has-changes=false]:absolute data-[has-changes=false]:right-8 data-[has-changes=true]:right-16 z-10"}
+                    className={"absolute right-10 -translate-y-[70px] z-10"}
+                    // className={"data-[has-changes=true]:fixed data-[has-changes=false]:absolute data-[has-changes=false]:right-8 data-[has-changes=true]:right-16 z-10"}
                     data-has-changes={hasChanges()}
                 >
                     {isUploadingLoader ? "Uploading Server..." : "Save Changes"}
@@ -279,15 +282,17 @@ export function ServerOptions()
             {/* Basic Information */}
             <section className="flex flex-col gap-4">
                 <h3 className="text-lg font-minecraft-header">Basic Information</h3>
-
-                <Input
-                    label="Server Name"
-                    radius="none"
-                    className="font-minecraft-body"
-                    value={name}
-                    onValueChange={setName}
-                    startContent={<Icon icon="pixelarticons:device-game-console"/>}
-                />
+                <div className={"flex flex-row gap-2"}>
+                    <ServerIcon id={server.id} isChangeEnabled={true} size={"sm"}/>
+                    <Input
+                        label="Server Name"
+                        radius="none"
+                        className="font-minecraft-body"
+                        value={name}
+                        onValueChange={setName}
+                        startContent={<Icon icon="pixelarticons:device-game-console"/>}
+                    />
+                </div>
 
                 <Textarea
                     label="Description"
@@ -488,7 +493,10 @@ export function ServerOptions()
 
                 <JavaExecutableSelector
                     defaultSelectedExecutable={javaExecutable}
-                    onVersionChange={(executable) => setJavaExecutable(executable || "")}
+                    onVersionChange={(executable) =>
+                    {
+                        if (executable) setJavaExecutable(executable);
+                    }}
                     isDisabled={false}
                 />
 
@@ -502,31 +510,6 @@ export function ServerOptions()
                     startContent={<Icon icon="pixelarticons:terminal"/>}
                     description="Additional JVM arguments (excluding -Xmx and -Xms)"
                 />
-            </section>
-
-            <Divider/>
-
-            {/* Server Arguments */}
-            <section className="flex flex-col gap-4">
-                <h3 className="text-lg font-minecraft-header">Server Arguments</h3>
-
-                <Input
-                    label="Minecraft Server Arguments"
-                    radius="none"
-                    className="font-minecraft-body"
-                    placeholder="--nogui --port 25565..."
-                    value={minecraftArgs}
-                    onValueChange={setMinecraftArgs}
-                    startContent={<Icon icon="pixelarticons:command-line"/>}
-                    description="Additional arguments passed to the Minecraft server"
-                />
-            </section>
-
-            <Divider/>
-
-            {/* Memory Configuration */}
-            <section className="flex flex-col gap-4">
-                <h3 className="text-lg font-minecraft-header">Memory Configuration</h3>
 
                 <RamSlider
                     value={maxMemory}
@@ -548,6 +531,23 @@ export function ServerOptions()
                 />
             </section>
 
+            <Divider/>
+
+            {/* Server Arguments */}
+            <section className="flex flex-col gap-4">
+                <h3 className="text-lg font-minecraft-header">Server Arguments</h3>
+
+                <Input
+                    label="Minecraft Server Arguments"
+                    radius="none"
+                    className="font-minecraft-body"
+                    placeholder="--nogui --port 25565..."
+                    value={minecraftArgs}
+                    onValueChange={setMinecraftArgs}
+                    startContent={<Icon icon="pixelarticons:command-line"/>}
+                    description="Additional arguments passed to the Minecraft server"
+                />
+            </section>
 
             <Divider/>
 

@@ -1,10 +1,11 @@
-import {Button, cn, Divider, Image} from "@heroui/react";
+import {Button, cn, Divider} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
 import {useState} from "react";
 import {useMessage} from "../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../MessageModal.tsx";
 import {motion} from "framer-motion";
+import {ServerIcon} from "./ServerIcon.tsx";
 
 type ServerHeaderProps = {
     id: string,
@@ -30,7 +31,7 @@ export function ServerHeader(props: ServerHeaderProps)
                 transition={{duration: 0.3, ease: "easeInOut"}}
                 className={"flex flex-row gap-4 mt-8"}
             >
-                <Image src={`/api/server/${id}/icon`}/>
+                <ServerIcon id={id} isChangeEnabled={true} size={"md"}/>
                 <div className={"flex flex-col gap-4"}>
                     <h1 className={"text-4xl"}>{name}</h1>
                     <div className={"flex flex-row gap-4 font-minecraft-body items-center"}>
