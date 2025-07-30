@@ -1,7 +1,7 @@
-use crate::{app_db, ICON};
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
+use crate::{ICON, app_db};
 use anyhow::Result;
 use serde_hash::HashIds;
 use sqlx::FromRow;
@@ -163,10 +163,12 @@ impl ServerData {
         Ok(())
     }
 
-    pub fn get_icon(&self)-> Vec<u8>{
+    pub fn get_icon(&self) -> Vec<u8> {
         let icon_path = self.get_directory_path().join("server-icon.png");
         if icon_path.exists() {
-            if let Ok(data) = std::fs::read(icon_path) { return data }
+            if let Ok(data) = std::fs::read(icon_path) {
+                return data;
+            }
         }
         ICON.to_vec()
     }
@@ -177,9 +179,9 @@ impl ServerData {
         let mut index = 1u32;
         loop {
             if !path.exists() {
-                return dir_name;
+                return if let Some(filename) = path.file_name() { filename.to_string_lossy().to_string() } else { dir_name };
             }
-            path.set_file_name(format!("{} ({})", dir_name, index));
+            path.set_file_name(format!("{} ({})", dir_name, index)); // e.g. "my_minecraft_server (1)"
             index += 1;
         }
     }
