@@ -12,28 +12,9 @@ import {FileTableBreadcrumbs} from "./FileTableBreadcrumbs.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {ErrorBoundary} from "../../../ErrorBoundry.tsx";
 import {FileEntryIcon} from "./FileEntryIcon.tsx";
-import {Editor} from "@monaco-editor/react";
-import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";
-import {registerMinecraftPropertiesLanguage} from "../../../../ts/minecraft-properties-language.ts";
+import {isTextFile} from "../../../../ts/file-type-match.ts";
+import {ServerFileEditor, ServerFileEditorRef} from "./ServerFileEditor.tsx";
 import {AnimatePresence, motion} from "framer-motion";
-
-// Define the theme outside the component
-const defineObsidianTheme = (monaco: any) =>
-{
-    monaco.editor.defineTheme("obsidian-editor-theme", {
-        base: "vs-dark",
-        inherit: true,
-        rules: [
-            {token: "key", foreground: "#47ebb4"},
-            {token: "value", foreground: "#CE9178"},
-            {token: "comment", foreground: "#57718e", fontStyle: "italic"},
-            {token: "operator", foreground: "#0aa370"}
-        ],
-        colors: {
-            "editor.background": "#0b0b0e"
-        }
-    });
-};
 
 type UploadProgress = {
     entry: FilesystemEntry;
@@ -69,12 +50,9 @@ export function ServerFiles()
         const savedWidth = localStorage.getItem("editor-width");
         return savedWidth ? parseInt(savedWidth, 10) : 400;
     });
-    const editorRef = useRef<any>(null);
-    const monacoRef = useRef<any>(null);
-    const editorWrapperRef = useRef<HTMLDivElement>(null);
-    const editorSaveTimerRef = useRef<number | undefined>(undefined);
     const [needsToSave, setNeedsToSave] = useState(false);
     const newContentRef = useRef<string>("");
+    const serverFileEditorRef = useRef<ServerFileEditorRef>(null);
 
     const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
 
@@ -95,7 +73,6 @@ export function ServerFiles()
 
         console.log("Attempting to save content:", newContentRef, "Needs to save:", needsToSave, "File:", currentSelectedEntries);
 
-        if (editorSaveTimerRef.current) clearTimeout(editorSaveTimerRef.current);
         setNeedsToSave(false);
 
         try
@@ -120,19 +97,25 @@ export function ServerFiles()
                 severity: "danger"
             });
         }
-    }, [newContentRef, editorSaveTimerRef, needsToSave, open]);
+    }, [newContentRef, needsToSave, open, setFileContents]);
 
-    const reboundSaveContent = useCallback(async () =>
-    {
-        const currentSelectedEntries = selectedEntriesRef.current;
-        if (!currentSelectedEntries || currentSelectedEntries.length !== 1 || !isTextFile(currentSelectedEntries[0].path)) return;
+    const handleContentChange = useCallback((content: string) => {
+        console.log("Editor content changed:", content);
+        newContentRef.current = content;
+        setNeedsToSave(true);
+    }, []);
 
-        if (editorSaveTimerRef.current) clearTimeout(editorSaveTimerRef.current);
-        editorSaveTimerRef.current = setTimeout(async () =>
-        {
-            await saveContent();
-        }, 5000);
-    }, [saveContent]);
+    const handleDragStart = useCallback(() => {
+        setIsDragging(true);
+    }, []);
+
+    const handleDragEnd = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    const handleWidthChange = useCallback((width: number) => {
+        setEditorWidth(width);
+    }, []);
 
     const upload = useCallback(async (files: File[]) =>
     {
@@ -502,7 +485,6 @@ export function ServerFiles()
     {
         if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile)
         {
-            if (editorSaveTimerRef.current) clearTimeout(editorSaveTimerRef.current);
             setSelectedFileContents("");
             setNeedsToSave(false);
 
@@ -525,73 +507,7 @@ export function ServerFiles()
         {
             // Reset file contents when selection changes or multiple files are selected
             setSelectedFileContents("");
-            // setIsEditingFile(false);
         }
-    }, [selectedEntries, isEditingFile]);
-
-    const handleEditorMount = useCallback((editor: any, monaco: any) =>
-    {
-        editorRef.current = editor;
-        monacoRef.current = monaco;
-
-        // Define the theme first
-        defineObsidianTheme(monaco);
-
-        // Register the Minecraft properties language
-        registerMinecraftPropertiesLanguage(monaco);
-
-        // Set the theme after it's defined
-        monaco.editor.setTheme("obsidian-editor-theme");
-
-        // Override the toggle line comment keybinding
-        editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyC,
-            () =>
-            {
-                editor.trigger("keyboard", "editor.action.commentLine", {});
-            }
-        );
-
-        // Optional: Disable the original Ctrl+/ keybinding
-        editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash,
-            () =>
-            {
-            }
-        );
-
-        editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
-            () =>
-            {
-                editor.trigger("keyboard", "editor.action.formatDocument", {});
-            }
-        );
-
-        editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-            async () =>
-            {
-                console.log("Saving content from editor");
-                await saveContent();
-            }
-        );
-
-        editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD,
-            async () =>
-            {
-                editor.trigger("keyboard", "editor.action.deleteLines", {});
-            }
-        );
-
-        editor.addCommand(
-            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD,
-            async () =>
-            {
-                editor.trigger("keyboard", "editor.action.duplicateSelection", {});
-            }
-        );
     }, [selectedEntries, isEditingFile]);
 
     return (
@@ -868,163 +784,20 @@ export function ServerFiles()
                     />
                 ) : null}
             </div>
-            <motion.div
-                id={"server-file-editor"}
-                ref={editorWrapperRef}
-                className={"max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}
-                initial={{opacity: 0, width: 0}}
-                animate={{
-                    opacity: isEditingFile && selectedEntries.length === 1 ? 1 : 0,
-                    width: isEditingFile && selectedEntries.length === 1 ? `${editorWidth}px` : "0"
-                }}
-                exit={{opacity: 0, width: 0}}
-                transition={{duration: isDragging ? 0 : 0.3, ease: "easeInOut"}}
-                data-editing-file={isEditingFile && selectedEntries.length === 1}
-            >
-                {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) ? (
-                    <Editor
-                        className={"w-full h-full"}
-                        theme={"obsidian-editor-theme"}
-                        value={isEditingFile ? selectedFileContents : ""}
-                        language={getMonacoLanguage(selectedEntries[0]?.path ?? "") ?? "auto"}
-                        onMount={handleEditorMount}
-                        width={`${editorWidth}px`}
-                        onChange={async content =>
-                        {
-                            console.log("Editor content changed:", content);
-                            newContentRef.current = content ?? "";
-                            setNeedsToSave(true);
-                            await reboundSaveContent();
-                        }}
-                        options={{
-                            fontSize: 14,
-                            minimap: {enabled: false},
-                            lineNumbers: "on",
-                            scrollBeyondLastLine: false,
-                            automaticLayout: true,
-                            wordWrap: "on",
-                            tabSize: 2,
-                            contextmenu: false,
-                            autoClosingBrackets: "always",
-                            autoClosingOvertype: "always",
-                            autoClosingQuotes: "always",
-                            quickSuggestions: {
-                                other: true,
-                                comments: false,
-                                strings: true
-                            },
-                            suggestOnTriggerCharacters: true,
-                            acceptSuggestionOnEnter: "on",
-                            tabCompletion: "on",
-                            wordBasedSuggestions: "matchingDocuments",
-                            parameterHints: {
-                                enabled: true,
-                                cycle: true
-                            },
-                            formatOnPaste: true,
-                            formatOnType: true,
-                            matchBrackets: "always",
-                            autoIndent: "full",
-                            folding: true,
-                            foldingStrategy: "indentation",
-                            suggest: {
-                                showKeywords: true,
-                                showSnippets: true,
-                                showFunctions: true,
-                                showConstructors: true,
-                                showFields: true,
-                                showVariables: true,
-                                showClasses: true,
-                                showStructs: true,
-                                showInterfaces: true,
-                                showModules: true,
-                                showProperties: true,
-                                showEvents: true,
-                                showOperators: true,
-                                showUnits: true,
-                                showValues: true,
-                                showConstants: true,
-                                showEnums: true,
-                                showEnumMembers: true,
-                                showColors: true,
-                                showFiles: true,
-                                showReferences: true,
-                                showFolders: true,
-                                showTypeParameters: true,
-                                showUsers: true,
-                                showIssues: true
-                            }
-                        }}
-                    />
-                ) : selectedEntries.length === 1 && !isTextFile(selectedEntries[0].path) ? (
-                    <div className="flex items-center justify-center h-full">
-                        <span className="text-gray-500 font-minecraft-body">Select a text file to edit</span>
-                    </div>
-                ) : null}
-
-                {/* Resize Handle */}
-                {isEditingFile && selectedEntries.length === 1 && (
-                    <div
-                        className={
-                            cn(
-                                "w-[8px] h-full bg-transparent transition-all duration-200 absolute left-0 top-0 cursor-ew-resize select-none hover:bg-primary hover:opacity-50"
-                            )
-                        }
-                        data-dragging={isDragging}
-                        onMouseDown={(e) =>
-                        {
-                            e.preventDefault();
-                            setIsDragging(true);
-
-                            const startX = e.clientX;
-                            const startWidth = editorWidth;
-                            const parentWidth = editorWrapperRef.current?.parentElement?.clientWidth;
-
-                            const onMouseMove = (moveEvent: MouseEvent) =>
-                            {
-                                moveEvent.preventDefault();
-                                const newWidth = startWidth - (moveEvent.clientX - startX);
-                                if (!parentWidth) return;
-                                setEditorWidth(Math.min(parentWidth - 300, Math.max(300, newWidth)));
-                            };
-
-                            const onMouseUp = (mouseEvent: MouseEvent) =>
-                            {
-                                mouseEvent.preventDefault();
-                                setIsDragging(false);
-
-                                const newWidth = Math.max(300, startWidth - (mouseEvent.clientX - startX));
-                                localStorage.setItem("editor-width", newWidth.toString());
-                                document.removeEventListener("mousemove", onMouseMove);
-                                document.removeEventListener("mouseup", onMouseUp);
-                            };
-
-                            document.addEventListener("mousemove", onMouseMove);
-                            document.addEventListener("mouseup", onMouseUp);
-                        }}
-                    >
-                        <span
-                            className={
-                                cn(
-                                    "w-px h-full bg-white opacity-20 transition-all duration-200 absolute left-0 top-0 cursor-ew-resize select-none",
-                                    "hover:opacity-50 hover:bg-primary",
-                                    "data-[dragging=true]:opacity-50 data-[dragging=true]:bg-primary"
-                                )
-                            }
-                        />
-                    </div>
-                )}
-            </motion.div>
-
-            {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && (
-                <div className={"absolute bottom-8 right-8 z-50"}>
-                    <Tooltip content={"Save Content"}>
-                        <Button radius={"none"} onPress={saveContent} isIconOnly isDisabled={!needsToSave} color={needsToSave ? "primary" : "default"} size={"lg"}>
-                            <Icon icon={"pixelarticons:save"}/>
-                        </Button>
-                    </Tooltip>
-                </div>
-            )}
+            <ServerFileEditor
+                ref={serverFileEditorRef}
+                isEditingFile={isEditingFile}
+                selectedEntries={selectedEntries}
+                selectedFileContents={selectedFileContents}
+                editorWidth={editorWidth}
+                isDragging={isDragging}
+                needsToSave={needsToSave}
+                onContentChange={handleContentChange}
+                onSave={saveContent}
+                onWidthChange={handleWidthChange}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+            />
 
             {/* Overlay to prevent clicks during dragging */}
             <AnimatePresence>
