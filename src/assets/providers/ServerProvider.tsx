@@ -86,7 +86,7 @@ interface ServerContextType
     moveEntry: (sourcePaths: string[], destinationPath: string, serverId?: string) => Promise<void>;
     renameEntry: (source: string, destination: string, serverId?: string) => Promise<void>;
     deleteEntry: (path: string | string[], serverId?: string) => Promise<void>;
-    uploadFile: (file: File, path: string, updateProgress: (bytes: number) => void, onCancelled?: () => void, serverId?: string) => Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }>;
+    uploadFile: (file: File, path: string, updateProgress?: (bytes: number) => void, onCancelled?: () => void, serverId?: string) => Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }>;
     createEntry: (filename: string, cwd: string, isDirectory: boolean, serverId?: string) => Promise<void>;
     searchFiles: (query: string, filename_only: boolean, abortSignal: AbortSignal, serverId?: string) => Promise<FilesystemEntry[]>;
     archiveFiles: (filename: string, filenames: string[], cwd: string, on_progress: (progress: number) => void, on_success: () => void, on_error: (msg: string) => void, on_cancelled?: () => void, serverId?: string) => { cancel: () => Promise<void>, trackerId: string };
@@ -432,7 +432,7 @@ export function ServerProvider({children}: { children: ReactNode })
         return await FileSystem.deleteEntry(path, targetServerId);
     }, [server]);
 
-    const uploadFile = useCallback(async (file: File, path: string, updateProgress: (bytes: number) => void, onCancelled?: () => void, serverId?: string): Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }> =>
+    const uploadFile = useCallback(async (file: File, path: string, updateProgress?: (bytes: number) => void, onCancelled?: () => void, serverId?: string): Promise<{ promise: Promise<void>, cancel: () => Promise<void>, uploadId: string }> =>
     {
         const targetServerId = serverId || server?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
