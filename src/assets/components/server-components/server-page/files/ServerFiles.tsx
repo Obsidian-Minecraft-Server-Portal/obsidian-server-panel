@@ -24,13 +24,13 @@ const defineObsidianTheme = (monaco: any) =>
         base: "vs-dark",
         inherit: true,
         rules: [
-            {token: "key", foreground: "#46da84"},
+            {token: "key", foreground: "#47ebb4"},
             {token: "value", foreground: "#CE9178"},
-            {token: "comment", foreground: "#393f49", fontStyle: "italic"},
-            {token: "operator", foreground: "#D4D4D4"}
+            {token: "comment", foreground: "#57718e", fontStyle: "italic"},
+            {token: "operator", foreground: "#0aa370"}
         ],
         colors: {
-            "editor.background": "#18181b"
+            "editor.background": "#0b0b0e"
         }
     });
 };
@@ -490,7 +490,7 @@ export function ServerFiles()
     return (
         <div className={
             cn(
-                "flex flex-row gap-2 bg-default-50 overflow-x-hidden"
+                "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10",
             )
         }>
             <div
