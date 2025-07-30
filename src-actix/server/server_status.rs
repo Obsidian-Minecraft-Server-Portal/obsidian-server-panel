@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
 use sqlx::sqlite::{SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
 use sqlx::{Database, Decode, Encode, Sqlite, Type};
 use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ServerStatus {
     Idle,
     Running,
@@ -125,5 +125,15 @@ impl Type<Sqlite> for ServerStatus {
 
     fn compatible(ty: &SqliteTypeInfo) -> bool {
         <i32 as Type<Sqlite>>::compatible(ty)
+    }
+}
+
+impl<'de> Deserialize<'de> for ServerStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                      where
+                          D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(ServerStatus::from(s))
     }
 }
