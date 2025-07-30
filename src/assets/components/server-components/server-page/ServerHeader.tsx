@@ -6,10 +6,12 @@ import {useMessage} from "../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../MessageModal.tsx";
 import {motion} from "framer-motion";
 import {ServerIcon} from "./ServerIcon.tsx";
+import ReactMarkdown from "react-markdown";
 
 type ServerHeaderProps = {
     id: string,
     name: string,
+    description: string,
     minecraft_version: string,
     server_type: string,
     loader_version: string,
@@ -18,7 +20,7 @@ type ServerHeaderProps = {
 
 export function ServerHeader(props: ServerHeaderProps)
 {
-    const {id, name, minecraft_version, server_type, loader_version, status} = props;
+    const {id, name, description, minecraft_version, server_type, loader_version, status} = props;
     const {startServer, stopServer, restartServer, killServer} = useServer();
     const [isServerStarting, setIsServerStarting] = useState<boolean>(false);
     const {open} = useMessage();
@@ -33,7 +35,51 @@ export function ServerHeader(props: ServerHeaderProps)
             >
                 <ServerIcon id={id} isChangeEnabled={true} size={"md"}/>
                 <div className={"flex flex-col gap-4"}>
-                    <h1 className={"text-4xl"}>{name}</h1>
+                    <div className={"flex flex-col gap-1 h-full"}>
+                        <h1 className={"text-4xl"}>{name}</h1>
+                        {description && (
+                            <div className={"text-normal text-gray-500 font-minecraft-body"}>
+                                <ReactMarkdown
+                                    components={{
+                                        // Disable heading size changes - keep same font size
+                                        h1: ({children}) => <span className="font-bold">{children}</span>,
+                                        h2: ({children}) => <span className="font-bold">{children}</span>,
+                                        h3: ({children}) => <span className="font-bold">{children}</span>,
+                                        h4: ({children}) => <span className="font-bold">{children}</span>,
+                                        h5: ({children}) => <span className="font-bold">{children}</span>,
+                                        h6: ({children}) => <span className="font-bold">{children}</span>,
+                                        // Style links appropriately
+                                        a: ({href, children}) => (
+                                            <a
+                                                href={href}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary hover:text-primary-600 underline transition-colors"
+                                            >
+                                                {children}
+                                            </a>
+                                        ),
+                                        // Keep text styling
+                                        strong: ({children}) => <strong className="font-bold">{children}</strong>,
+                                        em: ({children}) => <em className="italic">{children}</em>,
+                                        // Style inline code
+                                        code: ({children}) => (
+                                            <code className="bg-default-100 px-1 py-0.5 rounded text-sm font-mono">
+                                                {children}
+                                            </code>
+                                        ),
+                                        // Remove paragraph margins to keep inline
+                                        p: ({children}) => <span>{children}</span>,
+                                        // Style strikethrough
+                                        del: ({children}) => <del className="line-through">{children}</del>
+                                    }}
+                                    disallowedElements={["img"]} // Disable images for security
+                                >
+                                    {description}
+                                </ReactMarkdown>
+                            </div>
+                        )}
+                    </div>
                     <div className={"flex flex-row gap-4 font-minecraft-body items-center"}>
                         <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}><span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"streamline:controller-1-remix"} className={"text-xl"}/>  Minecraft</span> <span className={"text-primary"}>{minecraft_version}</span></p>
                         {server_type.toLowerCase() !== "vanilla" && (

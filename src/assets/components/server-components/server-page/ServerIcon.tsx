@@ -24,7 +24,7 @@ export function ServerIcon(props: ServerIconProperties)
     const {id, isChangeEnabled, size} = props;
     const [isEditing, setIsEditing] = useState(false);
     const [image, setImage] = useState<File | null>(null);
-    const {uploadFile} = useServer();
+    const {uploadFile, loadServer} = useServer();
 
     const handleEditClick = async () =>
     {
@@ -65,6 +65,7 @@ export function ServerIcon(props: ServerIconProperties)
                     if (value)
                     {
                         await uploadFile(await resizeImage(value, 64, 64), "");
+                        await loadServer(id);
                     }
                 }}
             />

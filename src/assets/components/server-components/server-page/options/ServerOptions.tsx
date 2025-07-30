@@ -18,7 +18,7 @@ import {ServerIcon} from "../ServerIcon.tsx";
 
 export function ServerOptions()
 {
-    const {server, updateServer, getEntries, uploadFromUrl, uploadFile} = useServer();
+    const {server, updateServer, getEntries, uploadFromUrl, uploadFile, loadServer} = useServer();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -186,6 +186,7 @@ export function ServerOptions()
         {
             setIsSaving(false);
             setIsUploadingLoader(false);
+            await loadServer(server.id);
         }
     }, [
         server, updateServer, name, description, javaExecutable, javaArgs,

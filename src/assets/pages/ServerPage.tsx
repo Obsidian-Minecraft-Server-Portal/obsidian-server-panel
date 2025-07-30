@@ -57,7 +57,7 @@ export default function ServerPage()
     return (
         <AnimatePresence>
             <div className={"flex flex-col gap-4 px-8"}>
-                <ServerHeader id={id} name={server.name} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
+                <ServerHeader id={id} name={server.name} description={server.description??""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
                 <motion.div
                     initial={{opacity: 0, y: 20}}
                     animate={{opacity: 1, y: 0}}

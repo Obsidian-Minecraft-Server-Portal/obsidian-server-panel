@@ -1,11 +1,11 @@
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
-use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
+use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use log::*;
+use obsidian_upnp::open_port;
 use serde_json::json;
 use std::env::set_current_dir;
-use obsidian_upnp::open_port;
 use vite_actix::start_vite_server;
 
 mod actix_util;
