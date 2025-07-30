@@ -1,7 +1,7 @@
 import {Listbox, ListboxItem, ListboxSection} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import $ from "jquery";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
@@ -24,6 +24,7 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
 {
     const {downloadEntry} = useServer();
     const [position, setPosition] = useState({x, y});
+    const menuRef = useRef<HTMLDivElement>(null);
 
 
     const downloadSelectedEntries = useCallback(async () =>
@@ -45,14 +46,15 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
     useEffect(() =>
     {
         let parent = $("#server-file-browser");
-        let menu = $("#server-files-context-menu");
-        if (parent.length === 0 || menu.length == 0) return;
+        let menu = menuRef.current;
+        if (parent.length === 0 || !menu) return;
+        let menuElement = $(menu);
 
         let offset = parent.offset();
         let parentWidth = parent.width();
         let parentHeight = parent.height();
-        let menuWidth = menu.outerWidth();
-        let menuHeight = menu.outerHeight();
+        let menuWidth = menuElement.outerWidth();
+        let menuHeight = menuElement.outerHeight();
         if (!offset || !menuWidth || !menuHeight || !parentWidth || !parentHeight) return;
 
 
@@ -68,35 +70,17 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
         }
 
         setPosition({x: newX - 50, y: newY - 340});
-
-        const handleClickOutside = (event: MouseEvent) =>
-        {
-            const clickTarget = event.target as HTMLElement;
-            if (!menu[0].contains(clickTarget) && !parent[0].contains(clickTarget))
-            {
-                onClose();
-            }
-        };
-
-        if (isOpen)
-        {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-
-        return () =>
-        {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-
     }, [x, y, isOpen, onClose]);
     return (
         <Listbox
             id={"server-files-context-menu"}
+            ref={menuRef}
             className={"absolute z-50 w-64 bg-background/50 backdrop-blur-sm border border-primary/50 shadow-lg data-[open=true]:opacity-100 data-[open=false]:opacity-0 transition-opacity duration-200 data-[open=false]:pointer-events-none font-minecraft-body"}
             style={{top: position.y, left: position.x}}
             itemClasses={{base: "rounded-none font-minecraft-body"}}
             data-open={isOpen}
             onSelectionChange={() => onClose()}
+            tabIndex={1}
         >
             <ListboxSection title={Array.isArray(entry) ? `${entry.length} Items Selected` : entry?.filename ?? ""} itemClasses={{base: "rounded-none font-minecraft-body"}}>
                 {!Array.isArray(entry) && entry ? (() =>
