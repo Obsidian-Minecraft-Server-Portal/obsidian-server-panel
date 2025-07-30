@@ -23,8 +23,12 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
         if (!minecraftVersions) return;
 
         setVersions(minecraftVersions.versions.filter(i => i.type === "release" || (showSnapshots && i.type === "snapshot") || (showOlderVersions && (i.type === "old_beta" || i.type === "old_alpha"))).map(version => version.id));
-        setSelectedVersion(showSnapshots ? minecraftVersions.latest.snapshot : minecraftVersions.latest.release);
-    }, [showSnapshots, showOlderVersions, minecraftVersions]);
+
+        // Only set default version if no version is controlled from parent
+        if (!version && !selectedVersion) {
+            setSelectedVersion(showSnapshots ? minecraftVersions.latest.snapshot : minecraftVersions.latest.release);
+        }
+    }, [showSnapshots, showOlderVersions, minecraftVersions]); // Removed version and selectedVersion from deps
 
     useEffect(() =>
     {
@@ -33,7 +37,14 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
             const url = minecraftVersions?.versions.find(i => i.id === selectedVersion)?.url;
             onVersionChange(selectedVersion, url);
         }
-    }, [selectedVersion, showOlderVersions, showSnapshots, minecraftVersions]);
+    }, [selectedVersion, minecraftVersions, onVersionChange]); // Removed showOlderVersions and showSnapshots from deps
+
+    useEffect(() =>
+    {
+        if (version !== undefined) {
+            setSelectedVersion(version);
+        }
+    }, [version]);
 
     return (
         <div className={"flex flex-row gap-2 items-center"}>

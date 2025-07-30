@@ -4,15 +4,16 @@ import {useForgeVersions} from "../../../providers/LoaderVersionProviders/ForgeV
 
 type ForgeVersionSelectorProps = {
     minecraftVersion: string;
+    version?: string;
     onVersionChange: (url: string | undefined, version: string | undefined) => void
     isDisabled: boolean
 }
 
 export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
 {
-    const {minecraftVersion} = props;
+    const {minecraftVersion, version} = props;
     const {forgeVersions} = useForgeVersions();
-    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(undefined);
+    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(version);
     const [versions, setVersions] = useState<string[]>([]);
     useEffect(() =>
     {
@@ -21,19 +22,29 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
         if (versions && versions.length > 0)
         {
             setVersions(versions);
-            setSelectedVersion(versions[0]);
+            // Only set default version if no version is controlled from parent
+            if (!version && !selectedVersion) {
+                setSelectedVersion(versions[0]);
+            }
         } else
         {
             setVersions([]);
             setSelectedVersion(undefined);
         }
-    }, [props]);
+    }, [forgeVersions, minecraftVersion]); // Removed props from deps
 
     useEffect(() =>
     {
         if (!selectedVersion || !minecraftVersion) return;
         props.onVersionChange(getForgeInstallerUrl(minecraftVersion, selectedVersion), selectedVersion);
-    }, [selectedVersion, minecraftVersion]);
+    }, [selectedVersion, minecraftVersion, props]);
+
+    useEffect(() =>
+    {
+        if (version !== undefined) {
+            setSelectedVersion(version);
+        }
+    }, [version]);
 
     return (
         <Autocomplete

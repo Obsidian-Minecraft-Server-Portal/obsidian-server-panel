@@ -99,6 +99,7 @@ export default function NewServerModal(props: NewServerProperties)
                 try
                 {
                     await uploadFromUrl(loaderUrl ?? await getMinecraftVersionDownloadUrl(selectedMinecraftVersion), filepath, onProgress, onSuccess, onError, serverId);
+                    setCreationProgress(0.8); // Download complete after successful upload
                 } catch (error)
                 {
                     console.error("Error uploading server jar:", error);

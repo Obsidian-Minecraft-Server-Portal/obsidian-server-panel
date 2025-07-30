@@ -4,15 +4,18 @@ import {useQuiltVersions} from "../../../providers/LoaderVersionProviders/QuiltV
 
 type QuiltVersionSelectorProps = {
     minecraftVersion: string;
+    version?: string;
+    onVersionChange?: (url: string | undefined, version: string | undefined) => void;
     isDisabled: boolean
 }
 
 export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
 {
-    const {minecraftVersion} = props;
+    const {minecraftVersion, version, onVersionChange} = props;
     const {quiltVersions} = useQuiltVersions();
-    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(undefined);
+    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(version);
     const [versions, setVersions] = useState<string[]>([]);
+
     useEffect(() =>
     {
         if (!quiltVersions) return;
@@ -26,13 +29,36 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
         if (versions && versions.length > 0)
         {
             setVersions(versions);
-            setSelectedVersion(versions[0]);
+            // Only set default version if no version is controlled from parent
+            if (!version && !selectedVersion)
+            {
+                setSelectedVersion(versions[0]);
+            }
         } else
         {
             setVersions([]);
             setSelectedVersion(undefined);
         }
-    }, [props]);
+    }, [quiltVersions, minecraftVersion]); // Removed props from deps
+
+    useEffect(() =>
+    {
+        if (onVersionChange && selectedVersion && minecraftVersion)
+        {
+            // Quilt uses similar URL structure to Fabric
+            const url = `https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/${selectedVersion}/quilt-loader-${selectedVersion}-installer.jar`;
+            onVersionChange(url, selectedVersion);
+        }
+    }, [selectedVersion, onVersionChange, minecraftVersion]);
+
+    useEffect(() =>
+    {
+        if (version !== undefined)
+        {
+            setSelectedVersion(version);
+        }
+    }, [version]);
+
     return (
         <Autocomplete
             label={`Quilt Version`}

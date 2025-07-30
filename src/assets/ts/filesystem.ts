@@ -704,7 +704,7 @@ export class FileSystem
                 eventSource.onopen = () =>
                 {
                     console.log("Upload from URL started:", url);
-                    resolve(); // Resolve immediately when connection opens
+                    // Don't resolve here - wait for completion
                 };
 
                 eventSource.addEventListener("progress", (event: MessageEvent) =>
@@ -750,10 +750,11 @@ export class FileSystem
                 {
                     if (isCompleted) return; // Prevent multiple completion handling
 
+                    console.log("Upload from URL completed:", url);
                     eventSource.close();
                     isCompleted = true;
-                    console.log("Upload from URL completed:", url);
                     onSuccess();
+                    resolve(); // Only resolve when upload is actually complete
                 });
 
             } catch (error: Error | any)

@@ -2,30 +2,54 @@ import {Autocomplete, AutocompleteItem} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {useNeoForgeVersions} from "../../../providers/LoaderVersionProviders/NeoForgeVersionsProvider.tsx";
 
-type ForgeVersionSelectorProps = {
+type NeoForgeVersionSelectorProps = {
     minecraftVersion: string;
+    version?: string;
+    onVersionChange?: (url: string | undefined, version: string | undefined) => void;
     isDisabled: boolean
 }
 
-export function NeoForgeVersionSelector(props: ForgeVersionSelectorProps)
+export function NeoForgeVersionSelector(props: NeoForgeVersionSelectorProps)
 {
-    const {minecraftVersion} = props;
+    const {minecraftVersion, version, onVersionChange} = props;
     const {getFromMinecraftVersion} = useNeoForgeVersions();
-    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(undefined);
+    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(version);
     const [versions, setVersions] = useState<string[]>([]);
+
     useEffect(() =>
     {
         const versions = getFromMinecraftVersion(minecraftVersion) as string[];
         if (versions && versions.length > 0)
         {
             setVersions(versions);
-            setSelectedVersion(versions[0]);
+            // Only set default version if no version is controlled from parent
+            if (!version && !selectedVersion) {
+                setSelectedVersion(versions[0]);
+            }
         } else
         {
             setVersions([]);
             setSelectedVersion(undefined);
         }
-    }, [props]);
+    }, [getFromMinecraftVersion, minecraftVersion]); // Removed props from deps
+
+    useEffect(() =>
+    {
+        if (onVersionChange && selectedVersion && minecraftVersion)
+        {
+            // NeoForge installer URL structure
+            const url = `https://maven.neoforged.net/releases/net/neoforged/neoforge/${selectedVersion}/neoforge-${selectedVersion}-installer.jar`;
+            onVersionChange(url, selectedVersion);
+        }
+    }, [selectedVersion, onVersionChange, minecraftVersion]);
+
+    useEffect(() =>
+    {
+        if (version !== undefined) {
+            setSelectedVersion(version);
+        }
+    }, [version]);
+
     return (
         <Autocomplete
             label={`NeoForge Version`}

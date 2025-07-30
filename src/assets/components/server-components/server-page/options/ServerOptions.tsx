@@ -77,8 +77,9 @@ export function ServerOptions()
 
     const handleLoaderChange = useCallback((url: string | undefined, version: string | undefined) =>
     {
+        if (!version) return;
         setLoaderUrl(url);
-        setLoaderVersion(version || "");
+        setLoaderVersion(version);
     }, []);
 
     const generateNewJarFilename = useCallback(() =>
@@ -118,13 +119,14 @@ export function ServerOptions()
 
                 if (loaderType !== "custom")
                 {
-                    if (!loaderUrl && loaderType !== "vanilla")
+                    if (!loaderUrl)
                     {
                         throw new Error(`Loader URL is not defined for selected loader: ${loaderType}`);
                     }
 
+
                     await uploadFromUrl(
-                        loaderUrl ?? await getMinecraftVersionDownloadUrl(minecraftVersion),
+                        loaderType === "vanilla" ? await getMinecraftVersionDownloadUrl(minecraftVersion) : loaderUrl,
                         newJarFilename,
                         (progress) => console.log(`Downloading ${loaderType} server: ${progress}%`),
                         () => console.log("Download complete"),
@@ -149,8 +151,10 @@ export function ServerOptions()
 
                 finalServerJar = newJarFilename;
                 setServerJar(newJarFilename);
-                setIsUploadingLoader(false);
             }
+
+            // Set isUploadingLoader to false only after upload is complete
+            setIsUploadingLoader(false);
 
             await updateServer({
                 name,
@@ -448,7 +452,8 @@ export function ServerOptions()
                 <MinecraftVersionSelector
                     onVersionChange={(version, url) =>
                     {
-                        setMinecraftVersion(version || "");
+                        if (!version) return;
+                        setMinecraftVersion(version);
                         // Store the vanilla server URL if this is for vanilla servers
                         if (loaderType === "vanilla" && url)
                         {
@@ -460,8 +465,9 @@ export function ServerOptions()
                 />
 
                 <LoaderSelector
+                    loaderVersion={loaderVersion}
                     selectedLoader={loaderType}
-                    version={minecraftVersion}
+                    minecraftVersion={minecraftVersion}
                     isSnapshot={(minecraftVersion?.includes("snapshot") || minecraftVersion?.includes("pre-release")) ?? false}
                     onChange={handleLoaderChange}
                     onCustomJarChange={setCustomJarFile}
@@ -602,7 +608,8 @@ export function ServerOptions()
 
 type LoaderSelectorProps = {
     selectedLoader: string;
-    version: string | undefined;
+    minecraftVersion: string | undefined;
+    loaderVersion: string | undefined;
     onChange: (url: string | undefined, version: string | undefined) => void;
     onCustomJarChange: (file: File | undefined) => void;
     isDisabled: boolean;
@@ -613,12 +620,13 @@ function LoaderSelector(props: LoaderSelectorProps)
 {
     const {
         selectedLoader,
-        version,
+        minecraftVersion,
+        loaderVersion,
         onChange,
         isDisabled
     } = props;
 
-    if (!version)
+    if (!minecraftVersion)
     {
         return (
             <p className="text-danger font-minecraft-body text-tiny italic underline">
@@ -627,12 +635,13 @@ function LoaderSelector(props: LoaderSelectorProps)
         );
     }
 
-    switch (selectedLoader)
+    switch (selectedLoader.toLowerCase())
     {
         case "fabric":
             return (
                 <FabricVersionSelector
-                    minecraftVersion={version}
+                    version={loaderVersion}
+                    minecraftVersion={minecraftVersion}
                     onVersionChange={onChange}
                     isDisabled={isDisabled}
                     isSnapshot={props.isSnapshot}
@@ -641,7 +650,8 @@ function LoaderSelector(props: LoaderSelectorProps)
         case "forge":
             return (
                 <ForgeVersionSelector
-                    minecraftVersion={version}
+                    version={loaderVersion}
+                    minecraftVersion={minecraftVersion}
                     onVersionChange={onChange}
                     isDisabled={isDisabled}
                 />
@@ -649,14 +659,16 @@ function LoaderSelector(props: LoaderSelectorProps)
         case "quilt":
             return (
                 <QuiltVersionSelector
-                    minecraftVersion={version}
+                    version={loaderVersion}
+                    minecraftVersion={minecraftVersion}
                     isDisabled={isDisabled}
                 />
             );
         case "neoforge":
             return (
                 <NeoForgeVersionSelector
-                    minecraftVersion={version}
+                    version={loaderVersion}
+                    minecraftVersion={minecraftVersion}
                     isDisabled={isDisabled}
                 />
             );

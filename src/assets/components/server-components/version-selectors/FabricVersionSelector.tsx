@@ -4,6 +4,7 @@ import {useFabricVersions} from "../../../providers/LoaderVersionProviders/Fabri
 import {getFabricServerUrl} from "../../../ts/fabric-versions.ts";
 
 type FabricVersionSelectorProps = {
+    version?: string;
     minecraftVersion: string;
     isSnapshot: boolean;
     onVersionChange: (url: string | undefined, version: string | undefined) => void
@@ -12,10 +13,11 @@ type FabricVersionSelectorProps = {
 
 export function FabricVersionSelector(props: FabricVersionSelectorProps)
 {
-    const {minecraftVersion} = props;
+    const {minecraftVersion, version} = props;
     const {fabricVersions} = useFabricVersions();
-    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(undefined);
+    const [selectedVersion, setSelectedVersion] = useState<string | undefined>(version);
     const [versions, setVersions] = useState<string[]>([]);
+
     useEffect(() =>
     {
         if (!fabricVersions) return;
@@ -29,13 +31,16 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
         if (versions && versions.length > 0)
         {
             setVersions(versions);
-            setSelectedVersion(versions[0]);
+            // Only set default version if no version is controlled from parent
+            if (!version && !selectedVersion) {
+                setSelectedVersion(versions[0]);
+            }
         } else
         {
             setVersions([]);
             setSelectedVersion(undefined);
         }
-    }, [props, fabricVersions, selectedVersion]);
+    }, [fabricVersions, minecraftVersion]); // Removed props and selectedVersion from deps
 
     useEffect(() =>
     {
@@ -53,7 +58,14 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
         const url = getFabricServerUrl(selectedVersion, minecraftVersion, installer);
         props.onVersionChange(url, selectedVersion);
         console.log(`Selected Fabric version: ${selectedVersion}, URL: ${url}`);
-    }, [selectedVersion, props]);
+    }, [selectedVersion, minecraftVersion, fabricVersions, props]);
+
+    useEffect(() =>
+    {
+        if (version !== undefined) {
+            setSelectedVersion(version);
+        }
+    }, [version]);
 
     return (
         <Autocomplete
