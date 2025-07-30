@@ -1,6 +1,6 @@
 import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {ReactNode} from "react";
+import {ReactNode, useEffect} from "react";
 
 export type MessageOptions = {
     title: string;
@@ -33,6 +33,29 @@ export default function MessageModal(props: MessageProperties)
         isOpen,
         onClose
     } = props;
+
+    // Handle keyboard events for Enter and Space
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                event.stopPropagation();
+                // Trigger the primary action (Yes/Okay/Close)
+                onClose(true);
+            }
+        };
+
+        // Add event listener when modal is open
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup event listener when modal closes or component unmounts
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, onClose]);
+
     return (
         <Modal
             isOpen={isOpen}
@@ -67,18 +90,18 @@ export default function MessageModal(props: MessageProperties)
                             {({
                                 [MessageResponseType.YesNo]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"}>Yes</Button>
+                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"} autoFocus>Yes</Button>
                                         <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"}>No</Button>
                                     </>
                                 ),
                                 [MessageResponseType.OkayCancel]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"}>Okay</Button>
+                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"} autoFocus>Okay</Button>
                                         <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"}>Cancel</Button>
                                     </>
                                 ),
                                 [MessageResponseType.Close]: (
-                                    <Button radius={"none"} onPress={() => onClose(true)}>Close</Button>
+                                    <Button radius={"none"} onPress={() => onClose(true)} autoFocus>Close</Button>
                                 )
                             })[responseType]}
                         </ModalFooter>
