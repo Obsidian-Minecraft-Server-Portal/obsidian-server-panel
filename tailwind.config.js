@@ -21,12 +21,11 @@ export default {
             light: {
                 colors: {
                     primary: {
-                        DEFAULT: "#168a26",
-                        foreground: "#fff",
+                        DEFAULT: "#1bd96a",
+                        foreground: "#000",
                     },
-                    secondary: "#2b2b2b",
-                    background: "#ffffff",
-
+                    secondary: "#eaeaea",
+                    background: "#0b0b0e",
                 }
             },
             dark: {

@@ -94,6 +94,20 @@ impl UserData {
         Ok(users)
     }
 
+    pub async fn change_password(&self, new_password: String, pool: &SqlitePool) -> Result<()> {
+        if let Some(id) = self.id {
+            let hashed_password = bcrypt::hash(new_password, 10)?;
+            sqlx::query("UPDATE users SET password = ? WHERE id = ?")
+                .bind(hashed_password)
+                .bind(id.to_string())
+                .execute(pool)
+                .await?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("User ID is not set"))
+        }
+    }
+
     fn generate_token(&self) -> Result<String> {
         if let Some(id) = self.id {
             let data = format!("{}{}", self.username, self.password);

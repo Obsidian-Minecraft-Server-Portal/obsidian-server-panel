@@ -1,9 +1,9 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
 use crate::authentication;
-use crate::authentication::auth_data::{UserData, TOKEN_KEY};
+use crate::authentication::auth_data::{TOKEN_KEY, UserData};
 use crate::authentication::user_permissions::PermissionFlag;
-use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, web};
 use anyhow::anyhow;
 use enumflags2::BitFlags;
 use serde_json::json;
@@ -164,6 +164,22 @@ pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
     Ok(HttpResponse::Ok().json(users))
 }
 
+#[post("/change-password")]
+pub async fn change_password(body: web::Bytes, req: HttpRequest) -> Result<impl Responder> {
+    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    let password = String::from_utf8(body.to_vec()).map_err(|_| anyhow!("Invalid password format"))?;
+    if password.is_empty() {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "message": "Password cannot be empty",
+        })));
+    }
+    let pool = open_pool().await?;
+    user.change_password(password, &pool).await?;
+    pool.close().await;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/auth")
@@ -175,6 +191,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .wrap(authentication::AuthenticationMiddleware)
                     .service(get_users)
                     .service(login_with_token)
+                    .service(change_password)
                     .service(logout)
                     .service(update_permissions),
             )
