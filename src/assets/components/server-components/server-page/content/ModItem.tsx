@@ -28,7 +28,7 @@ export function ModItem(props: ModItemProps)
     } = props;
     return (
         <div key={modId} className={"flex flex-row gap-2 bg-default-200 w-full h-[200px] p-4 font-minecraft-body"}>
-            <Image src={iconUrl ?? "/favicon.ico"} width={128} height={128} className={"bg-default-100"}/>
+            <Image src={iconUrl ?? "/favicon.ico"} width={128} height={128} className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-32 min-h-32"} radius={"none"}/>
             <div className={"flex flex-col gap-2 grow"}>
                 <div className={"flex flex-row gap-2 items-center"}>
                     <h3 className={"text-2xl"}>{name}</h3>
