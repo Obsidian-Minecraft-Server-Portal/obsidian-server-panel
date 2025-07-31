@@ -158,6 +158,11 @@ export default function ServerConsole()
                                 </Button>
                             </Tooltip>
                         }
+                        listboxProps={{
+                            itemClasses: {
+                                base: "rounded-none font-minecraft-body"
+                            }
+                        }}
                     >
                         {logFiles.map((file) => (
                             <AutocompleteItem key={file} textValue={file}>{file}</AutocompleteItem>
