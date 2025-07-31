@@ -1,4 +1,3 @@
-
 import {createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState} from "react";
 import $ from "jquery";
 import {Button, Tooltip} from "@heroui/react";
@@ -21,7 +20,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({children}: { children: ReactNode })
 {
-    const [theme, setTheme] = useState<Themes>(getSavedTheme());
+    const [theme, setTheme] = useState<Themes>(Themes.DARK);
 
     useEffect(() =>
     {
