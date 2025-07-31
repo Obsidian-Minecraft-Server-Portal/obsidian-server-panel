@@ -1,6 +1,5 @@
 import {GameVersionSelector} from "../GameVersionSelector.tsx";
 import {LoaderSelector} from "../LoaderSelector.tsx";
-import {CategorySelectorSelector} from "./CategorySelector.tsx";
 
 type ContentFiltersProps = {
     selectedGameVersions: string[];
@@ -19,14 +18,12 @@ export function ContentFilters(props: ContentFiltersProps)
             <GameVersionSelector
                 selectedKeys={selectedGameVersions}
                 onSelectionChange={keys => onGameVersionChange([...keys] as string[])}
+                selectionMode={"single"}
             />
             <LoaderSelector
                 selectedKeys={selectedLoaders}
                 onSelectionChange={keys => onLoaderChange([...keys] as string[])}
-            />
-            <CategorySelectorSelector
-                selectedKeys={selectedCategories}
-                onSelectionChange={keys => onCategoryChange([...keys] as string[])}
+                selectionMode={"single"}
             />
         </>
     );
