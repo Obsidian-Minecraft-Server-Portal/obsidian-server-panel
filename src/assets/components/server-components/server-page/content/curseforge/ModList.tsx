@@ -39,7 +39,8 @@ export function ModList(props: ModListProps)
                     downloadCount: mod.downloadCount,
                     author: mod.authors[0].name,
                     categories: mod.categories.map(category => category.name),
-                    lastUpdated: new Date(mod.dateModified)
+                    lastUpdated: new Date(mod.dateModified),
+                    slug: mod.slug
                 } as ModItemProps)));
             } else
             {
@@ -66,7 +67,7 @@ export function ModList(props: ModListProps)
     return (
         <>
             {isLoading ? Array.from({length: 10}).map(() => <ModItemSkeleton/>) :
-                mods.map(mod =><ModItem {...mod}/>)}
+                mods.map(mod => <ModItem {...mod}/>)}
         </>
     );
 }

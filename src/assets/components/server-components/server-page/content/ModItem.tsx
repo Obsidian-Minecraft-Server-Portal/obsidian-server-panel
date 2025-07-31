@@ -1,5 +1,6 @@
-import {Button, cn, Divider, Image, Skeleton} from "@heroui/react";
+import {Button, cn, Divider, Image, Link, Skeleton} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
+import {useServer} from "../../../../providers/ServerProvider.tsx";
 
 export type ModItemProps = {
     modId: string;
@@ -11,10 +12,12 @@ export type ModItemProps = {
     author: string;
     categories: string[];
     lastUpdated: Date;
+    slug?: string; // Optional slug for CurseForge
 }
 
 export function ModItem(props: ModItemProps)
 {
+    const {server} = useServer();
     const {
         modId,
         platform,
@@ -24,14 +27,15 @@ export function ModItem(props: ModItemProps)
         downloadCount,
         author,
         categories,
-        lastUpdated
+        lastUpdated,
+        slug
     } = props;
     return (
-        <div key={modId} className={"flex flex-row gap-2 bg-default-200 w-full h-[200px] p-4 font-minecraft-body"}>
+        <div key={modId} className={"flex flex-row gap-2 bg-default-200/50 w-full h-[200px] p-4 font-minecraft-body"}>
             <Image src={iconUrl ?? "/favicon.ico"} width={128} height={128} className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-32 min-h-32"} radius={"none"}/>
             <div className={"flex flex-col gap-2 grow"}>
                 <div className={"flex flex-row gap-2 items-center"}>
-                    <h3 className={"text-2xl"}>{name}</h3>
+                    <Link className={"text-2xl font-minecraft-header data-[platform=curseforge]:text-[#f16436]"} href={`/discover/mods/${platform}/${modId}?sid=${server?.id}`} data-platform={platform}>{name}</Link>
                     <span className={"text-default-500"}>by {author}</span>
                 </div>
                 <p className={"text-default-700 h-full"}>{description}</p>
@@ -48,13 +52,17 @@ export function ModItem(props: ModItemProps)
                 <div className={"text-default-700 text-xl flex flex-row items-center gap-1"}><Icon icon={"pixelarticons:download"}/><Downloads count={downloadCount}/> <span className={"text-medium text-default-500"}>downloads</span></div>
                 <div className={"flex flex-row items-center gap-2"}><span className={"text-default-500 flex flex-row gap-1 items-center"}><Icon icon={"pixelarticons:repeat"}/>Updated</span> <LastUpdated date={lastUpdated}/></div>
                 <Button
+                    as={Link}
+                    href={platform === "modrinth" ? `https://modrinth.com/mod/${modId}` : `https://www.curseforge.com/minecraft/mc-mods/${slug}`}
+                    target={"_blank"}
+                    showAnchorIcon
                     radius={"none"}
                     variant={"ghost"}
                     className={
                         cn(
                             "mt-auto",
                             "data-[platform=curseforge]:border-[#f16436] data-[platform=curseforge]:text-[#f16436] data-[platform=curseforge]:data-[hover]:!bg-[#f16436] data-[platform=curseforge]:data-[hover]:!text-foreground",
-                            "data-[platform=modrinth]:border-[#1bd96a] data-[platform=modrinth]:text-[#1bd96a] data-[platform=modrinth]:data-[hover]:!bg-[#1bd96a] data-[platform=modrinth]:data-[hover]:!text-foreground"
+                            "data-[platform=modrinth]:border-[#1bd96a] data-[platform=modrinth]:text-[#1bd96a] data-[platform=modrinth]:data-[hover]:!bg-[#1bd96a] data-[platform=modrinth]:data-[hover]:!text-background"
                         )
                     }
                     data-platform={platform}
