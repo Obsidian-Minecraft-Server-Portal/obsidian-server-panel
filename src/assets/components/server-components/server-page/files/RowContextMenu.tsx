@@ -8,7 +8,7 @@ import {useServer} from "../../../../providers/ServerProvider.tsx";
 
 // Helper function to check if a file is an archive
 const isArchiveFile = (filename: string): boolean => {
-    const archiveExtensions = ['.zip', '.tar.gz', '.tgz', '.tar', '.rar', '.7z'];
+    const archiveExtensions = ['.zip', '.tar.gz', '.tgz', '.tar', '.rar', '.7z', '.gz'];
     const lowerFilename = filename.toLowerCase();
     return archiveExtensions.some(ext => lowerFilename.endsWith(ext));
 };
