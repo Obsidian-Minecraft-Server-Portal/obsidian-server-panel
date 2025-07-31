@@ -396,8 +396,8 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
             const value = payload[0].value;
             const unitDisplay = getUnitDisplay();
             return (
-                <div className="bg-background border border-gray-300 dark:border-gray-600 p-2 rounded shadow-lg font-minecraft-body text-sm">
-                    <p className="text-gray-600 dark:text-gray-400">{label}</p>
+                <div className="bg-background border border-gray-600 p-2 rounded shadow-lg font-minecraft-body text-sm">
+                    <p className="text-gray-400">{label}</p>
                     <p className="text-primary font-bold">
                         {value.toFixed(decimalPlaces)}{unitDisplay}{isUnitOverTime && "/s"}
                     </p>
@@ -444,7 +444,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                 )}
 
                 {/* Title */}
-                <h3 className={`font-minecraft-header ${sizeClasses.title} text-gray-600 dark:text-gray-400 relative z-10 pointer-events-none`}>
+                <h3 className={`font-minecraft-header ${sizeClasses.title}  text-gray-400 relative z-10 pointer-events-none`}>
                     {getVariantTitle()}
                 </h3>
 
@@ -456,21 +456,21 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                             <div className="text-center">
                                 {typeof currentValue === "object" ? (
                                     // Display RWUsage data
-                                    <div className={`font-minecraft-header ${sizeClasses.rwValue} text-gray-800 dark:text-gray-200`}>
+                                    <div className={`font-minecraft-header ${sizeClasses.rwValue}  text-gray-200`}>
                                         {formatRWValue(currentValue)}
                                     </div>
                                 ) : (
                                     // Display numeric data
                                     <>
-                                        <span className={`font-minecraft-header ${sizeClasses.value} text-gray-800 dark:text-gray-200`}>
+                                        <span className={`font-minecraft-header ${sizeClasses.value}  text-gray-200`}>
                                             {currentValue.toFixed(decimalPlaces)}
                                         </span>
                                         {showMaxValue && (
-                                            <span className={`font-minecraft-body ${sizeClasses.unit} text-gray-600 dark:text-gray-400 ml-1`}>
+                                            <span className={`font-minecraft-body ${sizeClasses.unit}  text-gray-400 ml-1`}>
                                                 / {maxValue.toFixed(decimalPlaces)}
                                             </span>
                                         )}
-                                        <span className={`font-minecraft-body ${sizeClasses.unit} text-gray-600 dark:text-gray-400 ml-1`}>
+                                        <span className={`font-minecraft-body ${sizeClasses.unit}  text-gray-400 ml-1`}>
                                             {getUnitDisplay()}
                                             {isUnitOverTime && "/s"}
                                         </span>
