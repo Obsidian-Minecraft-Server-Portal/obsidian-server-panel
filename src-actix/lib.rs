@@ -56,7 +56,7 @@ pub async fn run() -> Result<()> {
             )
             .configure_frontend_routes()
     })
-    .workers(4)
+    .workers(std::thread::available_parallelism()?.get())
     .bind(format!("0.0.0.0:{port}", port = PORT))?
     .run();
 
