@@ -35,7 +35,7 @@ export function ModItem(props: ModItemProps)
             <Image src={iconUrl ?? "/favicon.ico"} width={128} height={128} className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-32 min-h-32"} radius={"none"}/>
             <div className={"flex flex-col gap-2 grow"}>
                 <div className={"flex flex-row gap-2 items-center"}>
-                    <Link className={"text-2xl font-minecraft-header data-[platform=curseforge]:text-[#f16436]"} href={`/discover/mods/${platform}/${modId}?sid=${server?.id}`} data-platform={platform}>{name}</Link>
+                    <Link className={"text-2xl font-minecraft-header data-[platform=curseforge]:text-[#f16436]"} href={`/app/discover/mods/${platform}/${modId}?sid=${server?.id}`} data-platform={platform}>{name}</Link>
                     <span className={"text-default-500"}>by {author}</span>
                 </div>
                 <p className={"text-default-700 h-full"}>{description}</p>
