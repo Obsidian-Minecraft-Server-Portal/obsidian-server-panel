@@ -50,13 +50,16 @@ export function ServerContent()
     useEffect(() =>
     {
         if (queryParams.get("tab") !== "content") return;
-        queryParams.set("platform", selectedPlatform);
-        queryParams.set("search", search);
-        queryParams.set("loaders", loaders.join(","));
-        queryParams.set("minecraftVersions", minecraftVersions.join(","));
-        queryParams.set("categories", categories.join(","));
-        setQueryParams(queryParams);
-    }, [search, loaders, minecraftVersions, categories, selectedPlatform]);
+
+        const newParams = new URLSearchParams(queryParams);
+        newParams.set("platform", selectedPlatform);
+        newParams.set("search", search);
+        newParams.set("loaders", loaders.join(","));
+        newParams.set("minecraftVersions", minecraftVersions.join(","));
+        newParams.set("categories", categories.join(","));
+
+        setQueryParams(newParams);
+    }, [search, loaders, minecraftVersions, categories, selectedPlatform, queryParams, setQueryParams]);
 
     return (
         <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}>

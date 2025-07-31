@@ -27,7 +27,7 @@ export default function ServerPage()
             setSelectedTab(tab);
         } else
         {
-            // setSelectedTab("console");
+            setSelectedTab("console");
         }
 
     }, [searchParams]);
@@ -38,9 +38,10 @@ export default function ServerPage()
         let currentQueryTab = searchParams.get("tab");
         if (currentQueryTab && currentQueryTab === selectedTab) return;
 
-        // Update the URL query parameter for the selected tab
-        // setSearchParams({tab: selectedTab}, {replace: true});
-    }, [selectedTab]);
+        // Update the URL query parameter for the selected tab while preserving other params
+        searchParams.set("tab", selectedTab);
+        setSearchParams(searchParams);
+    }, [selectedTab, searchParams, setSearchParams]);
 
     useEffect(() =>
     {
