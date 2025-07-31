@@ -7,6 +7,7 @@ import {ContentFilters as CurseForgeContentFilters} from "./curseforge/ContentFi
 import {ModList as ModrinthModList} from "./modrinth/ModList.tsx";
 import {ModList as CurseForgeModList} from "./curseforge/ModList.tsx";
 import {useSearchParams} from "react-router-dom";
+import {useServer} from "../../../../providers/ServerProvider.tsx";
 
 export type ModListProps = {
     searchQuery: string;
@@ -25,8 +26,9 @@ export function ServerContent()
     const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
     const [categories, setCategories] = useState<string[]>([]);
     const [queryParams, setQueryParams] = useSearchParams();
+    const {server} = useServer();
 
-    // On mount set the initial state from the url query parameters
+    // On mount set the initial state from the url query parameters or server defaults
     useEffect(() =>
     {
         const platform = queryParams.get("platform");
@@ -41,8 +43,25 @@ export function ServerContent()
         }
 
         setSearch(searchQuery);
-        setLoaders(loadersQuery ? loadersQuery.split(",").filter(Boolean) : []);
-        setMinecraftVersions(minecraftVersionsQuery ? minecraftVersionsQuery.split(",").filter(Boolean) : []);
+
+        // Set default loaders based on server type if no URL params exist
+        if (loadersQuery)
+        {
+            setLoaders(loadersQuery.split(",").filter(Boolean));
+        } else if (server?.server_type && server.server_type !== "vanilla" && server.server_type !== "custom")
+        {
+            setLoaders([server.server_type]);
+        }
+
+        // Set default minecraft version based on server if no URL params exist
+        if (minecraftVersionsQuery)
+        {
+            setMinecraftVersions(minecraftVersionsQuery.split(",").filter(Boolean));
+        } else if (server?.minecraft_version && server.minecraft_version !== "custom")
+        {
+            setMinecraftVersions([server.minecraft_version]);
+        }
+
         setCategories(categoriesQuery ? categoriesQuery.split(",").filter(Boolean) : []);
     }, []);
 
