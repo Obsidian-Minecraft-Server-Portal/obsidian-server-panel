@@ -15,6 +15,7 @@ mod forge_endpoint;
 mod host_info;
 mod java;
 mod server;
+mod ddos_middleware;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 const PORT: u16 = 8080;
