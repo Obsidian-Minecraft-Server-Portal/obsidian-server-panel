@@ -14,12 +14,18 @@ importers:
       '@heroui/react':
         specifier: 2.7.11
         version: 2.7.11(@types/react@19.0.8)(framer-motion@12.19.2(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(tailwindcss@3.4.17)
+      '@heroui/use-infinite-scroll':
+        specifier: ^2.2.10
+        version: 2.2.10(react@18.2.0)
       '@iconify-icon/react':
         specifier: 2.3.0
         version: 2.3.0(react@18.2.0)
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.52.2)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@react-stately/data':
+        specifier: ^3.13.2
+        version: 3.13.2(react@18.2.0)
       framer-motion:
         specifier: 12.19.2
         version: 12.19.2(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -734,6 +740,9 @@ packages:
     peerDependencies:
       react: '>=18 || >=19.0.0-rc.0'
 
+  '@heroui/shared-utils@2.1.10':
+    resolution: {integrity: sha512-w6pSRZZBNDG5/aFueSDUWqOIzqUjKojukg7FxTnVeUX+vIlnYV2Wfv+W+C4l+OV7o0t8emeoe5tXZh8QcLEZEQ==}
+
   '@heroui/shared-utils@2.1.9':
     resolution: {integrity: sha512-mM/Ep914cYMbw3T/b6+6loYhuNfzDaph76mzw/oIS05gw1Dhp9luCziSiIhqDGgzYck2d74oWTZlahyCsxf47w==}
 
@@ -891,6 +900,11 @@ packages:
 
   '@heroui/use-image@2.1.10':
     resolution: {integrity: sha512-I33fojDY/9MiXsJATO5nDVLlBhihQBdCeIQzPfZB5pUO1XQl193D0O1lUrYko9HyxbzYdiu2Ffmd0FC/NP/qlw==}
+    peerDependencies:
+      react: '>=18 || >=19.0.0-rc.0'
+
+  '@heroui/use-infinite-scroll@2.2.10':
+    resolution: {integrity: sha512-UuNYT0tt5yKEG9dn3crUZHa++QbgPssWi7tyCzCSVyioSdnU5hAUOAdKozopVOakInncCIMryrDFRCHDy3zVCA==}
     peerDependencies:
       react: '>=18 || >=19.0.0-rc.0'
 
@@ -1335,6 +1349,11 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
+  '@react-stately/data@3.13.2':
+    resolution: {integrity: sha512-xdCqR8dJ3cnvO8EdCeuQ335dOuBqEV4z/3LnpxmR11gyn8dWwtY5O794g5+AS0KqCgd9W0v7iBrRywq5UT2pCA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+
   '@react-stately/datepicker@3.14.2':
     resolution: {integrity: sha512-KvOUFz/o+hNIb7oCli6nxBdDurbGjRjye6U99GEYAx6timXOjiIJvtKQyqCLRowGYtCS6GH41yM6DhJ2MlMF8w==}
     peerDependencies:
@@ -1526,6 +1545,11 @@ packages:
 
   '@react-types/shared@3.30.0':
     resolution: {integrity: sha512-COIazDAx1ncDg046cTJ8SFYsX8aS3lB/08LDnbkH/SkdYrFPWDlXMrO/sUam8j1WWM+PJ+4d1mj7tODIKNiFog==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+
+  '@react-types/shared@3.31.0':
+    resolution: {integrity: sha512-ua5U6V66gDcbLZe4P2QeyNgPp4YWD1ymGA6j3n+s8CGExtrCPe64v+g4mvpT8Bnb985R96e4zFT61+m0YCwqMg==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
@@ -4179,6 +4203,8 @@ snapshots:
     dependencies:
       react: 18.2.0
 
+  '@heroui/shared-utils@2.1.10': {}
+
   '@heroui/shared-utils@2.1.9': {}
 
   '@heroui/skeleton@2.2.14(@heroui/system@2.4.18(@heroui/theme@2.4.17(tailwindcss@3.4.17))(framer-motion@12.19.2(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@heroui/theme@2.4.17(tailwindcss@3.4.17))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
@@ -4463,6 +4489,11 @@ snapshots:
     dependencies:
       '@heroui/react-utils': 2.1.11(react@18.2.0)
       '@heroui/use-safe-layout-effect': 2.1.7(react@18.2.0)
+      react: 18.2.0
+
+  '@heroui/use-infinite-scroll@2.2.10(react@18.2.0)':
+    dependencies:
+      '@heroui/shared-utils': 2.1.10
       react: 18.2.0
 
   '@heroui/use-intersection-observer@2.2.13(react@18.2.0)':
@@ -5149,6 +5180,12 @@ snapshots:
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
+  '@react-stately/data@3.13.2(react@18.2.0)':
+    dependencies:
+      '@react-types/shared': 3.31.0(react@18.2.0)
+      '@swc/helpers': 0.5.17
+      react: 18.2.0
+
   '@react-stately/datepicker@3.14.2(react@18.2.0)':
     dependencies:
       '@internationalized/date': 3.8.2
@@ -5410,6 +5447,10 @@ snapshots:
       react: 18.2.0
 
   '@react-types/shared@3.30.0(react@18.2.0)':
+    dependencies:
+      react: 18.2.0
+
+  '@react-types/shared@3.31.0(react@18.2.0)':
     dependencies:
       react: 18.2.0
 

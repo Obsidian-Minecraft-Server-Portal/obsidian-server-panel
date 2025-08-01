@@ -19,8 +19,10 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@heroui/react": "2.7.11",
+    "@heroui/use-infinite-scroll": "^2.2.10",
     "@iconify-icon/react": "2.3.0",
     "@monaco-editor/react": "^4.7.0",
+    "@react-stately/data": "^3.13.2",
     "framer-motion": "12.19.2",
     "jquery": "3.7.1",
     "monaco-editor": "^0.52.2",
