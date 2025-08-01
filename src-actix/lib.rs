@@ -16,6 +16,7 @@ mod host_info;
 mod java;
 mod server;
 mod ddos_middleware;
+mod parsing;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 const PORT: u16 = 8080;

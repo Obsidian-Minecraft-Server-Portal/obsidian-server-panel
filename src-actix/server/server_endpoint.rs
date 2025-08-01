@@ -134,7 +134,6 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
             if let Err(save_err) = server.save().await {
                 error!("Failed to save server status after start failure: {}", save_err);
             }
-
         }
     });
 
@@ -313,9 +312,29 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
     }
 }
 
+#[get("{server_id}/installed-mods")]
+pub async fn get_installed_mods(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    let server = match ServerData::get(server_id, user_id).await? {
+        Some(server) => server,
+        None => {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": "Server not found".to_string()
+            })));
+        }
+    };
+
+    let mods = server.get_installed_mods().await?;
+    Ok(HttpResponse::Ok().json(mods))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
+            .service(get_installed_mods)
             .service(get_servers)
             .service(get_server_icon)
             .service(create_server)

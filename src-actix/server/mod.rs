@@ -1,4 +1,4 @@
-mod server_data;
+pub mod server_data;
 mod server_db;
 mod server_endpoint;
 mod filesystem;

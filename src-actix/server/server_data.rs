@@ -7,6 +7,7 @@ use anyhow::Result;
 use serde_hash::HashIds;
 use sqlx::FromRow;
 use std::path::PathBuf;
+use crate::parsing::mod_data::ModData;
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -193,5 +194,9 @@ impl ServerData {
             path.set_file_name(format!("{} ({})", dir_name, index)); // e.g. "my_minecraft_server (1)"
             index += 1;
         }
+    }
+    
+    pub async fn get_installed_mods(&self)-> Result<Vec<ModData>> {
+        ModData::from_server(self.clone()).await
     }
 }
