@@ -52,25 +52,177 @@ impl ModData {
         let path = path.into();
         let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or_default();
 
-        // Read the fabricmod.json file if it exists from inside the JAR
+        // Try Fabric mod first (fabric.mod.json)
         if let Some(contents) = Self::read_contents_of_jar(&path, "fabric.mod.json")? {
-            let contents = String::from_utf8(contents)?;
-            let data: serde_json::Value = serde_json::from_str(&contents)?;
-            let mod_id = data.get("id").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
-            let name = data.get("name").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
-            let description = data.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            let version = data.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string();
-            let authors = data
-                .get("authors")
-                .and_then(|v| v.as_array())
-                .map_or_else(Vec::new, |arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect());
-            let icon = data.get("icon").and_then(|v| v.as_str()).map(|icon_path| Self::read_contents_of_jar(&path, icon_path)).transpose()?.flatten();
-            let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
-            let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
-            Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id }))
-        } else {
-            Ok(None)
+            return Self::parse_fabric_mod(contents, file_name, &path).await;
         }
+
+        // Try Forge mod (META-INF/mod.toml)
+        if let Some(contents) = Self::read_contents_of_jar(&path, "META-INF/mod.toml")? {
+            return Self::parse_forge_mod(contents, file_name, &path).await;
+        }
+
+        // Try legacy Forge mod (mcmod.info)
+        if let Some(contents) = Self::read_contents_of_jar(&path, "mcmod.info")? {
+            return Self::parse_legacy_forge_mod(contents, file_name, &path).await;
+        }
+
+        Ok(None)
+    }
+
+    async fn parse_fabric_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
+        let contents = String::from_utf8(contents)?;
+        let data: serde_json::Value = serde_json::from_str(&contents)?;
+
+        let mod_id = data.get("id").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
+        let name = data.get("name").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
+        let description = data.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let version = data.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string();
+
+        let authors = data
+            .get("authors")
+            .and_then(|v| v.as_array())
+            .map_or_else(Vec::new, |arr| {
+                arr.iter().filter_map(|v| {
+                    if let Some(s) = v.as_str() {
+                        Some(s.to_string())
+                    } else if let Some(obj) = v.as_object() {
+                        obj.get("name").and_then(|n| n.as_str()).map(String::from)
+                    } else {
+                        None
+                    }
+                }).collect()
+            });
+
+        let icon = data.get("icon").and_then(|v| v.as_str())
+            .map(|icon_path| Self::read_contents_of_jar(path, icon_path))
+            .transpose()?.flatten();
+
+        let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
+        let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
+
+        Ok(Some(Self {
+            mod_id,
+            name,
+            description,
+            version,
+            authors,
+            icon,
+            modrinth_id,
+            curseforge_id
+        }))
+    }
+
+    async fn parse_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
+        let contents = String::from_utf8(contents)?;
+
+        // Parse TOML content
+        let data: toml::Value = toml::from_str(&contents)?;
+
+        // Get the first mod from the mods array
+        let mod_data = data.get("mods")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .unwrap_or(&data);
+
+        let mod_id = mod_data.get("modId")
+            .and_then(|v| v.as_str())
+            .unwrap_or(file_name)
+            .to_string();
+
+        let name = mod_data.get("displayName")
+            .and_then(|v| v.as_str())
+            .unwrap_or(file_name)
+            .to_string();
+
+        let description = mod_data.get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+
+        let version = mod_data.get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("0.0.0")
+            .to_string();
+
+        let authors = mod_data.get("authors")
+            .and_then(|v| v.as_str())
+            .map(|s| vec![s.to_string()])
+            .unwrap_or_default();
+
+        let icon = mod_data.get("logoFile")
+            .and_then(|v| v.as_str())
+            .map(|icon_path| Self::read_contents_of_jar(path, icon_path))
+            .transpose()?.flatten();
+
+        let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
+        let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
+
+        Ok(Some(Self {
+            mod_id,
+            name,
+            description,
+            version,
+            authors,
+            icon,
+            modrinth_id,
+            curseforge_id
+        }))
+    }
+
+    async fn parse_legacy_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
+        let contents = String::from_utf8(contents)?;
+        let data: serde_json::Value = serde_json::from_str(&contents)?;
+
+        // Legacy Forge mods have an array of mod info
+        let mod_data = data.as_array()
+            .and_then(|arr| arr.first())
+            .unwrap_or(&data);
+
+        let mod_id = mod_data.get("modid")
+            .and_then(|v| v.as_str())
+            .unwrap_or(file_name)
+            .to_string();
+
+        let name = mod_data.get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or(file_name)
+            .to_string();
+
+        let description = mod_data.get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+
+        let version = mod_data.get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("0.0.0")
+            .to_string();
+
+        let authors = mod_data.get("authorList")
+            .and_then(|v| v.as_array())
+            .map_or_else(Vec::new, |arr| {
+                arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+            });
+
+        let icon = mod_data.get("logoFile")
+            .and_then(|v| v.as_str())
+            .map(|icon_path| Self::read_contents_of_jar(path, icon_path))
+            .transpose()?.flatten();
+
+        let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
+        let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
+
+        Ok(Some(Self {
+            mod_id,
+            name,
+            description,
+            version,
+            authors,
+            icon,
+            modrinth_id,
+            curseforge_id
+        }))
     }
 
     /// Normalizes a mod name for better matching by removing common prefixes/suffixes and special characters

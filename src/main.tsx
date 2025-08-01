@@ -19,6 +19,7 @@ import {ServerProvider} from "./assets/providers/ServerProvider.tsx";
 import {MessageProvider} from "./assets/providers/MessageProvider.tsx";
 import {JavaVersionProvider} from "./assets/providers/JavaVersionProvider.tsx";
 import ServerPage from "./assets/pages/ServerPage.tsx";
+import {Discover} from "./assets/pages/Discover.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
@@ -69,6 +70,7 @@ export function MainContentRenderer()
                             <Route path="/" element={<Login/>}/>
                             <Route path="/app" element={<Dashboard/>}/>
                             <Route path="/app/servers/:id" element={<ServerPage/>}/>
+                            <Route path="/app/discover/:type/:platform/:modId" element={<Discover/>}/>
                             <Route path="*" element={<ErrorPage/>}/>
                         </Route>
                     </Routes>

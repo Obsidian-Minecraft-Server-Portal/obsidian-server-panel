@@ -5,9 +5,11 @@ use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
 use crate::{app_db, ICON};
 use anyhow::Result;
+use base64::{engine::general_purpose, Engine as _};
 use serde_hash::HashIds;
-use sqlx::{FromRow, SqlitePool};
+use sqlx::{FromRow, Row, SqlitePool};
 use std::path::PathBuf;
+use uuid::Uuid;
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -199,13 +201,119 @@ impl ServerData {
     pub async fn get_installed_mods(&self) -> Result<Vec<ModData>> {
         let pool = app_db::open_pool().await?;
         let saved = self.load_installed_mods(&pool).await?;
+        pool.close().await;
+
         if !saved.is_empty() {
-            pool.close().await;
             Ok(saved)
         } else {
-            ModData::from_server(self).await
+            // If no mods in database, scan filesystem and save to database
+            let mods = ModData::from_server(self).await?;
+            if !mods.is_empty() {
+                let pool = app_db::open_pool().await?;
+                let _ = self.load_and_save_installed_mods(&pool).await;
+                pool.close().await;
+            }
+            Ok(mods)
         }
     }
+
+    pub async fn sync_installed_mods(&self) -> Result<()> {
+        let pool = app_db::open_pool().await?;
+        let result = self.refresh_installed_mods(&pool).await;
+        pool.close().await;
+        result
+    }
+
+    pub async fn download_and_install_mod(&self, download_url: &str, filename: Option<String>) -> Result<ModData> {
+        // Create mods directory if it doesn't exist
+        let mods_dir = self.get_directory_path().join("mods");
+        std::fs::create_dir_all(&mods_dir)?;
+
+        // Download the mod file
+        let response = reqwest::get(download_url).await?;
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!("Failed to download mod: HTTP {}", response.status()));
+        }
+
+        // Determine filename
+        let filename = filename.or_else(|| {
+            // Try to extract filename from URL
+            download_url.split('/').last().map(String::from)
+        }).unwrap_or_else(|| {
+            format!("{}.jar", Uuid::new_v4())
+        });
+
+        // Ensure .jar extension
+        let filename = if filename.ends_with(".jar") {
+            filename
+        } else {
+            format!("{}.jar", filename)
+        };
+
+        let file_path = mods_dir.join(&filename);
+        let bytes = response.bytes().await?;
+        tokio::fs::write(&file_path, bytes).await?;
+
+        // Parse mod data from the downloaded file
+        let mod_data = ModData::from_path(&file_path).await?
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse mod data from downloaded file"))?;
+
+        // Save to database
+        let pool = app_db::open_pool().await?;
+        let icon_base64 = mod_data.icon.as_ref()
+            .map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes));
+
+        sqlx::query(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+            .bind(&mod_data.mod_id)
+            .bind(&mod_data.name)
+            .bind(&mod_data.version)
+            .bind(mod_data.authors.join(","))
+            .bind(&mod_data.description)
+            .bind(icon_base64)
+            .bind(&mod_data.modrinth_id)
+            .bind(&mod_data.curseforge_id)
+            .bind(&filename)
+            .bind(self.id as i64)
+            .execute(&pool)
+            .await?;
+
+        pool.close().await;
+        Ok(mod_data)
+    }
+
+    pub async fn delete_mod(&self, mod_id: &str) -> Result<()> {
+        let pool = app_db::open_pool().await?;
+
+        // Get the filename from database
+        let row = sqlx::query("SELECT filename FROM installed_mods WHERE mod_id = ? AND server_id = ?")
+            .bind(mod_id)
+            .bind(self.id as i64)
+            .fetch_optional(&pool)
+            .await?;
+
+        if let Some(row) = row {
+            let filename: Option<String> = row.get("filename");
+
+            // Delete from filesystem if filename is available
+            if let Some(filename) = filename {
+                let file_path = self.get_directory_path().join("mods").join(filename);
+                if file_path.exists() {
+                    tokio::fs::remove_file(file_path).await?;
+                }
+            }
+
+            // Delete from database
+            sqlx::query("DELETE FROM installed_mods WHERE mod_id = ? AND server_id = ?")
+                .bind(mod_id)
+                .bind(self.id as i64)
+                .execute(&pool)
+                .await?;
+        }
+
+        pool.close().await;
+        Ok(())
+    }
+
     pub async fn initialize_servers(pool: &SqlitePool) -> Result<()> {
         let servers = Self::list_all_with_pool(pool).await?;
         for mut server in servers {

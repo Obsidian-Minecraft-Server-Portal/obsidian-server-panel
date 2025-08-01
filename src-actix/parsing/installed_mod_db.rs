@@ -17,6 +17,7 @@ pub async fn initialize(pool: &SqlitePool) -> Result<()> {
     icon          TEXT DEFAULT NULL,
     modrinth_id   TEXT DEFAULT NULL,
     curseforge_id TEXT DEFAULT NULL,
+    filename      TEXT DEFAULT NULL,
     server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE
 )
 		

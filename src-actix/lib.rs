@@ -73,7 +73,7 @@ pub async fn run() -> Result<()> {
         start_vite_server().expect("Failed to start vite server");
     }
 
-    open_port!(PORT, "Obsidian Minecraft Server Panel");
+//    open_port!(PORT, "Obsidian Minecraft Server Panel");
 
     let stop_result = server.await;
     debug!("Server stopped");
