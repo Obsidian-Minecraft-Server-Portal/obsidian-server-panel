@@ -1,13 +1,13 @@
+use crate::parsing::mod_data::ModData;
 use crate::server::server_properties::ServerProperties;
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
-use crate::{ICON, app_db};
+use crate::{app_db, ICON};
 use anyhow::Result;
 use serde_hash::HashIds;
-use sqlx::FromRow;
+use sqlx::{FromRow, SqlitePool};
 use std::path::PathBuf;
-use crate::parsing::mod_data::ModData;
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -195,8 +195,30 @@ impl ServerData {
             index += 1;
         }
     }
-    
-    pub async fn get_installed_mods(&self)-> Result<Vec<ModData>> {
-        ModData::from_server(self.clone()).await
+
+    pub async fn get_installed_mods(&self) -> Result<Vec<ModData>> {
+        let pool = app_db::open_pool().await?;
+        let saved = self.load_installed_mods(&pool).await?;
+        if !saved.is_empty() {
+            pool.close().await;
+            Ok(saved)
+        } else {
+            ModData::from_server(self).await
+        }
+    }
+    pub async fn initialize_servers(pool: &SqlitePool) -> Result<()> {
+        let servers = Self::list_all_with_pool(pool).await?;
+        for mut server in servers {
+            if let Err(e) = server.refresh_installed_mods(pool).await {
+                log::error!("Failed to refresh installed mods for server {}: {}", server.name, e);
+            }
+            if server.auto_start {
+                if let Err(e) = server.start_server().await {
+                    log::error!("Failed to auto-start server {}: {}", server.name, e);
+                }
+            }
+        }
+
+        Ok(())
     }
 }

@@ -1,18 +1,17 @@
-use crate::parsing::mod_version::ModVersion;
 use crate::server::server_data::ServerData;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use std::io::Read;
 use std::path::PathBuf;
-use std::str::FromStr;
 use strsim::{jaro_winkler, normalized_levenshtein};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
 pub struct ModData {
-    pub id: String,
+    pub mod_id: String,
     pub name: String,
     pub description: String,
-    pub version: ModVersion,
+    pub version: String,
     pub authors: Vec<String>,
     pub icon: Option<Vec<u8>>,
     pub modrinth_id: Option<String>,
@@ -20,7 +19,7 @@ pub struct ModData {
 }
 
 impl ModData {
-    pub async fn from_server(server: ServerData) -> Result<Vec<Self>> {
+    pub async fn from_server(server: &ServerData) -> Result<Vec<Self>> {
         let mut mods = Vec::new();
         let mod_dir = server.get_directory_path().join("mods");
         if !mod_dir.exists() {
@@ -57,7 +56,7 @@ impl ModData {
         if let Some(contents) = Self::read_contents_of_jar(&path, "fabric.mod.json")? {
             let contents = String::from_utf8(contents)?;
             let data: serde_json::Value = serde_json::from_str(&contents)?;
-            let id = data.get("id").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
+            let mod_id = data.get("id").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
             let name = data.get("name").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
             let description = data.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
             let version = data.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string();
@@ -68,16 +67,7 @@ impl ModData {
             let icon = data.get("icon").and_then(|v| v.as_str()).map(|icon_path| Self::read_contents_of_jar(&path, icon_path)).transpose()?.flatten();
             let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
             let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
-            Ok(Some(Self {
-                id,
-                name,
-                description,
-                version: ModVersion::from_str(version.as_str()).unwrap_or_default(),
-                authors,
-                icon,
-                modrinth_id,
-                curseforge_id,
-            }))
+            Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id }))
         } else {
             Ok(None)
         }

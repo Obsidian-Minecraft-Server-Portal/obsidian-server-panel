@@ -7,6 +7,8 @@ use obsidian_upnp::open_port;
 use serde_json::json;
 use std::env::set_current_dir;
 use vite_actix::start_vite_server;
+use crate::app_db::open_pool;
+use crate::server::server_data::ServerData;
 
 mod actix_util;
 mod app_db;
@@ -36,7 +38,10 @@ pub async fn run() -> Result<()> {
     #[cfg(not(debug_assertions))]
     serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).build();
 
-    app_db::initialize_databases().await?;
+    let pool = open_pool().await?;
+    app_db::initialize_databases(&pool).await?;
+    ServerData::initialize_servers(&pool).await?;
+    pool.close().await;
 
     let server = HttpServer::new(move || {
         App::new()

@@ -11,6 +11,9 @@ pub async fn initialize(pool: &SqlitePool) -> Result<()> {
 }
 
 impl ServerData {
+    pub async fn list_all_with_pool(pool: &SqlitePool) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as(r#"select * from servers"#).fetch_all(pool).await?)
+    }
     pub async fn list_with_pool(user_id: u64, pool: &SqlitePool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as(r#"select * from servers WHERE owner_id = ?"#).bind(user_id as i64).fetch_all(pool).await?)
     }

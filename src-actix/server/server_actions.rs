@@ -68,6 +68,7 @@ impl ServerData {
 						if let Err(e) = self_clone.remove_server_crashed().await {
 							error!("Failed to remove server from list of running servers, you may need to restart the web panel in order to prevent against memory leaks: {}", e);
 						}
+
 						return;
 					}
 					if let Err(e) = self_clone.remove_server().await {
@@ -165,6 +166,7 @@ impl ServerData {
         }
         self.status = ServerStatus::Crashed;
         self.save().await?;
+
 
         Ok(())
     }

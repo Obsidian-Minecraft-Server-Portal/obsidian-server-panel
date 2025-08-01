@@ -49,6 +49,7 @@ craftping = { version = "0.7.0", features = ["tokio", "async-tokio"] }
 obsidian-upnp = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/upnp.git" }
 sevenz-rust2 = { version = "0.17.1", features = ["compress", "deflate", "default", "bzip2", "util"] }
 strsim = "0.11.1"
+base64 = "0.22.1"
 
 [build-dependencies]
 include_dir = "0.7.4"

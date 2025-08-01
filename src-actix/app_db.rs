@@ -1,17 +1,15 @@
 use anyhow::Result;
 use log::{LevelFilter, info};
-use sqlx::ConnectOptions;
+use sqlx::{ConnectOptions, SqlitePool};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 
-pub async fn initialize_databases() -> Result<()> {
+pub async fn initialize_databases(pool: &SqlitePool) -> Result<()> {
     info!("Initializing databases...");
-    let pool = open_pool().await?;
 
     // Initialize the databases
     crate::authentication::initialize(&pool).await?;
     crate::server::initialize(&pool).await?;
 
-    pool.close().await;
     Ok(())
 }
 
