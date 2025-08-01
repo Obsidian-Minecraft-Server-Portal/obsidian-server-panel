@@ -39,7 +39,6 @@ export function AuthenticationProvider({children}: { children: ReactNode })
 
     const login = useCallback(async (username: string, password: string, rememberMe: boolean, delay?: number) =>
     {
-        setIsLoggingIn(true);
         try
         {
             const response: LoginResponse = await $.ajax("/api/auth/", {
@@ -51,6 +50,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
             console.log("Login Response: ", response);
             if (response.user)
             {
+                setIsLoggingIn(true);
                 setUser(response.user);
                 if (delay)
                 {
