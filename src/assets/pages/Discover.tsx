@@ -2,7 +2,7 @@ import {useParams, useSearchParams} from "react-router-dom";
 import ErrorPage from "./ErrorPage.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
 import {useEffect, useState} from "react";
-import {Button, Card, CardBody, CardHeader, Chip, Image, Input, Pagination, Select, SelectItem, Skeleton, Spinner, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs} from "@heroui/react";
+import {Button, Card, CardBody, CardHeader, Chip, Divider, Image, Input, Link, Select, SelectItem, Skeleton, Spinner, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {useMessage} from "../providers/MessageProvider.tsx";
@@ -10,6 +10,9 @@ import {MessageResponseType} from "../components/MessageModal.tsx";
 import ReactMarkdown from "react-markdown";
 import {useInfiniteScroll} from "@heroui/use-infinite-scroll";
 import {useAsyncList} from "@react-stately/data";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 
 type ModDetails = {
     id: string;
@@ -25,14 +28,14 @@ type ModDetails = {
     issues_url?: string;
     wiki_url?: string;
     discord_url?: string;
-    donation_urls?: Array<{id: string, platform: string, url: string}>;
+    donation_urls?: Array<{ id: string, platform: string, url: string }>;
     versions: string[];
     game_versions: string[];
     loaders: string[];
     published: string;
     updated: string;
     author?: string;
-    authors?: Array<{name: string, url?: string}>;
+    authors?: Array<{ name: string, url?: string }>;
     slug?: string;
 };
 
@@ -46,7 +49,7 @@ type ModVersion = {
     date_published: string;
     downloads: number;
     files: Array<{
-        hashes: {sha1: string, sha512: string};
+        hashes: { sha1: string, sha512: string };
         url: string;
         filename: string;
         primary: boolean;
@@ -97,8 +100,10 @@ export function Discover()
     const [hasMoreVersions, setHasMoreVersions] = useState(false);
 
     const versionsList = useAsyncList({
-        async load({signal, cursor}) {
-            if (!modVersions.length) {
+        async load({signal, cursor})
+        {
+            if (!modVersions.length)
+            {
                 setHasMoreVersions(false);
                 return {items: [], cursor: null};
             }
@@ -107,10 +112,11 @@ export function Discover()
             const endIndex = startIndex + versionsPerPage;
 
             // Apply filters to all versions first
-            const filtered = modVersions.filter(version => {
+            const filtered = modVersions.filter(version =>
+            {
                 return (
                     (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
-                     version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
+                        version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
                     (!gameVersionFilter || version.game_versions.some(v => v.includes(gameVersionFilter))) &&
                     (!loaderFilter || version.loaders.some(l => l.toLowerCase().includes(loaderFilter.toLowerCase()))) &&
                     (!typeFilter || version.version_type === typeFilter)
@@ -135,23 +141,29 @@ export function Discover()
     });
 
     // Reload versions list when filters change
-    useEffect(() => {
-        if (modVersions.length > 0) {
+    useEffect(() =>
+    {
+        if (modVersions.length > 0)
+        {
             versionsList.reload();
         }
     }, [versionFilter, gameVersionFilter, loaderFilter, typeFilter, modVersions]);
 
-    if (platform !== "curseforge" && platform !== "modrinth"){
+    if (platform !== "curseforge" && platform !== "modrinth")
+    {
         console.error("Invalid platform specified in URL:", platform);
-        return <ErrorPage code={500} message={`Invalid platform specified for Discover page ${platform}`} />;
+        return <ErrorPage code={500} message={`Invalid platform specified for Discover page ${platform}`}/>;
     }
-    if (type !== "mods" && type !== "resourcepacks" && type !== "datapacks" && type !== "worlds" && type !== "packs") {
+    if (type !== "mods" && type !== "resourcepacks" && type !== "datapacks" && type !== "worlds" && type !== "packs")
+    {
         console.error("Invalid type specified in URL:", type);
-        return <ErrorPage code={500} message={`Invalid type specified for Discover page ${type}`} />;
+        return <ErrorPage code={500} message={`Invalid type specified for Discover page ${type}`}/>;
     }
 
-    const fetchModrinthProject = async (projectId: string) => {
-        try {
+    const fetchModrinthProject = async (projectId: string) =>
+    {
+        try
+        {
             const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
@@ -179,18 +191,21 @@ export function Discover()
                 author: data.team,
                 slug: data.slug
             } as ModDetails;
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Failed to fetch Modrinth project:", error);
             throw error;
         }
     };
 
-    const fetchCurseForgeProject = async (projectId: string) => {
-        try {
+    const fetchCurseForgeProject = async (projectId: string) =>
+    {
+        try
+        {
             const API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
             const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}`, {
                 headers: {
-                    'x-api-key': API_KEY
+                    "x-api-key": API_KEY
                 }
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -217,14 +232,17 @@ export function Discover()
                 authors: data.authors?.map((author: any) => ({name: author.name, url: author.url})),
                 slug: data.slug
             } as ModDetails;
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Failed to fetch CurseForge project:", error);
             throw error;
         }
     };
 
-    const fetchModrinthVersions = async (projectId: string) => {
-        try {
+    const fetchModrinthVersions = async (projectId: string) =>
+    {
+        try
+        {
             const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
@@ -242,18 +260,21 @@ export function Discover()
                 changelog: version.changelog,
                 dependencies: version.dependencies
             })) as ModVersion[];
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Failed to fetch Modrinth versions:", error);
             throw error;
         }
     };
 
-    const fetchCurseForgeVersions = async (projectId: string) => {
-        try {
+    const fetchCurseForgeVersions = async (projectId: string) =>
+    {
+        try
+        {
             const API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
             const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}/files`, {
                 headers: {
-                    'x-api-key': API_KEY
+                    "x-api-key": API_KEY
                 }
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -277,14 +298,17 @@ export function Discover()
                 }],
                 changelog: file.changelog
             })) as ModVersion[];
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Failed to fetch CurseForge versions:", error);
             throw error;
         }
     };
 
-    const downloadModVersion = async (version: ModVersion) => {
-        if (!server || !serverId) {
+    const downloadModVersion = async (version: ModVersion) =>
+    {
+        if (!server || !serverId)
+        {
             await open({
                 title: "No Server Selected",
                 body: "Please select a server to download this mod to.",
@@ -301,17 +325,20 @@ export function Discover()
         let compatible = true;
         let warnings = [];
 
-        if (serverVersion && !version.game_versions.includes(serverVersion)) {
+        if (serverVersion && !version.game_versions.includes(serverVersion))
+        {
             compatible = false;
             warnings.push(`This mod version supports Minecraft ${version.game_versions.join(", ")} but your server runs ${serverVersion}`);
         }
 
-        if (serverLoader && serverLoader !== "vanilla" && !version.loaders.includes(serverLoader)) {
+        if (serverLoader && serverLoader !== "vanilla" && !version.loaders.includes(serverLoader))
+        {
             compatible = false;
             warnings.push(`This mod version supports ${version.loaders.join(", ")} but your server uses ${serverLoader}`);
         }
 
-        if (!compatible) {
+        if (!compatible)
+        {
             const proceed = await open({
                 title: "Compatibility Warning",
                 body: `This mod version may not be compatible with your server:\n\n${warnings.join("\n")}\n\nDo you want to download it anyway?`,
@@ -322,9 +349,11 @@ export function Discover()
             if (!proceed) return;
         }
 
-        try {
+        try
+        {
             const primaryFile = version.files.find(f => f.primary) || version.files[0];
-            if (!primaryFile) {
+            if (!primaryFile)
+            {
                 throw new Error("No download file found");
             }
 
@@ -339,7 +368,8 @@ export function Discover()
                 })
             });
 
-            if (!response.ok) {
+            if (!response.ok)
+            {
                 throw new Error(`HTTP ${response.status}`);
             }
 
@@ -353,7 +383,8 @@ export function Discover()
                 severity: "success"
             });
 
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Failed to download mod:", error);
             await open({
                 title: "Download Failed",
@@ -364,24 +395,31 @@ export function Discover()
         }
     };
 
-    useEffect(() => {
+    useEffect(() =>
+    {
         if (!modId) return;
 
-        const fetchData = async () => {
-            try {
+        const fetchData = async () =>
+        {
+            try
+            {
                 setLoading(true);
                 let details: ModDetails;
 
-                if (platform === "modrinth") {
+                if (platform === "modrinth")
+                {
                     details = await fetchModrinthProject(modId);
-                } else {
+                } else
+                {
                     details = await fetchCurseForgeProject(modId);
                 }
 
                 setModDetails(details);
-            } catch (error) {
+            } catch (error)
+            {
                 console.error("Failed to fetch mod details:", error);
-            } finally {
+            } finally
+            {
                 setLoading(false);
             }
         };
@@ -389,17 +427,22 @@ export function Discover()
         fetchData();
     }, [modId, platform]);
 
-    useEffect(() => {
+    useEffect(() =>
+    {
         if (!modId || !modDetails) return;
 
-        const fetchVersions = async () => {
-            try {
+        const fetchVersions = async () =>
+        {
+            try
+            {
                 setVersionsLoading(true);
                 let versions: ModVersion[];
 
-                if (platform === "modrinth") {
+                if (platform === "modrinth")
+                {
                     versions = await fetchModrinthVersions(modId);
-                } else {
+                } else
+                {
                     versions = await fetchCurseForgeVersions(modId);
                 }
 
@@ -417,9 +460,11 @@ export function Discover()
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
                 setChangelog(changelogEntries);
-            } catch (error) {
+            } catch (error)
+            {
                 console.error("Failed to fetch mod versions:", error);
-            } finally {
+            } finally
+            {
                 setVersionsLoading(false);
             }
         };
@@ -429,56 +474,113 @@ export function Discover()
 
     const filteredChangelog = changelog.slice(0, changelogPage * CHANGELOG_PER_PAGE);
 
-    const filteredVersions = modVersions.filter(version => {
+    const filteredVersions = modVersions.filter(version =>
+    {
         return (
             (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
-             version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
+                version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
             (!gameVersionFilter || version.game_versions.some(v => v.includes(gameVersionFilter))) &&
             (!loaderFilter || version.loaders.some(l => l.toLowerCase().includes(loaderFilter.toLowerCase()))) &&
             (!typeFilter || version.version_type === typeFilter)
         );
     });
 
-    const getVersionTypeIcon = (type: string) => {
-        switch (type) {
-            case "release": return "R";
-            case "beta": return "B";
-            case "alpha": return "A";
-            default: return "?";
+    const getVersionTypeIcon = (type: string) =>
+    {
+        switch (type)
+        {
+            case "release":
+                return "R";
+            case "beta":
+                return "B";
+            case "alpha":
+                return "A";
+            default:
+                return "?";
         }
     };
 
-    const getVersionTypeColor = (type: string) => {
-        switch (type) {
-            case "release": return "success";
-            case "beta": return "warning";
-            case "alpha": return "danger";
-            default: return "default";
+    const getVersionTypeColor = (type: string) =>
+    {
+        switch (type)
+        {
+            case "release":
+                return "success";
+            case "beta":
+                return "warning";
+            case "alpha":
+                return "danger";
+            default:
+                return "default";
         }
     };
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string) =>
+    {
         return new Date(dateString).toLocaleDateString();
     };
 
-    const formatDownloads = (count: number) => {
+    const formatDownloads = (count: number) =>
+    {
         if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
         if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
         return count.toString();
     };
 
-    if (loading) {
+    // Custom markdown components for proper styling
+    const markdownComponents = {
+        h1: ({children}: any) => (
+            <div className="mb-4 mt-8">
+                <h1 className="text-4xl font-bold mb-2">{children}</h1>
+                <Divider />
+            </div>
+        ),
+        h2: ({children}: any) => (
+            <div className="mb-4 mt-8">
+                <h2 className="text-3xl font-bold mb-2">{children}</h2>
+                <Divider />
+            </div>
+        ),
+        h3: ({children}: any) => (
+            <div className="mb-4 mt-8">
+                <h3 className="text-2xl font-bold mb-2">{children}</h3>
+                <Divider />
+            </div>
+        ),
+        h4: ({children}: any) => (
+            <div className="mb-4 mt-8">
+                <h4 className="text-xl font-bold mb-2">{children}</h4>
+                <Divider />
+            </div>
+        ),
+        ul: ({children}: any) => (
+            <ul className="list-disc ml-8 my-4" style={{listStyleType: 'disc'}}>
+                {children}
+            </ul>
+        ),
+        img: ({src, alt}: any) => (
+            <Image
+                src={src}
+                alt={alt || ""}
+                radius="none"
+                className="my-4"
+            />
+        )
+    };
+
+    if (loading)
+    {
         return (
             <div className="p-8 w-full mx-auto">
                 <div className="flex gap-6 mb-6">
-                    <Skeleton className="w-32 h-32 rounded-lg" />
+                    <Skeleton className="w-32 h-32 rounded-lg"/>
                     <div className="flex-1 space-y-4">
-                        <Skeleton className="w-3/4 h-8" />
-                        <Skeleton className="w-full h-20" />
+                        <Skeleton className="w-3/4 h-8"/>
+                        <Skeleton className="w-full h-20"/>
                         <div className="flex gap-4">
-                            <Skeleton className="w-24 h-6" />
-                            <Skeleton className="w-24 h-6" />
-                            <Skeleton className="w-24 h-6" />
+                            <Skeleton className="w-24 h-6"/>
+                            <Skeleton className="w-24 h-6"/>
+                            <Skeleton className="w-24 h-6"/>
                         </div>
                     </div>
                 </div>
@@ -486,8 +588,9 @@ export function Discover()
         );
     }
 
-    if (!modDetails) {
-        return <ErrorPage code={404} message="Mod not found" />;
+    if (!modDetails)
+    {
+        return <ErrorPage code={404} message="Mod not found"/>;
     }
 
     return (
@@ -514,23 +617,66 @@ export function Discover()
                                 >
                                     {platform === "modrinth" ? "Modrinth" : "CurseForge"}
                                 </Chip>
+                                <div className="flex gap-2 ml-auto">
+                                    {/* Back to Search Button */}
+                                    <Button
+                                        as={Link}
+                                        href={(() =>
+                                        {
+                                            const backUrl = searchParams.get("back");
+                                            if (backUrl)
+                                            {
+                                                return decodeURIComponent(backUrl);
+                                            }
+                                            // Default back to server content tab if no back URL
+                                            return serverId ? `/app/servers/${serverId}?tab=content` : "/app";
+                                        })()}
+                                        radius="none"
+                                        variant="ghost"
+                                        color="primary"
+                                        startContent={<Icon icon="pixelarticons:arrow-left"/>}
+                                    >
+                                        Back to Search
+                                    </Button>
+
+                                    {/* Open on Platform Button */}
+                                    <Button
+                                        as={Link}
+                                        href={platform === "modrinth"
+                                            ? `https://modrinth.com/mod/${modId}`
+                                            : `https://www.curseforge.com/minecraft/mc-mods/${modDetails.slug || modId}`
+                                        }
+                                        target="_blank"
+                                        radius="none"
+                                        variant="ghost"
+                                        color={platform === "modrinth" ? "success" : "warning"}
+                                        endContent={<Icon icon="pixelarticons:external-link"/>}
+                                        className={
+                                            platform === "modrinth"
+                                                ? "text-[#1bd96a] border-[#1bd96a] hover:bg-[#1bd96a] hover:text-black"
+                                                : "text-[#f16436] border-[#f16436] hover:bg-[#f16436] hover:text-white"
+                                        }
+                                    >
+                                        Open on {platform === "modrinth" ? "Modrinth" : "CurseForge"}
+                                    </Button>
+                                </div>
                             </div>
                             <p className="text-default-600 text-lg">{modDetails.description}</p>
                             <div className="flex flex-wrap gap-4 text-sm">
                                 <div className="flex items-center gap-1">
-                                    <Icon icon="pixelarticons:download" />
+                                    <Icon icon="pixelarticons:download"/>
                                     <span className="font-semibold">{formatDownloads(modDetails.downloads)}</span>
                                     <span className="text-default-500">downloads</span>
                                 </div>
                                 {modDetails.followers && (
                                     <div className="flex items-center gap-1">
-                                        <Icon icon="pixelarticons:heart" />
+                                        <Icon icon="pixelarticons:heart"/>
                                         <span className="font-semibold">{formatDownloads(modDetails.followers)}</span>
                                         <span className="text-default-500">followers</span>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-1">
-                                    <Icon icon="pixelarticons:calendar" />
+                                    <Icon icon="pixelarticons:calendar"/>
                                     <span className="text-default-500">Updated {formatDate(modDetails.updated)}</span>
                                 </div>
                             </div>
@@ -557,7 +703,13 @@ export function Discover()
                             <CardBody className="p-6">
                                 {modDetails.body ? (
                                     <div className="prose prose-sm max-w-none">
-                                        <ReactMarkdown>{modDetails.body}</ReactMarkdown>
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                                            components={markdownComponents}
+                                        >
+                                            {modDetails.body}
+                                        </ReactMarkdown>
                                     </div>
                                 ) : (
                                     <p className="text-default-600">{modDetails.description}</p>
@@ -586,7 +738,12 @@ export function Discover()
                                                     </span>
                                                 </div>
                                                 <div className="prose prose-sm max-w-none">
-                                                    <ReactMarkdown>{entry.changes}</ReactMarkdown>
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                                                    >
+                                                        {entry.changes}
+                                                    </ReactMarkdown>
                                                 </div>
                                             </div>
                                         ))}
@@ -621,7 +778,7 @@ export function Discover()
                                         onValueChange={setVersionFilter}
                                         className="max-w-xs"
                                         radius="none"
-                                        startContent={<Icon icon="pixelarticons:search" />}
+                                        startContent={<Icon icon="pixelarticons:search"/>}
                                     />
                                     <Select
                                         placeholder="Game Version"
@@ -667,13 +824,13 @@ export function Discover()
                                     bottomContent={
                                         hasMoreVersions ? (
                                             <div className="flex w-full justify-center">
-                                                <Spinner ref={loaderRef} color="primary" />
+                                                <Spinner ref={loaderRef} color="primary"/>
                                             </div>
                                         ) : null
                                     }
                                     classNames={{
                                         base: "max-h-[520px] overflow-scroll",
-                                        table: "min-h-[400px]",
+                                        table: "min-h-[400px]"
                                     }}
                                 >
                                     <TableHeader>
@@ -687,7 +844,7 @@ export function Discover()
                                     <TableBody
                                         isLoading={versionsLoading}
                                         items={versionsList.items}
-                                        loadingContent={<Spinner color="primary" />}
+                                        loadingContent={<Spinner color="primary"/>}
                                     >
                                         {(version) => (
                                             <TableRow key={version.id}>
@@ -734,7 +891,7 @@ export function Discover()
                                                         color="primary"
                                                         radius="none"
                                                         onPress={() => downloadModVersion(version)}
-                                                        startContent={<Icon icon="pixelarticons:download" />}
+                                                        startContent={<Icon icon="pixelarticons:download"/>}
                                                     >
                                                         Download
                                                     </Button>

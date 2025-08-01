@@ -1,6 +1,7 @@
 import {Button, cn, Divider, Image, Link, Skeleton} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
+import {useLocation} from "react-router-dom";
 
 export type ModItemProps = {
     modId: string;
@@ -18,6 +19,7 @@ export type ModItemProps = {
 export function ModItem(props: ModItemProps)
 {
     const {server} = useServer();
+    const location = useLocation();
     const {
         modId,
         platform,
@@ -30,12 +32,16 @@ export function ModItem(props: ModItemProps)
         lastUpdated,
         slug
     } = props;
+
+    // Build the discover URL with back parameter
+    const discoverUrl = `/app/discover/mods/${platform}/${modId}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`;
+
     return (
         <div key={modId} className={"flex flex-row gap-2 bg-default-200/50 w-full h-[200px] p-4 font-minecraft-body"}>
             <Image src={iconUrl ?? "/favicon.ico"} width={128} height={128} className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-32 min-h-32"} radius={"none"}/>
             <div className={"flex flex-col gap-2 grow"}>
                 <div className={"flex flex-row gap-2 items-center"}>
-                    <Link className={"text-2xl font-minecraft-header data-[platform=curseforge]:text-[#f16436]"} href={`/app/discover/mods/${platform}/${modId}?sid=${server?.id}`} data-platform={platform}>{name}</Link>
+                    <Link className={"text-2xl font-minecraft-header data-[platform=curseforge]:text-[#f16436]"} href={discoverUrl} data-platform={platform}>{name}</Link>
                     <span className={"text-default-500"}>by {author}</span>
                 </div>
                 <p className={"text-default-700 h-full"}>{description}</p>
