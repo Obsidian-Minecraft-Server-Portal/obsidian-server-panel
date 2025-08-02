@@ -7,8 +7,9 @@ pub async fn initialize_databases(pool: &SqlitePool) -> Result<()> {
     info!("Initializing databases...");
 
     // Initialize the databases
-    crate::authentication::initialize(&pool).await?;
-    crate::server::initialize(&pool).await?;
+    crate::authentication::initialize(pool).await?;
+    crate::server::initialize(pool).await?;
+    crate::server::installed_mods::initialize(pool).await?;
 
     Ok(())
 }

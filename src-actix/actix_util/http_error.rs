@@ -32,7 +32,7 @@ pub mod http_error;
     #[error("an error has occurred: {0:?}")]
     Anyhow(anyhow::Error),
 
-    // Specific error for header parsing failures
+    // Specific error for header installed_mods failures
     #[error("unable to parse headers: {0:?}")]
     HeaderParse(ToStrError),
 }

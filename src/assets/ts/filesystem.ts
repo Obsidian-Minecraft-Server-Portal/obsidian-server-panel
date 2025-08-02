@@ -721,7 +721,7 @@ export class FileSystem
                         }
                     } catch (e)
                     {
-                        console.error("Error parsing progress data:", e);
+                        console.error("Error installed_mods progress data:", e);
                     }
                 });
 
@@ -738,7 +738,7 @@ export class FileSystem
                         reject(new Error(data.error || "Unknown error occurred during upload from URL"));
                     } catch (parseError)
                     {
-                        console.error("Error parsing error event data:", parseError);
+                        console.error("Error installed_mods error event data:", parseError);
                         eventSource.close();
                         isCompleted = true;
                         onError("Failed to parse error response");

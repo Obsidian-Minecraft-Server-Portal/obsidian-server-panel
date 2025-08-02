@@ -58,6 +58,23 @@ export type CreateServerData = {
 export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom";
 export type ServerStatus = "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging";
 
+export type InstallModOptions = {
+    downloadUrl?: string; // URL to download the mod from
+    filename?: string; // Optional filename to use if downloading
+}
+
+export type InstalledMod = {
+    mod_id: string;
+    name: string;
+    description: string;
+    version: string;
+    authors: string[];
+    icon?: number[];
+    modrinth_id?: string;
+    curseforge_id?: string;
+    filename: string;
+}
+
 interface ServerContextType
 {
     server: Server | null;
@@ -99,6 +116,11 @@ interface ServerContextType
     // Logging and console functions
     getLogs: (serverId?: string) => Promise<string[]>;
     getLog: (filename: string, serverId?: string) => Promise<string>;
+    // Modding functions
+    getInstalledMods: (serverId?: string) => Promise<InstalledMod[]>;
+    installMod: (options: InstallModOptions, serverId?: string) => Promise<void>;
+    syncMods: (serverId?: string) => Promise<void>;
+    removeMod: (modId: string, serverId?: string) => Promise<void>;
 }
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
@@ -527,6 +549,49 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return await FileSystem.setFileContents(path, contents, targetServerId);
     }, [server]);
+    
+    const getInstalledMods = useCallback(async (serverId?: string): Promise<InstalledMod[]> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return $.get(`/api/server/${targetServerId}/installed-mods`);
+    }, [server]);
+    
+    const installMod = useCallback(async (options: InstallModOptions, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return $.ajax({
+            url: `/api/server/${targetServerId}/download-mod`,
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({
+                download_url: options.downloadUrl,
+                filename: options.filename
+            })
+        });
+    }, [server]);
+    
+    const syncMods = useCallback(async (serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return $.post(`/api/server/${targetServerId}/sync-mods`);
+    }, [server]);
+    
+    const removeMod = useCallback(async (modId: string, serverId?: string): Promise<void> =>
+    {
+        const targetServerId = serverId || server?.id;
+        if (!targetServerId) throw new Error("No server ID provided and no server loaded");
+
+        return $.ajax({
+            url: `/api/server/${targetServerId}/mod/${modId}`,
+            type: "DELETE"
+        });
+    }, [server]);
 
 
     return (
@@ -568,7 +633,12 @@ export function ServerProvider({children}: { children: ReactNode })
             getFileContents,
             setFileContents,
             getLogs,
-            getLog
+            getLog,
+            // Modding functions
+            getInstalledMods,
+            installMod,
+            syncMods,
+            removeMod
         }}>
             {children}
         </ServerContext.Provider>

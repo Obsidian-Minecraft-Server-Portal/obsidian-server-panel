@@ -16,6 +16,7 @@ pub struct ModData {
     pub icon: Option<Vec<u8>>,
     pub modrinth_id: Option<String>,
     pub curseforge_id: Option<String>,
+    pub filename: String,
 }
 
 impl ModData {
@@ -79,11 +80,9 @@ impl ModData {
         let description = data.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
         let version = data.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string();
 
-        let authors = data
-            .get("authors")
-            .and_then(|v| v.as_array())
-            .map_or_else(Vec::new, |arr| {
-                arr.iter().filter_map(|v| {
+        let authors = data.get("authors").and_then(|v| v.as_array()).map_or_else(Vec::new, |arr| {
+            arr.iter()
+                .filter_map(|v| {
                     if let Some(s) = v.as_str() {
                         Some(s.to_string())
                     } else if let Some(obj) = v.as_object() {
@@ -91,26 +90,16 @@ impl ModData {
                     } else {
                         None
                     }
-                }).collect()
-            });
+                })
+                .collect()
+        });
 
-        let icon = data.get("icon").and_then(|v| v.as_str())
-            .map(|icon_path| Self::read_contents_of_jar(path, icon_path))
-            .transpose()?.flatten();
+        let icon = data.get("icon").and_then(|v| v.as_str()).map(|icon_path| Self::read_contents_of_jar(path, icon_path)).transpose()?.flatten();
 
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self {
-            mod_id,
-            name,
-            description,
-            version,
-            authors,
-            icon,
-            modrinth_id,
-            curseforge_id
-        }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string() }))
     }
 
     async fn parse_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
@@ -120,54 +109,25 @@ impl ModData {
         let data: toml::Value = toml::from_str(&contents)?;
 
         // Get the first mod from the mods array
-        let mod_data = data.get("mods")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .unwrap_or(&data);
+        let mod_data = data.get("mods").and_then(|v| v.as_array()).and_then(|arr| arr.first()).unwrap_or(&data);
 
-        let mod_id = mod_data.get("modId")
-            .and_then(|v| v.as_str())
-            .unwrap_or(file_name)
-            .to_string();
+        let mod_id = mod_data.get("modId").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
 
-        let name = mod_data.get("displayName")
-            .and_then(|v| v.as_str())
-            .unwrap_or(file_name)
-            .to_string();
+        let name = mod_data.get("displayName").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
 
-        let description = mod_data.get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
+        let description = mod_data.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
 
-        let version = mod_data.get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0.0.0")
-            .to_string();
+        let version = mod_data.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string();
 
-        let authors = mod_data.get("authors")
-            .and_then(|v| v.as_str())
-            .map(|s| vec![s.to_string()])
-            .unwrap_or_default();
+        let authors = mod_data.get("authors").and_then(|v| v.as_str()).map(|s| vec![s.to_string()]).unwrap_or_default();
 
-        let icon = mod_data.get("logoFile")
-            .and_then(|v| v.as_str())
-            .map(|icon_path| Self::read_contents_of_jar(path, icon_path))
-            .transpose()?.flatten();
+        let icon =
+            mod_data.get("logoFile").and_then(|v| v.as_str()).map(|icon_path| Self::read_contents_of_jar(path, icon_path)).transpose()?.flatten();
 
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self {
-            mod_id,
-            name,
-            description,
-            version,
-            authors,
-            icon,
-            modrinth_id,
-            curseforge_id
-        }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string() }))
     }
 
     async fn parse_legacy_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
@@ -175,54 +135,28 @@ impl ModData {
         let data: serde_json::Value = serde_json::from_str(&contents)?;
 
         // Legacy Forge mods have an array of mod info
-        let mod_data = data.as_array()
-            .and_then(|arr| arr.first())
-            .unwrap_or(&data);
+        let mod_data = data.as_array().and_then(|arr| arr.first()).unwrap_or(&data);
 
-        let mod_id = mod_data.get("modid")
-            .and_then(|v| v.as_str())
-            .unwrap_or(file_name)
-            .to_string();
+        let mod_id = mod_data.get("modid").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
 
-        let name = mod_data.get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or(file_name)
-            .to_string();
+        let name = mod_data.get("name").and_then(|v| v.as_str()).unwrap_or(file_name).to_string();
 
-        let description = mod_data.get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
+        let description = mod_data.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
 
-        let version = mod_data.get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0.0.0")
-            .to_string();
+        let version = mod_data.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string();
 
-        let authors = mod_data.get("authorList")
+        let authors = mod_data
+            .get("authorList")
             .and_then(|v| v.as_array())
-            .map_or_else(Vec::new, |arr| {
-                arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
-            });
+            .map_or_else(Vec::new, |arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
 
-        let icon = mod_data.get("logoFile")
-            .and_then(|v| v.as_str())
-            .map(|icon_path| Self::read_contents_of_jar(path, icon_path))
-            .transpose()?.flatten();
+        let icon =
+            mod_data.get("logoFile").and_then(|v| v.as_str()).map(|icon_path| Self::read_contents_of_jar(path, icon_path)).transpose()?.flatten();
 
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self {
-            mod_id,
-            name,
-            description,
-            version,
-            authors,
-            icon,
-            modrinth_id,
-            curseforge_id
-        }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string() }))
     }
 
     /// Normalizes a mod name for better matching by removing common prefixes/suffixes and special characters

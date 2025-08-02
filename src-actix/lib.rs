@@ -1,3 +1,5 @@
+use crate::app_db::open_pool;
+use crate::server::server_data::ServerData;
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
 use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
@@ -7,18 +9,15 @@ use obsidian_upnp::open_port;
 use serde_json::json;
 use std::env::set_current_dir;
 use vite_actix::start_vite_server;
-use crate::app_db::open_pool;
-use crate::server::server_data::ServerData;
 
 mod actix_util;
 mod app_db;
 mod authentication;
+mod ddos_middleware;
 mod forge_endpoint;
 mod host_info;
 mod java;
 mod server;
-mod ddos_middleware;
-mod parsing;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 const PORT: u16 = 8080;
@@ -38,10 +37,20 @@ pub async fn run() -> Result<()> {
     #[cfg(not(debug_assertions))]
     serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).build();
 
-    let pool = open_pool().await?;
-    app_db::initialize_databases(&pool).await?;
-    ServerData::initialize_servers(&pool).await?;
-    pool.close().await;
+    tokio::spawn(async {
+        let result: Result<()> = async {
+            let pool = open_pool().await?;
+            app_db::initialize_databases(&pool).await?;
+            ServerData::initialize_servers(&pool).await?;
+            pool.close().await;
+
+            Ok(())
+        }.await;
+
+        if let Err(e) = result {
+            error!("Database initialization failed: {}", e);
+        }
+    });
 
     let server = HttpServer::new(move || {
         App::new()
@@ -73,7 +82,7 @@ pub async fn run() -> Result<()> {
         start_vite_server().expect("Failed to start vite server");
     }
 
-//    open_port!(PORT, "Obsidian Minecraft Server Panel");
+    open_port!(PORT, "Obsidian Minecraft Server Panel");
 
     let stop_result = server.await;
     debug!("Server stopped");

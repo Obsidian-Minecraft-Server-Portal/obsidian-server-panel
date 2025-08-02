@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
 use crate::server::filesystem;
@@ -5,7 +6,7 @@ use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
 use anyhow::anyhow;
-use base64::{Engine as _, engine::general_purpose};
+use base64::Engine as _;
 use flate2::read::GzDecoder;
 use log::error;
 use serde_hash::hashids::{decode_single, encode_single};
@@ -315,11 +316,11 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
 }
 
 #[get("{server_id}/installed-mods")]
-pub async fn get_installed_mods(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+pub async fn get_installed_mods(server_id: web::Path<String>, options: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
-
+    
     let server = match ServerData::get(server_id, user_id).await? {
         Some(server) => server,
         None => {
@@ -328,31 +329,32 @@ pub async fn get_installed_mods(server_id: web::Path<String>, req: HttpRequest) 
             })));
         }
     };
+    
+    let include_icon = options.get("include_icon").is_some();
 
-    let mods = server.get_installed_mods().await?;
+    let mut mods = server.get_installed_mods().await?;
+    
+    if !include_icon {
+        for mod_data in &mut mods {
+            mod_data.icon = None; // Remove icon data if not requested
+        }
+    }
+    
     Ok(HttpResponse::Ok().json(mods))
 }
 
+
 #[post("{server_id}/download-mod")]
-pub async fn download_mod(
-    server_id: web::Path<String>,
-    body: web::Json<serde_json::Value>,
-    req: HttpRequest
-) -> Result<impl Responder> {
+pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let download_url = body.get("download_url")
-        .and_then(|v| v.as_str())
-        .ok_or(anyhow!("download_url is required"))?;
+    let download_url = body.get("download_url").and_then(|v| v.as_str()).ok_or(anyhow!("download_url is required"))?;
 
-    let filename = body.get("filename")
-        .and_then(|v| v.as_str())
-        .map(String::from);
+    let filename = body.get("filename").and_then(|v| v.as_str()).map(String::from).expect("filename is required");
 
-    let server = ServerData::get(server_id, user_id).await?
-        .ok_or(anyhow!("Server not found"))?;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
     match server.download_and_install_mod(download_url, filename).await {
         Ok(mod_data) => Ok(HttpResponse::Ok().json(json!({
@@ -363,7 +365,7 @@ pub async fn download_mod(
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "status": "error",
             "message": format!("Failed to download mod: {}", e)
-        })))
+        }))),
     }
 }
 
@@ -373,8 +375,7 @@ pub async fn sync_mods(server_id: web::Path<String>, req: HttpRequest) -> Result
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let server = ServerData::get(server_id, user_id).await?
-        .ok_or(anyhow!("Server not found"))?;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
     match server.sync_installed_mods().await {
         Ok(_) => {
@@ -384,11 +385,11 @@ pub async fn sync_mods(server_id: web::Path<String>, req: HttpRequest) -> Result
                 "message": "Mods synchronized successfully",
                 "mods": mods
             })))
-        },
+        }
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "status": "error",
             "message": format!("Failed to sync mods: {}", e)
-        })))
+        }))),
     }
 }
 
@@ -399,8 +400,7 @@ pub async fn delete_mod(path: web::Path<(String, String)>, req: HttpRequest) -> 
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let server = ServerData::get(server_id, user_id).await?
-        .ok_or(anyhow!("Server not found"))?;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
     match server.delete_mod(&mod_id).await {
         Ok(_) => Ok(HttpResponse::Ok().json(json!({
@@ -410,7 +410,7 @@ pub async fn delete_mod(path: web::Path<(String, String)>, req: HttpRequest) -> 
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "status": "error",
             "message": format!("Failed to delete mod: {}", e)
-        })))
+        }))),
     }
 }
 
@@ -421,8 +421,7 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
     let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let server = ServerData::get(server_id, user_id).await?
-        .ok_or(anyhow!("Server not found"))?;
+    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
     let pool = crate::app_db::open_pool().await?;
     let row = sqlx::query("SELECT icon FROM installed_mods WHERE mod_id = ? AND server_id = ?")
@@ -436,9 +435,7 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
         let icon_data: Option<String> = row.get("icon");
         if let Some(icon_base64) = icon_data {
             if let Ok(icon_bytes) = base64::engine::general_purpose::STANDARD.decode(icon_base64) {
-                return Ok(HttpResponse::Ok()
-                    .content_type("image/png")
-                    .body(icon_bytes));
+                return Ok(HttpResponse::Ok().content_type("image/png").body(icon_bytes));
             }
         }
     }

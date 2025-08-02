@@ -8,6 +8,7 @@ import {ModList as ModrinthModList} from "./modrinth/ModList.tsx";
 import {ModList as CurseForgeModList} from "./curseforge/ModList.tsx";
 import {useSearchParams} from "react-router-dom";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
+import {InstalledModList} from "./installed/InstalledModList.tsx";
 
 export type ModListProps = {
     searchQuery: string;
@@ -20,7 +21,7 @@ export type ModListProps = {
 
 export function ServerContent()
 {
-    const [selectedPlatform, setSelectedPlatform] = useState("modrinth");
+    const [selectedPlatform, setSelectedPlatform] = useState("installed");
     const [search, setSearch] = useState("");
     const [loaders, setLoaders] = useState<string[]>([]);
     const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
@@ -37,7 +38,7 @@ export function ServerContent()
         const minecraftVersionsQuery = queryParams.get("minecraftVersions") || "";
         const categoriesQuery = queryParams.get("categories") || "";
 
-        if (platform && (platform === "modrinth" || platform === "curseforge"))
+        if (platform && (platform === "modrinth" || platform === "curseforge" || platform === "installed"))
         {
             setSelectedPlatform(platform);
         }
@@ -113,6 +114,11 @@ export function ServerContent()
                     selectedKey={selectedPlatform}
                     onSelectionChange={value => setSelectedPlatform(value as string)}
                 >
+                    <Tab key={"installed"} title={
+                        <Tooltip content={"Installed Mods"}>
+                            <Icon icon={"pixelarticons:download"}/>
+                        </Tooltip>
+                    }/>
                     <Tab key={"modrinth"} title={
                         <Tooltip content={"Modrinth"}>
                             <Icon icon={"simple-icons:modrinth"} className={selectedPlatform === "modrinth" ? "text-black" : ""}/>
@@ -128,18 +134,10 @@ export function ServerContent()
 
             <div className={"flex flex-row gap-4 h-full relative max-h-[calc(100dvh_-_490px)] min-h-[220px] z-20"}>
                 {/* Side Panel */}
-                <div className={"bg-default-100 min-w-64 w-64  max-w-64  h-full overflow-y-auto flex flex-col gap-2 p-2 pr-6"}>
-                    {selectedPlatform === "modrinth" ?
-                        <ModrinthContentFilters
-                            selectedCategories={categories}
-                            onCategoryChange={setCategories}
-                            selectedLoaders={loaders}
-                            onLoaderChange={setLoaders}
-                            selectedGameVersions={minecraftVersions}
-                            onGameVersionChange={setMinecraftVersions}
-                        />
-                        : selectedPlatform === "curseforge" ?
-                            <CurseForgeContentFilters
+                {selectedPlatform !== "installed" && (
+                    <div className={"bg-default-100 min-w-64 w-64  max-w-64  h-full overflow-y-auto flex flex-col gap-2 p-2 pr-6"}>
+                        {selectedPlatform === "modrinth" ?
+                            <ModrinthContentFilters
                                 selectedCategories={categories}
                                 onCategoryChange={setCategories}
                                 selectedLoaders={loaders}
@@ -147,9 +145,19 @@ export function ServerContent()
                                 selectedGameVersions={minecraftVersions}
                                 onGameVersionChange={setMinecraftVersions}
                             />
-                            : null
-                    }
-                </div>
+                            : selectedPlatform === "curseforge" ?
+                                <CurseForgeContentFilters
+                                    selectedCategories={categories}
+                                    onCategoryChange={setCategories}
+                                    selectedLoaders={loaders}
+                                    onLoaderChange={setLoaders}
+                                    selectedGameVersions={minecraftVersions}
+                                    onGameVersionChange={setMinecraftVersions}
+                                />
+                                : null
+                        }
+                    </div>
+                )}
                 <div className={"h-full overflow-y-auto flex flex-col gap-2 p-2 pr-6 grow"}>
                     {selectedPlatform === "modrinth" ?
                         <ModrinthModList
@@ -169,7 +177,9 @@ export function ServerContent()
                                 limit={20}
                                 offset={0}
                             />
-                            : null
+                            : selectedPlatform === "installed" ?
+                                <InstalledModList searchQuery={search} limit={20} offset={0} />
+                                : null
                     }
                 </div>
 
