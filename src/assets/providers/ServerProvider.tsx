@@ -549,7 +549,7 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return await FileSystem.setFileContents(path, contents, targetServerId);
     }, [server]);
-    
+
     const getInstalledMods = useCallback(async (serverId?: string): Promise<InstalledMod[]> =>
     {
         const targetServerId = serverId || server?.id;
@@ -557,7 +557,7 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return $.get(`/api/server/${targetServerId}/installed-mods`);
     }, [server]);
-    
+
     const installMod = useCallback(async (options: InstallModOptions, serverId?: string): Promise<void> =>
     {
         const targetServerId = serverId || server?.id;
@@ -573,7 +573,7 @@ export function ServerProvider({children}: { children: ReactNode })
             })
         });
     }, [server]);
-    
+
     const syncMods = useCallback(async (serverId?: string): Promise<void> =>
     {
         const targetServerId = serverId || server?.id;
@@ -581,7 +581,7 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return $.post(`/api/server/${targetServerId}/sync-mods`);
     }, [server]);
-    
+
     const removeMod = useCallback(async (modId: string, serverId?: string): Promise<void> =>
     {
         const targetServerId = serverId || server?.id;

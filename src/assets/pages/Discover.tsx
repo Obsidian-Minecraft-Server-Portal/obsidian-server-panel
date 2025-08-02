@@ -100,6 +100,7 @@ export function Discover()
     const [hasMoreVersions, setHasMoreVersions] = useState(false);
 
     const versionsList = useAsyncList({
+        // @ts-ignore
         async load({signal, cursor})
         {
             if (!modVersions.length)
@@ -474,16 +475,16 @@ export function Discover()
 
     const filteredChangelog = changelog.slice(0, changelogPage * CHANGELOG_PER_PAGE);
 
-    const filteredVersions = modVersions.filter(version =>
-    {
-        return (
-            (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
-                version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
-            (!gameVersionFilter || version.game_versions.some(v => v.includes(gameVersionFilter))) &&
-            (!loaderFilter || version.loaders.some(l => l.toLowerCase().includes(loaderFilter.toLowerCase()))) &&
-            (!typeFilter || version.version_type === typeFilter)
-        );
-    });
+    // const filteredVersions = modVersions.filter(version =>
+    // {
+    //     return (
+    //         (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
+    //             version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
+    //         (!gameVersionFilter || version.game_versions.some(v => v.includes(gameVersionFilter))) &&
+    //         (!loaderFilter || version.loaders.some(l => l.toLowerCase().includes(loaderFilter.toLowerCase()))) &&
+    //         (!typeFilter || version.version_type === typeFilter)
+    //     );
+    // });
 
     const getVersionTypeIcon = (type: string) =>
     {
@@ -843,10 +844,10 @@ export function Discover()
                                     </TableHeader>
                                     <TableBody
                                         isLoading={versionsLoading}
-                                        items={versionsList.items}
+                                        items={versionsList.items as ModVersion[]}
                                         loadingContent={<Spinner color="primary"/>}
                                     >
-                                        {(version) => (
+                                        {(version:ModVersion) => (
                                             <TableRow key={version.id}>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">

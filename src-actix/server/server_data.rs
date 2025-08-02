@@ -224,7 +224,7 @@ impl ServerData {
         result
     }
 
-    pub async fn download_and_install_mod(&self, download_url: &str, filename:  String) -> Result<ModData> {
+    pub async fn download_and_install_mod(&self, download_url: &str, filename: String) -> Result<ModData> {
         // Create mods directory if it doesn't exist
         let mods_dir = self.get_directory_path().join("mods");
         std::fs::create_dir_all(&mods_dir)?;
@@ -299,11 +299,11 @@ impl ServerData {
     pub async fn initialize_servers(pool: &SqlitePool) -> Result<()> {
         let servers = Self::list_all_with_pool(pool).await?;
         for mut server in servers {
+            if let Err(e) = server.start_watch_server_mod_directory_for_changes().await {
+                log::error!("Failed to start mod directory watcher for server {}: {}", server.name, e);
+            }
             if let Err(e) = server.refresh_installed_mods(pool).await {
                 log::error!("Failed to refresh installed mods for server {}: {}", server.name, e);
-            }
-            if let Err(e) = server.start_watch_server_mod_directory_for_changes().await {
-                log::error!("Failed to start watching mods directory for server {}: {}", server.name, e);
             }
             if server.auto_start {
                 if let Err(e) = server.start_server().await {

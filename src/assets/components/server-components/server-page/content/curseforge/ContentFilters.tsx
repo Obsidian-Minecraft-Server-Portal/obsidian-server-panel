@@ -12,7 +12,7 @@ type ContentFiltersProps = {
 
 export function ContentFilters(props: ContentFiltersProps)
 {
-    const {selectedGameVersions, selectedLoaders, selectedCategories, onGameVersionChange, onLoaderChange, onCategoryChange} = props;
+    const {selectedGameVersions, selectedLoaders, onGameVersionChange, onLoaderChange} = props;
     return (
         <>
             <GameVersionSelector

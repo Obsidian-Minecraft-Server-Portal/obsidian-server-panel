@@ -50,6 +50,7 @@ export function useTheme(): ThemeContextType
 }
 
 
+// @ts-ignore
 function getSavedTheme(): Themes
 {
     return localStorage.getItem("app-theme") as Themes | null || Themes.SYSTEM;

@@ -59,7 +59,7 @@ impl ModData {
         }
 
         // Try Forge mod (META-INF/mod.toml)
-        if let Some(contents) = Self::read_contents_of_jar(&path, "META-INF/mod.toml")? {
+        if let Some(contents) = Self::read_contents_of_jar(&path, "META-INF/mods.toml")? {
             return Self::parse_forge_mod(contents, file_name, &path).await;
         }
 
