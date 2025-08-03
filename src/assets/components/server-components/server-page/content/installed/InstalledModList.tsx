@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {ModItemSkeleton} from "../ModItem.tsx";
 import {InstalledMod, useServer} from "../../../../../providers/ServerProvider.tsx";
 import {InstalledModItem} from "./InstalledModItem.tsx";
@@ -12,46 +12,50 @@ type ModListProps = {
 export function InstalledModList(props: ModListProps)
 {
     const {searchQuery, limit, offset} = props;
-    const {getInstalledMods} = useServer()
+    const {getInstalledMods, server} = useServer();
     const [allMods, setAllMods] = useState<InstalledMod[]>([]);
     const [filteredMods, setFilteredMods] = useState<InstalledMod[]>([]);
-    const abortSignal = useRef(new AbortController());
     const [isLoading, setIsLoading] = useState(false);
+
 
     // Load mods from server
     useEffect(() =>
     {
         setIsLoading(true);
-
-        // Abort any previous request
-        if (abortSignal.current) abortSignal.current.abort();
-        abortSignal.current = new AbortController();
-
         getInstalledMods()
-            .then((installedMods: InstalledMod[]) => {
-                setAllMods(installedMods);
-                setIsLoading(false);
+            .then(setAllMods)
+            .catch((error) =>
+            {
+                console.error("Failed to load installed mods:", error);
             })
-            .catch((error) => {
-                if (error.name !== 'AbortError') {
-                    console.error("Failed to load installed mods:", error);
-                }
-                setIsLoading(false);
-            });
-
-        // Cleanup function
-        return () => {
-            if (abortSignal.current) {
-                abortSignal.current.abort();
-            }
-        };
+            .finally(() => setIsLoading(false));
     }, []); // Only load once when component mounts
 
+    useEffect(() =>
+    {
+        refreshMods();
+    }, [server]);
+
+    const refreshMods = useCallback(async () =>
+    {
+        const mods = await getInstalledMods();
+        if (JSON.stringify(allMods) != JSON.stringify(mods))
+        {
+            console.log("Refreshing installed mods:", mods, allMods);
+            setIsLoading(true);
+            setAllMods(mods);
+            setTimeout(() => setIsLoading(false), 100);
+        }
+    }, [server]);
+
     // Filter mods based on search query
-    useEffect(() => {
-        if (!searchQuery.trim()) {
+    useEffect(() =>
+    {
+        if (!searchQuery.trim())
+        {
             setFilteredMods(allMods);
-        } else {
+        } else
+        {
             const query = searchQuery.toLowerCase();
             const filtered = allMods.filter(mod =>
                 mod.name.toLowerCase().includes(query) ||

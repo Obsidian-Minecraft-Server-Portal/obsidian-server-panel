@@ -47,9 +47,8 @@ tar = "0.4.44"
 serde_ini = { version = "0.2.0" }
 craftping = { version = "0.7.0", features = ["tokio", "async-tokio"] }
 obsidian-upnp = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/upnp.git" }
-sevenz-rust2 = { version = "0.17.1", features = ["compress", "deflate", "default", "bzip2", "util"] }
 strsim = "0.11.1"
-toml = "0.8.19"
+toml = "0.9.4"
 base64 = "0.22.1"
 notify = { version = "8.1.0", features = ["default", "serde"] }
 

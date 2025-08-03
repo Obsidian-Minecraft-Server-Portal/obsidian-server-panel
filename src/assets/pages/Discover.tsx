@@ -1,76 +1,16 @@
 import {useParams, useSearchParams} from "react-router-dom";
 import ErrorPage from "./ErrorPage.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
-import {useEffect, useState} from "react";
-import {Button, Card, CardBody, CardHeader, Chip, Divider, Image, Input, Link, Select, SelectItem, Skeleton, Spinner, Tab, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Tabs} from "@heroui/react";
+import {useCallback, useEffect, useState} from "react";
+import {Button, Card, CardHeader, Chip, Image, Link, Skeleton, Tab, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {useMessage} from "../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../components/MessageModal.tsx";
-import ReactMarkdown from "react-markdown";
-import {useInfiniteScroll} from "@heroui/use-infinite-scroll";
-import {useAsyncList} from "@react-stately/data";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
-
-type ModDetails = {
-    id: string;
-    name: string;
-    description: string;
-    body?: string;
-    icon_url?: string;
-    downloads: number;
-    followers?: number;
-    categories: string[];
-    license?: string;
-    source_url?: string;
-    issues_url?: string;
-    wiki_url?: string;
-    discord_url?: string;
-    donation_urls?: Array<{ id: string, platform: string, url: string }>;
-    versions: string[];
-    game_versions: string[];
-    loaders: string[];
-    published: string;
-    updated: string;
-    author?: string;
-    authors?: Array<{ name: string, url?: string }>;
-    slug?: string;
-};
-
-type ModVersion = {
-    id: string;
-    version_number: string;
-    name: string;
-    version_type: "release" | "beta" | "alpha" | "unknown";
-    loaders: string[];
-    game_versions: string[];
-    date_published: string;
-    downloads: number;
-    files: Array<{
-        hashes: { sha1: string, sha512: string };
-        url: string;
-        filename: string;
-        primary: boolean;
-        size: number;
-        file_type?: string;
-    }>;
-    changelog?: string;
-    dependencies?: Array<{
-        version_id?: string;
-        project_id?: string;
-        file_name?: string;
-        dependency_type: "required" | "optional" | "incompatible" | "embedded";
-    }>;
-};
-
-type ChangelogEntry = {
-    version: string;
-    version_type: "release" | "beta" | "alpha" | "unknown";
-    date: string;
-    changes: string;
-};
+import {ModDescription} from "../components/discover/ModDescription.tsx";
+import {ModChangelog} from "../components/discover/ModChangelog.tsx";
+import {ModVersions} from "../components/discover/ModVersions.tsx";
+import type {ModDetails, ModVersion, ChangelogEntry} from "../types/ModTypes.tsx";
 
 export function Discover()
 {
@@ -86,69 +26,7 @@ export function Discover()
     const [loading, setLoading] = useState(true);
     const [versionsLoading, setVersionsLoading] = useState(true);
     const [selectedTab, setSelectedTab] = useState("description");
-    const [versionFilter, setVersionFilter] = useState("");
-    const [gameVersionFilter, setGameVersionFilter] = useState("");
-    const [loaderFilter, setLoaderFilter] = useState("");
-    const [typeFilter, setTypeFilter] = useState("");
-
-    // Changelog pagination
     const [changelogPage, setChangelogPage] = useState(1);
-    const CHANGELOG_PER_PAGE = 5;
-
-    // Infinite scroll for versions
-    const versionsPerPage = 50;
-    const [hasMoreVersions, setHasMoreVersions] = useState(false);
-
-    const versionsList = useAsyncList({
-        // @ts-ignore
-        async load({signal, cursor})
-        {
-            if (!modVersions.length)
-            {
-                setHasMoreVersions(false);
-                return {items: [], cursor: null};
-            }
-
-            const startIndex = cursor ? parseInt(cursor) : 0;
-            const endIndex = startIndex + versionsPerPage;
-
-            // Apply filters to all versions first
-            const filtered = modVersions.filter(version =>
-            {
-                return (
-                    (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
-                        version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
-                    (!gameVersionFilter || version.game_versions.some(v => v.includes(gameVersionFilter))) &&
-                    (!loaderFilter || version.loaders.some(l => l.toLowerCase().includes(loaderFilter.toLowerCase()))) &&
-                    (!typeFilter || version.version_type === typeFilter)
-                );
-            });
-
-            const pageItems = filtered.slice(startIndex, endIndex);
-            const hasMore = endIndex < filtered.length;
-
-            setHasMoreVersions(hasMore);
-
-            return {
-                items: pageItems,
-                cursor: hasMore ? endIndex.toString() : null
-            };
-        }
-    });
-
-    const [loaderRef, scrollerRef] = useInfiniteScroll({
-        hasMore: hasMoreVersions,
-        onLoadMore: versionsList.loadMore
-    });
-
-    // Reload versions list when filters change
-    useEffect(() =>
-    {
-        if (modVersions.length > 0)
-        {
-            versionsList.reload();
-        }
-    }, [versionFilter, gameVersionFilter, loaderFilter, typeFilter, modVersions]);
 
     if (platform !== "curseforge" && platform !== "modrinth")
     {
@@ -306,7 +184,7 @@ export function Discover()
         }
     };
 
-    const downloadModVersion = async (version: ModVersion) =>
+    const downloadModVersion = useCallback(async (version: ModVersion) =>
     {
         if (!server || !serverId)
         {
@@ -394,7 +272,7 @@ export function Discover()
                 severity: "danger"
             });
         }
-    };
+    }, [modDetails, server, serverId, open]);
 
     useEffect(() =>
     {
@@ -473,49 +351,6 @@ export function Discover()
         fetchVersions();
     }, [modId, platform, modDetails]);
 
-    const filteredChangelog = changelog.slice(0, changelogPage * CHANGELOG_PER_PAGE);
-
-    // const filteredVersions = modVersions.filter(version =>
-    // {
-    //     return (
-    //         (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
-    //             version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
-    //         (!gameVersionFilter || version.game_versions.some(v => v.includes(gameVersionFilter))) &&
-    //         (!loaderFilter || version.loaders.some(l => l.toLowerCase().includes(loaderFilter.toLowerCase()))) &&
-    //         (!typeFilter || version.version_type === typeFilter)
-    //     );
-    // });
-
-    const getVersionTypeIcon = (type: string) =>
-    {
-        switch (type)
-        {
-            case "release":
-                return "R";
-            case "beta":
-                return "B";
-            case "alpha":
-                return "A";
-            default:
-                return "?";
-        }
-    };
-
-    const getVersionTypeColor = (type: string) =>
-    {
-        switch (type)
-        {
-            case "release":
-                return "success";
-            case "beta":
-                return "warning";
-            case "alpha":
-                return "danger";
-            default:
-                return "default";
-        }
-    };
-
     const formatDate = (dateString: string) =>
     {
         return new Date(dateString).toLocaleDateString();
@@ -526,47 +361,6 @@ export function Discover()
         if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
         if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
         return count.toString();
-    };
-
-    // Custom markdown components for proper styling
-    const markdownComponents = {
-        h1: ({children}: any) => (
-            <div className="mb-4 mt-8">
-                <h1 className="text-4xl font-bold mb-2">{children}</h1>
-                <Divider />
-            </div>
-        ),
-        h2: ({children}: any) => (
-            <div className="mb-4 mt-8">
-                <h2 className="text-3xl font-bold mb-2">{children}</h2>
-                <Divider />
-            </div>
-        ),
-        h3: ({children}: any) => (
-            <div className="mb-4 mt-8">
-                <h3 className="text-2xl font-bold mb-2">{children}</h3>
-                <Divider />
-            </div>
-        ),
-        h4: ({children}: any) => (
-            <div className="mb-4 mt-8">
-                <h4 className="text-xl font-bold mb-2">{children}</h4>
-                <Divider />
-            </div>
-        ),
-        ul: ({children}: any) => (
-            <ul className="list-disc ml-8 my-4" style={{listStyleType: 'disc'}}>
-                {children}
-            </ul>
-        ),
-        img: ({src, alt}: any) => (
-            <Image
-                src={src}
-                alt={alt || ""}
-                radius="none"
-                className="my-4"
-            />
-        )
     };
 
     if (loading)
@@ -633,11 +427,9 @@ export function Discover()
                                             return serverId ? `/app/servers/${serverId}?tab=content` : "/app";
                                         })()}
                                         radius="none"
-                                        variant="ghost"
-                                        color="primary"
-                                        startContent={<Icon icon="pixelarticons:arrow-left"/>}
+                                        isIconOnly
                                     >
-                                        Back to Search
+                                        <Icon icon="pixelarticons:arrow-left"/>
                                     </Button>
 
                                     {/* Open on Platform Button */}
@@ -649,13 +441,13 @@ export function Discover()
                                         }
                                         target="_blank"
                                         radius="none"
-                                        variant="ghost"
+                                        variant="solid"
                                         color={platform === "modrinth" ? "success" : "warning"}
                                         endContent={<Icon icon="pixelarticons:external-link"/>}
                                         className={
                                             platform === "modrinth"
-                                                ? "text-[#1bd96a] border-[#1bd96a] hover:bg-[#1bd96a] hover:text-black"
-                                                : "text-[#f16436] border-[#f16436] hover:bg-[#f16436] hover:text-white"
+                                                ? "text-black bg-[#1bd96a]"
+                                                : "text-white bg-[#f16436]"
                                         }
                                     >
                                         Open on {platform === "modrinth" ? "Modrinth" : "CurseForge"}
@@ -700,209 +492,25 @@ export function Discover()
                     radius="none"
                 >
                     <Tab key="description" title="Description">
-                        <Card radius="none">
-                            <CardBody className="p-6">
-                                {modDetails.body ? (
-                                    <div className="prose prose-sm max-w-none">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            rehypePlugins={[rehypeRaw, rehypeSanitize]}
-                                            components={markdownComponents}
-                                        >
-                                            {modDetails.body}
-                                        </ReactMarkdown>
-                                    </div>
-                                ) : (
-                                    <p className="text-default-600">{modDetails.description}</p>
-                                )}
-                            </CardBody>
-                        </Card>
+                        <ModDescription modDetails={modDetails}/>
                     </Tab>
 
                     <Tab key="changelog" title="Changelog">
-                        <Card radius="none">
-                            <CardBody className="p-6">
-                                {changelog.length > 0 ? (
-                                    <div className="space-y-6">
-                                        {filteredChangelog.map((entry, index) => (
-                                            <div key={index} className="border-l-4 border-primary pl-4">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <Chip
-                                                        size="sm"
-                                                        color={getVersionTypeColor(entry.version_type) as any}
-                                                        variant="flat"
-                                                    >
-                                                        {getVersionTypeIcon(entry.version_type)} {entry.version}
-                                                    </Chip>
-                                                    <span className="text-default-500 text-sm">
-                                                        {formatDate(entry.date)}
-                                                    </span>
-                                                </div>
-                                                <div className="prose prose-sm max-w-none">
-                                                    <ReactMarkdown
-                                                        remarkPlugins={[remarkGfm]}
-                                                        rehypePlugins={[rehypeRaw, rehypeSanitize]}
-                                                    >
-                                                        {entry.changes}
-                                                    </ReactMarkdown>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {changelog.length > CHANGELOG_PER_PAGE && (
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    variant="ghost"
-                                                    color="primary"
-                                                    onPress={() => setChangelogPage(prev => prev + 1)}
-                                                    radius={"none"}
-                                                >
-                                                    Load more
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <p className="text-default-500">No changelog available</p>
-                                )}
-                            </CardBody>
-                        </Card>
+                        <ModChangelog
+                            changelog={changelog}
+                            changelogPage={changelogPage}
+                            onLoadMore={() => setChangelogPage(prev => prev + 1)}
+                        />
                     </Tab>
 
                     <Tab key="versions" title="Versions">
-                        <Card radius="none">
-                            <CardBody className="p-6">
-                                {/* Filters */}
-                                <div className="flex gap-4 mb-6 flex-wrap">
-                                    <Input
-                                        placeholder="Search versions..."
-                                        value={versionFilter}
-                                        onValueChange={setVersionFilter}
-                                        className="max-w-xs"
-                                        radius="none"
-                                        startContent={<Icon icon="pixelarticons:search"/>}
-                                    />
-                                    <Select
-                                        placeholder="Game Version"
-                                        selectedKeys={gameVersionFilter ? [gameVersionFilter] : []}
-                                        onSelectionChange={(keys) => setGameVersionFilter([...keys][0] as string || "")}
-                                        className="max-w-xs"
-                                        radius="none"
-                                    >
-                                        {Array.from(new Set(modVersions.flatMap(v => v.game_versions))).map(version => (
-                                            <SelectItem key={version} textValue={version}>{version}</SelectItem>
-                                        ))}
-                                    </Select>
-                                    <Select
-                                        placeholder="Loader"
-                                        selectedKeys={loaderFilter ? [loaderFilter] : []}
-                                        onSelectionChange={(keys) => setLoaderFilter([...keys][0] as string || "")}
-                                        className="max-w-xs"
-                                        radius="none"
-                                    >
-                                        {Array.from(new Set(modVersions.flatMap(v => v.loaders))).map(loader => (
-                                            <SelectItem key={loader} textValue={loader}>{loader}</SelectItem>
-                                        ))}
-                                    </Select>
-                                    <Select
-                                        placeholder="Release Type"
-                                        selectedKeys={typeFilter ? [typeFilter] : []}
-                                        onSelectionChange={(keys) => setTypeFilter([...keys][0] as string || "")}
-                                        className="max-w-xs"
-                                        radius="none"
-                                    >
-                                        <SelectItem key="release" textValue="release">Release</SelectItem>
-                                        <SelectItem key="beta" textValue="beta">Beta</SelectItem>
-                                        <SelectItem key="alpha" textValue="alpha">Alpha</SelectItem>
-                                    </Select>
-                                </div>
-
-                                {/* Versions Table */}
-                                <Table
-                                    radius="none"
-                                    isHeaderSticky
-                                    className="min-h-[400px]"
-                                    baseRef={scrollerRef}
-                                    bottomContent={
-                                        hasMoreVersions ? (
-                                            <div className="flex w-full justify-center">
-                                                <Spinner ref={loaderRef} color="primary"/>
-                                            </div>
-                                        ) : null
-                                    }
-                                    classNames={{
-                                        base: "max-h-[520px] overflow-scroll",
-                                        table: "min-h-[400px]"
-                                    }}
-                                >
-                                    <TableHeader>
-                                        <TableColumn>Name</TableColumn>
-                                        <TableColumn>Game Version</TableColumn>
-                                        <TableColumn>Platforms</TableColumn>
-                                        <TableColumn>Published</TableColumn>
-                                        <TableColumn>Downloads</TableColumn>
-                                        <TableColumn>Actions</TableColumn>
-                                    </TableHeader>
-                                    <TableBody
-                                        isLoading={versionsLoading}
-                                        items={versionsList.items as ModVersion[]}
-                                        loadingContent={<Spinner color="primary"/>}
-                                    >
-                                        {(version:ModVersion) => (
-                                            <TableRow key={version.id}>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Chip
-                                                            size="sm"
-                                                            color={getVersionTypeColor(version.version_type) as any}
-                                                            variant="flat"
-                                                            className="min-w-8 text-xs font-bold"
-                                                        >
-                                                            {getVersionTypeIcon(version.version_type)}
-                                                        </Chip>
-                                                        <div>
-                                                            <div className="font-semibold">{version.version_number}</div>
-                                                            <div className="text-xs text-default-500">{version.name}</div>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {version.game_versions.slice(0, 3).map(v => (
-                                                            <Chip key={v} size="sm" variant="flat">{v}</Chip>
-                                                        ))}
-                                                        {version.game_versions.length > 3 && (
-                                                            <Chip size="sm" variant="flat">+{version.game_versions.length - 3}</Chip>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {version.loaders.map(loader => (
-                                                            <Chip key={loader} size="sm" variant="flat" color="secondary">
-                                                                {loader}
-                                                            </Chip>
-                                                        ))}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>{formatDate(version.date_published)}</TableCell>
-                                                <TableCell>{formatDownloads(version.downloads)}</TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        size="sm"
-                                                        color="primary"
-                                                        radius="none"
-                                                        onPress={() => downloadModVersion(version)}
-                                                        startContent={<Icon icon="pixelarticons:download"/>}
-                                                    >
-                                                        Download
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </CardBody>
-                        </Card>
+                        <ModVersions
+                            modVersions={modVersions}
+                            versionsLoading={versionsLoading}
+                            server={server || undefined}
+                            serverId={serverId || undefined}
+                            onDownloadVersion={downloadModVersion}
+                        />
                     </Tab>
                 </Tabs>
             </div>
