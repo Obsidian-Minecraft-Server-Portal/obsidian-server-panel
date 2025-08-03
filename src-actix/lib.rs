@@ -2,8 +2,9 @@ use crate::app_db::open_pool;
 use crate::server::server_data::ServerData;
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
-use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
 use anyhow::Result;
+use clap::Parser;
 use log::*;
 use obsidian_upnp::open_port;
 use serde_json::json;
@@ -13,6 +14,7 @@ use vite_actix::start_vite_server;
 mod actix_util;
 mod app_db;
 mod authentication;
+mod command_line_args;
 mod ddos_middleware;
 mod forge_endpoint;
 mod host_info;
@@ -20,15 +22,16 @@ mod java;
 mod server;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
-const PORT: u16 = 8080;
 static ICON: &[u8] = include_bytes!("../resources/logo/icon.ico");
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder().filter_level(if DEBUG { LevelFilter::Debug } else { LevelFilter::Info }).format_timestamp(None).init();
-    // setup serde hashids
+    info!("Starting Obsidian Minecraft Server Panel...");
+    let args = command_line_args::CommandLineArgs::parse();
 
     #[cfg(debug_assertions)]
     {
+        // setup serde hashids
         serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).with_salt("obsidian-server-panel").build();
         let dev_env_path = "./target/dev-env";
         std::fs::create_dir_all(dev_env_path)?;
@@ -45,7 +48,8 @@ pub async fn run() -> Result<()> {
             pool.close().await;
 
             Ok(())
-        }.await;
+        }
+        .await;
 
         if let Err(e) = result {
             error!("Database initialization failed: {}", e);
@@ -72,17 +76,19 @@ pub async fn run() -> Result<()> {
             .configure_frontend_routes()
     })
     .workers(std::thread::available_parallelism()?.get())
-    .bind(format!("0.0.0.0:{port}", port = PORT))?
+    .bind(format!("0.0.0.0:{port}", port = args.port))?
     .run();
 
-    info!("Starting {} server at http://127.0.0.1:{}...", if DEBUG { "development" } else { "production" }, PORT);
+    info!("Starting {} server at http://127.0.0.1:{}...", if DEBUG { "development" } else { "production" }, args.port);
 
     if DEBUG {
         #[allow(clippy::zombie_processes)]
         start_vite_server().expect("Failed to start vite server");
     }
 
-    open_port!(PORT, "Obsidian Minecraft Server Panel");
+    if args.forward_webpanel {
+        open_port!(args.port, "Obsidian Minecraft Server Panel");
+    }
 
     let stop_result = server.await;
     debug!("Server stopped");
