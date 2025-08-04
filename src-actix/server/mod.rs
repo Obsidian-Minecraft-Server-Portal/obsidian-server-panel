@@ -8,6 +8,7 @@ mod server_type;
 mod server_properties;
 mod server_ping;
 pub mod installed_mods;
+mod backups;
 
 pub use server_endpoint::configure;
 pub use server_db::initialize;

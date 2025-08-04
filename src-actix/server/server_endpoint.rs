@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserData;
-use crate::server::filesystem;
+use crate::server::{backups, filesystem};
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
@@ -468,7 +468,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(ping_server)
             .service(get_log_files)
             .service(get_log_file_contents)
-            .service(web::scope("/{server_id}").configure(filesystem::configure))
+            .service(web::scope("/{server_id}").configure(filesystem::configure).configure(backups::configure))
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),
