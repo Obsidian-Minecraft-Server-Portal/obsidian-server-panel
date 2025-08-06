@@ -4,7 +4,7 @@ mod tests {
     use crate::server::backups::backup_data::BackupData;
     use crate::server::backups::backup_endpoint::configure;
     use crate::server::backups::backup_type::BackupType;
-    use actix_web::{App, HttpMessage, test, web};
+    use actix_web::{test, web, App, HttpMessage};
     use serde_json::json;
     use sqlx::SqlitePool;
     use std::sync::Arc;
@@ -87,6 +87,8 @@ mod tests {
             permissions: crate::authentication::user_permissions::PermissionFlag::None.into(),
             join_date: chrono::Utc::now(),
             last_online: chrono::Utc::now(),
+            is_active: true,
+            needs_password_change: false,
         }
     }
 
