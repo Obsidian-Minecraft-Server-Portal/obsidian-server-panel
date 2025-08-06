@@ -22,6 +22,11 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
     const [installationProgress, setInstallationProgress] = useState(0);
     const [isInstalling, setIsInstalling] = useState(false);
 
+    useEffect(() =>
+    {
+        refreshJavaVersions();
+    }, []);
+
 
     useEffect(() =>
     {
