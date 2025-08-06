@@ -14,6 +14,7 @@ use serde_json::json;
 use sqlx::Row;
 use std::io::Read;
 use std::time::Duration;
+use crate::ICON;
 
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
@@ -212,20 +213,33 @@ pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> 
 }
 
 #[get("{server_id}/icon")]
-pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
-    let server_id = decode_single(server_id.into_inner())?;
-    let user = req.get_user()?;
-    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> impl Responder {
+    let server_id = match decode_single(server_id.into_inner()) {
+        Ok(id) => id,
+        Err(_) => return HttpResponse::Ok().content_type("image/png").body(ICON)
+    };
 
-    let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let user = match req.get_user() {
+        Ok(user) => user,
+        Err(_) => return HttpResponse::Ok().content_type("image/png").body(ICON)
+    };
+
+    let user_id = match user.id {
+        Some(id) => id,
+        None => return HttpResponse::Ok().content_type("image/png").body(ICON)
+    };
+
+    let server = match ServerData::get(server_id, user_id).await {
+        Ok(Some(s)) => s,
+        _ => return HttpResponse::Ok().content_type("image/png").body(ICON)
+    };
+
     let icon = server.get_icon();
     if icon.is_empty() {
-        return Ok(HttpResponse::NotFound().json(json!({
-            "error": "Icon not found".to_string(),
-        })));
+        return HttpResponse::Ok().content_type("image/png").body(ICON);
     }
 
-    Ok(HttpResponse::Ok().content_type("image/png").body(icon))
+    HttpResponse::Ok().content_type("image/png").body(icon)
 }
 
 #[get("{server_id}/logs")]
