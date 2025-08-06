@@ -1,7 +1,7 @@
 use crate::actix_util::http_error::Result;
 use crate::app_db::open_pool;
 use crate::authentication;
-use crate::authentication::auth_data::{TOKEN_KEY, UserData};
+use crate::authentication::auth_data::{TOKEN_KEY, UserData, UserRequestExt};
 use crate::authentication::user_permissions::PermissionFlag;
 use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, web};
 use anyhow::anyhow;
@@ -28,7 +28,7 @@ pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder>
 
 #[get("/")]
 pub async fn login_with_token(req: HttpRequest) -> Result<impl Responder> {
-    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    let user = req.get_user()?;
     Ok(HttpResponse::Ok().json(json!({
         "message": "User is logged in",
         "user": user,
@@ -76,7 +76,7 @@ pub async fn update_permissions(
     query: web::Query<std::collections::HashMap<String, String>>,
     req: HttpRequest,
 ) -> Result<impl Responder> {
-    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    let user = req.get_user()?;
     if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ManagePermissions) {
         return Ok(HttpResponse::Forbidden().json(json!({
             "message": "You do not have permission to update permissions",
@@ -138,7 +138,7 @@ pub async fn get_permissions_list() -> Result<impl Responder> {
 
 #[get("/users/")]
 pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
-    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    let user = req.get_user()?;
     if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ViewUsers) {
         return Ok(HttpResponse::Forbidden().json(json!({
             "message": "You do not have permission to view this resource",
@@ -166,7 +166,7 @@ pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
 
 #[post("/change-password")]
 pub async fn change_password(body: web::Bytes, req: HttpRequest) -> Result<impl Responder> {
-    let user = req.extensions().get::<UserData>().cloned().ok_or_else(|| anyhow!("User not authenticated"))?;
+    let user = req.get_user()?;
     let password = String::from_utf8(body.to_vec()).map_err(|_| anyhow!("Invalid password format"))?;
     if password.is_empty() {
         return Ok(HttpResponse::BadRequest().json(json!({

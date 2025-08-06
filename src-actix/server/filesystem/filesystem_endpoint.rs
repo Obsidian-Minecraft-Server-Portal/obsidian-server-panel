@@ -1,4 +1,5 @@
 use crate::actix_util::http_error::Result;
+use crate::authentication::auth_data::UserRequestExt;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
 use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
@@ -101,7 +102,7 @@ struct ArchiveRequest {
 #[get("/files")]
 pub async fn get_files(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
     let path = query.get("path").unwrap_or(&String::from("")).to_string();
 
@@ -135,7 +136,7 @@ pub async fn upload_file(
     req: HttpRequest,
 ) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     // Extract upload ID and file path from query parameters
@@ -306,7 +307,7 @@ pub async fn upload_url(server_id: web::Path<String>, query: web::Query<HashMap<
     let filepath = query.get("filepath").unwrap_or(&String::from("")).to_string();
     let url = query.get("url").ok_or(anyhow::anyhow!("URL parameter is required"))?.clone();
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     // get server from server id
@@ -403,7 +404,7 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
     use archflow::types::FileDateTime;
 
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     // get server from server id
@@ -519,7 +520,7 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
 #[post("/copy")]
 pub async fn copy_entry(server_id: web::Path<String>, body: web::Json<CopyMoveRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -559,7 +560,7 @@ fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result
 #[post("/move")]
 pub async fn move_entry(server_id: web::Path<String>, body: web::Json<CopyMoveRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -581,7 +582,7 @@ pub async fn move_entry(server_id: web::Path<String>, body: web::Json<CopyMoveRe
 #[post("/rename")]
 pub async fn rename_entry(server_id: web::Path<String>, body: web::Json<RenameRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -601,7 +602,7 @@ pub async fn rename_entry(server_id: web::Path<String>, body: web::Json<RenameRe
 #[delete("/")]
 pub async fn delete_entry(server_id: web::Path<String>, body: web::Json<DeleteRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -622,7 +623,7 @@ pub async fn delete_entry(server_id: web::Path<String>, body: web::Json<DeleteRe
 #[post("/new")]
 pub async fn create_entry(server_id: web::Path<String>, body: web::Json<NewEntryRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -644,7 +645,7 @@ pub async fn create_entry(server_id: web::Path<String>, body: web::Json<NewEntry
 #[get("/search")]
 pub async fn search(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let search_query = query.get("q").ok_or(anyhow::anyhow!("Search query parameter 'q' is required"))?.clone();
@@ -692,7 +693,7 @@ fn search_directory(dir: &std::path::Path, query: &str, filename_only: bool, res
 #[post("/archive")]
 pub async fn archive_files(server_id: web::Path<String>, body: web::Json<ArchiveRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -771,7 +772,7 @@ pub async fn cancel_archive(tracker_id: web::Path<String>) -> Result<impl Respon
 #[get("/contents")]
 pub async fn get_file_contents(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -792,7 +793,7 @@ pub async fn set_file_contents(
     req: HttpRequest,
 ) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
@@ -808,7 +809,7 @@ pub async fn set_file_contents(
 #[post("/extract")]
 pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
-    let user = req.extensions().get::<crate::authentication::auth_data::UserData>().cloned().ok_or(anyhow::anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow::anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;

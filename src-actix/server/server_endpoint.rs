@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::actix_util::http_error::Result;
-use crate::authentication::auth_data::UserData;
+use crate::authentication::auth_data::{UserData, UserRequestExt};
 use crate::server::{backups, filesystem};
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
@@ -17,7 +17,7 @@ use std::time::Duration;
 
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let servers = ServerData::list(user_id).await?;
@@ -27,7 +27,7 @@ pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
 #[get("{server_id}")]
 pub async fn get_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?;
@@ -43,7 +43,7 @@ pub async fn get_server(server_id: web::Path<String>, req: HttpRequest) -> Resul
 #[delete("{server_id}")]
 pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let pool = crate::app_db::open_pool().await?;
@@ -63,7 +63,7 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
 
 #[put("")]
 pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
     let body = body.0;
 
@@ -89,7 +89,7 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
 #[get("{server_id}/ping")]
 pub async fn ping_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
     let ping_response = server.get_ping().await?;
@@ -99,7 +99,7 @@ pub async fn ping_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
 #[post("{server_id}")]
 pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerData>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let pool = crate::app_db::open_pool().await?;
@@ -120,7 +120,7 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
 #[post("{server_id}/start")]
 pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -146,7 +146,7 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
 #[post("{server_id}/stop")]
 pub async fn stop_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -157,7 +157,7 @@ pub async fn stop_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
 #[post("{server_id}/restart")]
 pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -167,7 +167,7 @@ pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> R
 #[post("{server_id}/kill")]
 pub async fn kill_server(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -179,7 +179,7 @@ pub async fn kill_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
 pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: HttpRequest) -> Result<impl Responder> {
     let body = String::from_utf8(body.to_vec())?;
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -192,7 +192,7 @@ pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: H
 pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::mpsc::channel(100);
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -214,7 +214,7 @@ pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> 
 #[get("{server_id}/icon")]
 pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
@@ -231,7 +231,7 @@ pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> 
 #[get("{server_id}/logs")]
 pub async fn get_log_files(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = match ServerData::get(server_id, user_id).await? {
@@ -267,7 +267,7 @@ pub async fn get_log_files(server_id: web::Path<String>, req: HttpRequest) -> Re
 pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpRequest) -> Result<impl Responder> {
     let (server_id, log_file) = path.into_inner();
     let server_id = decode_single(server_id)?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = match ServerData::get(server_id, user_id).await? {
@@ -302,7 +302,7 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
                 Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),
                 Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
                     "error": format!("Error reading compressed log file: {}", e)
-                }))),
+                })))
             };
         }
     }
@@ -311,14 +311,14 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
         Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": format!("Error reading log file: {}", e)
-        }))),
+        })))
     }
 }
 
 #[get("{server_id}/installed-mods")]
 pub async fn get_installed_mods(server_id: web::Path<String>, options: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
     
     let server = match ServerData::get(server_id, user_id).await? {
@@ -347,7 +347,7 @@ pub async fn get_installed_mods(server_id: web::Path<String>, options: web::Quer
 #[post("{server_id}/download-mod")]
 pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let download_url = body.get("download_url").and_then(|v| v.as_str()).ok_or(anyhow!("download_url is required"))?;
@@ -372,7 +372,7 @@ pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_js
 #[post("{server_id}/sync-mods")]
 pub async fn sync_mods(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
@@ -397,7 +397,7 @@ pub async fn sync_mods(server_id: web::Path<String>, req: HttpRequest) -> Result
 pub async fn delete_mod(path: web::Path<(String, String)>, req: HttpRequest) -> Result<impl Responder> {
     let (server_id, mod_id) = path.into_inner();
     let server_id = decode_single(server_id)?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
@@ -418,7 +418,7 @@ pub async fn delete_mod(path: web::Path<(String, String)>, req: HttpRequest) -> 
 pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -> Result<impl Responder> {
     let (server_id, mod_id) = path.into_inner();
     let server_id = decode_single(server_id)?;
-    let user = req.extensions().get::<UserData>().cloned().ok_or(anyhow!("User not found in request"))?;
+    let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;

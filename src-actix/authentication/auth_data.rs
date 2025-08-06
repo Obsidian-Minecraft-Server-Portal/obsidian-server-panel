@@ -1,4 +1,5 @@
 use crate::authentication::user_permissions::PermissionFlag;
+use actix_web::HttpMessage;
 use anyhow::Result;
 use enumflags2::BitFlags;
 use serde::Deserialize;
@@ -34,7 +35,10 @@ impl Default for UserData {
     }
 }
 
-fn serialize_permissions<S>(permissions: &BitFlags<PermissionFlag>, serializer:S)->Result<S::Ok, S::Error> where S: serde::Serializer{
+fn serialize_permissions<S>(permissions: &BitFlags<PermissionFlag>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
     let permissions: Vec<PermissionFlag> = permissions.iter().collect();
     serializer.serialize_some(&permissions)
 }
@@ -77,6 +81,16 @@ impl UserData {
     pub async fn authenticate_with_session_token(token: &str) -> Result<UserData> {
         let pool = crate::app_db::open_pool().await?;
         let user = UserData::login_with_token(token, &pool).await?;
+        if let Some(user) = user { Ok(user) } else { Err(anyhow::anyhow!("User doesn't exist or token is invalid")) }
+    }
+}
+
+pub trait UserRequestExt {
+    fn get_user(&self) -> Result<UserData>;
+}
+impl UserRequestExt for actix_web::HttpRequest {
+    fn get_user(&self) -> Result<UserData> {
+        let user = self.extensions().get::<UserData>().cloned();
         if let Some(user) = user { Ok(user) } else { Err(anyhow::anyhow!("User doesn't exist or token is invalid")) }
     }
 }

@@ -1,5 +1,5 @@
 use crate::actix_util::http_error::Result;
-use crate::authentication::auth_data::UserData;
+use crate::authentication::auth_data::{UserData, UserRequestExt};
 use crate::server::backups::backup_data::BackupData;
 use crate::server::backups::backup_scheduler;
 use crate::server::backups::backup_type::BackupType;
@@ -70,21 +70,19 @@ async fn list_backups(path: web::Path<String>, req: HttpRequest) -> Result<HttpR
     let server_id: u64 = decode_single(server_id)?;
 
     // Extract authenticated user ID from request extensions
-    let user_id = match req.extensions().get::<UserData>() {
-        Some(user) => match user.id {
-            Some(id) => id,
-            None => {
-                return Ok(HttpResponse::Unauthorized().json(json!({
-                    "error": "Invalid user data"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::Unauthorized().json(json!({
-                "error": "Authentication required"
-            })));
-        }
-    };
+    let user = req.get_user().map_err(|_| {
+        log::error!("User not found in request extensions");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Authentication required"
+        }))
+    })?;
+
+    let user_id = user.id.ok_or_else(|| {
+        log::error!("User ID not found in user data");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid user data"
+        }))
+    })?;
 
     match ServerData::get(server_id, user_id).await {
         Ok(Some(server)) => match server.list_backups().await {
@@ -120,21 +118,19 @@ async fn create_backup(path: web::Path<String>, req_body: web::Json<CreateBackup
     let server_id: u64 = decode_single(server_id)?;
 
     // Extract authenticated user ID from request extensions
-    let user_id = match req.extensions().get::<UserData>() {
-        Some(user) => match user.id {
-            Some(id) => id,
-            None => {
-                return Ok(HttpResponse::Unauthorized().json(json!({
-                    "error": "Invalid user data"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::Unauthorized().json(json!({
-                "error": "Authentication required"
-            })));
-        }
-    };
+    let user = req.get_user().map_err(|_| {
+        log::error!("User not found in request extensions");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Authentication required"
+        }))
+    })?;
+
+    let user_id = user.id.ok_or_else(|| {
+        log::error!("User ID not found in user data");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid user data"
+        }))
+    })?;
 
     match ServerData::get(server_id, user_id).await {
         Ok(Some(server)) => match server.create_backup_with_description(req_body.description.clone()).await {
@@ -167,21 +163,19 @@ async fn delete_backup(path: web::Path<(String, String)>, req: HttpRequest) -> R
     let backup_id: u64 = decode_single(backup_id)?;
 
     // Extract authenticated user ID from request extensions
-    let user_id = match req.extensions().get::<UserData>() {
-        Some(user) => match user.id {
-            Some(id) => id,
-            None => {
-                return Ok(HttpResponse::Unauthorized().json(json!({
-                    "error": "Invalid user data"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::Unauthorized().json(json!({
-                "error": "Authentication required"
-            })));
-        }
-    };
+    let user = req.get_user().map_err(|_| {
+        log::error!("User not found in request extensions");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Authentication required"
+        }))
+    })?;
+
+    let user_id = user.id.ok_or_else(|| {
+        log::error!("User ID not found in user data");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid user data"
+        }))
+    })?;
 
     match ServerData::get(server_id, user_id).await {
         Ok(Some(server)) => match server.delete_backup(backup_id as i64).await {
@@ -213,21 +207,19 @@ async fn get_backup_settings(path: web::Path<String>, req: HttpRequest) -> Resul
     let server_id: u64 = decode_single(server_id)?;
 
     // Extract authenticated user ID from request extensions
-    let user_id = match req.extensions().get::<UserData>() {
-        Some(user) => match user.id {
-            Some(id) => id,
-            None => {
-                return Ok(HttpResponse::Unauthorized().json(json!({
-                    "error": "Invalid user data"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::Unauthorized().json(json!({
-                "error": "Authentication required"
-            })));
-        }
-    };
+    let user = req.get_user().map_err(|_| {
+        log::error!("User not found in request extensions");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Authentication required"
+        }))
+    })?;
+
+    let user_id = user.id.ok_or_else(|| {
+        log::error!("User ID not found in user data");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid user data"
+        }))
+    })?;
 
     match ServerData::get(server_id, user_id).await {
         Ok(Some(server)) => {
@@ -261,21 +253,19 @@ async fn update_backup_settings(path: web::Path<String>, req_body: web::Json<Upd
     let server_id: u64 = decode_single(server_id)?;
 
     // Extract authenticated user ID from request extensions
-    let user_id = match req.extensions().get::<UserData>() {
-        Some(user) => match user.id {
-            Some(id) => id,
-            None => {
-                return Ok(HttpResponse::Unauthorized().json(json!({
-                    "error": "Invalid user data"
-                })));
-            }
-        },
-        None => {
-            return Ok(HttpResponse::Unauthorized().json(json!({
-                "error": "Authentication required"
-            })));
-        }
-    };
+    let user = req.get_user().map_err(|_| {
+        log::error!("User not found in request extensions");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Authentication required"
+        }))
+    })?;
+
+    let user_id = user.id.ok_or_else(|| {
+        log::error!("User ID not found in user data");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid user data"
+        }))
+    })?;
 
     match ServerData::get(server_id, user_id).await {
         Ok(Some(mut server)) => {
