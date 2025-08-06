@@ -3,7 +3,7 @@ use crate::app_db::open_pool;
 use crate::authentication;
 use crate::authentication::auth_data::{TOKEN_KEY, UserData, UserRequestExt};
 use crate::authentication::user_permissions::PermissionFlag;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, web};
+use actix_web::{HttpRequest, HttpResponse, Responder, get, post, web, put};
 use anyhow::anyhow;
 use enumflags2::BitFlags;
 use serde_json::json;
@@ -47,7 +47,7 @@ pub async fn logout() -> Result<impl Responder> {
     Ok(HttpResponse::PermanentRedirect().append_header(("Location", "/")).cookie(cookie.clone()).finish())
 }
 
-#[actix_web::put("/")]
+#[put("/")]
 pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
     let username = body.get("username").expect("Missing username").as_str().expect("Username must be a string").to_string();
     let password = body.get("password").expect("Missing password").as_str().expect("Password must be a string").to_string();
@@ -180,6 +180,234 @@ pub async fn change_password(body: web::Bytes, req: HttpRequest) -> Result<impl 
     Ok(HttpResponse::Ok().finish())
 }
 
+#[post("/users")]
+pub async fn create_user(body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
+    let user = req.get_user()?;
+    if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ManageUsers) {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "message": "You do not have permission to create users",
+            "user_permissions": user.permissions,
+            "required_permissions": [
+                {
+                    "id": PermissionFlag::Admin as u16,
+                    "name": "Admin",
+                    "description": "Allows viewing and editing of users",
+                },
+                {
+                    "id": PermissionFlag::ManageUsers as u16,
+                    "name": "Manage Users",
+                    "description": "Allows creating, editing, and deleting users",
+                }
+            ]
+        })));
+    }
+
+    let username = body.get("username")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("Missing or invalid username"))?
+        .to_string();
+
+    let permission_ids = body.get("permissions")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow!("Missing or invalid permissions array"))?;
+
+    let pool = open_pool().await?;
+
+    // Check if username already exists
+    if UserData::exists(&username, &pool).await? {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "message": "Username already exists",
+        })));
+    }
+
+    // Generate random password
+    let random_password = generate_random_password();
+
+    // Create user
+    let new_user = UserData::register(&username, &random_password, &pool).await?;
+
+    // Set permissions
+    let mut permissions = BitFlags::<PermissionFlag>::empty();
+    for permission_value in permission_ids {
+        if let Some(id) = permission_value.as_u64() {
+            permissions |= PermissionFlag::from_u16(id as u16);
+        }
+    }
+
+    if !permissions.is_empty() {
+        new_user.set_permissions(permissions, &pool).await?;
+    }
+
+    // Mark user as needing password change
+    new_user.mark_password_change_required(&pool).await?;
+
+    pool.close().await;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "User created successfully",
+        "user_id": new_user.id,
+        "username": username,
+        "password_change_required": true,
+        "password": random_password
+    })))
+}
+
+#[put("/users/{user_id}")]
+pub async fn update_user(
+    path: web::Path<String>,
+    body: web::Json<serde_json::Value>,
+    req: HttpRequest,
+) -> Result<impl Responder> {
+    let user = req.get_user()?;
+    if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ManageUsers) {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "message": "You do not have permission to update users",
+            "user_permissions": user.permissions,
+            "required_permissions": [
+                {
+                    "id": PermissionFlag::Admin as u16,
+                    "name": "Admin",
+                    "description": "Allows viewing and editing of users",
+                },
+                {
+                    "id": PermissionFlag::ManageUsers as u16,
+                    "name": "Manage Users",
+                    "description": "Allows creating, editing, and deleting users",
+                }
+            ]
+        })));
+    }
+
+    let user_id = path.into_inner();
+    let user_id = serde_hash::hashids::decode_single(&user_id).map_err(|_| anyhow!("Invalid user ID format"))?;
+
+    let pool = open_pool().await?;
+    let target_user = UserData { id: Some(user_id), ..Default::default() };
+
+    // Update username if provided
+    if let Some(username) = body.get("username").and_then(|v| v.as_str()) {
+        target_user.update_username(username.to_string(), &pool).await?;
+    }
+
+    // Update permissions if provided
+    if let Some(permission_ids) = body.get("permissions").and_then(|v| v.as_array()) {
+        let mut permissions = BitFlags::<PermissionFlag>::empty();
+        for permission_value in permission_ids {
+            if let Some(id) = permission_value.as_u64() {
+                permissions |= PermissionFlag::from_u16(id as u16);
+            }
+        }
+        target_user.set_permissions(permissions, &pool).await?;
+    }
+
+    // Update active status if provided
+    if let Some(is_active) = body.get("is_active").and_then(|v| v.as_bool()) {
+        target_user.set_active_status(is_active, &pool).await?;
+    }
+
+    pool.close().await;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "User updated successfully",
+        "user_id": serde_hash::hashids::encode_single(user_id),
+    })))
+}
+
+#[actix_web::delete("/users/{user_id}")]
+pub async fn delete_user(path: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let user = req.get_user()?;
+    if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ManageUsers) {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "message": "You do not have permission to delete users",
+            "user_permissions": user.permissions,
+            "required_permissions": [
+                {
+                    "id": PermissionFlag::Admin as u16,
+                    "name": "Admin",
+                    "description": "Allows viewing and editing of users",
+                },
+                {
+                    "id": PermissionFlag::ManageUsers as u16,
+                    "name": "Manage Users",
+                    "description": "Allows creating, editing, and deleting users",
+                }
+            ]
+        })));
+    }
+
+    let user_id = path.into_inner();
+    let user_id = serde_hash::hashids::decode_single(&user_id).map_err(|_| anyhow!("Invalid user ID format"))?;
+
+    // Prevent self-deletion
+    if user.id == Some(user_id) {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "message": "You cannot delete your own account",
+        })));
+    }
+
+    let pool = open_pool().await?;
+    let target_user = UserData { id: Some(user_id), ..Default::default() };
+    target_user.delete(&pool).await?;
+    pool.close().await;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "User deleted successfully",
+        "user_id": serde_hash::hashids::encode_single(user_id),
+    })))
+}
+
+#[post("/users/{user_id}/force-password-reset")]
+pub async fn force_password_reset(path: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+    let user = req.get_user()?;
+    if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ManageUsers) {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "message": "You do not have permission to force password resets",
+            "user_permissions": user.permissions,
+            "required_permissions": [
+                {
+                    "id": PermissionFlag::Admin as u16,
+                    "name": "Admin",
+                    "description": "Allows viewing and editing of users",
+                },
+                {
+                    "id": PermissionFlag::ManageUsers as u16,
+                    "name": "Manage Users",
+                    "description": "Allows creating, editing, and deleting users",
+                }
+            ]
+        })));
+    }
+
+    let user_id = path.into_inner();
+    let user_id = serde_hash::hashids::decode_single(&user_id).map_err(|_| anyhow!("Invalid user ID format"))?;
+
+    let pool = open_pool().await?;
+    let target_user = UserData { id: Some(user_id), ..Default::default() };
+    target_user.mark_password_change_required(&pool).await?;
+    pool.close().await;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Password reset forced successfully",
+        "user_id": serde_hash::hashids::encode_single(user_id),
+    })))
+}
+
+fn generate_random_password() -> String {
+    use rand::Rng;
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                            abcdefghijklmnopqrstuvwxyz\
+                            0123456789\
+                            !@#$%^&*";
+    let mut rng = rand::rng();
+
+    (0..16)
+        .map(|_| {
+            let idx = rng.random_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/auth")
@@ -193,7 +421,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .service(login_with_token)
                     .service(change_password)
                     .service(logout)
-                    .service(update_permissions),
+                    .service(update_permissions)
+                    .service(create_user)
+                    .service(update_user)
+                    .service(delete_user)
+                    .service(force_password_reset),
             )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({

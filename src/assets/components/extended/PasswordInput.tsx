@@ -48,6 +48,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((p
         <Input
             radius={"none"}
             type={showPassword ? "text" : "password"}
+            className={"font-minecraft-body"}
             endContent={
                 <div className={"flex flex-row gap-1"}>
                     <Tooltip content={"Toggle Password Visibility"} placement={"top"}>

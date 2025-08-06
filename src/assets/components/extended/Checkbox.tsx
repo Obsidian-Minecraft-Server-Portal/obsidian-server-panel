@@ -1,9 +1,9 @@
-import {forwardRef, InputHTMLAttributes, useImperativeHandle, useRef, useState} from "react";
+import {forwardRef, InputHTMLAttributes, ReactNode, useImperativeHandle, useRef, useState} from "react";
 import {Button, cn} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 
 type CheckboxProps = {
-    label: string;
+    label: string | ReactNode;
     checked?: boolean;
     onChange?: (checked: boolean) => void;
     labelPlacement?: "left" | "right";

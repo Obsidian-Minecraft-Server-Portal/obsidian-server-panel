@@ -1,13 +1,22 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import $ from "jquery";
 import {useLocation, useNavigate} from "react-router-dom";
+import {addToast} from "@heroui/react";
+import ChangePasswordModal from "../components/authentication/ChangePasswordModal.tsx";
 
 export type UserData = {
     id: string | null,
     username: string,
-    permissions: string,
+    permissions: UserPermissions[],
     join_date: Date,
     last_online: Date,
+    needs_password_change: boolean,
+    is_active: boolean,
+}
+
+export type UserPermissions = {
+    id: number;
+    name: string;
 }
 
 type LoginResponse = {
@@ -25,6 +34,7 @@ interface AuthenticationContextType
     logout: () => void;
     register: (username: string, password: string) => Promise<void>;
     isLoggingIn: boolean;
+    promptChangePassword: () => void;
 }
 
 const AuthenticationContext = createContext<AuthenticationContextType | undefined>(undefined);
@@ -34,6 +44,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
     const [user, setUser] = useState<UserData | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | undefined>(undefined);
     const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+    const [changePassword, setChangePassword] = useState(false);
     const navigate = useNavigate();
     const {pathname} = useLocation();
 
@@ -150,6 +161,28 @@ export function AuthenticationProvider({children}: { children: ReactNode })
                 console.log("User is authenticated, redirecting to dashboard...");
                 navigate("/app");
             }
+            if (user)
+            {
+                if (!user.is_active)
+                {
+                    console.log("User is not active, logging out");
+                    addToast({
+                        title: "Error",
+                        description: "Your account is not active. Please contact an administrator.",
+                        color: "danger"
+                    });
+                    logout();
+                    setIsAuthenticated(false);
+                    return;
+                }
+                if (user.needs_password_change)
+                {
+                    console.log("User needs password change, redirecting to change password");
+                    promptChangePassword();
+                    return;
+                }
+            }
+
         } else
         {
             if (pathname.startsWith("/app"))
@@ -158,11 +191,23 @@ export function AuthenticationProvider({children}: { children: ReactNode })
                 navigate("/");
             }
         }
-    }, [isAuthenticated, pathname]);
+
+    }, [isAuthenticated, pathname, user]);
+
+    const promptChangePassword = () =>
+    {
+        setChangePassword(true);
+    };
+    const handlePasswordChange = async () =>
+    {
+        setChangePassword(false);
+        await logout();
+    };
 
 
     return (
-        <AuthenticationContext.Provider value={{user, isAuthenticated, login, logout, loginWithToken, isLoggingIn, register}}>
+        <AuthenticationContext.Provider value={{user, isAuthenticated, login, logout, loginWithToken, isLoggingIn, register, promptChangePassword}}>
+            <ChangePasswordModal isOpen={changePassword} onClose={handlePasswordChange}/>
             {children}
         </AuthenticationContext.Provider>
     );

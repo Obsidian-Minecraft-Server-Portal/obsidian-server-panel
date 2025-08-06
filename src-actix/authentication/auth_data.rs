@@ -20,6 +20,8 @@ pub struct UserData {
     pub permissions: BitFlags<PermissionFlag>,
     pub join_date: DateTime<Utc>,
     pub last_online: DateTime<Utc>,
+    pub needs_password_change: bool,
+    pub is_active: bool,
 }
 
 impl Default for UserData {
@@ -31,6 +33,8 @@ impl Default for UserData {
             permissions: PermissionFlag::None.into(),
             join_date: Utc::now(),
             last_online: Utc::now(),
+            needs_password_change: false,
+            is_active: true,
         }
     }
 }
@@ -73,7 +77,18 @@ impl<'a> FromRow<'a, SqliteRow> for UserData {
         let permissions = BitFlags::<PermissionFlag>::from_bits_truncate(permissions as u16);
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
         let last_online: DateTime<Utc> = row.try_get("last_online")?;
-        Ok(UserData { id, username, password, permissions, join_date, last_online })
+        let needs_password_change: i64 = row.try_get("needs_password_change")?;
+        let is_active: i64 = row.try_get("is_active")?;
+        Ok(UserData {
+            id,
+            username,
+            password,
+            permissions,
+            join_date,
+            last_online,
+            needs_password_change: needs_password_change != 0,
+            is_active: is_active != 0,
+        })
     }
 }
 

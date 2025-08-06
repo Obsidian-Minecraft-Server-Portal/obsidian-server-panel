@@ -25,19 +25,19 @@ ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
             <ThemeProvider>
-                <HostInfoProvider>
-                    <AuthenticationProvider>
-                        <MinecraftVersionsProvider>
-                            <ServerProvider>
-                                <MessageProvider>
+                <MessageProvider>
+                    <HostInfoProvider>
+                        <AuthenticationProvider>
+                            <MinecraftVersionsProvider>
+                                <ServerProvider>
                                     <JavaVersionProvider>
                                         <MainContentRenderer/>
                                     </JavaVersionProvider>
-                                </MessageProvider>
-                            </ServerProvider>
-                        </MinecraftVersionsProvider>
-                    </AuthenticationProvider>
-                </HostInfoProvider>
+                                </ServerProvider>
+                            </MinecraftVersionsProvider>
+                        </AuthenticationProvider>
+                    </HostInfoProvider>
+                </MessageProvider>
             </ThemeProvider>
         </BrowserRouter>
     </React.StrictMode>

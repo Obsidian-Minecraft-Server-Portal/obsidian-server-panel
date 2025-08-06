@@ -5,14 +5,28 @@ import {useEffect, useState} from "react";
 import {Tab, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
+import {useSearchParams} from "react-router-dom";
+import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
 
 export default function Dashboard()
 {
+    const [searchParams] = useSearchParams();
+    const {promptChangePassword} = useAuthentication();
     const [graphSize, setGraphSize] = useState<"sm" | "md" | "lg" | "fullWidth">(localStorage.getItem("graphSize") as "sm" | "md" | "lg" | "fullWidth" || "md");
+
     useEffect(() =>
     {
         localStorage.setItem("graphSize", graphSize);
     }, [graphSize]);
+
+    useEffect(() =>
+    {
+        if (searchParams.get("action") === "change_password")
+        {
+            promptChangePassword();
+        }
+    }, [searchParams]);
+
     return (
         <AnimatePresence>
             <motion.div

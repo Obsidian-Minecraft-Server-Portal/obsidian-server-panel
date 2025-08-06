@@ -53,6 +53,7 @@ base64 = "0.22.1"
 notify = { version = "8.1.0", features = ["default", "serde"] }
 clap = { version = "4.5.42", features = ["error-context", "derive", "help", "suggestions", "color", "usage", "wrap_help", "unicode", "string"] }
 cron_tab = { version = "0.2.10", features = ["async"] }
+rand = "0.9.1"
 
 [build-dependencies]
 include_dir = "0.7.4"

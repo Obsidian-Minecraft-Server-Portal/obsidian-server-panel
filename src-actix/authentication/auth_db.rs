@@ -44,8 +44,9 @@ impl UserData {
         Ok(user)
     }
 
-    pub async fn register(username: String, password: String, pool: &SqlitePool) -> Result<Self> {
-        let password = bcrypt::hash(password, 10)?;
+    pub async fn register(username: impl  Into<String>, password: impl Into<String>, pool: &SqlitePool) -> Result<Self> {
+        let username = username.into();
+        let password = bcrypt::hash(password.into(), 10)?;
         sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(&username).bind(password).execute(pool).await?;
         let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#).bind(username).fetch_one(pool).await?;
         Ok(user)
@@ -97,7 +98,7 @@ impl UserData {
     pub async fn change_password(&self, new_password: String, pool: &SqlitePool) -> Result<()> {
         if let Some(id) = self.id {
             let hashed_password = bcrypt::hash(new_password, 10)?;
-            sqlx::query("UPDATE users SET password = ? WHERE id = ?")
+            sqlx::query("UPDATE users SET password = ?, needs_password_change = 0 WHERE id = ?")
                 .bind(hashed_password)
                 .bind(id.to_string())
                 .execute(pool)
@@ -113,6 +114,61 @@ impl UserData {
             let data = format!("{}{}", self.username, self.password);
             let tok_part = bcrypt::hash(&data, 10)?;
             Ok(format!("{}{}", encode_single(id), tok_part))
+        } else {
+            Err(anyhow::anyhow!("User ID is not set"))
+        }
+    }
+
+    pub async fn mark_password_change_required(&self, pool: &SqlitePool) -> Result<()> {
+        if let Some(id) = self.id {
+            sqlx::query("UPDATE users SET needs_password_change = 1 WHERE id = ?")
+                .bind(id.to_string())
+                .execute(pool)
+                .await?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("User ID is not set"))
+        }
+    }
+
+    pub async fn update_username(&self, new_username: String, pool: &SqlitePool) -> Result<()> {
+        if let Some(id) = self.id {
+            // Check if the new username already exists
+            if Self::exists(&new_username, pool).await? {
+                return Err(anyhow::anyhow!("Username already exists"));
+            }
+
+            sqlx::query("UPDATE users SET username = ? WHERE id = ?")
+                .bind(new_username)
+                .bind(id.to_string())
+                .execute(pool)
+                .await?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("User ID is not set"))
+        }
+    }
+
+    pub async fn set_active_status(&self, is_active: bool, pool: &SqlitePool) -> Result<()> {
+        if let Some(id) = self.id {
+            sqlx::query("UPDATE users SET is_active = ? WHERE id = ?")
+                .bind(is_active)
+                .bind(id.to_string())
+                .execute(pool)
+                .await?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("User ID is not set"))
+        }
+    }
+
+    pub async fn delete(&self, pool: &SqlitePool) -> Result<()> {
+        if let Some(id) = self.id {
+            sqlx::query("DELETE FROM users WHERE id = ?")
+                .bind(id.to_string())
+                .execute(pool)
+                .await?;
+            Ok(())
         } else {
             Err(anyhow::anyhow!("User ID is not set"))
         }
