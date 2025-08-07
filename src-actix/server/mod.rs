@@ -9,6 +9,7 @@ mod server_ping;
 mod server_properties;
 mod server_status;
 mod server_type;
+mod forge_server;
 
 pub use server_db::initialize;
 pub use server_endpoint::configure;

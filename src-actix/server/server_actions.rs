@@ -9,13 +9,21 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_interactive::AsynchronousInteractiveProcess;
 
-static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, u32>>>> = OnceLock::new();
+pub(crate) static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, u32>>>> = OnceLock::new();
 
 impl ServerData {
     pub async fn start_server(&mut self) -> Result<()> {
         if self.has_server_process().await {
             return Err(anyhow::anyhow!("Server is already running"));
         }
+
+        // Check if this is a forge installer that needs to be run first
+        if self.is_forge_installer() {
+            debug!("Detected forge installer for server {}", self.id);
+            self.install_forge_server().await?;
+            return Ok(());
+        }
+
         self.status = ServerStatus::Starting;
         self.save().await?;
 
@@ -39,17 +47,22 @@ impl ServerData {
         let mut process_builder = AsynchronousInteractiveProcess::new(&self.java_executable);
 
         // Add java arguments
+        process_builder = process_builder
+            .with_argument(format!("-Xmx{}G", &self.max_memory))
+            .with_argument(format!("-Xms{}G", &self.min_memory));
+        
         if !self.java_args.trim().is_empty() {
             for arg in self.java_args.split_whitespace() {
                 process_builder = process_builder.with_argument(arg);
             }
         }
 
-        process_builder = process_builder
-            .with_argument(format!("-Xmx{}G", &self.max_memory))
-            .with_argument(format!("-Xms{}G", &self.min_memory))
-            .with_argument("-jar")
-            .with_argument(&self.server_jar);
+
+        if !self.server_jar.is_empty(){
+            process_builder = process_builder
+                .with_argument("-jar")
+                .with_argument(&self.server_jar);
+        }
 
         // Add minecraft arguments
         if !self.minecraft_args.trim().is_empty() {
@@ -148,7 +161,7 @@ impl ServerData {
         Ok(())
     }
 
-    async fn remove_server(&mut self) -> Result<()> {
+    pub(crate) async fn remove_server(&mut self) -> Result<()> {
         let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
         let mut servers = servers.lock().await;
         servers.remove(&self.id);
@@ -158,7 +171,7 @@ impl ServerData {
         Ok(())
     }
 
-    async fn remove_server_crashed(&mut self) -> Result<()> {
+    pub(crate) async fn remove_server_crashed(&mut self) -> Result<()> {
         {
             let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
             let mut servers = servers.lock().await;

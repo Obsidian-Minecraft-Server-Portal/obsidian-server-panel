@@ -23,7 +23,8 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
         {
             setVersions(versions);
             // Only set default version if no version is controlled from parent
-            if (!version && !selectedVersion) {
+            if (!version && !selectedVersion)
+            {
                 setSelectedVersion(versions[0]);
             }
         } else
@@ -36,12 +37,13 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
     useEffect(() =>
     {
         if (!selectedVersion || !minecraftVersion) return;
-        props.onVersionChange(getForgeInstallerUrl(minecraftVersion, selectedVersion), selectedVersion);
+        props.onVersionChange(getForgeInstallerUrl(selectedVersion), selectedVersion);
     }, [selectedVersion, minecraftVersion, props]);
 
     useEffect(() =>
     {
-        if (version !== undefined) {
+        if (version !== undefined)
+        {
             setSelectedVersion(version);
         }
     }, [version]);
@@ -80,7 +82,7 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
     );
 }
 
-function getForgeInstallerUrl(minecraftVersion: string, forgeVersion: string): string | undefined
+function getForgeInstallerUrl(forgeVersion: string): string | undefined
 {
-    return `https://maven.minecraftforge.net/net/minecraftforge/forge/${minecraftVersion}-${forgeVersion}/forge-${minecraftVersion}-${forgeVersion}-installer.jar`;
+    return `https://maven.minecraftforge.net/net/minecraftforge/forge/${forgeVersion}/forge-${forgeVersion}-installer.jar`;
 }

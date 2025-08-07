@@ -1,4 +1,5 @@
-import {Button, Divider, Input, Select, SelectItem, Switch, Tab, Tabs, Textarea} from "@heroui/react";
+import "../../../../ts/string-ext.ts";
+import {Divider, Input, Select, SelectItem, Switch, Tab, Tabs, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";
@@ -15,6 +16,7 @@ import {NeoForge} from "../../../icons/NeoForge.svg.tsx";
 import Quilt from "../../../icons/Quilt.svg.tsx";
 import {getMinecraftVersionDownloadUrl} from "../../../../ts/minecraft-versions.ts";
 import {ServerIcon} from "../ServerIcon.tsx";
+import {Button} from "../../../extended/Button.tsx";
 
 export function ServerOptions()
 {
@@ -84,11 +86,20 @@ export function ServerOptions()
 
     const generateNewJarFilename = useCallback(() =>
     {
-        if (loaderType === "vanilla" || loaderType === "custom")
+        let filepath = `server-${minecraftVersion}.jar`;
+        if (loaderType.equalsIgnoreCase("fabric") || loaderType.equalsIgnoreCase("quilt") || loaderType.equalsIgnoreCase("neoforge"))
         {
-            return `server-${minecraftVersion}.jar`;
+            filepath = `${loaderType}-${loaderVersion}-${minecraftVersion}-server.jar`;
+        } else if (loaderType.equalsIgnoreCase("forge"))
+        {
+            // Forge uses installer JARs that need to be run to generate the actual server JAR
+            filepath = `forge-${loaderVersion}-installer.jar`;
+        } else if (loaderType.equalsIgnoreCase("custom"))
+        {
+            filepath = `custom-${minecraftVersion}.jar`;
         }
-        return `${loaderType}-${loaderVersion}-${minecraftVersion}-server.jar`;
+        return filepath.toLowerCase();
+
     }, [loaderType, loaderVersion, minecraftVersion]);
 
     const hasLoaderChanges = useCallback(() =>
@@ -100,6 +111,48 @@ export function ServerOptions()
             loaderVersion !== server.loader_version
         );
     }, [server, loaderType, minecraftVersion, loaderVersion]);
+
+    const installSelectedLoader = useCallback(async () =>
+    {
+        if (!server) return;
+        setIsUploadingLoader(true);
+        const newJarFilename = generateNewJarFilename();
+        console.log("Uploading new server jar:", newJarFilename, "Loader: ", loaderType, "Version: ", minecraftVersion, "Loader URL: ", loaderUrl, "Custom Jar: ", customJarFile);
+
+        if (loaderType !== "custom")
+        {
+            if (!loaderUrl)
+            {
+                throw new Error(`Loader URL is not defined for selected loader: ${loaderType}`);
+            }
+
+
+            await uploadFromUrl(
+                loaderType.equalsIgnoreCase("vanilla") ? await getMinecraftVersionDownloadUrl(minecraftVersion) : loaderUrl,
+                newJarFilename,
+                (progress) => console.log(`Downloading ${loaderType} server: ${progress}%`),
+                () => console.log("Download complete"),
+                (error) => console.error("Error uploading server jar:", error),
+                server.id
+            );
+        } else
+        {
+            if (!customJarFile)
+            {
+                throw new Error("Please select a custom jar file.");
+            }
+
+            await uploadFile(
+                customJarFile,
+                newJarFilename,
+                (bytes) => console.log(`Uploading custom jar: ${bytes} bytes`),
+                () => console.log("Upload cancelled"),
+                server.id
+            );
+        }
+
+        setIsUploadingLoader(false);
+    }, [server, loaderType, minecraftVersion, loaderUrl, customJarFile, uploadFromUrl, uploadFile, generateNewJarFilename]);
 
     const handleSave = useCallback(async () =>
     {
@@ -114,43 +167,7 @@ export function ServerOptions()
             // If loader configuration changed, upload a new server jar
             if (hasLoaderChanges())
             {
-                setIsUploadingLoader(true);
-                const newJarFilename = generateNewJarFilename();
-
-                if (loaderType !== "custom")
-                {
-                    if (!loaderUrl)
-                    {
-                        throw new Error(`Loader URL is not defined for selected loader: ${loaderType}`);
-                    }
-
-
-                    await uploadFromUrl(
-                        loaderType === "vanilla" ? await getMinecraftVersionDownloadUrl(minecraftVersion) : loaderUrl,
-                        newJarFilename,
-                        (progress) => console.log(`Downloading ${loaderType} server: ${progress}%`),
-                        () => console.log("Download complete"),
-                        (error) => console.error("Error uploading server jar:", error),
-                        server.id
-                    );
-                } else
-                {
-                    if (!customJarFile)
-                    {
-                        throw new Error("Please select a custom jar file.");
-                    }
-
-                    await uploadFile(
-                        customJarFile,
-                        newJarFilename,
-                        (bytes) => console.log(`Uploading custom jar: ${bytes} bytes`),
-                        () => console.log("Upload cancelled"),
-                        server.id
-                    );
-                }
-
-                finalServerJar = newJarFilename;
-                setServerJar(newJarFilename);
+                await installSelectedLoader();
             }
 
             // Set isUploadingLoader to false only after upload is complete
@@ -271,7 +288,6 @@ export function ServerOptions()
                 <h2 className="text-xl font-minecraft-header">Server Configuration</h2>
                 <Button
                     color="primary"
-                    radius="none"
                     isLoading={isSaving || isUploadingLoader}
                     isDisabled={!hasChanges()}
                     onPress={handleSave}
@@ -321,7 +337,6 @@ export function ServerOptions()
                             isIconOnly
                             size="sm"
                             variant="light"
-                            radius="none"
                             isLoading={isLoading}
                             onPress={loadAvailableFiles}
                         >
@@ -367,7 +382,13 @@ export function ServerOptions()
 
             {/* Loader Configuration */}
             <section className="space-y-4">
-                <h3 className="text-lg font-minecraft-header">Server Type & Version</h3>
+                <h3 className="text-lg font-minecraft-header justify-between flex flex-row items-center">Server Type & Version
+                    <Tooltip content={"Reinstall the selected server jar."}>
+                        <Button isIconOnly onPress={installSelectedLoader}>
+                            <Icon icon={"pixelarticons:repeat"}/>
+                        </Button>
+                    </Tooltip>
+                </h3>
 
                 <div className="mx-auto">
                     <Tabs

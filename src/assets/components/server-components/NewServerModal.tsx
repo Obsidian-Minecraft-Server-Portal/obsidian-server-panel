@@ -46,7 +46,21 @@ export default function NewServerModal(props: NewServerProperties)
         }
         setIsCreatingServer(true);
         setCreationProgress(0.1); // Started creating server
-        const filepath = selectedLoader === "vanilla" || selectedLoader === "custom" ? `server-${selectedMinecraftVersion}.jar` : `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
+
+        let filepath = `server-${selectedMinecraftVersion}.jar`;
+        if (selectedLoader === "fabric" || selectedLoader === "quilt" || selectedLoader === "neoforge")
+        {
+            filepath = `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`
+        } else if (selectedLoader === "forge")
+        {
+            // Forge uses installer JARs that need to be run to generate the actual server JAR
+            filepath = `forge-${selectedMinecraftVersion}-${loaderVersion}-installer.jar`
+        } else if (selectedLoader === "custom")
+        {
+            filepath = `custom-${selectedMinecraftVersion}.jar`
+        }
+        filepath = filepath.toLowerCase();
+
         try
         {
             let serverId = await createServer({
@@ -98,7 +112,7 @@ export default function NewServerModal(props: NewServerProperties)
                 };
                 try
                 {
-                    await uploadFromUrl(loaderUrl ?? await getMinecraftVersionDownloadUrl(selectedMinecraftVersion), filepath, onProgress, onSuccess, onError, serverId);
+                    await uploadFromUrl(loaderUrl ?? await getMinecraftVersionDownloadUrl(selectedMinecraftVersion), filepath.toLowerCase(), onProgress, onSuccess, onError, serverId);
                     setCreationProgress(0.8); // Download complete after successful upload
                 } catch (error)
                 {

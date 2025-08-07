@@ -98,7 +98,6 @@ export class FileSystem
                 }
                 return entry;
             });
-            console.log("Loading files", tmp);
             return tmp;
         } catch (error: Error | any)
         {
