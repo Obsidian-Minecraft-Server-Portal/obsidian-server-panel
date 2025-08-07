@@ -93,6 +93,56 @@ impl<'a> FromRow<'a, SqliteRow> for UserData {
 }
 
 impl UserData {
+    /// Check if user has a specific permission
+    pub fn has_permission(&self, permission: PermissionFlag) -> bool {
+        self.permissions.contains(permission) || self.permissions.contains(PermissionFlag::Admin)
+    }
+    
+    /// Check if user can create servers
+    pub fn can_create_server(&self) -> bool {
+        self.has_permission(PermissionFlag::CreateServer)
+    }
+    
+    /// Check if user can operate servers (start/stop/restart)
+    pub fn can_operate_server(&self) -> bool {
+        self.has_permission(PermissionFlag::OperateServer)
+    }
+    
+    /// Check if user can create backups
+    pub fn can_create_backup(&self) -> bool {
+        self.has_permission(PermissionFlag::CreateBackup)
+    }
+    
+    /// Check if user can restore backups
+    pub fn can_restore_backup(&self) -> bool {
+        self.has_permission(PermissionFlag::RestoreBackup)
+    }
+    
+    /// Check if user can delete backups
+    pub fn can_delete_backups(&self) -> bool {
+        self.has_permission(PermissionFlag::DeleteBackups)
+    }
+    
+    /// Check if user can upload files
+    pub fn can_upload_files(&self) -> bool {
+        self.has_permission(PermissionFlag::UploadFiles)
+    }
+    
+    /// Check if user can delete files
+    pub fn can_delete_files(&self) -> bool {
+        self.has_permission(PermissionFlag::DeleteFiles)
+    }
+    
+    /// Check if user can create files
+    pub fn can_create_files(&self) -> bool {
+        self.has_permission(PermissionFlag::CreateFiles)
+    }
+    
+    /// Check if user can modify files
+    pub fn can_modify_files(&self) -> bool {
+        self.has_permission(PermissionFlag::ModifyFiles)
+    }
+
     pub async fn authenticate_with_session_token(token: &str) -> Result<UserData> {
         let pool = crate::app_db::open_pool().await?;
         let user = UserData::login_with_token(token, &pool).await?;

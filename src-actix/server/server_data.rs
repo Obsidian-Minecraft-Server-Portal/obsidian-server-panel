@@ -11,7 +11,6 @@ use base64::{Engine as _, engine::general_purpose};
 use serde_hash::HashIds;
 use sqlx::{FromRow, Row, SqlitePool};
 use std::path::PathBuf;
-use crate::server::server_access;
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -158,24 +157,16 @@ impl ServerData {
 
     pub async fn get(id: u64, user_id: u64) -> Result<Option<Self>> {
         let pool = app_db::open_pool().await?;
-        let has_access = server_access::ServerAccessData::has_access(user_id, id, &pool).await?;
-        let server = if has_access {
-            Self::get_with_pool(id, &pool).await?
-        }else{
-            None
-        };
+        // All users can view all servers under the new permission system
+        let server = Self::get_with_pool(id, &pool).await?;
         pool.close().await;
         Ok(server)
     }
 
     pub async fn list(user_id: u64) -> Result<Vec<Self>> {
         let pool = app_db::open_pool().await?;
-        let server_ids = server_access::ServerAccessData::list_servers_user_has_access_to(user_id, &pool).await?;
-        if server_ids.is_empty() {
-            pool.close().await;
-            return Ok(vec![]);
-        }
-        let servers = Self::list_with_pool(server_ids, &pool).await?;
+        // All users can see all servers under the new permission system
+        let servers = Self::list_all_with_pool(&pool).await?;
         pool.close().await;
         Ok(servers)
     }

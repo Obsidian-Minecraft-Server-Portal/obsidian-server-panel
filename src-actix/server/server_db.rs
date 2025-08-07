@@ -1,4 +1,3 @@
-use crate::server::server_access;
 use crate::server::server_data::ServerData;
 use anyhow::Result;
 use sqlx::{Executor, SqlitePool};
@@ -10,7 +9,6 @@ pub async fn initialize(pool: &SqlitePool) -> Result<()> {
     pool.execute(CREATE_SERVER_TABLE_SQL).await?;
     pool.execute(CREATE_BACKUPS_TABLE_SQL).await?;
     pool.execute(r#"UPDATE servers SET status = 0;"#).await?; // Reset all server statuses to 0 (idle)
-    server_access::initialize(pool).await?;
     Ok(())
 }
 

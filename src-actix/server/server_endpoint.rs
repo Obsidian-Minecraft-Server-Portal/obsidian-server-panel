@@ -66,6 +66,14 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
 pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    // Check if user has permission to create servers
+    if !user.can_create_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to create servers"
+        })));
+    }
+
     let body = body.0;
 
     let name: String = body.get("name").ok_or(anyhow!("Name not found"))?.as_str().unwrap().to_string();
@@ -102,6 +110,14 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    // Check if user has permission to operate servers (update configuration)
+    if !user.can_operate_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to modify server configuration"
+        })));
+    }
+
     let server = ServerData::get(server_id, user_id).await?;
 
     if let Some(mut server) = server {
@@ -120,6 +136,13 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    // Check if user has permission to operate servers
+    if !user.can_operate_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to start servers"
+        })));
+    }
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
     if server.has_server_process().await {
@@ -147,6 +170,13 @@ pub async fn stop_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
+    // Check if user has permission to operate servers
+    if !user.can_operate_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to stop servers"
+        })));
+    }
+
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
     server.stop_server().await?;
     Ok(HttpResponse::Ok().finish())
@@ -158,6 +188,13 @@ pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> R
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
+    // Check if user has permission to operate servers
+    if !user.can_operate_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to restart servers"
+        })));
+    }
+
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
     server.restart_server().await?;
     Ok(HttpResponse::Ok().finish())
@@ -167,6 +204,13 @@ pub async fn kill_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    // Check if user has permission to operate servers
+    if !user.can_operate_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to force kill servers"
+        })));
+    }
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
     server.kill_server().await?;
@@ -179,6 +223,13 @@ pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: H
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    // Check if user has permission to operate servers
+    if !user.can_operate_server() {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "You don't have permission to send commands to servers"
+        })));
+    }
 
     let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
     server.send_command(body).await?;
