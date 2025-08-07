@@ -4,12 +4,22 @@ meta {
   seq: 15
 }
 
-get {
-  url: {{baseurl}}/server/:server-id/installed-mods
-  body: none
+post {
+  url: {{baseurl}}/server/:server-id/download-mod
+  body: json
   auth: inherit
 }
 
 params:path {
-  server-id: Jjl8AxwaKmkBVv2K
+  server-id: LdKerGmyWwXObEJW
+}
+
+body:json {
+  {
+    "download_url": "https://cdn.modrinth.com/data/EsAfCjCV/versions/forge-mc1.18-2.2.0/appleskin-forge-mc1.18-2.2.0.jar",
+    "modrinth_id": "EsAfCjCV",
+    "filename": "appleskin-forge-mc1.18-2.2.0.jar",
+    "icon": "https://cdn.modrinth.com/data/EsAfCjCV/icon.png",
+    "version": "forge-mc1.18-2.2.0"
+  }
 }
