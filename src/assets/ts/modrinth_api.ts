@@ -156,7 +156,7 @@ export default class Modrinth {
         const facets: string[][] = [];
 
         // Add project type filter for mods
-        facets.push(["project_type:mod"]);
+        facets.push(["project_type:mod"], ["server_side=required", "server_side=optional", "server_side=unknown"]);
 
         if (categories && categories.length > 0) {
             facets.push(categories.map(cat => `categories:${cat}`));
