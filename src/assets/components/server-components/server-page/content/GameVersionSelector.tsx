@@ -1,12 +1,14 @@
 import {forwardRef, useState} from "react";
-import {Input, Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui/react";
+import {Chip, Input, Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui/react";
 import {useMinecraftVersions} from "../../../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 import {Icon} from "@iconify-icon/react";
 import Checkbox from "../../../extended/Checkbox.tsx";
+import {useServer} from "../../../../providers/ServerProvider.tsx";
 
 
 export const GameVersionSelector = forwardRef<HTMLDivElement, Omit<ListboxProps, "children">>((props, ref) =>
 {
+    const {server} = useServer();
     const {minecraftVersions} = useMinecraftVersions();
     const [showAllVersions, setShowAllVersions] = useState(false);
     const [search, setSearch] = useState("");
@@ -22,10 +24,38 @@ export const GameVersionSelector = forwardRef<HTMLDivElement, Omit<ListboxProps,
                 onValueChange={setSearch}
                 value={search}
                 classNames={{
-                    inputWrapper: "bg-default-200 data-[hover=true]:bg-default-300 data-[focus=true]:!bg-default-300 font-minecraft-body",
+                    inputWrapper: "bg-default-200 data-[hover=true]:bg-default-300 data-[focus=true]:!bg-default-300 font-minecraft-body"
                 }}
                 size={"sm"}
             />
+            <div className={"flex flex-wrap flex-row gap-1 font-minecraft-body"}>
+                {[...props.selectedKeys as string[]].map(key =>
+                {
+                    let version = key as string;
+                    return (
+                        <Chip
+                            key={version}
+                            isCloseable
+                            className={"pr-2"}
+                            classNames={{
+                                closeButton: "opacity-0 hover:opacity-100 absolute right-0"
+                            }}
+                            size={"sm"}
+                            color={version == server?.minecraft_version ? "primary" : "default"}
+                            onClose={() =>
+                            {
+                                if (props.onSelectionChange)
+                                {
+                                    const newSelection = new Set([...props.selectedKeys as string[]].filter(v => v !== version));
+                                    props.onSelectionChange(newSelection);
+                                }
+                            }}
+                        >
+                            {version}
+                        </Chip>
+                    );
+                })}
+            </div>
             <ScrollShadow
                 className={"max-h-[200px]"}
             >

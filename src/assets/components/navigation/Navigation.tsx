@@ -1,16 +1,21 @@
 import {useLocation} from "react-router-dom";
-import {Button, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, useDisclosure} from "@heroui/react";
+import {Divider, DropdownItem, DropdownMenu, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, PopoverContent, PopoverTrigger, useDisclosure} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Dropdown} from "../extended/Dropdown";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
 import {AnimatePresence, motion} from "framer-motion";
 import UserManagementModal from "../authentication/UserManagementModal.tsx";
+import {Popover} from "../extended/Popover.tsx";
+import {Button} from "../extended/Button.tsx";
+import {useState} from "react";
+import {AccessibilityThemeSwitch} from "../AccessibilityThemeSwitch.tsx";
 
 export default function Navigation()
 {
     const {pathname} = useLocation();
     const {logout, user} = useAuthentication();
-    const { isOpen: isUserManagementOpen, onOpen: onUserManagementOpen, onClose: onUserManagementClose } = useDisclosure();
+    const [isAccountPopoverOpen, setIsAccountPopoverOpen] = useState(false);
+    const {isOpen: isUserManagementOpen, onOpen: onUserManagementOpen, onClose: onUserManagementClose} = useDisclosure();
 
     if (!pathname.startsWith("/app") || user == null) return null;
 
@@ -46,7 +51,7 @@ export default function Navigation()
                             <NavbarItem>
                                 <Dropdown showArrow>
                                     <DropdownTrigger>
-                                        <Button startContent={<Icon icon={"pixelarticons:map"}/>} radius={"none"} variant={"light"}>Discover</Button>
+                                        <Button startContent={<Icon icon={"pixelarticons:map"}/>} variant={"light"}>Discover</Button>
                                     </DropdownTrigger>
                                     <DropdownMenu itemClasses={{base: "rounded-none font-minecraft-body"}}>
                                         <DropdownItem key={"packs"} as={Link} href={"/app/discover/packs"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:subscriptions"}/>}>Modpacks</DropdownItem>
@@ -65,28 +70,43 @@ export default function Navigation()
                     >
                         <NavbarContent justify={"end"}>
                             <NavbarItem>
-                                <Dropdown>
-                                    <DropdownTrigger>
-                                        <Button radius={"none"} isIconOnly><Icon icon={"pixelarticons:user"}/></Button>
-                                    </DropdownTrigger>
-                                    <DropdownMenu itemClasses={{base: "rounded-none font-minecraft-body"}}>
-                                        <DropdownSection title={user.username}>
-                                            <DropdownItem key={"account"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:users"}/>} as={Link} href={`/app/user/${user.id}`}> Account </DropdownItem>
-                                            <DropdownItem key={"settings"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:sliders"}/>} as={Link} href={`/app/user/${user.id}/settings`}> Settings </DropdownItem>
-                                            {hasUserManagementPermission ? (
-                                                <DropdownItem
-                                                    key={"manage-users"}
-                                                    className={"text-foreground"}
-                                                    startContent={<Icon icon={"pixelarticons:users"}/>}
-                                                    onPress={onUserManagementOpen}
-                                                >
-                                                    Manage Users
-                                                </DropdownItem>
-                                            ) : null}
-                                            <DropdownItem key={"logout"} className={"text-danger"} startContent={<Icon icon={"pixelarticons:logout"}/>} color={"danger"} onPress={logout}> Logout </DropdownItem>
-                                        </DropdownSection>
-                                    </DropdownMenu>
-                                </Dropdown>
+                                <Popover isOpen={isAccountPopoverOpen} onOpenChange={setIsAccountPopoverOpen} placement={"bottom-end"} className={"rounded-none font-minecraft-body"}>
+                                    <PopoverTrigger>
+                                        <Button isIconOnly><Icon icon={"pixelarticons:user"}/></Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className={"rounded-none font-minecraft-body flex flex-col gap-1 w-48"}>
+                                        <p className={"text-tiny opacity-50 text-start w-full"}>{user.username}</p>
+                                        <Divider/>
+                                        <Button key={"account"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:users"}/>} as={Link} href={`/app/user/${user.id}`} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Account </Button>
+                                        <Button key={"settings"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:sliders"}/>} as={Link} href={`/app/user/${user.id}/settings`} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Settings </Button>
+                                        {hasUserManagementPermission ? (
+                                            <Button
+                                                key={"manage-users"}
+                                                className={"text-foreground justify-start"}
+                                                startContent={<Icon icon={"pixelarticons:users"}/>}
+                                                onPress={() =>
+                                                {
+                                                    setIsAccountPopoverOpen(false);
+                                                    onUserManagementOpen();
+                                                }}
+                                                fullWidth
+                                                variant={"light"}
+                                                size={"sm"}
+                                            >
+                                                Manage Users
+                                            </Button>
+                                        ) : null}
+                                        <AccessibilityThemeSwitch size={"sm"} variant={"underlined"}/>
+
+                                        <p className={"text-tiny text-start w-full text-danger mt-2"}>danger zone</p>
+                                        <Divider/>
+                                        <Button key={"logout"} className={"text-danger justify-start"} startContent={<Icon icon={"pixelarticons:logout"}/>} color={"danger"} onPress={() =>
+                                        {
+                                            setIsAccountPopoverOpen(false);
+                                            logout();
+                                        }} variant={"light"} fullWidth size={"sm"}> Logout </Button>
+                                    </PopoverContent>
+                                </Popover>
                             </NavbarItem>
                         </NavbarContent>
                     </motion.div>

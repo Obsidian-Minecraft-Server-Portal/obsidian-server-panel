@@ -1,12 +1,13 @@
 import {createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState} from "react";
 import $ from "jquery";
-import {Button, Tooltip} from "@heroui/react";
-import {Icon} from "@iconify-icon/react";
 
 export enum Themes
 {
     LIGHT = "light",
     DARK = "dark",
+    DEUTERANOPIA_FRIENDLY = "deuteranopia-friendly",
+    TRITANOPIA_FRIENDLY = "tritanopia-friendly",
+    MONOCHROME = "monochrome",
     SYSTEM = "system"
 }
 
@@ -20,15 +21,39 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({children}: { children: ReactNode })
 {
-    const [theme, setTheme] = useState<Themes>(Themes.DARK);
+    const [theme, setTheme] = useState<Themes>(() => getSavedTheme());
 
     useEffect(() =>
     {
-        const tmp = theme == Themes.SYSTEM ? getSystemTheme() : theme;
+        const resolvedTheme = theme === Themes.SYSTEM ? getSystemTheme() : theme;
+
+        // Remove all possible theme classes
         $("html")
-            .removeClass("dark")
-            .removeClass("light")
-            .addClass(tmp === Themes.DARK ? "dark" : "light");
+            .removeClass("dark light high-contrast deuteranopia-friendly tritanopia-friendly monochrome");
+
+        // All accessibility themes should be in dark mode, so we always add "dark" class
+        // except for the explicit light theme
+        if (resolvedTheme === Themes.LIGHT)
+        {
+            $("html").addClass("light");
+        } else
+        {
+            // Always add dark class for all other themes (including accessibility themes)
+            $("html").addClass("dark");
+
+            if (resolvedTheme === Themes.DEUTERANOPIA_FRIENDLY)
+            {
+                $("html").addClass("deuteranopia-friendly");
+            } else if (resolvedTheme === Themes.TRITANOPIA_FRIENDLY)
+            {
+                $("html").addClass("tritanopia-friendly");
+            } else if (resolvedTheme === Themes.MONOCHROME)
+            {
+                $("html").addClass("monochrome");
+            }
+            // If it's DARK theme, we only need the "dark" class which is already added
+        }
+
         localStorage.setItem("app-theme", theme.toString());
     }, [theme]);
 
@@ -49,11 +74,10 @@ export function useTheme(): ThemeContextType
     return context;
 }
 
-
-// @ts-ignore
 function getSavedTheme(): Themes
 {
-    return localStorage.getItem("app-theme") as Themes | null || Themes.SYSTEM;
+    const savedTheme = localStorage.getItem("app-theme") as Themes | null;
+    return savedTheme && Object.values(Themes).includes(savedTheme) ? savedTheme : Themes.SYSTEM;
 }
 
 export function getSystemTheme(): Themes
@@ -63,23 +87,5 @@ export function getSystemTheme(): Themes
 
 export function getRealTheme(theme: Themes): Themes
 {
-    return theme == Themes.SYSTEM ? getSystemTheme() : theme;
-}
-
-export function ThemeSwitchComponent()
-{
-    const {theme, setTheme} = useTheme();
-    return (
-        <Tooltip
-            content={`Enable ${getRealTheme(theme) === "dark" ? "Light" : "Dark"} Mode`}>
-            <Button
-                variant={"light"}
-                className={"min-w-0 h-[2rem] text-tiny"}
-                radius={"sm"}
-                onPress={() => setTheme(prev => getRealTheme(prev) === "dark" ? Themes.LIGHT : Themes.DARK)}
-            >
-                <Icon icon={`mage:${getRealTheme(theme) === "dark" ? "moon" : "sun"}-fill`} height="1rem"/>
-            </Button>
-        </Tooltip>
-    );
+    return theme === Themes.SYSTEM ? getSystemTheme() : theme;
 }

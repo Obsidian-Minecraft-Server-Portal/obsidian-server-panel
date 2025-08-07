@@ -98,6 +98,7 @@ export default function ServerConsole()
             }
             console.log("Subscribing to console for server:", server?.id);
 
+            setLog([])
             subscribeToConsole((newLog) =>
             {
                 setLog((prevLog) =>
