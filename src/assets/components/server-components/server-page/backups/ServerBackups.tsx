@@ -287,7 +287,7 @@ export function ServerBackups()
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:archive" className="text-default-400"/>
-                                            <span className="font-mono text-sm">{backup.filename}</span>
+                                            <span className="text-sm">{backup.filename}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -301,7 +301,7 @@ export function ServerBackups()
                                         </Chip>
                                     </TableCell>
                                     <TableCell>
-                                        <span className="font-mono text-sm">{backup.file_size_formatted}</span>
+                                        <span className="text-sm">{backup.file_size_formatted}</span>
                                     </TableCell>
                                     <TableCell>
                                         <span className="text-sm">{backup.created_at_formatted}</span>

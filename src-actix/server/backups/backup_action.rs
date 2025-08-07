@@ -97,17 +97,17 @@ impl ServerData {
             let name = path.strip_prefix(&source_path)?;
 
             // Skip empty directory names and backup files
-            if name.as_os_str().is_empty() || 
-               path.extension().map_or(false, |ext| ext == "zip" || ext == "backup") {
+            if name.as_os_str().is_empty() ||
+                path.extension().is_some_and(|ext| ext == "zip" || ext == "backup") {
                 continue;
             }
 
             if path.is_file() {
-                zip.start_file(name.to_string_lossy(), options)?;
+                zip.start_file(name.to_string_lossy().replace('\\', "/"), options)?;
                 let file_content = std::fs::read(path)?;
                 std::io::copy(&mut file_content.as_slice(), &mut zip)?;
             } else if path.is_dir() {
-                zip.add_directory(name.to_string_lossy(), options)?;
+                zip.add_directory(name.to_string_lossy().replace('\\', "/"), options)?;
             }
         }
 
