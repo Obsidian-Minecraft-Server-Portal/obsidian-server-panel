@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use crate::ICON;
 use crate::actix_util::http_error::Result;
-use crate::authentication::auth_data::{UserData, UserRequestExt};
-use crate::server::{backups, filesystem};
+use crate::authentication::auth_data::UserRequestExt;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
+use crate::server::{backups, filesystem};
+use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
 use anyhow::anyhow;
 use base64::Engine as _;
 use flate2::read::GzDecoder;
@@ -12,9 +12,9 @@ use log::error;
 use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
 use sqlx::Row;
+use std::collections::HashMap;
 use std::io::Read;
 use std::time::Duration;
-use crate::ICON;
 
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
@@ -47,9 +47,9 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get_with_pool(server_id, user_id, &pool).await?;
+    let server = ServerData::get(server_id, user_id).await?;
 
+    let pool = crate::app_db::open_pool().await?;
     if let Some(server) = server {
         server.delete(&pool).await?;
         pool.close().await;
@@ -102,16 +102,13 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+    let server = ServerData::get(server_id, user_id).await?;
 
-    let pool = crate::app_db::open_pool().await?;
-    let server = ServerData::get_with_pool(server_id, user_id, &pool).await?;
     if let Some(mut server) = server {
         server.update(&body)?;
-        server.save_with_pool(&pool).await?;
-        pool.close().await;
+        server.save().await?;
         Ok(HttpResponse::Ok().finish())
     } else {
-        pool.close().await;
         Ok(HttpResponse::NotFound().json(json!({
             "error": "Server not found".to_string(),
         })))
@@ -216,22 +213,22 @@ pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> 
 pub async fn get_server_icon(server_id: web::Path<String>, req: HttpRequest) -> impl Responder {
     let server_id = match decode_single(server_id.into_inner()) {
         Ok(id) => id,
-        Err(_) => return HttpResponse::Ok().content_type("image/png").body(ICON)
+        Err(_) => return HttpResponse::Ok().content_type("image/png").body(ICON),
     };
 
     let user = match req.get_user() {
         Ok(user) => user,
-        Err(_) => return HttpResponse::Ok().content_type("image/png").body(ICON)
+        Err(_) => return HttpResponse::Ok().content_type("image/png").body(ICON),
     };
 
     let user_id = match user.id {
         Some(id) => id,
-        None => return HttpResponse::Ok().content_type("image/png").body(ICON)
+        None => return HttpResponse::Ok().content_type("image/png").body(ICON),
     };
 
     let server = match ServerData::get(server_id, user_id).await {
         Ok(Some(s)) => s,
-        _ => return HttpResponse::Ok().content_type("image/png").body(ICON)
+        _ => return HttpResponse::Ok().content_type("image/png").body(ICON),
     };
 
     let icon = server.get_icon();
@@ -316,7 +313,7 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
                 Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),
                 Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
                     "error": format!("Error reading compressed log file: {}", e)
-                })))
+                }))),
             };
         }
     }
@@ -325,16 +322,20 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
         Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": format!("Error reading log file: {}", e)
-        })))
+        }))),
     }
 }
 
 #[get("{server_id}/installed-mods")]
-pub async fn get_installed_mods(server_id: web::Path<String>, options: web::Query<HashMap<String, String>>, req: HttpRequest) -> Result<impl Responder> {
+pub async fn get_installed_mods(
+    server_id: web::Path<String>,
+    options: web::Query<HashMap<String, String>>,
+    req: HttpRequest,
+) -> Result<impl Responder> {
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
-    
+
     let server = match ServerData::get(server_id, user_id).await? {
         Some(server) => server,
         None => {
@@ -343,20 +344,19 @@ pub async fn get_installed_mods(server_id: web::Path<String>, options: web::Quer
             })));
         }
     };
-    
+
     let include_icon = options.get("include_icon").is_some();
 
     let mut mods = server.get_installed_mods().await?;
-    
+
     if !include_icon {
         for mod_data in &mut mods {
             mod_data.icon = None; // Remove icon data if not requested
         }
     }
-    
+
     Ok(HttpResponse::Ok().json(mods))
 }
-
 
 #[post("{server_id}/download-mod")]
 pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_json::Value>, req: HttpRequest) -> Result<impl Responder> {

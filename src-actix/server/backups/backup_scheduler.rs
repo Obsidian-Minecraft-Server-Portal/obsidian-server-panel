@@ -49,6 +49,7 @@ impl BackupScheduler {
         self.unschedule_server_backup(server.id).await?;
 
         let server_id = server.id;
+        let user_id = server.owner_id;
         let server_name = server.name.clone();
         let cron_expression = server.backup_cron.clone();
 
@@ -64,7 +65,7 @@ impl BackupScheduler {
                 async move {
                     log::info!("Executing scheduled backup for server: {}", server_name);
 
-                    match Self::execute_backup(server_id).await {
+                    match Self::execute_backup(server_id, user_id).await {
                         Ok(()) => {
                             log::info!("Scheduled backup completed successfully for server: {}", server_name);
                         }
@@ -124,26 +125,16 @@ impl BackupScheduler {
         Ok(())
     }
 
-    async fn execute_backup(server_id: u64) -> Result<(), String> {
-        // Get server data from database
-        let pool = match app_db::open_pool().await {
-            Ok(pool) => pool,
-            Err(e) => return Err(format!("Failed to open database: {}", e)),
-        };
-
-        let server = match ServerData::get_with_pool(server_id, 0, &pool).await {
+    async fn execute_backup(server_id: u64, user_id: u64) -> Result<(), String> {
+        let server = match ServerData::get(server_id, user_id).await {
             Ok(Some(server)) => server,
             Ok(None) => {
-                pool.close().await;
                 return Err("Server not found".to_string());
             }
             Err(e) => {
-                pool.close().await;
                 return Err(format!("Failed to get server: {}", e));
             }
         };
-
-        pool.close().await;
 
         // Execute the backup
         server.backup().await

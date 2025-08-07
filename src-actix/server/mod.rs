@@ -9,6 +9,7 @@ mod server_properties;
 mod server_ping;
 pub mod installed_mods;
 mod backups;
+mod server_access;
 
 pub use server_endpoint::configure;
 pub use server_db::initialize;
