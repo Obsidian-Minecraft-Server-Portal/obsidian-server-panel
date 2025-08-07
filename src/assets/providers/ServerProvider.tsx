@@ -59,8 +59,18 @@ export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" |
 export type ServerStatus = "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging";
 
 export type InstallModOptions = {
-    downloadUrl?: string; // URL to download the mod from
-    filename?: string; // Optional filename to use if downloading
+    // URL to download the mod from
+    downloadUrl: string;
+    // Optional filename to use if downloading
+    filename?: string;
+    // The icon to use
+    icon?: string;
+    // The version to use
+    version?: string;
+    // The modrinthId to use
+    modrinthId?: string;
+    // The curseforgeId to use
+    curseforgeId?: string;
 }
 
 export type InstalledMod = {
@@ -533,7 +543,7 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return $.get(`/api/server/${targetServerId}/logs/${filename}`);
     }, [server]);
-    
+
     const getFileContents = useCallback(async (path: string, serverId?: string): Promise<string> =>
     {
         const targetServerId = serverId || server?.id;
@@ -541,7 +551,7 @@ export function ServerProvider({children}: { children: ReactNode })
 
         return await FileSystem.getFileContents(path, targetServerId);
     }, [server]);
-    
+
     const setFileContents = useCallback(async (path: string, contents: string, serverId?: string): Promise<void> =>
     {
         const targetServerId = serverId || server?.id;
@@ -562,14 +572,17 @@ export function ServerProvider({children}: { children: ReactNode })
     {
         const targetServerId = serverId || server?.id;
         if (!targetServerId) throw new Error("No server ID provided and no server loaded");
-
+        const { downloadUrl: download_url, modrinthId: modrinth_id, curseforgeId: curseforge_id, ...rest } = options;
+        
         return $.ajax({
             url: `/api/server/${targetServerId}/download-mod`,
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify({
-                download_url: options.downloadUrl,
-                filename: options.filename
+                download_url,
+                modrinth_id,
+                curseforge_id,
+                ...rest
             })
         });
     }, [server]);

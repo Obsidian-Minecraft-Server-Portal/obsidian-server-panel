@@ -4,6 +4,7 @@ use crate::server::server_data::ServerData;
 use anyhow::Result;
 use log::*;
 use notify::{RecursiveMode, Watcher};
+use std::fs::exists;
 use std::sync::mpsc;
 
 impl ServerData {
@@ -36,13 +37,31 @@ impl ServerData {
     }
 
     async fn on_file_watcher_trigger(&self, event: &notify::Event, pool: &sqlx::SqlitePool) -> Result<()> {
-
         let paths = &event.paths;
         match &event.kind {
             notify::EventKind::Create(_) => {
                 debug!("File created in mods directory for server {}: {:?}", self.name, event.paths);
                 for path in paths {
                     if path.is_file() {
+                        if let Some(extension) = path.extension() {
+                            let extension: String = extension.to_string_lossy().into();
+                            if extension != "jar" {
+                                return Ok(());
+                            }
+                        }
+                        let exists = if let Some(filename) = path.file_name() {
+                            let count: i64 = sqlx::query_scalar(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#)
+                                .bind(filename.to_string_lossy())
+                                .bind(self.id as i64)
+                                .fetch_one(pool)
+                                .await?;
+                            count > 0
+                        } else {
+                            false
+                        };
+                        if exists {
+                            return Ok(());
+                        }
                         match ModData::from_path(&path).await {
                             Ok(Some(mod_data)) => {
                                 if let Err(e) = self.insert_installed_mod(&mod_data, pool).await {
@@ -63,6 +82,25 @@ impl ServerData {
                 debug!("File modified in mods directory for server {}: {:?}", self.name, event.paths);
                 for path in paths {
                     if path.is_file() {
+                        if let Some(extension) = path.extension() {
+                            let extension: String = extension.to_string_lossy().into();
+                            if extension != "jar" {
+                                return Ok(());
+                            }
+                        }
+                        let exists = if let Some(filename) = path.file_name() {
+                            let count: i64 = sqlx::query_scalar(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#)
+                                .bind(filename.to_string_lossy())
+                                .bind(self.id as i64)
+                                .fetch_one(pool)
+                                .await?;
+                            count > 0
+                        } else {
+                            false
+                        };
+                        if exists {
+                            return Ok(());
+                        }
                         // Delete existing entry first
                         if let Some(filename) = path.file_name() {
                             let filename_str = filename.to_string_lossy();

@@ -10,14 +10,14 @@ import {MessageResponseType} from "../components/MessageModal.tsx";
 import {ModDescription} from "../components/discover/ModDescription.tsx";
 import {ModChangelog} from "../components/discover/ModChangelog.tsx";
 import {ModVersions} from "../components/discover/ModVersions.tsx";
-import type {ModDetails, ModVersion, ChangelogEntry} from "../types/ModTypes.tsx";
+import type {ChangelogEntry, ModDetails, ModVersion} from "../types/ModTypes.tsx";
+import "../ts/string-ext.ts";
 
 export function Discover()
 {
     const {type, platform, modId} = useParams();
     const [searchParams] = useSearchParams();
-    const serverId = searchParams.get("sid");
-    const {server} = useServer();
+    const {loadServer, server, installMod} = useServer();
     const {open} = useMessage();
 
     const [modDetails, setModDetails] = useState<ModDetails | null>(null);
@@ -184,9 +184,17 @@ export function Discover()
         }
     };
 
+    useEffect(() =>
+    {
+        const serverId = searchParams.get("sid");
+        if (!serverId) return;
+        loadServer(serverId);
+    }, [searchParams]);
+
     const downloadModVersion = useCallback(async (version: ModVersion) =>
     {
-        if (!server || !serverId)
+        console.log("Downloading version:", version, "For server", server);
+        if (!server)
         {
             await open({
                 title: "No Server Selected",
@@ -210,7 +218,7 @@ export function Discover()
             warnings.push(`This mod version supports Minecraft ${version.game_versions.join(", ")} but your server runs ${serverVersion}`);
         }
 
-        if (serverLoader && serverLoader !== "vanilla" && !version.loaders.includes(serverLoader))
+        if (serverLoader && !serverLoader.equalsIgnoreCase("vanilla") && !version.loaders.map(i => i.toLowerCase()).includes(serverLoader.toLowerCase()))
         {
             compatible = false;
             warnings.push(`This mod version supports ${version.loaders.join(", ")} but your server uses ${serverLoader}`);
@@ -231,36 +239,17 @@ export function Discover()
         try
         {
             const primaryFile = version.files.find(f => f.primary) || version.files[0];
-            if (!primaryFile)
-            {
-                throw new Error("No download file found");
-            }
+            if (!primaryFile) throw new Error("No download file found");
 
-            const response = await fetch(`/api/server/${serverId}/download-mod`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    download_url: primaryFile.url,
-                    filename: primaryFile.filename
-                })
+            await installMod({
+                downloadUrl: primaryFile.url,
+                filename: primaryFile.filename,
+                icon: modDetails?.icon_url,
+                version: version.version_number,
+                curseforgeId: platform === "curseforge" ? modDetails?.id : undefined,
+                modrinthId: platform === "modrinth" ? modDetails?.id : undefined
             });
 
-            if (!response.ok)
-            {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const result = await response.json();
-            console.log("Download result:", result);
-
-            await open({
-                title: "Download Successful",
-                body: `${modDetails?.name} v${version.version_number} has been downloaded to your server.`,
-                responseType: MessageResponseType.Close,
-                severity: "success"
-            });
 
         } catch (error)
         {
@@ -272,7 +261,7 @@ export function Discover()
                 severity: "danger"
             });
         }
-    }, [modDetails, server, serverId, open]);
+    }, [modDetails, server, open]);
 
     useEffect(() =>
     {
@@ -424,7 +413,7 @@ export function Discover()
                                                 return decodeURIComponent(backUrl);
                                             }
                                             // Default back to server content tab if no back URL
-                                            return serverId ? `/app/servers/${serverId}?tab=content` : "/app";
+                                            return server?.id ? `/app/servers/${server.id}?tab=content` : "/app";
                                         })()}
                                         radius="none"
                                         isIconOnly
@@ -508,7 +497,7 @@ export function Discover()
                             modVersions={modVersions}
                             versionsLoading={versionsLoading}
                             server={server || undefined}
-                            serverId={serverId || undefined}
+                            serverId={server?.id || undefined}
                             onDownloadVersion={downloadModVersion}
                         />
                     </Tab>

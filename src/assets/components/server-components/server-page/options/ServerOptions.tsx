@@ -1,5 +1,5 @@
 import "../../../../ts/string-ext.ts";
-import {Divider, Input, Select, SelectItem, Switch, Tab, Tabs, Textarea} from "@heroui/react";
+import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";
@@ -17,6 +17,7 @@ import Quilt from "../../../icons/Quilt.svg.tsx";
 import {getMinecraftVersionDownloadUrl} from "../../../../ts/minecraft-versions.ts";
 import {ServerIcon} from "../ServerIcon.tsx";
 import {Button} from "../../../extended/Button.tsx";
+import {Select} from "../../../extended/Select.tsx"
 
 export function ServerOptions()
 {
@@ -347,7 +348,6 @@ export function ServerOptions()
 
                 <Select
                     label="Server JAR File"
-                    radius="none"
                     disallowEmptySelection
                     className="font-minecraft-body"
                     selectedKeys={serverJar ? [serverJar] : []}

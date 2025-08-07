@@ -12,6 +12,13 @@ export const Select = forwardRef<HTMLSelectElement, Omit<SelectProps, "radius">>
             },
             ...props.listboxProps
         }}
+
+
+        classNames={{
+            popoverContent: cn("rounded-none border-primary border-1", props.classNames?.popoverContent),
+            ...props.classNames
+        }}
+
         {...props}
         ref={ref}
     >

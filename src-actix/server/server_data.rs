@@ -1,16 +1,16 @@
-use crate::server::backups::backup_type::BackupType;
 use crate::server::backups::backup_scheduler;
+use crate::server::backups::backup_type::BackupType;
 use crate::server::installed_mods::mod_data::ModData;
 use crate::server::server_properties::ServerProperties;
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
-use crate::{ICON, app_db};
+use crate::{app_db, ICON};
 use anyhow::Result;
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 use serde_hash::HashIds;
 use sqlx::{FromRow, Row, SqlitePool};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -235,7 +235,15 @@ impl ServerData {
         result
     }
 
-    pub async fn download_and_install_mod(&self, download_url: &str, filename: String) -> Result<ModData> {
+    pub async fn download_and_install_mod(
+        &self,
+        download_url: &str,
+        filename: String,
+        version: Option<String>,
+        modrinth_id: Option<String>,
+        curseforge_id: Option<String>,
+        icon: Option<String>,
+    ) -> Result<ModData> {
         // Create mods directory if it doesn't exist
         let mods_dir = self.get_directory_path().join("mods");
         std::fs::create_dir_all(&mods_dir)?;
@@ -248,33 +256,41 @@ impl ServerData {
 
         // Ensure .jar extension
         let filename = if filename.ends_with(".jar") { filename } else { format!("{}.jar", filename) };
+        let temp_dir = format!("./tmp/{}/mods/", self.id);
+        tokio::fs::create_dir_all(&temp_dir).await?;
+        let temp_file_path = PathBuf::from(&temp_dir).join(&filename);
 
-        let file_path = mods_dir.join(&filename);
+        // Write the file after inserting into the database to prevent against multiple inserts from the file watcher
         let bytes = response.bytes().await?;
-        tokio::fs::write(&file_path, bytes).await?;
+        tokio::fs::write(&temp_file_path, bytes).await?;
 
         // Parse mod data from the downloaded file
-        let mod_data = ModData::from_path(&file_path).await?.ok_or_else(|| anyhow::anyhow!("Failed to parse mod data from downloaded file"))?;
+        let mod_data = ModData::from_path(&temp_file_path).await?.ok_or_else(|| anyhow::anyhow!("Failed to parse mod data from downloaded file"))?;
 
         // Save to database
         let pool = app_db::open_pool().await?;
-        let icon_base64 = mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes));
+        let icon_base64 =
+            if let Some(icon) = icon { &Some(icon) } else { &mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes)) };
+        let modrinth_id = if let Some(id) = modrinth_id { &Some(id) } else { &mod_data.modrinth_id };
+        let curseforge_id = if let Some(id) = curseforge_id { &Some(id) } else { &mod_data.curseforge_id };
 
         sqlx::query(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
             .bind(&mod_data.mod_id)
             .bind(&mod_data.name)
-            .bind(&mod_data.version)
+            .bind(version.unwrap_or(mod_data.version.clone()))
             .bind(mod_data.authors.join(","))
             .bind(&mod_data.description)
             .bind(icon_base64)
-            .bind(&mod_data.modrinth_id)
-            .bind(&mod_data.curseforge_id)
+            .bind(modrinth_id)
+            .bind(curseforge_id)
             .bind(&filename)
             .bind(self.id as i64)
             .execute(&pool)
             .await?;
 
         pool.close().await;
+
+        tokio::fs::rename(temp_file_path, mods_dir.join(&filename)).await?;
         Ok(mod_data)
     }
 

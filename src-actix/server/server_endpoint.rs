@@ -1,10 +1,10 @@
-use crate::ICON;
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use crate::server::{backups, filesystem};
-use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
+use crate::ICON;
+use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
 use base64::Engine as _;
 use flate2::read::GzDecoder;
@@ -416,12 +416,15 @@ pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_js
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let download_url = body.get("download_url").and_then(|v| v.as_str()).ok_or(anyhow!("download_url is required"))?;
-
     let filename = body.get("filename").and_then(|v| v.as_str()).map(String::from).expect("filename is required");
+    let version = body.get("version").and_then(|v| v.as_str()).map(String::from);
+    let modrinth_id = body.get("modrinth_id").and_then(|v| v.as_str()).map(String::from);
+    let curseforge_id = body.get("curseforge_id").and_then(|v| v.as_str()).map(String::from);
+    let icon = body.get("icon").and_then(|v| v.as_str()).map(String::from);
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
-    match server.download_and_install_mod(download_url, filename).await {
+    match server.download_and_install_mod(download_url, filename, version, modrinth_id, curseforge_id, icon).await {
         Ok(mod_data) => Ok(HttpResponse::Ok().json(json!({
             "status": "success",
             "message": "Mod downloaded and installed successfully",
@@ -498,9 +501,16 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
 
     if let Some(row) = row {
         let icon_data: Option<String> = row.get("icon");
-        if let Some(icon_base64) = icon_data {
-            if let Ok(icon_bytes) = base64::engine::general_purpose::STANDARD.decode(icon_base64) {
-                return Ok(HttpResponse::Ok().content_type("image/png").body(icon_bytes));
+
+        if let Some(icon) = icon_data {
+            let is_icon_base64 = icon.starts_with("data:image/png;base64,");
+            let is_icon_url = icon.starts_with("http://") || icon.starts_with("https://");
+            if is_icon_base64 {
+                if let Ok(icon_bytes) = base64::engine::general_purpose::STANDARD.decode(icon) {
+                    return Ok(HttpResponse::Ok().content_type("image/png").body(icon_bytes));
+                }
+            } else if is_icon_url {
+                return Ok(HttpResponse::PermanentRedirect().append_header((actix_web::http::header::LOCATION, icon.to_string())).finish());
             }
         }
     }

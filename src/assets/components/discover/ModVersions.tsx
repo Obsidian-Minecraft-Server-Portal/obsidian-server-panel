@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import { Button, Card, CardBody, Chip, Input, Select, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from "@heroui/react";
-import { Icon } from "@iconify-icon/react";
-import { useInfiniteScroll } from "@heroui/use-infinite-scroll";
-import { useAsyncList } from "@react-stately/data";
-import { ModVersion, ServerInfo } from "../../types/ModTypes";
+import {useEffect, useState} from "react";
+import {Card, CardBody, Chip, Input, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Icon} from "@iconify-icon/react";
+import {useInfiniteScroll} from "@heroui/use-infinite-scroll";
+import {useAsyncList} from "@react-stately/data";
+import {ModVersion, ServerInfo} from "../../types/ModTypes";
+import {Select} from "../extended/Select.tsx";
+import {Button} from "../extended/Button.tsx";
 
-interface ModVersionsProps {
+interface ModVersionsProps
+{
     modVersions: ModVersion[];
     versionsLoading: boolean;
     server?: ServerInfo;
@@ -13,7 +16,8 @@ interface ModVersionsProps {
     onDownloadVersion: (version: ModVersion) => Promise<void>;
 }
 
-export function ModVersions({ modVersions, versionsLoading, server, serverId, onDownloadVersion }: ModVersionsProps) {
+export function ModVersions({modVersions, versionsLoading, server, serverId, onDownloadVersion}: ModVersionsProps)
+{
     const [versionFilter, setVersionFilter] = useState("");
     const [gameVersionFilter, setGameVersionFilter] = useState("");
     const [loaderFilter, setLoaderFilter] = useState("");
@@ -23,22 +27,28 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
     const versionsPerPage = 50;
 
     // Set default filters based on server configuration
-    useEffect(() => {
-        if (server && serverId && modVersions.length > 0) {
+    useEffect(() =>
+    {
+        if (server && serverId && modVersions.length > 0)
+        {
             // Set game version filter to match server version
-            if (server.minecraft_version && !gameVersionFilter) {
+            if (server.minecraft_version && !gameVersionFilter)
+            {
                 const serverVersion = server.minecraft_version;
                 const availableVersions = Array.from(new Set(modVersions.flatMap(v => v.game_versions)));
-                if (availableVersions.includes(serverVersion)) {
+                if (availableVersions.includes(serverVersion))
+                {
                     setGameVersionFilter(serverVersion);
                 }
             }
 
             // Set loader filter to match server type
-            if (server.server_type && !loaderFilter) {
+            if (server.server_type && !loaderFilter)
+            {
                 const serverLoader = server.server_type.toLowerCase();
                 const availableLoaders = Array.from(new Set(modVersions.flatMap(v => v.loaders.map(l => l.toLowerCase()))));
-                if (availableLoaders.includes(serverLoader)) {
+                if (availableLoaders.includes(serverLoader))
+                {
                     setLoaderFilter(serverLoader);
                 }
             }
@@ -47,17 +57,20 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
 
     const versionsList = useAsyncList({
         // @ts-ignore
-        async load({ cursor }) {
-            if (!modVersions.length) {
+        async load({cursor})
+        {
+            if (!modVersions.length)
+            {
                 setHasMoreVersions(false);
-                return { items: [], cursor: null };
+                return {items: [], cursor: null};
             }
 
             const startIndex = cursor ? parseInt(cursor) : 0;
             const endIndex = startIndex + versionsPerPage;
 
             // Apply filters to all versions first
-            const filtered = modVersions.filter(version => {
+            const filtered = modVersions.filter(version =>
+            {
                 return (
                     (!versionFilter || version.version_number.toLowerCase().includes(versionFilter.toLowerCase()) ||
                         version.name.toLowerCase().includes(versionFilter.toLowerCase())) &&
@@ -85,14 +98,18 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
     });
 
     // Reload versions list when filters change
-    useEffect(() => {
-        if (modVersions.length > 0) {
+    useEffect(() =>
+    {
+        if (modVersions.length > 0)
+        {
             versionsList.reload();
         }
     }, [versionFilter, gameVersionFilter, loaderFilter, typeFilter, modVersions]);
 
-    const getVersionTypeIcon = (type: string) => {
-        switch (type) {
+    const getVersionTypeIcon = (type: string) =>
+    {
+        switch (type)
+        {
             case "release":
                 return "R";
             case "beta":
@@ -104,8 +121,10 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
         }
     };
 
-    const getVersionTypeColor = (type: string) => {
-        switch (type) {
+    const getVersionTypeColor = (type: string) =>
+    {
+        switch (type)
+        {
             case "release":
                 return "success";
             case "beta":
@@ -117,11 +136,13 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
         }
     };
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string) =>
+    {
         return new Date(dateString).toLocaleDateString();
     };
 
-    const formatDownloads = (count: number) => {
+    const formatDownloads = (count: number) =>
+    {
         if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
         if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
         return count.toString();
@@ -138,14 +159,13 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                         onValueChange={setVersionFilter}
                         className="max-w-xs"
                         radius="none"
-                        startContent={<Icon icon="pixelarticons:search" />}
+                        startContent={<Icon icon="pixelarticons:search"/>}
                     />
                     <Select
                         placeholder="Game Version"
                         selectedKeys={gameVersionFilter ? [gameVersionFilter] : []}
                         onSelectionChange={(keys) => setGameVersionFilter([...keys][0] as string || "")}
                         className="max-w-xs"
-                        radius="none"
                     >
                         {Array.from(new Set(modVersions.flatMap(v => v.game_versions))).map(version => (
                             <SelectItem key={version} textValue={version}>{version}</SelectItem>
@@ -156,7 +176,6 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                         selectedKeys={loaderFilter ? [loaderFilter] : []}
                         onSelectionChange={(keys) => setLoaderFilter([...keys][0] as string || "")}
                         className="max-w-xs"
-                        radius="none"
                     >
                         {Array.from(new Set(modVersions.flatMap(v => v.loaders))).map(loader => (
                             <SelectItem key={loader} textValue={loader}>{loader}</SelectItem>
@@ -167,7 +186,6 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                         selectedKeys={typeFilter ? [typeFilter] : []}
                         onSelectionChange={(keys) => setTypeFilter([...keys][0] as string || "")}
                         className="max-w-xs"
-                        radius="none"
                     >
                         <SelectItem key="release" textValue="release">Release</SelectItem>
                         <SelectItem key="beta" textValue="beta">Beta</SelectItem>
@@ -185,7 +203,7 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                     bottomContent={
                         hasMoreVersions ? (
                             <div className="flex w-full justify-center">
-                                <Spinner ref={loaderRef} color="primary" />
+                                <Spinner ref={loaderRef} color="primary"/>
                             </div>
                         ) : null
                     }
@@ -205,7 +223,7 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                     <TableBody
                         isLoading={versionsLoading}
                         items={versionsList.items as ModVersion[]}
-                        loadingContent={<Spinner color="primary" />}
+                        loadingContent={<Spinner color="primary"/>}
                     >
                         {(version: ModVersion) => (
                             <TableRow key={version.id}>
@@ -238,7 +256,7 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
                                         {version.loaders.map(loader => (
-                                            <Chip key={loader} size="sm" variant="flat" color="secondary">
+                                            <Chip key={loader} size="sm" variant="flat">
                                                 {loader}
                                             </Chip>
                                         ))}
@@ -250,9 +268,9 @@ export function ModVersions({ modVersions, versionsLoading, server, serverId, on
                                     <Button
                                         size="sm"
                                         color="primary"
-                                        radius="none"
                                         onPress={() => onDownloadVersion(version)}
-                                        startContent={<Icon icon="pixelarticons:download" />}
+                                        startContent={<Icon icon="pixelarticons:download"/>}
+                                        variant={"ghost"}
                                     >
                                         Download
                                     </Button>
