@@ -163,7 +163,7 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
     };
 
     return (
-        <div className={"flex flex-row gap-2 bg-default-200/50 w-full h-[200px] p-4 font-minecraft-body"}>
+        <div className={"flex flex-row gap-2 bg-default-200/50 w-full h-[150px] p-4 font-minecraft-body"}>
             <Image
                 src={iconUrl}
                 width={128}

@@ -515,9 +515,7 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
         }
     }
 
-    Ok(HttpResponse::NotFound().json(json!({
-        "error": "Mod icon not found"
-    })))
+    Ok(HttpResponse::Ok().content_type("image/png").body(ICON))
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
