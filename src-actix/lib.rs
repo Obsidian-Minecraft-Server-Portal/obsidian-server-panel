@@ -2,7 +2,7 @@ use crate::app_db::open_pool;
 use crate::server::server_data::ServerData;
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
-use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
+use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
 use anyhow::Result;
 use clap::Parser;
 use log::*;
@@ -20,6 +20,7 @@ mod forge_endpoint;
 mod host_info;
 mod java;
 mod server;
+mod updater;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 static ICON: &[u8] = include_bytes!("../resources/logo/icon.ico");
@@ -70,7 +71,8 @@ pub async fn run() -> Result<()> {
                         .wrap(authentication::AuthenticationMiddleware)
                         .configure(java::configure)
                         .configure(forge_endpoint::configure)
-                        .configure(server::configure),
+                        .configure(server::configure)
+                        .configure(updater::configure),
                 ),
             )
             .configure_frontend_routes()

@@ -1,0 +1,11 @@
+meta {
+  name: Get Update Status
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseurl}}/updater/status
+  body: none
+  auth: inherit
+}

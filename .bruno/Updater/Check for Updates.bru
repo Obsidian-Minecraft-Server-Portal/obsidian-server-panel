@@ -1,0 +1,11 @@
+meta {
+  name: Check for Updates
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseurl}}/updater/check
+  body: none
+  auth: inherit
+}

@@ -1,0 +1,11 @@
+meta {
+  name: Get Current Version
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseurl}}/updater
+  body: none
+  auth: inherit
+}
