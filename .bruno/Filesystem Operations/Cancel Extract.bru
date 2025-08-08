@@ -1,11 +1,11 @@
 meta {
-  name: Cancel Archive
+  name: Cancel Extract
   type: http
-  seq: 17
+  seq: 20
 }
 
 post {
-  url: {{baseurl}}/server/:server-id/fs/archive/cancel/:tracker-id
+  url: {{baseurl}}/server/:server-id/fs/extract/cancel/:tracker-id
   body: none
   auth: inherit
 }

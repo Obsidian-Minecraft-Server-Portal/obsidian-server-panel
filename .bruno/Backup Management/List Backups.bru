@@ -1,19 +1,15 @@
 meta {
-  name: Get Files
+  name: List Backups
   type: http
   seq: 1
 }
 
 get {
-  url: {{baseurl}}/server/:server-id/fs/files
+  url: {{baseurl}}/server/:server-id/backups
   body: none
   auth: inherit
 }
 
 params:path {
   server-id:
-}
-
-params:query {
-  path:
 }

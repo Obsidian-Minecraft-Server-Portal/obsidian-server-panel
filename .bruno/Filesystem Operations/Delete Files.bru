@@ -1,7 +1,7 @@
 meta {
   name: Delete Files
   type: http
-  seq: 10
+  seq: 12
 }
 
 delete {
@@ -11,11 +11,15 @@ delete {
 }
 
 params:path {
-  server-id: lW97O03zR32QygKY
+  server-id:
 }
 
 body:json {
   {
-    "paths": ["file1.txt", "folder1", "file2.txt"]
+    "paths": [
+      "old-file.txt",
+      "temp-folder/",
+      "cache/old-cache.dat"
+    ]
   }
 }

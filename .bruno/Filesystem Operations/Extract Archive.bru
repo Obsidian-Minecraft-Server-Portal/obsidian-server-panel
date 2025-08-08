@@ -1,0 +1,21 @@
+meta {
+  name: Extract Archive
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/fs/extract
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id:
+}
+
+params:query {
+  archive: /backups/server-backup.zip
+  directory: /extracted
+  tracker: {{$guid}}
+}

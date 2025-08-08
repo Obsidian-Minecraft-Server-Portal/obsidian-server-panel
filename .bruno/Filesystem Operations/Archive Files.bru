@@ -1,7 +1,7 @@
 meta {
   name: Archive Files
   type: http
-  seq: 13
+  seq: 15
 }
 
 post {
@@ -11,14 +11,18 @@ post {
 }
 
 params:path {
-  server-id: 1xA48qD2L3E7NZdJ
+  server-id:
 }
 
 body:json {
   {
-    "entries": ["server.properties", "logs"],
+    "entries": [
+      "world/",
+      "server.properties",
+      "config/"
+    ],
     "cwd": "",
-    "filename": "server-backup.zip",
-    "tracker_id": "archive123"
+    "filename": "backup.zip",
+    "tracker_id": "{{$guid}}"
   }
 }

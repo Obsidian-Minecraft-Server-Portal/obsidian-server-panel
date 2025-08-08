@@ -1,7 +1,7 @@
 meta {
   name: Copy Files
   type: http
-  seq: 7
+  seq: 9
 }
 
 post {
@@ -11,12 +11,15 @@ post {
 }
 
 params:path {
-  server-id: lW97O03zR32QygKY
+  server-id:
 }
 
 body:json {
   {
-    "entries": ["file1.txt", "folder1"],
-    "path": "destination/folder"
+    "entries": [
+      "world/level.dat",
+      "server.properties"
+    ],
+    "path": "backups/manual"
   }
 }

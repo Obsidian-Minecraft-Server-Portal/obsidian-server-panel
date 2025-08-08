@@ -1,11 +1,11 @@
 meta {
-  name: Start Server
+  name: Ping Server
   type: http
-  seq: 6
+  seq: 20
 }
 
-post {
-  url: {{baseurl}}/server/:server-id/start
+get {
+  url: {{baseurl}}/server/:server-id/ping
   body: none
   auth: inherit
 }

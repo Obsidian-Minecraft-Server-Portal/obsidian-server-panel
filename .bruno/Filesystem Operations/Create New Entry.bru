@@ -1,7 +1,7 @@
 meta {
   name: Create New Entry
   type: http
-  seq: 11
+  seq: 13
 }
 
 post {
@@ -11,12 +11,12 @@ post {
 }
 
 params:path {
-  server-id: lW97O03zR32QygKY
+  server-id:
 }
 
 body:json {
   {
-    "path": "new-folder",
-    "is_directory": true
+    "path": "new-folder/new-file.txt",
+    "is_directory": false
   }
 }

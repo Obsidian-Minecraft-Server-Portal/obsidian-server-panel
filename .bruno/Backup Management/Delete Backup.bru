@@ -1,0 +1,16 @@
+meta {
+  name: Delete Backup
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseurl}}/server/:server-id/backups/:backup-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id:
+  backup-id:
+}

@@ -1,0 +1,16 @@
+meta {
+  name: Get Mod Icon
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/mod/:mod-id/icon
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id:
+  mod-id:
+}

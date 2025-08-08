@@ -1,23 +1,11 @@
 meta {
   name: Login (Token)
   type: http
-  seq: 4
+  seq: 2
 }
 
 get {
-  url: {{baseurl}}/auth/
+  url: {{baseurl}}/auth
   body: none
-  auth: none
-}
-
-headers {
-  Authorization: lW97O03zR32QygKY$2b$10$QPStoRcK348jyty.87zC1eKkPYvCBaHxPhd3KzZ64J1OUjWRTxFP6
-}
-
-body:json {
-  {
-    "username": "admin",
-    "password": "admin",
-    "remember": true
-  }
+  auth: inherit
 }

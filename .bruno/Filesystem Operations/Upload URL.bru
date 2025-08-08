@@ -1,20 +1,20 @@
 meta {
   name: Upload URL
   type: http
-  seq: 3
+  seq: 7
 }
 
 get {
-  url: {{baseurl}}/server/:server-id/fs/upload-url?filepath=server.jar&url=https://piston-data.mojang.com/v1/objects/6bce4ef400e4efaa63a13d5e6f6b500be969ef81/server.jar
+  url: {{baseurl}}/server/:server-id/fs/upload-url
   body: none
   auth: inherit
 }
 
-params:query {
-  filepath: server.jar
-  url: https://piston-data.mojang.com/v1/objects/6bce4ef400e4efaa63a13d5e6f6b500be969ef81/server.jar
+params:path {
+  server-id:
 }
 
-params:path {
-  server-id: lW97O03zR32QygKY
+params:query {
+  filepath: /mods/example-mod.jar
+  url: https://cdn.modrinth.com/data/example/versions/example-mod-1.0.0.jar
 }

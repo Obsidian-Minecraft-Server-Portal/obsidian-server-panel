@@ -1,11 +1,11 @@
 meta {
-  name: Get Servers
+  name: Logout
   type: http
-  seq: 2
+  seq: 4
 }
 
 get {
-  url: {{baseurl}}/server
+  url: {{baseurl}}/auth/logout/
   body: none
   auth: inherit
 }

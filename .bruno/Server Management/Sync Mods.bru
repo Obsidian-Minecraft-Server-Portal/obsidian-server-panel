@@ -1,11 +1,11 @@
 meta {
-  name: Start Server
+  name: Sync Mods
   type: http
-  seq: 6
+  seq: 16
 }
 
 post {
-  url: {{baseurl}}/server/:server-id/start
+  url: {{baseurl}}/server/:server-id/sync-mods
   body: none
   auth: inherit
 }

@@ -1,0 +1,15 @@
+meta {
+  name: Get Backup Settings
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseurl}}/server/:server-id/backups/settings
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id:
+}

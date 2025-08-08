@@ -1,24 +1,24 @@
 meta {
   name: Upload File
   type: http
-  seq: 2
+  seq: 4
 }
 
 post {
-  url: {{baseurl}}/server/:server-id/fs/upload?upload_id=upload123&path=example.txt
-  body: text
+  url: {{baseurl}}/server/:server-id/fs/upload
+  body: multipartForm
   auth: inherit
 }
 
-params:query {
-  upload_id: upload123
-  path: example.txt
-}
-
 params:path {
-  server-id: lW97O03zR32QygKY
+  server-id:
 }
 
-body:text {
-  This is the content of the uploaded file.
+params:query {
+  upload_id: {{$guid}}
+  path: /example-file.jar
+}
+
+body:multipart-form {
+  file: @file(/path/to/local/file.jar)
 }

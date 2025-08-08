@@ -1,20 +1,20 @@
 meta {
   name: Search Files
   type: http
-  seq: 12
+  seq: 14
 }
 
 get {
-  url: {{baseurl}}/server/:server-id/fs/search?q=config&filename_only=false
+  url: {{baseurl}}/server/:server-id/fs/search
   body: none
   auth: inherit
 }
 
-params:query {
-  q: config
-  filename_only: false
+params:path {
+  server-id:
 }
 
-params:path {
-  server-id: lW97O03zR32QygKY
+params:query {
+  q: server.properties
+  filename_only: true
 }

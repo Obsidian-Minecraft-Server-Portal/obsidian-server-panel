@@ -1,0 +1,21 @@
+meta {
+  name: Create Backup
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseurl}}/server/:server-id/backups
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id:
+}
+
+body:json {
+  {
+    "description": "Manual backup created via API"
+  }
+}

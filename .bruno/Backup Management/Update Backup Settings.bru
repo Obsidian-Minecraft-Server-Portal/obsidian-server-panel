@@ -1,0 +1,24 @@
+meta {
+  name: Update Backup Settings
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseurl}}/server/:server-id/backups/settings
+  body: json
+  auth: inherit
+}
+
+params:path {
+  server-id:
+}
+
+body:json {
+  {
+    "backup_enabled": true,
+    "backup_cron": "0 0 2 * * *",
+    "backup_type": "World",
+    "backup_retention": 7
+  }
+}

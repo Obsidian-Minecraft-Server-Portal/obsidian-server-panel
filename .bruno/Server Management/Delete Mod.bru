@@ -1,0 +1,16 @@
+meta {
+  name: Delete Mod
+  type: http
+  seq: 17
+}
+
+delete {
+  url: {{baseurl}}/server/:server-id/mod/:mod-id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  server-id:
+  mod-id:
+}

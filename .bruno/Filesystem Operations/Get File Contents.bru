@@ -1,19 +1,19 @@
 meta {
   name: Get File Contents
   type: http
-  seq: 16
+  seq: 2
 }
 
 get {
-  url: {{baseurl}}/server/:server-id/fs/contents?filepath=server.properties
+  url: {{baseurl}}/server/:server-id/fs/contents
   body: none
   auth: inherit
 }
 
-params:query {
-  filepath: server.properties
+params:path {
+  server-id:
 }
 
-params:path {
-  server-id: 1xA48qD2L3E7NZdJ
+params:query {
+  filepath:
 }

@@ -1,11 +1,11 @@
 meta {
-  name: Start Server
+  name: Get Server Icon
   type: http
-  seq: 6
+  seq: 19
 }
 
-post {
-  url: {{baseurl}}/server/:server-id/start
+get {
+  url: {{baseurl}}/server/:server-id/icon
   body: none
   auth: inherit
 }
