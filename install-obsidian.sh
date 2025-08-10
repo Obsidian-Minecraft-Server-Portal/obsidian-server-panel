@@ -126,6 +126,8 @@ if [[ "$yn" =~ ^[Yy]$ ]]; then # If yn is 'y' or 'Y'
   forward_flag="--forward-webpanel "
 fi
 
+mkdir "$config_path" || true
+
 # Create a systemd service unit content pointing to the extracted binary in the current directory.
 # Uses root user/group and restarts automatically on failure.
 service_text="
@@ -137,8 +139,8 @@ After=network-online.target
 Type=simple
 User=root
 Group=root
-ExecStart=$(binary_path) ${forward_flag}-p $port
-WorkingDirectory=$(config_path)
+ExecStart=${binary_path} ${forward_flag}-p $port
+WorkingDirectory=${config_path}
 Restart=always
 RestartSec=10
 [Install]
