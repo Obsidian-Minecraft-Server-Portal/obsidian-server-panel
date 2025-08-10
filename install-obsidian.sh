@@ -3,6 +3,12 @@
 # fail a pipeline if any command errors (-o pipefail).
 set -euo pipefail
 
+
+port="80" # Default port for the web UI
+yn=""
+forward_flag=""
+
+
 echo "Checking for available download/extract tools..."
 
 # Choose a downloader: prefer curl, fallback to wget. If neither exists, abort.
@@ -91,12 +97,15 @@ rm -f obsidian.zip
 
 # Work inside the extracted directory for the remainder of setup.
 cd ./obsidian/
+# Ensure the obsidian_server_panel binary is executable.
+chmod +x obsidian_server_panel
 
 # Prompt for web UI port with default 80 if user presses Enter.
 read -rp "What should the WebUI Port be (default: 80): " port; : "${port:=80}"
 
 # Ask if UPnP port forwarding should be enabled for the web panel.
 read -N 1 -rp "Enable UPNP port forwarding WebUI? (y/N): " yn; echo
+
 forward_flag=""
 if [[ "$yn" =~ ^[Yy]$ ]]; then # If yn is 'y' or 'Y'
   forward_flag="--forward-webpanel "
@@ -128,5 +137,14 @@ echo "$service_text" | sudo tee /etc/systemd/system/obsidian.service >/dev/null
 sudo chmod 644 /etc/systemd/system/obsidian.service
 sudo systemctl daemon-reload
 sudo systemctl start obsidian
+sudo systemctl enable obsidian
+echo "Systemd service 'obsidian' created and started."
+echo "You can check its status with: sudo systemctl status obsidian"
+echo "To access the web UI, open your browser and go to http://localhost:$port"
+echo "If you enabled UPNP, ensure your router supports it for automatic port forwarding."
+echo "To stop the service, use: sudo systemctl stop obsidian"
+echo "To disable the service from starting on boot, use: sudo systemctl disable obsidian"
+echo "To view logs, use: journalctl -u obsidian -f"
+echo "Obsidian Minecraft Server Panel installation complete."
 
 echo "Done. Service 'obsidian' started."
