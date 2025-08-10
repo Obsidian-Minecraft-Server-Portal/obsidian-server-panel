@@ -97,7 +97,7 @@ else
   wget -qO obsidian.zip "$download_url"   # -q: quiet, -O: output file
 fi
 
-echo "Extracting to $binary_path"
+echo "Extracting to ${binary_path}"
 
 # Extract based on the chosen extractor. Suppress noisy output where possible.
 if [[ "$extractor" == "unzip -o" ]]; then
