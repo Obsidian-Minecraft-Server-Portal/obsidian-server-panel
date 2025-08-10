@@ -3,6 +3,31 @@
 # fail a pipeline if any command errors (-o pipefail).
 set -euo pipefail
 
+binary_path=/usr/local/bin/obsidian_server_panel
+config_path=/etc/obsidian
+port="80" # Default port for the web UI
+yn=""
+forward_flag=""
+
+# This script installs the Obsidian Minecraft Server Panel on a Linux system.
+# It checks for necessary tools, downloads the latest release, extracts it,
+# and sets up a systemd service to run the panel.
+# Usage: Run this script as root or with sudo to install the Obsidian panel.
+# Ensure the script is run as root or with sudo.
+# Example: sudo bash install-obsidian.sh
+# To uninstall the panel you can run install-obsidian.sh with the --uninstall flag.
+if [[ "${1:-}" == "--uninstall" ]]; then
+  echo "Uninstalling Obsidian Minecraft Server Panel..."
+  sudo systemctl stop obsidian || true
+  sudo systemctl disable obsidian || true
+  sudo rm -f /etc/systemd/system/obsidian.service
+  sudo systemctl daemon-reload
+  sudo rm -rf $binary_path
+  sudo rm -rf $config_path
+  echo "Obsidian Minecraft Server Panel uninstalled."
+  exit 0
+fi
+
 echo "Checking for available download/extract tools..."
 
 # Choose a downloader: prefer curl, fallback to wget. If neither exists, abort.
@@ -72,35 +97,36 @@ else
   wget -qO obsidian.zip "$download_url"   # -q: quiet, -O: output file
 fi
 
-echo "Extracting to $(pwd)/obsidian/"
-
-# Ensure target directory exists.
-mkdir -p obsidian
+echo "Extracting to ${binary_path}"
 
 # Extract based on the chosen extractor. Suppress noisy output where possible.
 if [[ "$extractor" == "unzip -o" ]]; then
-  unzip -o obsidian.zip -d obsidian >/dev/null
+  unzip -o obsidian.zip -d "$(dirname "$binary_path")" >/dev/null
 elif [[ "$extractor" == "bsdtar -xf" ]]; then
-  bsdtar -xf obsidian.zip -C obsidian
+  bsdtar -xf obsidian.zip -C "$(dirname "$binary_path")"
 else
-  7z x -y -oobsidian obsidian.zip >/dev/null
+  7z x -y -o"$(dirname "$binary_path")" obsidian.zip >/dev/null
 fi
 
 # Remove the ZIP after successful extraction to save space.
 rm -f obsidian.zip
 
 # Work inside the extracted directory for the remainder of setup.
-cd ./obsidian/
-
+cd "$(dirname "$binary_path")"
+# Ensure the obsidian_server_panel binary is executable.
+chmod +x "$(basename "$binary_path")"
 # Prompt for web UI port with default 80 if user presses Enter.
 read -rp "What should the WebUI Port be (default: 80): " port; : "${port:=80}"
 
 # Ask if UPnP port forwarding should be enabled for the web panel.
 read -N 1 -rp "Enable UPNP port forwarding WebUI? (y/N): " yn; echo
+
 forward_flag=""
 if [[ "$yn" =~ ^[Yy]$ ]]; then # If yn is 'y' or 'Y'
   forward_flag="--forward-webpanel "
 fi
+
+mkdir "$config_path" || true
 
 # Create a systemd service unit content pointing to the extracted binary in the current directory.
 # Uses root user/group and restarts automatically on failure.
@@ -113,8 +139,8 @@ After=network-online.target
 Type=simple
 User=root
 Group=root
-ExecStart=$(pwd)/obsidian_server_panel ${forward_flag}-p $port
-WorkingDirectory=$(pwd)
+ExecStart=${binary_path} ${forward_flag}-p $port
+WorkingDirectory=${config_path}
 Restart=always
 RestartSec=10
 [Install]
@@ -128,5 +154,14 @@ echo "$service_text" | sudo tee /etc/systemd/system/obsidian.service >/dev/null
 sudo chmod 644 /etc/systemd/system/obsidian.service
 sudo systemctl daemon-reload
 sudo systemctl start obsidian
+sudo systemctl enable obsidian
+echo "Systemd service 'obsidian' created and started."
+echo "You can check its status with: sudo systemctl status obsidian"
+echo "To access the web UI, open your browser and go to http://localhost:$port"
+echo "If you enabled UPNP, ensure your router supports it for automatic port forwarding."
+echo "To stop the service, use: sudo systemctl stop obsidian"
+echo "To disable the service from starting on boot, use: sudo systemctl disable obsidian"
+echo "To view logs, use: journalctl -u obsidian -f"
+echo "Obsidian Minecraft Server Panel installation complete."
 
 echo "Done. Service 'obsidian' started."

@@ -35,8 +35,15 @@ A modern web-based management panel for Minecraft servers with modloader support
 Install using the provided script:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/main/install-obsidian.sh | bash
+sudo bash -c "$(curl -sSL https://raw.githubusercontent.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/main/install-obsidian.sh)" < /dev/tty
 ```
+
+### Uninstall (Easy)
+
+```bash
+sudo curl -sSL https://raw.githubusercontent.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/main/install-obsidian.sh | bash -s -- --uninstall
+```
+
 
 ## License
 
