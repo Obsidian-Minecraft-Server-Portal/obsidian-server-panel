@@ -3,11 +3,30 @@
 # fail a pipeline if any command errors (-o pipefail).
 set -euo pipefail
 
-
+binary_path=/usr/local/bin/obsidian_server_panel
+config_path=/etc/obsidian
 port="80" # Default port for the web UI
 yn=""
 forward_flag=""
 
+# This script installs the Obsidian Minecraft Server Panel on a Linux system.
+# It checks for necessary tools, downloads the latest release, extracts it,
+# and sets up a systemd service to run the panel.
+# Usage: Run this script as root or with sudo to install the Obsidian panel.
+# Ensure the script is run as root or with sudo.
+# Example: sudo bash install-obsidian.sh
+# To uninstall the panel you can run install-obsidian.sh with the --uninstall flag.
+if [[ "${1:-}" == "--uninstall" ]]; then
+  echo "Uninstalling Obsidian Minecraft Server Panel..."
+  sudo systemctl stop obsidian || true
+  sudo systemctl disable obsidian || true
+  sudo rm -f /etc/systemd/system/obsidian.service
+  sudo systemctl daemon-reload
+  sudo rm -rf $binary_path
+  sudo rm -rf $config_path
+  echo "Obsidian Minecraft Server Panel uninstalled."
+  exit 0
+fi
 
 echo "Checking for available download/extract tools..."
 
@@ -78,28 +97,24 @@ else
   wget -qO obsidian.zip "$download_url"   # -q: quiet, -O: output file
 fi
 
-echo "Extracting to $(pwd)/obsidian/"
-
-# Ensure target directory exists.
-mkdir -p obsidian
+echo "Extracting to $(binary_path)"
 
 # Extract based on the chosen extractor. Suppress noisy output where possible.
 if [[ "$extractor" == "unzip -o" ]]; then
-  unzip -o obsidian.zip -d obsidian >/dev/null
+  unzip -o obsidian.zip -d "$(dirname "$binary_path")" >/dev/null
 elif [[ "$extractor" == "bsdtar -xf" ]]; then
-  bsdtar -xf obsidian.zip -C obsidian
+  bsdtar -xf obsidian.zip -C "$(dirname "$binary_path")"
 else
-  7z x -y -oobsidian obsidian.zip >/dev/null
+  7z x -y -o"$(dirname "$binary_path")" obsidian.zip >/dev/null
 fi
 
 # Remove the ZIP after successful extraction to save space.
 rm -f obsidian.zip
 
 # Work inside the extracted directory for the remainder of setup.
-cd ./obsidian/
+cd "$(dirname "$binary_path")"
 # Ensure the obsidian_server_panel binary is executable.
-chmod +x obsidian_server_panel
-
+chmod +x "$(basename "$binary_path")"
 # Prompt for web UI port with default 80 if user presses Enter.
 read -rp "What should the WebUI Port be (default: 80): " port; : "${port:=80}"
 
@@ -122,8 +137,8 @@ After=network-online.target
 Type=simple
 User=root
 Group=root
-ExecStart=$(pwd)/obsidian_server_panel ${forward_flag}-p $port
-WorkingDirectory=$(pwd)
+ExecStart=$(binary_path) ${forward_flag}-p $port
+WorkingDirectory=$(config_path)
 Restart=always
 RestartSec=10
 [Install]
