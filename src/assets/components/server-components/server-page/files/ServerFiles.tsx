@@ -1,6 +1,6 @@
 import {Button, ButtonGroup, Chip, cn, Input, Progress, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
-import {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
+import React, {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
 import "../../../../ts/math-ext.ts";
 import {Icon} from "@iconify-icon/react";
@@ -15,6 +15,16 @@ import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {ServerFileEditor, ServerFileEditorRef} from "./ServerFileEditor.tsx";
 import {AnimatePresence, motion} from "framer-motion";
+
+// Add a tiny helper to get dirname from a relative path like "a/b/c.txt" -> "a/b"
+const dirname = (p: string) =>
+{
+    const i = p.lastIndexOf("/");
+    return i === -1 ? "" : p.slice(0, i);
+};
+
+// Shape we use internally to carry a file with its relative path inside a selected folder
+type FileWithRelPath = { file: File; relativePath: string };
 
 type UploadProgress = {
     entry: FilesystemEntry;
@@ -53,8 +63,26 @@ export function ServerFiles()
     const [needsToSave, setNeedsToSave] = useState(false);
     const newContentRef = useRef<string>("");
     const serverFileEditorRef = useRef<ServerFileEditorRef>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null); // + add a hidden <input> for folder selection
 
     const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
+
+    const refresh = useCallback(async () =>
+    {
+        scrollToTop();
+        setIsLoading(true);
+        const data = await getEntries(path);
+        data.entries = data.entries.sort((a, b) =>
+        {
+            if (a.is_dir && !b.is_dir) return -1; // Directories first
+            if (!a.is_dir && b.is_dir) return 1; // Files after directories
+            return a.filename.localeCompare(b.filename); // Sort alphabetically
+        });
+        setData(data);
+        setIsLoading(false);
+        setSelectedEntries([]);
+        setContextMenuOptions({entry: undefined, x: 0, y: 0, isOpen: false});
+    }, [path, data]);
 
     useEffect(() =>
     {
@@ -126,18 +154,89 @@ export function ServerFiles()
         setEditorWidth(width);
     }, []);
 
+    // NEW: upload of files with their relative folder path
+    const uploadWithRelPaths = useCallback(async (items: FileWithRelPath[]) =>
+    {
+        if (items.length === 0) return;
+
+        const uploadGroup = Math.random().toString(36).slice(2);
+        const promises: Promise<void>[] = [];
+
+        for (const {file, relativePath} of items)
+        {
+            // Use the relative path (excluding the filename) to preserve folders
+            const relDir = dirname(relativePath);
+            const targetDir = relDir ? (path ? `${path}/${relDir}` : relDir) : path;
+
+            // Show progress row - for visibility, show the relative path if present
+            const displayName = relativePath || file.name;
+            const entry: FilesystemEntry = {
+                filename: displayName,
+                path: targetDir,
+                is_dir: false,
+                size: file.size,
+                file_type: file.type
+            } as FilesystemEntry;
+
+            setFileUploadEntries(prev => [...prev, {
+                entry,
+                progress: 0,
+                files: [displayName],
+                isUploading: true,
+                uploadGroup,
+                operationType: "upload"
+            }]);
+
+            const totalSize = file.size;
+            const {promise} = await uploadFile(
+                file,
+                targetDir, // IMPORTANT: we pass the target directory; the upload impl appends file.name
+                (bytes: number) =>
+                {
+                    const progress = totalSize > 0 ? bytes / totalSize : 0;
+                    setFileUploadEntries(prev => prev.map(u => u.entry === entry ? {...u, progress} : u));
+                },
+                async () =>
+                {
+                    // On cancel
+                    setFileUploadEntries(prev => prev.filter(u => u.entry !== entry));
+                    await refresh();
+                }
+            );
+
+            promises.push(promise);
+        }
+
+        await Promise.all(promises);
+        await refresh();
+        setFileUploadEntries(prev => prev.filter(u => u.uploadGroup !== uploadGroup));
+    }, [path, uploadFile, refresh]);
+
+    // Existing single-level upload still available for plain files
     const upload = useCallback(async (files: File[]) =>
     {
+        // Try to detect relative paths (webkitRelativePath). If present, route to uploadWithRelPaths instead.
+        const items: FileWithRelPath[] = files.map(f =>
+        {
+            const rel = (f as any).webkitRelativePath || "";
+            return {file: f, relativePath: rel};
+        });
+        const hasRel = items.some(i => i.relativePath && i.relativePath.length > 0);
+        if (hasRel)
+        {
+            return uploadWithRelPaths(items);
+        }
+
         let uploadGroup = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        let promises = [];
+        let promises: Promise<void>[] = [];
         for (let file of files)
         {
             let entry = {filename: file.name, path, is_dir: false, size: file.size, file_type: file.type, operationType: "upload"} as FilesystemEntry;
             setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true, uploadGroup, operationType: "upload"}]);
             let totalSize = file.size;
-            const {promise} = await uploadFile(file, entry.path, async bytes =>
+            const {promise} = await uploadFile(file, entry.path, async (bytes: number) =>
                 {
-                    let progress = bytes / totalSize;
+                    let progress = totalSize > 0 ? bytes / totalSize : 0;
                     setFileUploadEntries(prev => prev.map(upload => upload.entry === entry ? {...upload, progress} : upload));
                     console.log("Upload progress:", progress);
                 }, async () =>
@@ -152,24 +251,86 @@ export function ServerFiles()
         await Promise.all(promises);
         await refresh();
         setFileUploadEntries(prev => prev.filter(upload => upload.uploadGroup !== uploadGroup));
-    }, [setFileUploadEntries, fileUploadEntries, path]);
+    }, [setFileUploadEntries, path, uploadFile, refresh, uploadWithRelPaths]);
 
-    const refresh = useCallback(async () =>
+    // Helper: recursively collect files from a DataTransferItem (drag-and-drop folder)
+    const collectFromEntry = useCallback(async (entry: any, prefix: string): Promise<FileWithRelPath[]> =>
     {
-        scrollToTop();
-        setIsLoading(true);
-        const data = await getEntries(path);
-        data.entries = data.entries.sort((a, b) =>
+        if (!entry) return [];
+
+        // File
+        if (entry.isFile)
         {
-            if (a.is_dir && !b.is_dir) return -1; // Directories first
-            if (!a.is_dir && b.is_dir) return 1; // Files after directories
-            return a.filename.localeCompare(b.filename); // Sort alphabetically
-        });
-        setData(data);
-        setIsLoading(false);
-        setSelectedEntries([]);
-        setContextMenuOptions({entry: undefined, x: 0, y: 0, isOpen: false});
-    }, [path, data]);
+            const file: File = await new Promise((resolve) => entry.file(resolve));
+            // record relative path as prefix + filename
+            const relativePath = prefix ? `${prefix}/${file.name}` : file.name;
+            return [{file, relativePath}];
+        }
+
+        // Directory
+        if (entry.isDirectory)
+        {
+            const dirReader = entry.createReader();
+            const entries: any[] = await new Promise((resolve) =>
+            {
+                const all: any[] = [];
+                const readBatch = () =>
+                {
+                    dirReader.readEntries((batch: any[]) =>
+                    {
+                        if (batch.length)
+                        {
+                            all.push(...batch);
+                            readBatch();
+                        } else
+                        {
+                            resolve(all);
+                        }
+                    });
+                };
+                readBatch();
+            });
+
+            let results: FileWithRelPath[] = [];
+            for (const child of entries)
+            {
+                const nextPrefix = prefix ? `${prefix}/${entry.name}` : entry.name;
+                const childFiles = await collectFromEntry(child, nextPrefix);
+                results = results.concat(childFiles);
+            }
+            return results;
+        }
+
+        return [];
+    }, []);
+
+    // Collect files from a drop event (supports folders)
+    const collectDroppedFiles = useCallback(async (e: React.DragEvent): Promise<FileWithRelPath[]> =>
+    {
+        const dt = e.dataTransfer;
+        if (dt.items && dt.items.length > 0)
+        {
+            const tasks: Promise<FileWithRelPath[]>[] = [];
+            for (const item of Array.from(dt.items))
+            {
+                const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
+                if (entry)
+                {
+                    tasks.push(collectFromEntry(entry, ""));
+                } else if (item.kind === "file")
+                {
+                    const file = item.getAsFile();
+                    if (file) tasks.push(Promise.resolve([{file, relativePath: file.name}]));
+                }
+            }
+            const batches = await Promise.all(tasks);
+            return batches.flat();
+        }
+
+        // Fallback to plain files (no directories)
+        return Array.from(dt.files).map((f) => ({file: f, relativePath: f.name}));
+    }, [collectFromEntry]);
+
 
     const renameSelectedEntry = useCallback(async (newName: string) =>
     {
@@ -195,7 +356,7 @@ export function ServerFiles()
                 severity: "danger"
             });
         }
-    }, [renamingEntry, path]);
+    }, [renamingEntry, path, renameEntry, refresh, open]);
 
     const startEntryCreation = useCallback(async (directory: boolean) =>
     {
@@ -210,7 +371,7 @@ export function ServerFiles()
         let entry = {filename, path, is_dir: directory, size: 0, file_type: directory ? "Directory" : "File"} as FilesystemEntry;
         setData(prev => ({...prev, entries: [entry, ...(prev?.entries || [])]} as FilesystemData));
         setNewItemCreationEntry(entry);
-    }, [data, path]);
+    }, [data, path, scrollToTop]);
 
     const completeEntryCreation = useCallback(async (newName: string) =>
     {
@@ -236,7 +397,7 @@ export function ServerFiles()
                 severity: "danger"
             });
         }
-    }, [data, path]);
+    }, [newItemCreationEntry, path, createEntry, refresh, open]);
 
     const startArchiveCreation = useCallback(async () =>
     {
@@ -252,7 +413,7 @@ export function ServerFiles()
         let entry = {filename, path, is_dir: false, size: 0, file_type: "Archive"} as FilesystemEntry;
         setData(prev => ({...prev, entries: [entry, ...(prev?.entries || [])]} as FilesystemData));
         setNewArchiveEntry({entry, progress: 0, files: selectedEntries.map(entry => entry.path), isUploading: false, operationType: "archive"});
-    }, [path, data, selectedEntries]);
+    }, [path, data, selectedEntries, scrollToTop]);
 
     const completeArchiveCreation = useCallback(async (newName: string) =>
     {
@@ -299,7 +460,7 @@ export function ServerFiles()
             });
             setNewArchiveEntry(undefined);
         }
-    }, [data, path, newArchiveEntry]);
+    }, [archiveFiles, newArchiveEntry, refresh, open]);
 
     const handleExtract = useCallback(async (entry: FilesystemEntry, outputPath?: string) =>
     {
@@ -517,7 +678,7 @@ export function ServerFiles()
             // Reset file contents when selection changes or multiple files are selected
             setSelectedFileContents("");
         }
-    }, [selectedEntries, isEditingFile]);
+    }, [selectedEntries, isEditingFile, getFileContents, open]);
 
     return (
         <div className={
@@ -525,6 +686,23 @@ export function ServerFiles()
                 "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10"
             )
         }>
+            {/* Hidden folder input for "Choose Folder" */}
+            <input
+                ref={folderInputRef}
+                type="file"
+                multiple
+                // @ts-expect-error: non-standard but widely supported
+                webkitdirectory="true"
+                style={{display: "none"}}
+                onChange={async (e) =>
+                {
+                    const files = Array.from(e.currentTarget.files || []);
+                    // Each File may include webkitRelativePath
+                    await upload(files);
+                    e.currentTarget.value = ""; // reset
+                }}
+            />
+
             <div
                 id={"server-file-browser"}
                 className={
@@ -540,15 +718,16 @@ export function ServerFiles()
                 onDrop={async e =>
                 {
                     e.preventDefault();
-                    console.log("Files dropped:", e.dataTransfer.files);
                     setIsDraggingOver(false);
-                    await upload([...e.dataTransfer.files]);
+                    // Collect recursively if folders are dropped
+                    const items = await collectDroppedFiles(e);
+                    await uploadWithRelPaths(items);
                 }}
                 data-dragging-over={isDraggingOver}
             >
                 {isDraggingOver && (
                     <div className="absolute inset-0 z-30 border-dotted border-4 border-primary bg-background/90 flex items-center justify-center">
-                        <span className="font-minecraft-body text-4xl">Drop Files to Upload</span>
+                        <span className="font-minecraft-body text-4xl">Drop Files or Folders to Upload</span>
                     </div>
                 )}
 
@@ -563,6 +742,16 @@ export function ServerFiles()
                         <Tooltip content={"New Directory"}>
                             <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => startEntryCreation(true)}>
                                 <Icon icon={"pixelarticons:folder-plus"}/>
+                            </Button>
+                        </Tooltip>
+                        <Tooltip content={"Upload Folder"}>
+                            <Button
+                                radius={"none"}
+                                isIconOnly
+                                className={"text-xl"}
+                                onPress={() => folderInputRef.current?.click()}
+                            >
+                                <Icon icon={"pixelarticons:cloud-upload"}/>
                             </Button>
                         </Tooltip>
                         <Tooltip content={"Toggle File Editor"}>
@@ -689,7 +878,6 @@ export function ServerFiles()
                                                     <TableCell className={"flex items-center h-14 gap-2"}>
                                                         {renamingEntry === entry ?
                                                             <Input
-                                                                startContent={<FileEntryIcon entry={entry}/>}
                                                                 defaultValue={entry.filename}
                                                                 autoFocus
                                                                 onBlur={e => renameSelectedEntry(e.currentTarget.value)}
