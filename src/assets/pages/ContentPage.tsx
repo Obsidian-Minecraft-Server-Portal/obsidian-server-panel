@@ -13,7 +13,7 @@ import {ModVersions} from "../components/discover/ModVersions.tsx";
 import type {ChangelogEntry, ModDetails, ModVersion} from "../types/ModTypes.tsx";
 import "../ts/string-ext.ts";
 
-export function Discover()
+export function ContentPage()
 {
     const {type, platform, modId} = useParams();
     const [searchParams] = useSearchParams();

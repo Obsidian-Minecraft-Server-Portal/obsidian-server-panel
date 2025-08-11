@@ -82,7 +82,7 @@ export function ServerContent()
     }, [search, loaders, minecraftVersions, categories, selectedPlatform, queryParams, setQueryParams]);
 
     return (
-        <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}>
+        <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_150px)] h-screen min-h-[300px] relative"}>
 
             {/* Top Bar */}
             <div className={"flex flex-row gap-4 items-center justify-between z-20"}>
@@ -132,7 +132,7 @@ export function ServerContent()
                 </Tabs>
             </div>
 
-            <div className={"flex flex-row gap-4 h-full relative max-h-[calc(100dvh_-_490px)] min-h-[220px] z-20"}>
+            <div className={"flex flex-row gap-4 h-full relative max-h-[calc(100dvh_-_220px)] min-h-[220px] z-20"}>
                 {/* Side Panel */}
                 {selectedPlatform !== "installed" && (
                     <div className={"bg-default-100 min-w-64 w-64  max-w-64  h-full overflow-y-auto flex flex-col gap-2 p-2 pr-6"}>
@@ -178,7 +178,7 @@ export function ServerContent()
                                 offset={0}
                             />
                             : selectedPlatform === "installed" ?
-                                <InstalledModList searchQuery={search} limit={20} offset={0} />
+                                <InstalledModList searchQuery={search} limit={20} offset={0}/>
                                 : null
                     }
                 </div>

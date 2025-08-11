@@ -19,26 +19,30 @@ import {ServerProvider} from "./assets/providers/ServerProvider.tsx";
 import {MessageProvider} from "./assets/providers/MessageProvider.tsx";
 import {JavaVersionProvider} from "./assets/providers/JavaVersionProvider.tsx";
 import ServerPage from "./assets/pages/ServerPage.tsx";
-import {Discover} from "./assets/pages/Discover.tsx";
+import {ContentPage} from "./assets/pages/ContentPage.tsx";
+import DiscoverPage from "./assets/pages/DiscoverPage.tsx";
+import {WindowProvider} from "./assets/providers/WindowProvider.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
-            <ThemeProvider>
-                <MessageProvider>
-                    <HostInfoProvider>
-                        <AuthenticationProvider>
-                            <MinecraftVersionsProvider>
-                                <ServerProvider>
-                                    <JavaVersionProvider>
-                                        <MainContentRenderer/>
-                                    </JavaVersionProvider>
-                                </ServerProvider>
-                            </MinecraftVersionsProvider>
-                        </AuthenticationProvider>
-                    </HostInfoProvider>
-                </MessageProvider>
-            </ThemeProvider>
+            <WindowProvider>
+                <ThemeProvider>
+                    <MessageProvider>
+                        <HostInfoProvider>
+                            <AuthenticationProvider>
+                                <MinecraftVersionsProvider>
+                                    <ServerProvider>
+                                        <JavaVersionProvider>
+                                            <MainContentRenderer/>
+                                        </JavaVersionProvider>
+                                    </ServerProvider>
+                                </MinecraftVersionsProvider>
+                            </AuthenticationProvider>
+                        </HostInfoProvider>
+                    </MessageProvider>
+                </ThemeProvider>
+            </WindowProvider>
         </BrowserRouter>
     </React.StrictMode>
 );
@@ -70,7 +74,9 @@ export function MainContentRenderer()
                             <Route path="/" element={<Login/>}/>
                             <Route path="/app" element={<Dashboard/>}/>
                             <Route path="/app/servers/:id" element={<ServerPage/>}/>
-                            <Route path="/app/discover/:type/:platform/:modId" element={<Discover/>}/>
+                            <Route path="/app/discover/:type" element={<DiscoverPage/>}/>
+                            <Route path="/app/discover/:type/:platform" element={<DiscoverPage/>}/>
+                            <Route path="/app/discover/:type/:platform/:modId" element={<ContentPage/>}/>
                             <Route path="*" element={<ErrorPage/>}/>
                         </Route>
                     </Routes>

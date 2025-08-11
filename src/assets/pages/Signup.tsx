@@ -228,7 +228,7 @@ export default function Signup()
                         <Tooltip content={"Read the Terms of Service"} placement={"top"}>
                             <Button
                                 as={Link}
-                                href={"https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel"}
+                                href={"https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/blob/main/terms-of-service.md"}
                                 target={"_blank"}
                                 isIconOnly
                                 radius={"none"}

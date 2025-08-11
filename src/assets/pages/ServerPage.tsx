@@ -17,6 +17,7 @@ export default function ServerPage()
     const [selectedTab, setSelectedTab] = useState("console");
     const {id} = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [shouldCollapseHeader, setShouldCollapseHeader] = useState(true);
 
     useEffect(() =>
     {
@@ -41,6 +42,13 @@ export default function ServerPage()
         // Update the URL query parameter for the selected tab while preserving other params
         searchParams.set("tab", selectedTab);
         setSearchParams(searchParams);
+        if (selectedTab === "content")
+        {
+            setShouldCollapseHeader(true);
+        } else
+        {
+            setShouldCollapseHeader(false);
+        }
     }, [selectedTab, searchParams, setSearchParams]);
 
     useEffect(() =>
@@ -61,11 +69,13 @@ export default function ServerPage()
     if (!server || !id) return null;
     return (
         <AnimatePresence>
-            <div className={"flex flex-col gap-4 px-8"}>
-                <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
+            <div className={"flex flex-col gap-4 px-8 overflow-hidden max-h-[calc(100vh_-_100px)]"}>
+                <motion.div initial={{opacity: 0}} animate={{opacity: shouldCollapseHeader ? 0 : 1}}>
+                    <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
+                </motion.div>
                 <motion.div
                     initial={{opacity: 0, y: 20}}
-                    animate={{opacity: 1, y: 0}}
+                    animate={{opacity: 1, y: shouldCollapseHeader ? -220 : 0}}
                     exit={{opacity: 0, y: -20}}
                     transition={{duration: 0.3, ease: "easeInOut"}}
                 >
