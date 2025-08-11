@@ -18,7 +18,7 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
     useEffect(() =>
     {
         if (!forgeVersions) return;
-        const versions = forgeVersions[minecraftVersion] as string[];
+        const versions = forgeVersions[minecraftVersion].reverse(); // Reverse to show latest versions first
         if (versions && versions.length > 0)
         {
             setVersions(versions);

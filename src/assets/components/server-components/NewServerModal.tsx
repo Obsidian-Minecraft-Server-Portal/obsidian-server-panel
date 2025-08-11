@@ -35,6 +35,7 @@ export default function NewServerModal(props: NewServerProperties)
     const [isCreatingServer, setIsCreatingServer] = useState(false);
     const [isValidForm, setIsValidForm] = useState(false);
     const [creationProgress, setCreationProgress] = useState(0);
+    const [invalidReasons, setInvalidReasons] = useState<string[]>([]);
 
 
     const submit = useCallback(async () =>
@@ -50,14 +51,14 @@ export default function NewServerModal(props: NewServerProperties)
         let filepath = `server-${selectedMinecraftVersion}.jar`;
         if (selectedLoader === "fabric" || selectedLoader === "quilt" || selectedLoader === "neoforge")
         {
-            filepath = `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`
+            filepath = `${selectedLoader}-${loaderVersion}-${selectedMinecraftVersion}-server.jar`;
         } else if (selectedLoader === "forge")
         {
             // Forge uses installer JARs that need to be run to generate the actual server JAR
-            filepath = `forge-${selectedMinecraftVersion}-${loaderVersion}-installer.jar`
+            filepath = `forge-${selectedMinecraftVersion}-${loaderVersion}-installer.jar`;
         } else if (selectedLoader === "custom")
         {
-            filepath = `custom-${selectedMinecraftVersion}.jar`
+            filepath = `custom-${selectedMinecraftVersion}.jar`;
         }
         filepath = filepath.toLowerCase();
 
@@ -194,6 +195,13 @@ export default function NewServerModal(props: NewServerProperties)
 
     useEffect(() =>
     {
+        const reasons: string[] = [];
+        if (name.trim() === "") reasons.push("Server name cannot be empty.");
+        if (selectedMinecraftVersion === undefined) reasons.push("Please select a Minecraft version.");
+        if (selectedLoader !== "vanilla" && !loaderUrl) reasons.push("Please select a loader version.");
+        if (selectedLoader === "custom" && loaderUrl === undefined) reasons.push("Please select a custom loader version.");
+        if (selectedJavaExecutable === undefined) reasons.push("Please select a Java executable.");
+        setInvalidReasons(reasons);
         setIsValidForm(name.trim() !== "" && selectedMinecraftVersion !== undefined && (selectedLoader !== "custom" || loaderUrl !== undefined) && selectedJavaExecutable !== undefined);
     }, [loaderUrl, selectedLoader, selectedMinecraftVersion, name, selectedJavaExecutable]);
 
@@ -270,6 +278,16 @@ export default function NewServerModal(props: NewServerProperties)
                             />
                             <RamSlider value={ram} onValueChange={setRam} isDisabled={isCreatingServer}/>
                             <JavaExecutableSelector onVersionChange={setSelectedJavaExecutable} isDisabled={isCreatingServer}/>
+                            {!isValidForm && (
+                                <div className={"text-danger"}>
+                                    <p>The new server form is invalid:</p>
+                                    <ul className={"list-disc pl-4"}>
+                                        {invalidReasons.map(reason => (
+                                            <li>{reason}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </ModalBody>
                         <ModalFooter>
                             <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm || isCreatingServer}>

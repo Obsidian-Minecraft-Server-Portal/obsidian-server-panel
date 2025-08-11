@@ -21,6 +21,8 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
     const [selectedVersion, setSelectedVersion] = useState<JavaVersion | undefined>(undefined);
     const [installationProgress, setInstallationProgress] = useState(0);
     const [isInstalling, setIsInstalling] = useState(false);
+    const [message, setMessage] = useState("");
+    const [errorMessage, setErrorMessage] = useState("");
 
     useEffect(() =>
     {
@@ -76,8 +78,11 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
         } catch (error)
         {
             console.error("Failed to install Java version:", error);
+            setErrorMessage("Failed to install Java version. Please try again.");
+
         } finally
         {
+            setMessage("");
             setIsInstalling(false);
             setInstallationProgress(0);
         }
@@ -111,6 +116,9 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                     disallowEmptySelection
                     selectedKeys={selectedVersion ? [selectedVersion.runtime] : []}
                     isDisabled={props.isDisabled}
+                    description={message}
+                    errorMessage={errorMessage}
+                    isInvalid={!!errorMessage}
                     onSelectionChange={keys =>
                     {
                         const key = [...keys][0];
@@ -118,6 +126,11 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                         if (selected)
                         {
                             setSelectedVersion(selected);
+                            setMessage("");
+                            if(!selected.installed)
+                            {
+                                setMessage("This version is not installed. Please install it first.");
+                            }
                         }
                     }}
                 >
