@@ -47,21 +47,16 @@ impl ServerData {
         let mut process_builder = AsynchronousInteractiveProcess::new(&self.java_executable);
 
         // Add java arguments
-        process_builder = process_builder
-            .with_argument(format!("-Xmx{}G", &self.max_memory))
-            .with_argument(format!("-Xms{}G", &self.min_memory));
-        
+        process_builder = process_builder.with_argument(format!("-Xmx{}G", &self.max_memory)).with_argument(format!("-Xms{}G", &self.min_memory));
+
         if !self.java_args.trim().is_empty() {
             for arg in self.java_args.split_whitespace() {
                 process_builder = process_builder.with_argument(arg);
             }
         }
 
-
-        if !self.server_jar.is_empty(){
-            process_builder = process_builder
-                .with_argument("-jar")
-                .with_argument(&self.server_jar);
+        if !self.server_jar.is_empty() {
+            process_builder = process_builder.with_argument("-jar").with_argument(&self.server_jar);
         }
 
         // Add minecraft arguments
@@ -106,17 +101,23 @@ impl ServerData {
             tokio::time::sleep(hang_duration).await;
             let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
             let servers = servers.lock().await;
-            if let Some(pid) = servers.get(&id) {
-                let process = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await.expect("Server not running");
-                if !process.is_process_running().await {
-                    return;
-                }
-                let server = ServerData::get(id, owner_id).await.expect("Server not found").expect("Server not found");
-                if server.status == ServerStatus::Starting {}
+            if let Some(pid) = servers.get(&id)
+                && let Some(process) = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await
+                && !process.is_process_running().await
+            {
+                return;
             }
+            if let Ok(Some(server)) = ServerData::get(id, owner_id).await
+                && server.status == ServerStatus::Starting
+            {}
         });
 
-        let mut process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+        let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
+            Some(process) => process,
+            None => return Err(anyhow::anyhow!("Server process not found after starting")),
+        };
+        let mut process = process;
+
         loop {
             let line = process.receive_output().await?;
             if let Some(line) = line {
@@ -146,11 +147,10 @@ impl ServerData {
     pub async fn kill_server(&mut self) -> Result<()> {
         let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
         let servers = servers.lock().await;
-        let pid = *servers.get(&self.id).expect("Server not running");
-        let process = AsynchronousInteractiveProcess::get_process_by_pid(pid).await.expect("Server not running");
+        let pid = servers.get(&self.id).ok_or_else(|| anyhow::anyhow!("Server not running"))?;
+        let process = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await.ok_or_else(|| anyhow::anyhow!("Server process not found"))?;
         process.kill().await?;
         self.remove_server().await?;
-
         Ok(())
     }
 
@@ -180,9 +180,9 @@ impl ServerData {
         self.status = ServerStatus::Crashed;
         self.save().await?;
 
-
         Ok(())
     }
+
     pub async fn send_command(&self, command: impl Into<String>) -> Result<()> {
         let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
         let pid = {
@@ -265,6 +265,7 @@ impl ServerData {
 
         Ok(())
     }
+
     pub async fn has_server_process(&self) -> bool {
         let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
         let servers = servers.lock().await;
