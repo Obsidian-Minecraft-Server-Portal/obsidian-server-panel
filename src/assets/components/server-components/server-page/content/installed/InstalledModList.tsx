@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {ModItemSkeleton} from "../ModItem.tsx";
 import {InstalledMod, useServer} from "../../../../../providers/ServerProvider.tsx";
 import {InstalledModItem} from "./InstalledModItem.tsx";
@@ -7,6 +7,7 @@ type ModListProps = {
     searchQuery: string;
     limit: number;
     offset: number;
+    loaders: string[];
 }
 
 export function InstalledModList(props: ModListProps)
@@ -17,36 +18,58 @@ export function InstalledModList(props: ModListProps)
     const [filteredMods, setFilteredMods] = useState<InstalledMod[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Keep a ref to the latest list so comparisons are correct inside callbacks
+    const allModsRef = useRef<InstalledMod[]>([]);
+    useEffect(() => { allModsRef.current = allMods; }, [allMods]);
 
     // Load mods from server
     useEffect(() =>
     {
+        let isMounted = true;
         setIsLoading(true);
         getInstalledMods()
-            .then(setAllMods)
+            .then(mods => {
+                if (!isMounted) return;
+                setAllMods(mods);
+            })
             .catch((error) =>
             {
                 console.error("Failed to load installed mods:", error);
             })
-            .finally(() => setIsLoading(false));
-    }, []); // Only load once when component mounts
+            .finally(() => isMounted && setIsLoading(false));
+        return () => { isMounted = false; };
+    }, [getInstalledMods]);
 
     useEffect(() =>
     {
         refreshMods();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [server]);
+
+    const shallowEqual = (a: InstalledMod[], b: InstalledMod[]) =>
+    {
+        if (a === b) return true;
+        if (a.length !== b.length) return false;
+        // Cheap compare by stable fields; adjust if needed
+        for (let i = 0; i < a.length; i++)
+        {
+            if (a[i].mod_id !== b[i].mod_id) return false;
+        }
+        return true;
+    };
 
     const refreshMods = useCallback(async () =>
     {
         const mods = await getInstalledMods();
-        if (JSON.stringify(allMods) != JSON.stringify(mods))
+        // Only update state if actually changed
+        if (!shallowEqual(allModsRef.current, mods))
         {
-            console.log("Refreshing installed mods:", mods, allMods);
             setIsLoading(true);
             setAllMods(mods);
+            // Small delay for skeletons if desired; otherwise remove
             setTimeout(() => setIsLoading(false), 100);
         }
-    }, [server]);
+    }, [getInstalledMods]);
 
     // Filter mods based on search query
     useEffect(() =>

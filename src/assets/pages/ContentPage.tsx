@@ -118,71 +118,6 @@ export function ContentPage()
         }
     };
 
-    const fetchModrinthVersions = async (projectId: string) =>
-    {
-        try
-        {
-            const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-
-            return data.map((version: any) => ({
-                id: version.id,
-                version_number: version.version_number,
-                name: version.name,
-                version_type: version.version_type || "unknown",
-                loaders: version.loaders,
-                game_versions: version.game_versions,
-                date_published: version.date_published,
-                downloads: version.downloads,
-                files: version.files,
-                changelog: version.changelog,
-                dependencies: version.dependencies
-            })) as ModVersion[];
-        } catch (error)
-        {
-            console.error("Failed to fetch Modrinth versions:", error);
-            throw error;
-        }
-    };
-
-    const fetchCurseForgeVersions = async (projectId: string) =>
-    {
-        try
-        {
-            const API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
-            const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}/files`, {
-                headers: {
-                    "x-api-key": API_KEY
-                }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const result = await response.json();
-
-            return result.data.map((file: any) => ({
-                id: file.id.toString(),
-                version_number: file.displayName,
-                name: file.fileName,
-                version_type: file.releaseType === 1 ? "release" : file.releaseType === 2 ? "beta" : file.releaseType === 3 ? "alpha" : "unknown",
-                loaders: file.gameVersions?.filter((v: string) => ["forge", "fabric", "quilt", "neoforge"].includes(v.toLowerCase())) || [],
-                game_versions: file.gameVersions?.filter((v: string) => /^\d+\.\d+/.test(v)) || [],
-                date_published: file.fileDate,
-                downloads: file.downloadCount,
-                files: [{
-                    hashes: {sha1: file.hashes?.[0]?.value || "", sha512: file.hashes?.[1]?.value || ""},
-                    url: file.downloadUrl,
-                    filename: file.fileName,
-                    primary: true,
-                    size: file.fileLength
-                }],
-                changelog: file.changelog
-            })) as ModVersion[];
-        } catch (error)
-        {
-            console.error("Failed to fetch CurseForge versions:", error);
-            throw error;
-        }
-    };
 
     useEffect(() =>
     {
@@ -506,3 +441,69 @@ export function ContentPage()
         </ErrorBoundary>
     );
 }
+
+export const fetchModrinthVersions = async (projectId: string) =>
+{
+    try
+    {
+        const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        return data.map((version: any) => ({
+            id: version.id,
+            version_number: version.version_number,
+            name: version.name,
+            version_type: version.version_type || "unknown",
+            loaders: version.loaders,
+            game_versions: version.game_versions,
+            date_published: version.date_published,
+            downloads: version.downloads,
+            files: version.files,
+            changelog: version.changelog,
+            dependencies: version.dependencies
+        })) as ModVersion[];
+    } catch (error)
+    {
+        console.error("Failed to fetch Modrinth versions:", error);
+        throw error;
+    }
+};
+
+export const fetchCurseForgeVersions = async (projectId: string) =>
+{
+    try
+    {
+        const API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
+        const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}/files`, {
+            headers: {
+                "x-api-key": API_KEY
+            }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+
+        return result.data.map((file: any) => ({
+            id: file.id.toString(),
+            version_number: file.displayName,
+            name: file.fileName,
+            version_type: file.releaseType === 1 ? "release" : file.releaseType === 2 ? "beta" : file.releaseType === 3 ? "alpha" : "unknown",
+            loaders: file.gameVersions?.filter((v: string) => ["forge", "fabric", "quilt", "neoforge"].includes(v.toLowerCase())) || [],
+            game_versions: file.gameVersions?.filter((v: string) => /^\d+\.\d+/.test(v)) || [],
+            date_published: file.fileDate,
+            downloads: file.downloadCount,
+            files: [{
+                hashes: {sha1: file.hashes?.[0]?.value || "", sha512: file.hashes?.[1]?.value || ""},
+                url: file.downloadUrl,
+                filename: file.fileName,
+                primary: true,
+                size: file.fileLength
+            }],
+            changelog: file.changelog
+        })) as ModVersion[];
+    } catch (error)
+    {
+        console.error("Failed to fetch CurseForge versions:", error);
+        throw error;
+    }
+};

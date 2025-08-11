@@ -16,25 +16,25 @@ export function ModDescription({modDetails}: ModDescriptionProps)
     const markdownComponents = {
         h1: ({children}: any) => (
             <div className="mb-4 mt-8">
-                <h1 className="text-4xl font-bold mb-2">{children}</h1>
+                <h1 className="text-4xl mb-2">{children}</h1>
                 <Divider/>
             </div>
         ),
         h2: ({children}: any) => (
             <div className="mb-4 mt-8">
-                <h2 className="text-3xl font-bold mb-2">{children}</h2>
+                <h2 className="text-3xl mb-2">{children}</h2>
                 <Divider/>
             </div>
         ),
         h3: ({children}: any) => (
             <div className="mb-4 mt-8">
-                <h3 className="text-2xl font-bold mb-2">{children}</h3>
+                <h3 className="text-2xl mb-2">{children}</h3>
                 <Divider/>
             </div>
         ),
         h4: ({children}: any) => (
             <div className="mb-4 mt-8">
-                <h4 className="text-xl font-bold mb-2">{children}</h4>
+                <h4 className="text-xl mb-2">{children}</h4>
                 <Divider/>
             </div>
         ),
