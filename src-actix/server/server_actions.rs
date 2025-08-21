@@ -101,15 +101,16 @@ impl ServerData {
             tokio::time::sleep(hang_duration).await;
             let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
             let servers = servers.lock().await;
-            if let Some(pid) = servers.get(&id)
-                && let Some(process) = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await
-                && !process.is_process_running().await
-            {
-                return;
+            if let Some(pid) = servers.get(&id) {
+                if let Some(process) = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await {
+                    if !process.is_process_running().await {
+                        return;
+                    }
+                }
             }
-            if let Ok(Some(server)) = ServerData::get(id, owner_id).await
-                && server.status == ServerStatus::Starting
-            {}
+            if let Ok(Some(server)) = ServerData::get(id, owner_id).await {
+                if server.status == ServerStatus::Starting {}
+            }
         });
 
         let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
