@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/src-actix/authentication/auth_db.rs" value="7402c4d9-726a-4c3c-b278-e2af5ae7b49b" />
+  </component>
+</project>
