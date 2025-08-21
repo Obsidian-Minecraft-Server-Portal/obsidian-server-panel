@@ -9,6 +9,7 @@ use log::*;
 use obsidian_upnp::open_port;
 use serde_json::json;
 use std::env::set_current_dir;
+use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
 mod actix_util;
@@ -32,6 +33,19 @@ pub async fn run() -> Result<()> {
 
     #[cfg(debug_assertions)]
     {
+        ProxyViteOptions::new().disable_logging().build()?;
+        std::thread::spawn(|| {
+            loop {
+                info!("Starting Vite server in development mode...");
+                let status = start_vite_server().expect("Failed to start vite server").wait().expect("Vite server crashed!");
+                if !status.success() {
+                    error!("The vite server has crashed!");
+                } else {
+                    break;
+                }
+            }
+        });
+
         // setup serde hashids
         serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).with_salt("obsidian-server-panel").build();
         let dev_env_path = "./target/dev-env";
@@ -82,11 +96,6 @@ pub async fn run() -> Result<()> {
     .run();
 
     info!("Starting {} server at http://127.0.0.1:{}...", if DEBUG { "development" } else { "production" }, args.port);
-
-    if DEBUG {
-        #[allow(clippy::zombie_processes)]
-        start_vite_server().expect("Failed to start vite server");
-    }
 
     if args.forward_webpanel {
         open_port!(args.port, "Obsidian Minecraft Server Panel");
