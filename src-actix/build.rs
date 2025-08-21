@@ -7,18 +7,6 @@ fn main() {
         println!("cargo:rustc-link-lib=./resources/win32");
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        // macOS-specific icon setup if needed
-        println!("cargo:rustc-link-search=native=./resources/icons");
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        // Linux-specific icon setup if needed
-        println!("cargo:rustc-link-search=native=./resources/icons");
-    }
-
     for entry in WalkDir::new("src") {
         let entry = entry.unwrap();
         if entry.file_type().is_file() {
