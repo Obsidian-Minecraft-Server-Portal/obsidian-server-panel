@@ -7,8 +7,10 @@ type ModListProps = {
     searchQuery: string;
     limit: number;
     offset: number;
-    loaders: string[];
+    loaders: Loader[];
 }
+
+type Loader = "any" | "fabric" | "forge" | "quilt" | "neoforge";
 
 export function InstalledModList(props: ModListProps)
 {

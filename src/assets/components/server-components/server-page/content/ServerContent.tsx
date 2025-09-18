@@ -178,7 +178,7 @@ export function ServerContent()
                                 offset={0}
                             />
                             : selectedPlatform === "installed" ?
-                                <InstalledModList searchQuery={search} limit={20} offset={0}/>
+                                <InstalledModList searchQuery={search} limit={20} offset={0} loaders={[]}/>
                                 : null
                     }
                 </div>
