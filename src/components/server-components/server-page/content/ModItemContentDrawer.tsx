@@ -16,7 +16,7 @@ import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useMessage} from "../../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../../MessageModal.tsx";
-import type {ChangelogEntry, ModDetails, ModVersion} from "../../../../types/ModTypes.tsx";
+import type {ChangelogEntry, ModDetails, ModVersion} from "../../../../types/ModTypes.ts";
 import {fetchCurseForgeVersions, fetchModrinthVersions} from "../../../../pages/ContentPage.tsx";
 import {ModDescription} from "../../../discover/ModDescription.tsx";
 import {ModChangelog} from "../../../discover/ModChangelog.tsx";

@@ -5,23 +5,23 @@ import $ from "jquery";
 import {AnimatePresence} from "framer-motion";
 
 import "./assets/css/index.css";
-import {ThemeProvider} from "./assets/providers/ThemeProvider.tsx";
+import {ThemeProvider} from "./providers/ThemeProvider.tsx";
 import {HeroUIProvider, ToastProvider} from "@heroui/react";
-import Login from "./assets/pages/Login.tsx";
-import Dashboard from "./assets/pages/Dashboard.tsx";
-import {AuthenticationProvider} from "./assets/providers/AuthenticationProvider.tsx";
-import Navigation from "./assets/components/navigation/Navigation.tsx";
-import {HostInfoProvider} from "./assets/providers/HostInfoProvider.tsx";
-import Footer from "./assets/components/Footer.tsx";
-import ErrorPage from "./assets/pages/ErrorPage.tsx";
-import {MinecraftVersionsProvider} from "./assets/providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
-import {ServerProvider} from "./assets/providers/ServerProvider.tsx";
-import {MessageProvider} from "./assets/providers/MessageProvider.tsx";
-import {JavaVersionProvider} from "./assets/providers/JavaVersionProvider.tsx";
-import ServerPage from "./assets/pages/ServerPage.tsx";
-import {ContentPage} from "./assets/pages/ContentPage.tsx";
-import DiscoverPage from "./assets/pages/DiscoverPage.tsx";
-import {WindowProvider} from "./assets/providers/WindowProvider.tsx";
+import {AuthenticationProvider} from "./providers/AuthenticationProvider.tsx";
+import {HostInfoProvider} from "./providers/HostInfoProvider.tsx";
+import Footer from "./components/Footer.tsx";
+import {MinecraftVersionsProvider} from "./providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
+import {ServerProvider} from "./providers/ServerProvider.tsx";
+import {MessageProvider} from "./providers/MessageProvider.tsx";
+import {JavaVersionProvider} from "./providers/JavaVersionProvider.tsx";
+import {WindowProvider} from "./providers/WindowProvider.tsx";
+import Login from "./pages/Login.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
+import ServerPage from "./pages/ServerPage.tsx";
+import DiscoverPage from "./pages/DiscoverPage.tsx";
+import {ContentPage} from "./pages/ContentPage.tsx";
+import ErrorPage from "./pages/ErrorPage.tsx";
+import Navigation from "./components/navigation/Navigation.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
