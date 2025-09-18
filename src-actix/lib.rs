@@ -2,7 +2,7 @@ use crate::app_db::open_pool;
 use crate::server::server_data::ServerData;
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
-use actix_web::{get, middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
 use anyhow::Result;
 use clap::Parser;
 use log::*;
