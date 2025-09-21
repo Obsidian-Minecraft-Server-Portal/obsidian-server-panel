@@ -4,7 +4,7 @@ import ReactDOM from "react-dom/client";
 import $ from "jquery";
 import {AnimatePresence} from "framer-motion";
 
-import "./assets/css/index.css";
+import "./css/index.css";
 import {ThemeProvider} from "./providers/ThemeProvider.tsx";
 import {HeroUIProvider, ToastProvider} from "@heroui/react";
 import {AuthenticationProvider} from "./providers/AuthenticationProvider.tsx";
@@ -22,26 +22,29 @@ import DiscoverPage from "./pages/DiscoverPage.tsx";
 import {ContentPage} from "./pages/ContentPage.tsx";
 import ErrorPage from "./pages/ErrorPage.tsx";
 import Navigation from "./components/navigation/Navigation.tsx";
+import {NotificationProvider} from "./providers/NotificationProvider.tsx";
 
 ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
             <WindowProvider>
-                <ThemeProvider>
-                    <MessageProvider>
-                        <HostInfoProvider>
-                            <AuthenticationProvider>
-                                <MinecraftVersionsProvider>
-                                    <ServerProvider>
-                                        <JavaVersionProvider>
-                                            <MainContentRenderer/>
-                                        </JavaVersionProvider>
-                                    </ServerProvider>
-                                </MinecraftVersionsProvider>
-                            </AuthenticationProvider>
-                        </HostInfoProvider>
-                    </MessageProvider>
-                </ThemeProvider>
+                <NotificationProvider>
+                    <ThemeProvider>
+                        <MessageProvider>
+                            <HostInfoProvider>
+                                <AuthenticationProvider>
+                                    <MinecraftVersionsProvider>
+                                        <ServerProvider>
+                                            <JavaVersionProvider>
+                                                <MainContentRenderer/>
+                                            </JavaVersionProvider>
+                                        </ServerProvider>
+                                    </MinecraftVersionsProvider>
+                                </AuthenticationProvider>
+                            </HostInfoProvider>
+                        </MessageProvider>
+                    </ThemeProvider>
+                </NotificationProvider>
             </WindowProvider>
         </BrowserRouter>
     </React.StrictMode>

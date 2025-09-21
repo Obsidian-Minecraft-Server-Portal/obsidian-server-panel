@@ -9,6 +9,7 @@ import {Popover} from "../extended/Popover.tsx";
 import {Button} from "../extended/Button.tsx";
 import {useState} from "react";
 import {AccessibilityThemeSwitch} from "../AccessibilityThemeSwitch.tsx";
+import {NotificationDropdown} from "../../providers/NotificationProvider.tsx";
 
 export default function Navigation()
 {
@@ -69,6 +70,9 @@ export default function Navigation()
                         transition={{duration: 0.2, delay: .15}}
                     >
                         <NavbarContent justify={"end"}>
+                            <NavbarItem>
+                                <NotificationDropdown />
+                            </NavbarItem>
                             <NavbarItem>
                                 <Popover isOpen={isAccountPopoverOpen} onOpenChange={setIsAccountPopoverOpen} placement={"bottom-end"} className={"rounded-none font-minecraft-body"}>
                                     <PopoverTrigger>
