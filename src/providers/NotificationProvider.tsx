@@ -114,9 +114,25 @@ export function NotificationProvider({children}: { children: ReactNode })
             )
         );
     }, [notifications, setNotifications]);
+    const markAllAsRead = useCallback(() =>
+    {
+        setNotifications(prevNotifications =>
+            prevNotifications.map(notification => ({...notification, isRead: true}))
+        );
+    }, [notifications, setNotifications]);
+    const deleteNotification = useCallback((id: string) =>
+    {
+        setNotifications(prevNotifications =>
+            prevNotifications.filter(notification => notification.id !== id)
+        );
+    }, [notifications, setNotifications]);
+    const deleteAllNotifications = useCallback(() =>
+    {
+        setNotifications([]);
+    }, [notifications, setNotifications]);
 
     return (
-        <NotificationContext.Provider value={{notifications}}>
+        <NotificationContext.Provider value={{notifications, markAllAsRead, deleteNotification, deleteAllNotifications, markAsRead}}>
             {children}
         </NotificationContext.Provider>
     );
