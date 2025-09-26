@@ -135,3 +135,4 @@ Cargo.lock
 
 # InteliJ
 .idea/workspace.xml
+.idea/copilot.*.xml
