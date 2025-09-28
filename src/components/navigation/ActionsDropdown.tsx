@@ -4,12 +4,12 @@ import {Icon} from "@iconify-icon/react";
 import {Popover} from "../extended/Popover.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {ErrorBoundary} from "../ErrorBoundry.tsx";
-import {usePersistantAction, ActionData} from "../../providers/PersistentActionProvider.tsx";
+import {usePersistentAction, ActionData} from "../../providers/PersistentActionProvider.tsx";
 import {useState, useEffect, useMemo} from "react";
 
 export function ActionsDropdown()
 {
-    const {actions, activeActions, loading, error, clearCompletedActions, deleteAction} = usePersistantAction();
+    const {actions, activeActions, loading, error, clearCompletedActions, deleteAction} = usePersistentAction();
     const [selectedTab, setSelectedTab] = useState("active");
     const [filteredActions, setFilteredActions] = useState<ActionData[]>([]);
 
@@ -218,7 +218,7 @@ export function ActionsDropdown()
                 <Tooltip content={activeActions.length > 0 ? `${activeActions.length} active tasks` : "Actions Panel"}>
                     <div className={"max-w-fit"}>
                         <PopoverTrigger>
-                            <Button isIconOnly>
+                            <Button isIconOnly variant={"light"}>
                                 <Badge
                                     content={activeActions.length > 9 ? "9+" : activeActions.length}
                                     color={"primary"}

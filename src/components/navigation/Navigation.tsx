@@ -70,7 +70,7 @@ export default function Navigation()
                         exit={{opacity: 0, y: -20}}
                         transition={{duration: 0.2, delay: .15}}
                     >
-                        <NavbarContent justify={"end"}>
+                        <NavbarContent justify={"end"} className={"gap-2"}>
                             <NavbarItem>
                                 <ActionsDropdown />
                             </NavbarItem>

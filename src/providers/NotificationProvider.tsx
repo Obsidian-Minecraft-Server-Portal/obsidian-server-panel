@@ -179,7 +179,7 @@ export function NotificationDropdown()
                 <Tooltip content={unreadNotifications.length > 0 ? `You have ${unreadNotifications.length} unread notifications` : "Notifications Area"}>
                     <div className={"max-w-fit"}>
                         <PopoverTrigger>
-                            <Button isIconOnly>
+                            <Button isIconOnly variant={"light"}>
                                 <Badge content={unreadNotifications.length > 9 ? "9+" : unreadNotifications.length} color={"primary"} showOutline={false} size={"sm"} className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none data-[show=false]:hidden"} data-show={unreadNotifications.length > 0}>
                                     <Icon icon={"pixelarticons:notification"}/>
                                 </Badge>
