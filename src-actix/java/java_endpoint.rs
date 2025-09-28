@@ -1,6 +1,6 @@
 use crate::actix_util::http_error::Result;
 use crate::java::versions::JavaVersion;
-use actix_web::{delete, get, web, HttpResponse, Responder};
+use actix_web::{HttpResponse, Responder, delete, get, web};
 use actix_web_lab::sse;
 use log::error;
 use serde_json::json;
@@ -54,9 +54,20 @@ pub async fn install_java_version(runtime: web::Path<String>) -> Result<impl Res
     Ok(sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))
 }
 
+#[get("/version-map")]
+pub async fn version_map() -> Result<impl Responder> {
+    match crate::java::java_minecraft_version_map::get_java_minecraft_version_map() {
+        Some(map) => Ok(HttpResponse::Ok().json(map)),
+        None => Ok(HttpResponse::InternalServerError().json(json!({
+            "error": "Failed to get Java Minecraft version map".to_string(),
+        }))),
+    }
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/java")
+            .service(version_map)
             .service(install_java_version)
             .service(get_java_versions)
             .service(get_installation_files)

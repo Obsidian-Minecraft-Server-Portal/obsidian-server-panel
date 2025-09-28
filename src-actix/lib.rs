@@ -12,8 +12,8 @@ use std::env::set_current_dir;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
-mod actix_util;
 mod actions;
+mod actix_util;
 mod app_db;
 mod authentication;
 mod command_line_args;
@@ -62,7 +62,7 @@ pub async fn run() -> Result<()> {
             app_db::initialize_databases(&pool).await?;
             ServerData::initialize_servers(&pool).await?;
             pool.close().await;
-
+            java::refresh_java_minecraft_version_map().await?;
             Ok(())
         }
         .await;

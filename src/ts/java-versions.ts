@@ -31,3 +31,7 @@ export const installRuntime = async (runtime: JavaRuntime, onProgress: (report: 
         onComplete();
     });
 };
+
+export type JavaVersionMap = {
+    [key in JavaRuntime]: { min: string, max: string };
+}

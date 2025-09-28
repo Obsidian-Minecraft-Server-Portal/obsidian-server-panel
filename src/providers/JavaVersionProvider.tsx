@@ -1,9 +1,11 @@
+import $ from "jquery";
 import {createContext, ReactNode, useContext, useEffect, useState} from "react";
-import {getJavaVersions, getRuntimeFiles as getFiles, installRuntime, JavaRuntime, JavaVersion, uninstallRuntime} from "../ts/java-versions.ts";
+import {getJavaVersions, getRuntimeFiles as getFiles, installRuntime, JavaRuntime, JavaVersion, JavaVersionMap, uninstallRuntime} from "../ts/java-versions.ts";
 
 interface JavaVersionContextType
 {
     javaVersions: JavaVersion[],
+    versionMap: JavaVersionMap;
     refreshJavaVersions: () => Promise<void>;
     installVersion: (version: JavaVersion | JavaRuntime, onUpdate: (progress: JavaInstallationProgress) => void) => Promise<void>;
     uninstallVersion: (version: JavaVersion | JavaRuntime) => Promise<void>;
@@ -21,6 +23,8 @@ const JavaVersionContext = createContext<JavaVersionContextType | undefined>(und
 export function JavaVersionProvider({children}: { children: ReactNode })
 {
     const [javaVersions, setJavaVersions] = useState<JavaVersion[]>([]);
+    const [versionMap, setVersionMap] = useState<JavaVersionMap>({} as JavaVersionMap);
+
 
     const refreshJavaVersions = async () => setJavaVersions(await getJavaVersions());
     const installVersion = async (version: JavaVersion | JavaRuntime, onUpdate: (progress: JavaInstallationProgress) => void) =>
@@ -61,10 +65,11 @@ export function JavaVersionProvider({children}: { children: ReactNode })
     useEffect(() =>
     {
         refreshJavaVersions().catch(console.error);
+        $.get("/api/java/version-map").then((map: JavaVersionMap) => setVersionMap(map)).catch(console.error);
     }, []);
 
     return (
-        <JavaVersionContext.Provider value={{refreshJavaVersions, javaVersions, installVersion, uninstallVersion, getRuntimeFiles}}>
+        <JavaVersionContext.Provider value={{refreshJavaVersions, javaVersions, installVersion, uninstallVersion, getRuntimeFiles, versionMap}}>
             {children}
         </JavaVersionContext.Provider>
     );

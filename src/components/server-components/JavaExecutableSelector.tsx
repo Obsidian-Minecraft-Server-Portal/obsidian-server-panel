@@ -1,7 +1,7 @@
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
 import {Button, Progress, Select, SelectItem, SelectSection} from "@heroui/react";
 import {useCallback, useEffect, useState} from "react";
-import {JavaVersion} from "../../ts/java-versions.ts";
+import {JavaRuntime, JavaVersion} from "../../ts/java-versions.ts";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useMessage} from "../../providers/MessageProvider.tsx";
@@ -17,7 +17,7 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
 {
     const {onVersionChange, defaultSelectedExecutable} = props;
     const {open} = useMessage();
-    const {javaVersions, installVersion, refreshJavaVersions, uninstallVersion} = useJavaVersion();
+    const {javaVersions, versionMap, installVersion, refreshJavaVersions, uninstallVersion} = useJavaVersion();
     const [selectedVersion, setSelectedVersion] = useState<JavaVersion | undefined>(undefined);
     const [installationProgress, setInstallationProgress] = useState(0);
     const [isInstalling, setIsInstalling] = useState(false);
@@ -127,7 +127,7 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                         {
                             setSelectedVersion(selected);
                             setMessage("");
-                            if(!selected.installed)
+                            if (!selected.installed)
                             {
                                 setMessage("This version is not installed. Please install it first.");
                             }
@@ -135,24 +135,35 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                     }}
                 >
                     <SelectSection title={"Installed"}>
-                        {javaVersions.filter(v => v.installed && v.executable != undefined).map((v) => (
-                            <SelectItem
-                                key={v.runtime}
-                                textValue={`${v.version} (Installed)`}
-                            >
-                                {v.version} ({v.executable})
-                            </SelectItem>
-                        ))}
+                        {
+                            javaVersions
+                                .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
+                                .filter(v => v.installed && v.executable != undefined && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
+                                .map((v) => (
+                                    <SelectItem
+                                        key={v.runtime}
+                                        textValue={`${v.version} (Installed)`}
+                                    >
+                                        {v.version} ({v.executable})
+                                    </SelectItem>
+                                ))
+                        }
                     </SelectSection>
                     <SelectSection title={"Available"}>
-                        {javaVersions.filter(v => !v.installed).map((v) => (
-                            <SelectItem
-                                key={v.runtime}
-                                textValue={v.version}
-                            >
-                                {v.version} <span className={"italic opacity-50"}>({v.runtime})</span>
-                            </SelectItem>
-                        ))}
+                        {
+                            javaVersions
+                                .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
+                                .filter(v => !v.installed && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
+                                .map((v) => (
+                                    <SelectItem
+                                        key={v.runtime}
+                                        textValue={v.version}
+                                        description={v.runtime}
+                                    >
+                                        {v.version} <span className={"italic opacity-50"}>({versionMap[v.runtime].min} - {versionMap[v.runtime].max})</span>
+                                    </SelectItem>
+                                ))
+                        }
                     </SelectSection>
                 </Select>
 
