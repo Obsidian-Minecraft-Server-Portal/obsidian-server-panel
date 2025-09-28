@@ -123,7 +123,19 @@ impl ServerData {
     }
 
     pub fn get_directory_path(&self) -> PathBuf {
-        PathBuf::from(SERVER_DIRECTORY).join(&self.directory)
+        let path = PathBuf::from(SERVER_DIRECTORY).join(&self.directory);
+        // Convert to absolute path to avoid issues with relative paths
+        match path.canonicalize() {
+            Ok(absolute_path) => absolute_path,
+            Err(_) => {
+                // If canonicalize fails (e.g., path doesn't exist yet), 
+                // make it absolute by prepending current working directory
+                match std::env::current_dir() {
+                    Ok(cwd) => cwd.join(path),
+                    Err(_) => path, // Fallback to original path if all else fails
+                }
+            }
+        }
     }
 
     /// Update the server structure data
