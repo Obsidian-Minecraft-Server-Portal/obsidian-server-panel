@@ -13,6 +13,7 @@ use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
 mod actix_util;
+mod actions;
 mod app_db;
 mod authentication;
 mod command_line_args;
@@ -83,6 +84,7 @@ pub async fn run() -> Result<()> {
                 web::scope("api").configure(host_info::configure).configure(authentication::configure).service(
                     web::scope("")
                         .wrap(authentication::AuthenticationMiddleware)
+                        .configure(actions::configure)
                         .configure(java::configure)
                         .configure(forge_endpoint::configure)
                         .configure(server::configure)

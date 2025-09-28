@@ -10,6 +10,7 @@ import {Button} from "../extended/Button.tsx";
 import {useState} from "react";
 import {AccessibilityThemeSwitch} from "../AccessibilityThemeSwitch.tsx";
 import {NotificationDropdown} from "../../providers/NotificationProvider.tsx";
+import {ActionsDropdown} from "./ActionsDropdown.tsx";
 
 export default function Navigation()
 {
@@ -70,6 +71,9 @@ export default function Navigation()
                         transition={{duration: 0.2, delay: .15}}
                     >
                         <NavbarContent justify={"end"}>
+                            <NavbarItem>
+                                <ActionsDropdown />
+                            </NavbarItem>
                             <NavbarItem>
                                 <NotificationDropdown />
                             </NavbarItem>

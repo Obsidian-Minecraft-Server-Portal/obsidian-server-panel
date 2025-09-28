@@ -2,6 +2,7 @@ use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
+use crate::actions::actions_data::{ActionData, ActionType, ActionStatus};
 use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use serde_hash::hashids::decode_single;
 use serde_json::json;
@@ -151,6 +152,18 @@ pub async fn upload_file(
     let directory = full_path.parent().ok_or(anyhow::anyhow!("Invalid file path"))?;
     std::fs::create_dir_all(directory)?;
 
+    // Create action tracking entry
+    let action_details = json!({
+        "file_path": file_path,
+        "full_path": full_path.to_string_lossy()
+    });
+    let _action = ActionData::create(
+        user_id as i64,
+        upload_id.clone(),
+        ActionType::Upload,
+        Some(action_details.to_string()),
+    ).await.map_err(|e| anyhow::anyhow!("Failed to create action tracking: {}", e))?;
+
     // Get the progress sender for this upload
     let progress_sender = {
         let trackers = get_upload_trackers().lock().await;
@@ -167,6 +180,11 @@ pub async fn upload_file(
     let mut file = match File::create(&full_path).await {
         Ok(file) => file,
         Err(_) => {
+            // Update action status to failed
+            if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
+                let _ = action.update_status(ActionStatus::Failed, Some("Failed to create file".to_string())).await;
+            }
+            
             // Clean up the cancellation flag
             let mut cancel_flags = get_upload_cancel_flags().lock().await;
             cancel_flags.remove(&upload_id);
@@ -193,6 +211,11 @@ pub async fn upload_file(
                     .await;
             }
 
+            // Update action status to failed (cancelled)
+            if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
+                let _ = action.update_status(ActionStatus::Failed, Some("Upload cancelled by user".to_string())).await;
+            }
+
             // Clean up
             let mut cancel_flags = get_upload_cancel_flags().lock().await;
             cancel_flags.remove(&upload_id);
@@ -210,6 +233,11 @@ pub async fn upload_file(
         let bytes = match chunk {
             Ok(bytes) => bytes,
             Err(_) => {
+                // Update action status to failed
+                if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
+                    let _ = action.update_status(ActionStatus::Failed, Some("Failed to read upload data".to_string())).await;
+                }
+                
                 // Clean up the cancellation flag
                 let mut cancel_flags = get_upload_cancel_flags().lock().await;
                 cancel_flags.remove(&upload_id);
@@ -218,6 +246,11 @@ pub async fn upload_file(
         };
 
         if file.write_all(&bytes).await.is_err() {
+            // Update action status to failed
+            if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
+                let _ = action.update_status(ActionStatus::Failed, Some("Failed to write file".to_string())).await;
+            }
+            
             // Clean up the cancellation flag
             let mut cancel_flags = get_upload_cancel_flags().lock().await;
             cancel_flags.remove(&upload_id);
@@ -238,6 +271,14 @@ pub async fn upload_file(
                 )))
                 .await;
         }
+
+        // Update action store with progress (assuming we don't know total size, use bytes as progress indicator)
+        if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
+            // Use a simple progress calculation based on bytes uploaded (we'll set it to a reasonable value)
+            // Since we don't know the total size, we can't calculate percentage, but we can show activity
+            let progress = std::cmp::min(total_bytes / 1024, 100) as i64; // Simple heuristic: 1KB = 1%
+            let _ = action.update_progress(progress).await;
+        }
     }
 
     // Send completion event
@@ -251,6 +292,12 @@ pub async fn upload_file(
                 .to_string(),
             )))
             .await;
+    }
+
+    // Update action status to completed
+    if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
+        let _ = action.update_status(ActionStatus::Completed, Some(format!("Upload completed successfully ({} bytes)", total_bytes))).await;
+        let _ = action.update_progress(100).await; // Set to 100% on completion
     }
 
     // Clean up the cancellation flag
@@ -690,6 +737,7 @@ fn search_directory(dir: &std::path::Path, query: &str, filename_only: bool, res
     Ok(())
 }
 
+
 #[post("/archive")]
 pub async fn archive_files(server_id: web::Path<String>, body: web::Json<ArchiveRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
@@ -700,6 +748,19 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
     let base_path = server.get_directory_path();
     let cwd = base_path.join(&body.cwd);
     let archive_path = cwd.join(&body.filename);
+
+    // Create action tracking entry
+    let action_details = json!({
+        "archive_path": archive_path.to_string_lossy(),
+        "entries": body.entries,
+        "cwd": body.cwd
+    });
+    let _action = ActionData::create(
+        user_id as i64,
+        body.tracker_id.clone(),
+        ActionType::Archive,
+        Some(action_details.to_string()),
+    ).await.map_err(|e| anyhow::anyhow!("Failed to create action tracking: {}", e))?;
 
     let trackers = get_archive_trackers().lock().await;
     if let Some(tracker) = trackers.get(&body.tracker_id) {
@@ -712,18 +773,33 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
             cancel_flags.insert(body.tracker_id.clone(), cancel_flag.clone());
         }
 
-        let absolute_file_paths: Vec<PathBuf> = body.entries.iter().map(|entry| cwd.join(entry)).collect();
+        let absolute_file_paths: Vec<PathBuf> = body.entries.iter().map(|entry| base_path.join(entry)).collect();
 
         // Use the archive_wrapper to create the archive
-        crate::server::filesystem::archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create archive: {} - {}", archive_path.display(), e))?;
+        let archive_result = crate::server::filesystem::archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag, &body.tracker_id).await;
+
+        // Update action status based on result
+        if let Ok(action) = ActionData::get_by_tracker_id(&body.tracker_id).await {
+            if let Some(action) = action {
+                match archive_result {
+                    Ok(_) => {
+                        let _ = action.update_status(ActionStatus::Completed, Some("Archive created successfully".to_string())).await;
+                    },
+                    Err(ref e) => {
+                        let _ = action.update_status(ActionStatus::Failed, Some(format!("Archive failed: {}", e))).await;
+                    }
+                }
+            }
+        }
 
         // Clean up the cancellation flag
         {
             let mut cancel_flags = get_archive_cancel_flags().lock().await;
             cancel_flags.remove(&body.tracker_id);
         }
+
+        // Return the archive result
+        archive_result.map_err(|e| anyhow::anyhow!("Failed to create archive: {} - {}", archive_path.display(), e))?;
     } else {
         return Err(anyhow::anyhow!("Invalid tracker id").into());
     }
@@ -828,6 +904,18 @@ pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<Has
         return Err(anyhow::anyhow!("Archive file not found").into());
     }
 
+    // Create action tracking entry
+    let action_details = json!({
+        "archive_path": archive_path.to_string_lossy(),
+        "output_path": output_path.to_string_lossy()
+    });
+    let _action = ActionData::create(
+        user_id as i64,
+        tracker_id.clone(),
+        ActionType::Extract,
+        Some(action_details.to_string()),
+    ).await.map_err(|e| anyhow::anyhow!("Failed to create action tracking: {}", e))?;
+
     // Get tracker for progress updates
     let trackers = get_extract_trackers().lock().await;
     if let Some(tracker) = trackers.get(tracker_id) {
@@ -851,7 +939,21 @@ pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<Has
             move || {
                 let rt = tokio::runtime::Handle::current();
                 rt.block_on(async {
-                    let result = crate::server::filesystem::extract_wrapper::extract(archive_path, output_path, &tracker, &cancel_flag).await;
+                    let result = crate::server::filesystem::extract_wrapper::extract(archive_path, output_path, &tracker, &cancel_flag, &tracker_id).await;
+
+                    // Update action status based on result
+                    if let Ok(action) = ActionData::get_by_tracker_id(&tracker_id).await {
+                        if let Some(action) = action {
+                            match result {
+                                Ok(_) => {
+                                    let _ = action.update_status(ActionStatus::Completed, Some("Archive extracted successfully".to_string())).await;
+                                },
+                                Err(ref e) => {
+                                    let _ = action.update_status(ActionStatus::Failed, Some(format!("Extract failed: {}", e))).await;
+                                }
+                            }
+                        }
+                    }
 
                     if let Err(e) = result {
                         error!("Failed to extract archive: {}", e);

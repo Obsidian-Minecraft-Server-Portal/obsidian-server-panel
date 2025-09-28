@@ -6,12 +6,14 @@ use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::fs;
+use crate::actions::actions_data::ActionData;
 
 pub async fn archive(
     archive_path: impl AsRef<Path>,
     entries: Vec<PathBuf>,
     sender: &tokio::sync::mpsc::Sender<Event>,
     cancelled: &AtomicBool,
+    tracker_id: &str,
 ) -> Result<()> {
     let file = fs::File::create(archive_path.as_ref()).await?;
     info!("Created archive file at: {}", archive_path.as_ref().display());
@@ -123,6 +125,12 @@ pub async fn archive(
                             let progress = if total_bytes > 0 { (processed_bytes as f32 / total_bytes as f32) * 100.0 } else { 0.0 };
                             let _ = sender.send(Event::from(sse::Data::new(format!("{{ \"progress\": {:.1} }}", progress)))).await;
                             debug!("Progress update: {:.1}%", progress);
+                            
+                            // Update action store with progress
+                            if let Ok(Some(action)) = ActionData::get_by_tracker_id(tracker_id).await {
+                                let _ = action.update_progress(progress as i64).await;
+                            }
+                            
                             last_progress_update = now;
                         }
                     }
@@ -177,6 +185,12 @@ pub async fn archive(
                     let progress = if total_bytes > 0 { (processed_bytes as f32 / total_bytes as f32) * 100.0 } else { 0.0 };
                     let _ = sender.send(Event::from(sse::Data::new(format!("{{ \"progress\": {:.1} }}", progress)))).await;
                     debug!("Progress update: {:.1}%", progress);
+                    
+                    // Update action store with progress
+                    if let Ok(Some(action)) = ActionData::get_by_tracker_id(tracker_id).await {
+                        let _ = action.update_progress(progress as i64).await;
+                    }
+                    
                     last_progress_update = now;
                 }
             }

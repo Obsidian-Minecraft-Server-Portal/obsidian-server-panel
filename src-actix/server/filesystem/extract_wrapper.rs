@@ -7,12 +7,14 @@ use std::io::{Read, Write};
 use std::path::{Path};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc::Sender;
+use crate::actions::actions_data::ActionData;
 
 pub async fn extract(
     archive_path: impl AsRef<Path>,
     output_path: impl AsRef<Path>,
     sender: &Sender<Event>,
     cancelled: &AtomicBool,
+    tracker_id: &str,
 ) -> Result<()> {
     let archive_path = archive_path.as_ref();
     let output_path = output_path.as_ref();
@@ -29,12 +31,12 @@ pub async fn extract(
         .unwrap_or("");
 
     match extension.to_lowercase().as_str() {
-        "zip" => extract_zip(archive_path, output_path, sender, cancelled).await,
+        "zip" => extract_zip(archive_path, output_path, sender, cancelled, tracker_id).await,
         "gz" | "tgz" => {
             // Check if it's a tar.gz file
             let stem = archive_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
             if stem.ends_with(".tar") || extension == "tgz" {
-                extract_tar_gz(archive_path, output_path, sender, cancelled).await
+                extract_tar_gz(archive_path, output_path, sender, cancelled, tracker_id).await
             } else {
                 Err(anyhow::anyhow!("Unsupported archive format: {}", extension))
             }
@@ -48,6 +50,7 @@ async fn extract_zip(
     output_path: &Path,
     sender: &Sender<Event>,
     cancelled: &AtomicBool,
+    tracker_id: &str,
 ) -> Result<()> {
     info!("Extracting ZIP archive: {}", archive_path.display());
 
@@ -136,6 +139,11 @@ async fn extract_zip(
                         progress, processed_files, total_files
                     )))).await;
 
+                    // Update action store with progress
+                    if let Ok(Some(action)) = ActionData::get_by_tracker_id(tracker_id).await {
+                        let _ = action.update_progress(progress as i64).await;
+                    }
+
                     debug!("Progress update: {:.1}% ({}/{})", progress, processed_files, total_files);
                     last_progress_update = now;
                 }
@@ -162,6 +170,7 @@ async fn extract_tar_gz(
     output_path: &Path,
     sender: &Sender<Event>,
     cancelled: &AtomicBool,
+    tracker_id: &str,
 ) -> Result<()> {
     info!("Extracting TAR.GZ archive: {}", archive_path.display());
 
@@ -216,6 +225,11 @@ async fn extract_tar_gz(
                 "{{ \"progress\": {:.1}, \"status\": \"extracting\", \"filesProcessed\": {}, \"totalFiles\": {} }}",
                 progress, processed_files, total_files
             )))).await;
+
+            // Update action store with progress
+            if let Ok(Some(action)) = ActionData::get_by_tracker_id(tracker_id).await {
+                let _ = action.update_progress(progress as i64).await;
+            }
 
             debug!("Progress update: {:.1}% ({}/{})", progress, processed_files, total_files);
             last_progress_update = now;
