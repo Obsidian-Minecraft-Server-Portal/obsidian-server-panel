@@ -6,7 +6,7 @@ use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
 use anyhow::Result;
 use clap::Parser;
 use log::*;
-use obsidian_upnp::open_port;
+use obsidian_upnp::{close_all_ports, open_port};
 use serde_json::json;
 use std::env::set_current_dir;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
@@ -105,6 +105,8 @@ pub async fn run() -> Result<()> {
 
     let stop_result = server.await;
     debug!("Server stopped");
+
+    close_all_ports!();
 
     Ok(stop_result?)
 }
