@@ -203,7 +203,7 @@ export function ServerBackups()
             case "full":
                 return "primary";
             case "incremental":
-                return "secondary";
+                return "warning";
             case "world":
                 return "success";
             default:
@@ -241,7 +241,6 @@ export function ServerBackups()
                 </div>
                 <div className="flex gap-2">
                     <Button
-                        color="secondary"
                         variant="flat"
                         onPress={onSettingsOpen}
                         startContent={<Icon icon="pixelarticons:settings"/>}
