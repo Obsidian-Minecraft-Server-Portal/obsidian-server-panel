@@ -235,6 +235,7 @@ export default function Signup()
                                 size={"sm"}
                                 className={"text-medium"}
                                 variant={"ghost"}
+                                tabIndex={-1}
                             >
                                 <Icon icon={"pixelarticons:open"}/>
                             </Button>

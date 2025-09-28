@@ -95,6 +95,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
                 name={name}
                 value={value}
                 checked={checkedValue}
+                tabIndex={-1}
                 onChange={() =>
                 {
                 }} // Handled by the div onClick

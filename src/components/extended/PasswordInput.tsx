@@ -52,19 +52,27 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((p
             endContent={
                 <div className={"flex flex-row gap-1"}>
                     <Tooltip content={"Toggle Password Visibility"} placement={"top"}>
-                        <Button isIconOnly size={"sm"} variant={"light"} radius={"none"} onPress={() => setShowPassword(prev => !prev)}>
+                        <Button isIconOnly size={"sm"} tabIndex={-1} variant={"light"} radius={"none"} onPress={() => setShowPassword(prev => !prev)}>
                             <Icon icon={showPassword ? "pixelarticons:eye-closed" : "pixelarticons:eye"} width={16}/>
                         </Button>
                     </Tooltip>
                     {allowPasswordGeneration &&
                         <Tooltip content={"Generate a Secure Password"} placement={"top"}>
-                            <Button isIconOnly size={"sm"} variant={"solid"} radius={"none"} onPress={() =>
-                            {
-                                const generatedPassword = generateRandomPassword(passwordGenerationOptions);
-                                if (onPasswordGeneration) onPasswordGeneration(generatedPassword);
-                                if (rest.onValueChange) rest.onValueChange(generatedPassword);
-                                else if (ref && typeof ref === "object" && "current" in ref) (ref as RefObject<HTMLInputElement>).current.value = generatedPassword;
-                            }}>
+                            <Button
+                                isIconOnly
+                                size={"sm"}
+                                variant={"solid"}
+                                radius={"none"}
+                                tabIndex={-1}
+                                onPress={() =>
+                                {
+                                    const generatedPassword = generateRandomPassword(passwordGenerationOptions);
+                                    if (onPasswordGeneration) onPasswordGeneration(generatedPassword);
+                                    if (rest.onValueChange) rest.onValueChange(generatedPassword);
+                                    // @ts-ignore
+                                    else if (ref && typeof ref === "object" && "current" in ref) (ref as RefObject<HTMLInputElement>).current.value = generatedPassword;
+                                }}
+                            >
                                 <Icon icon={"pixelarticons:lock"} width={16}/>
                             </Button>
                         </Tooltip>
