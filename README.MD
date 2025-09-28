@@ -1,54 +1,142 @@
-# Obsidian Minecraft Server Panel
+# Obsidian Server Panel
 
-A modern web-based management panel for Minecraft servers with modloader support, featuring a responsive React frontend and a Rust backend.   
-[![GitHub issues](https://img.shields.io/github/issues/Obsidian-Minecraft-Server-Portal/obsidian-server-panel)](https://github.com/obsidian-minecraft-server-portal/obsidian-server-panel/issues)   
-[![GitHub forks](https://img.shields.io/github/forks/Obsidian-Minecraft-Server-Portal/obsidian-server-panel)](https://github.com/obsidian-minecraft-server-portal/obsidian-server-panel/network)   
-[![GitHub stars](https://img.shields.io/github/stars/Obsidian-Minecraft-Server-Portal/obsidian-server-panel)](https://obsidian-minecraft-server-portal.github.io/obsidian-server-panel/)   
+![Obsidian Server Panel](resources/Screenshot%202025-09-28%20at%2019-28-08%20Obsidian%20Server%20Panel.png)  
+A modern, feature-rich, and user-friendly web-based control panel for managing Minecraft servers. Built with a powerful Rust backend and a responsive React frontend, Obsidian provides a seamless experience for server administrators.
 
-## Features
+## ✨ Features
 
-- **Minecraft Server Management**: Control your Minecraft servers directly from the web interface
-- **ModLoader Version Management**: Fetch and display available forge, fabric, neoforge, and quilt versions for easy installation
-- **Easy Installation**: One-click installation of Minecraft server versions and mod loaders
-- **Server Control**: Start, stop, and restart your Minecraft servers with ease
-- **Real-time Console Output**: View live server logs and console output in the web interface
-- **File Management**: Upload, download, and manage server files through the web interface
-- **Server Configuration**: Edit server properties and configuration files directly from the panel
-- **User Management**: Create and manage user accounts with different permission levels
-- **Multi-Server Support**: Manage multiple Minecraft servers from a single panel
-- **Cross-Platform**: Runs on Windows, macOS, and Linux
-- **Docker Support**: Easily deploy and manage servers using Docker containers
-- **Plugin and Mod Management**: Upload and manage server plugins and mods
-- **Backup and Restore**: Create backups of your server data and restore from previous backups
-- **Scheduled Tasks**: Automate server tasks with a built-in scheduler
-- **Notifications**: Get notified of server events and status changes via email or webhooks
-- **API Access**: Integrate with other tools and services using a RESTful API
-- **Logging and Monitoring**: Keep track of server performance and user activity with detailed logs
-- **Authentication System**: Secure access to server management features
-- **Responsive Web Interface**: Built with React and TypeScript for a modern user experience
-- **UPnP Port Forwarding**: Automatically open ports for your Minecraft server (development mode)
+-   **🖥️ Comprehensive Server Management:**
+    -   Create, configure, and manage multiple Minecraft servers.
+    -   Support for various server types: Vanilla, Fabric, Forge, NeoForge, and Quilt.
+    -   Easy installation of different Minecraft and loader versions.
+    -   Control server lifecycle: Start, Stop, Restart, and Kill operations.
 
-## Installation
+-   **🔒 Robust User & Permission System:**
+    -   Multi-user support with a role-based permission system.
+    -   Secure authentication with password and token-based sessions.
+    -   Admin panel for user management: create, edit, delete, and disable users.
+    -   Force password resets for enhanced security.
 
-### Linux (Easy)
+-   **📊 Real-time Monitoring & Console:**
+    -   Live server console with command input.
+    -   Real-time host resource monitoring for CPU, memory, disk, and network usage.
+    -   Graphical representation of resource history.
+    -   Live player count and list.
 
-Install using the provided script:
+-   **🗂️ Integrated File Manager:**
+    -   Full-featured web-based file browser for each server instance.
+    -   Standard file operations: Upload, Download, Move, Copy, Rename, and Delete.
+    -   Built-in tools for archiving (`.zip`) and extracting files directly on the server.
+    -   In-browser text editor for easy configuration file changes with syntax highlighting.
+
+-   **🧩 Effortless Mod & Content Management:**
+    -   Browse and install mods, modpacks, and more directly from Modrinth & CurseForge.
+    -   View installed mods and check for available updates.
+    -   Detailed mod view with descriptions, changelogs, and version history.
+
+-   **💾 Automated Backup System:**
+    -   Create on-demand or scheduled server backups.
+    -   Supports full, incremental, and world-only backup types.
+    -   Flexible cron-based scheduling for automation.
+    -   Configurable backup retention policies to manage disk space.
+
+-   **☕ Java Version Management:**
+    -   Install and manage multiple Java runtimes required for different Minecraft versions.
+    -   Easily switch between Java versions for each server.
+
+-   **♿ Accessibility Focused:**
+    -   Multiple themes designed for accessibility, including modes for Deuteranopia, Tritanopia, and a high-contrast Monochrome theme.
+
+## 🛠️ Technology Stack
+
+-   **Backend:**
+    -   **Language:** Rust
+    -   **Framework:** Actix Web
+    -   **Database:** SQLite (via SQLx)
+    -   **Real-time Communication:** Server-Sent Events (SSE)
+-   **Frontend:**
+    -   **Framework:** React (with TypeScript)
+    -   **Build Tool:** Vite
+    -   **UI Components:** [HeroUI](https://heroui.net/)
+    -   **Styling:** Tailwind CSS
+    -   **Animations:** Framer Motion
+    -   **Charting:** Recharts
+-   **API:**
+    -   Fully documented with an `openapi.yaml` specification.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+-   For running the installation script: `curl` or `wget`, and `unzip` or `bsdtar`.
+-   For building from source:
+    -   [Rust toolchain](https://www.rust-lang.org/tools/install)
+    -   [Node.js](https://nodejs.org/) (with pnpm enabled: `npm install -g pnpm`)
+
+### Installation (Linux)
+
+The easiest way to install the Obsidian Server Panel is by using the provided installation script.
 
 ```bash
-sudo bash -c "$(curl -sSL https://raw.githubusercontent.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/main/install-obsidian.sh)"
+curl -sSL https://raw.githubusercontent.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/main/install-obsidian.sh | sudo bash
 ```
 
-### Uninstall (Easy)
+The script will automatically:
+1.  Check for necessary dependencies.
+2.  Download the latest release for your architecture.
+3.  Set up the binary in `/usr/local/bin`.
+4.  Create a configuration directory at `/etc/obsidian`.
+5.  Set up and enable a `systemd` service to run the panel on boot.
 
-```bash
-sudo curl -sSL https://raw.githubusercontent.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/main/install-obsidian.sh | bash -s -- --uninstall
-```
+You will be prompted to set the port for the web UI during installation.
 
+### Building from Source
 
-## License
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel.git
+    cd obsidian-server-panel
+    ```
 
-This project is licensed under the obsidian-private-license - see the [LICENSE](LICENSE) file for details.
+2.  **Install frontend dependencies:**
+    ```bash
+    pnpm install
+    ```
 
-## Contributing
+3.  **Build the frontend:**
+    ```bash
+    pnpm run build-frontend
+    ```
 
-Contributions are welcome! Please follow standard Rust and React development practices.
+4.  **Build the backend (API):**
+    ```bash
+    pnpm run build-api
+    ```
+
+5.  **Run the application:**
+    ```bash
+    pnpm run run-api
+    ```
+
+The server will be available at `http://localhost:8080` by default.
+
+## 📄 API Documentation
+
+This project includes a comprehensive OpenAPI 3.0 specification for its backend API. You can find the full details in the `openapi.yaml` file. This can be used with tools like Swagger UI or Postman to explore and interact with the API endpoints.
+
+## 📜 License
+
+This project is provided under the **Obsidian Private License**.
+
+-   **You are permitted to:**
+    -   Use, copy, modify, and distribute the software for private, non-commercial purposes.
+    -   Run the software on your own hardware for personal use.
+    -   Share the software with friends and family for personal use.
+
+-   **You are NOT permitted to:**
+    -   Sell, rent, lease, or distribute this software for profit.
+    -   Use this software in a commercial service or product.
+
+Please see the [LICENSE](LICENSE) file for the full license text.
+
+Copyright (c) 2025 Obsidian Minecraft Server Panel Project. All rights reserved.
