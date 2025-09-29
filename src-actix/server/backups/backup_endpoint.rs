@@ -1,10 +1,11 @@
 use crate::actix_util::http_error::Result;
-use crate::authentication::auth_data::{UserData, UserRequestExt};
+use crate::authentication::auth_data::UserRequestExt;
 use crate::server::backups::backup_data::BackupData;
 use crate::server::backups::backup_scheduler;
 use crate::server::backups::backup_type::BackupType;
 use crate::server::server_data::ServerData;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, post, put, web};
+use actix_files::NamedFile;
+use actix_web::{HttpRequest, HttpResponse, delete, get, post, put, web};
 use serde::{Deserialize, Serialize};
 use serde_hash::hashids::decode_single;
 use serde_json::json;
@@ -22,34 +23,22 @@ struct UpdateBackupSettingsRequest {
     backup_retention: Option<u32>,
 }
 
+
 #[derive(Serialize)]
-struct BackupResponse {
-    id: u64,
-    server_id: u64,
-    filename: String,
-    backup_type: BackupType,
-    file_size: i64,
+struct BackupListResponse {
+    backup: BackupData,
     file_size_formatted: String,
-    created_at: i64,
     created_at_formatted: String,
-    description: Option<String>,
 }
 
-impl From<BackupData> for BackupResponse {
-    fn from(backup: BackupData) -> Self {
+impl BackupListResponse {
+    fn from_backup_data(backup: BackupData) -> Self {
         let file_size_formatted = backup.format_file_size();
         let created_at_formatted = backup.format_created_at();
-
         Self {
-            id: backup.id,
-            server_id: backup.server_id,
-            filename: backup.filename,
-            backup_type: backup.backup_type,
-            file_size: backup.file_size,
+            backup,
             file_size_formatted,
-            created_at: backup.created_at,
             created_at_formatted,
-            description: backup.description,
         }
     }
 }
@@ -87,7 +76,9 @@ async fn list_backups(path: web::Path<String>, req: HttpRequest) -> Result<HttpR
     match ServerData::get(server_id, user_id).await {
         Ok(Some(server)) => match server.list_backups().await {
             Ok(backups) => {
-                let backup_responses: Vec<BackupResponse> = backups.into_iter().map(BackupResponse::from).collect();
+                let backup_responses: Vec<BackupListResponse> = backups.into_iter()
+                    .map(BackupListResponse::from_backup_data)
+                    .collect();
 
                 Ok(HttpResponse::Ok().json(json!({
                     "backups": backup_responses
@@ -141,6 +132,85 @@ async fn create_backup(path: web::Path<String>, req_body: web::Json<CreateBackup
                 log::error!("Failed to create backup for server {}: {}", server_id, e);
                 Ok(HttpResponse::InternalServerError().json(json!({
                     "error": format!("Failed to create backup: {}", e)
+                })))
+            }
+        },
+        Ok(None) => Ok(HttpResponse::NotFound().json(json!({
+            "error": "Server not found"
+        }))),
+        Err(e) => {
+            log::error!("Failed to get server {}: {}", server_id, e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to get server"
+            })))
+        }
+    }
+}
+
+#[get("/{backup_id}/download")]
+async fn download_backup(path: web::Path<(String, String)>, req: HttpRequest) -> actix_web::Result<NamedFile> {
+    let (server_id, backup_id) = path.into_inner();
+    let server_id: u64 = decode_single(server_id).map_err(actix_web::error::ErrorBadRequest)?;
+    let backup_id: u64 = decode_single(backup_id).map_err(actix_web::error::ErrorBadRequest)?;
+
+    // Extract authenticated user ID from request extensions
+    let user = req.get_user().map_err(|_| actix_web::error::ErrorUnauthorized("Authentication required"))?;
+
+    let user_id = user.id.ok_or_else(|| actix_web::error::ErrorUnauthorized("Invalid user data"))?;
+
+    // Get server and verify access
+    let server = match ServerData::get(server_id, user_id).await {
+        Ok(Some(server)) => server,
+        Ok(None) => return Err(actix_web::error::ErrorNotFound("Server not found")),
+        Err(e) => {
+            log::error!("Failed to get server {}: {}", server_id, e);
+            return Err(actix_web::error::ErrorInternalServerError("Failed to get server"));
+        }
+    };
+
+    // Get backup file path
+    match server.download_backup(backup_id as i64).await {
+        Ok(backup_path) => NamedFile::open(backup_path).map_err(|e| {
+            log::error!("Failed to open backup file: {}", e);
+            actix_web::error::ErrorInternalServerError("Failed to open backup file")
+        }),
+        Err(e) => {
+            log::error!("Failed to get backup file: {}", e);
+            Err(actix_web::error::ErrorNotFound(e))
+        }
+    }
+}
+
+#[post("/{backup_id}/restore")]
+async fn restore_backup(path: web::Path<(String, String)>, req: HttpRequest) -> Result<HttpResponse> {
+    let (server_id, backup_id) = path.into_inner();
+    let server_id: u64 = decode_single(server_id)?;
+    let backup_id: u64 = decode_single(backup_id)?;
+
+    // Extract authenticated user ID from request extensions
+    let user = req.get_user().map_err(|_| {
+        log::error!("User not found in request extensions");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Authentication required"
+        }))
+    })?;
+
+    let user_id = user.id.ok_or_else(|| {
+        log::error!("User ID not found in user data");
+        HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid user data"
+        }))
+    })?;
+
+    match ServerData::get(server_id, user_id).await {
+        Ok(Some(server)) => match server.restore_backup(backup_id as i64).await {
+            Ok(()) => Ok(HttpResponse::Ok().json(json!({
+                "message": "Backup restored successfully"
+            }))),
+            Err(e) => {
+                log::error!("Failed to restore backup {} for server {}: {}", backup_id, server_id, e);
+                Ok(HttpResponse::InternalServerError().json(json!({
+                    "error": format!("Failed to restore backup: {}", e)
                 })))
             }
         },
@@ -324,6 +394,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/backups")
             .service(list_backups)
             .service(create_backup)
+            .service(download_backup)
+            .service(restore_backup)
             .service(delete_backup)
             .service(get_backup_settings)
             .service(update_backup_settings)

@@ -15,10 +15,15 @@ interface BackupData
     filename: string;
     backup_type: string;
     file_size: number;
-    file_size_formatted: string;
     created_at: number;
-    created_at_formatted: string;
     description?: string;
+}
+
+interface BackupListResponse
+{
+    backup: BackupData;
+    file_size_formatted: string;
+    created_at_formatted: string;
 }
 
 interface BackupSettings
@@ -33,17 +38,20 @@ interface BackupSettings
 export function ServerBackups()
 {
     const {server} = useServer();
-    const [backups, setBackups] = useState<BackupData[]>([]);
+    const [backups, setBackups] = useState<BackupListResponse[]>([]);
     const [settings, setSettings] = useState<BackupSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
+    const [restoring, setRestoring] = useState<string | null>(null);
     const [savingSettings, setSavingSettings] = useState(false);
 
     // Modal states
     const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
     const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose} = useDisclosure();
+    const {isOpen: isRestoreOpen, onOpen: onRestoreOpen, onClose: onRestoreClose} = useDisclosure();
     const [createDescription, setCreateDescription] = useState("");
+    const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
 
     // Settings form state
     const [formSettings, setFormSettings] = useState<BackupSettings | null>(null);
@@ -163,6 +171,42 @@ export function ServerBackups()
         }
     };
 
+    const restoreBackup = async () =>
+    {
+        if (!server?.id || !restoreBackupId) return;
+
+        setRestoring(restoreBackupId);
+        try
+        {
+            const response = await fetch(`/api/server/${server?.id}/backups/${restoreBackupId}/restore`, {
+                method: "POST"
+            });
+
+            if (response.ok)
+            {
+                onRestoreClose();
+                setRestoreBackupId(null);
+                // Show success message or refresh data
+            } else
+            {
+                const error = await response.json();
+                console.error("Failed to restore backup:", error);
+            }
+        } catch (error)
+        {
+            console.error("Error restoring backup:", error);
+        } finally
+        {
+            setRestoring(null);
+        }
+    };
+
+    const openRestoreConfirmation = (backupId: string) =>
+    {
+        setRestoreBackupId(backupId);
+        onRestoreOpen();
+    };
+
     const saveSettings = async () =>
     {
         if (!server?.id || !formSettings) return;
@@ -198,6 +242,7 @@ export function ServerBackups()
 
     const getBackupTypeColor = (type: string) =>
     {
+        if (!type) return "default";
         switch (type.toLowerCase())
         {
             case "full":
@@ -282,21 +327,21 @@ export function ServerBackups()
                             items={backups}
                         >
                             {(backup) => (
-                                <TableRow key={backup.id}>
+                                <TableRow key={backup.backup.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:archive" className="text-default-400"/>
-                                            <span className="text-sm">{backup.filename}</span>
+                                            <span className="text-sm">{backup.backup.filename}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         <Chip
                                             size="sm"
-                                            color={getBackupTypeColor(backup.backup_type) as any}
+                                            color={getBackupTypeColor(backup.backup.backup_type) as any}
                                             variant="flat"
                                             className="capitalize"
                                         >
-                                            {backup.backup_type}
+                                            {backup.backup.backup_type}
                                         </Chip>
                                     </TableCell>
                                     <TableCell>
@@ -307,21 +352,48 @@ export function ServerBackups()
                                     </TableCell>
                                     <TableCell>
                                         <span className="text-sm text-default-500">
-                                            {backup.description || "No description"}
+                                            {backup.backup.description || "No description"}
                                         </span>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-1">
-                                            <Button
-                                                size="sm"
-                                                color="danger"
-                                                variant="flat"
-                                                isIconOnly
-                                                onPress={() => deleteBackup(backup.id)}
-                                                isLoading={deleting === backup.id}
-                                            >
-                                                <Icon icon="pixelarticons:trash"/>
-                                            </Button>
+                                            <Tooltip content={"Download this backup"}>
+                                                <Button
+                                                    size="sm"
+                                                    color="primary"
+                                                    variant="flat"
+                                                    isIconOnly
+                                                    as={Link}
+                                                    href={`/api/server/${server?.id}/backups/${backup.backup.id}/download`}
+                                                    target="_blank"
+                                                >
+                                                    <Icon icon="pixelarticons:download"/>
+                                                </Button>
+                                            </Tooltip>
+                                            <Tooltip content={"Restore this backup"}>
+                                                <Button
+                                                    size="sm"
+                                                    color="warning"
+                                                    variant="flat"
+                                                    isIconOnly
+                                                    onPress={() => openRestoreConfirmation(backup.backup.id)}
+                                                    isLoading={restoring === backup.backup.id}
+                                                >
+                                                    <Icon icon="pixelarticons:reply-all"/>
+                                                </Button>
+                                            </Tooltip>
+                                            <Tooltip content={"Delete this backup"}>
+                                                <Button
+                                                    size="sm"
+                                                    color="danger"
+                                                    variant="flat"
+                                                    isIconOnly
+                                                    onPress={() => deleteBackup(backup.backup.id)}
+                                                    isLoading={deleting === backup.backup.id}
+                                                >
+                                                    <Icon icon="pixelarticons:trash"/>
+                                                </Button>
+                                            </Tooltip>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -332,7 +404,17 @@ export function ServerBackups()
             </Card>
 
             {/* Create Backup Modal */}
-            <Modal isOpen={isCreateOpen} onClose={onCreateClose}>
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={onCreateClose}
+                scrollBehavior="inside"
+                backdrop="blur"
+                radius="none"
+                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
+                classNames={{
+                    closeButton: "rounded-none"
+                }}
+            >
                 <ModalContent>
                     <ModalHeader>Create New Backup</ModalHeader>
                     <ModalBody>
@@ -342,6 +424,7 @@ export function ServerBackups()
                             value={createDescription}
                             onValueChange={setCreateDescription}
                             maxRows={3}
+                            radius={"none"}
                         />
                     </ModalBody>
                     <ModalFooter>
@@ -453,6 +536,58 @@ export function ServerBackups()
                         </Button>
                         <Button variant="flat" onPress={onSettingsClose}>
                             Cancel
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Restore Confirmation Modal */}
+            <Modal
+                isOpen={isRestoreOpen}
+                onClose={onRestoreClose}
+                className={"font-minecraft-body"}
+                radius={"none"}
+                backdrop={"blur"}
+                scrollBehavior="inside"
+                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
+                classNames={{
+                    closeButton: "rounded-none"
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader>Restore Backup</ModalHeader>
+                    <ModalBody>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg border border-warning-200">
+                                <Icon icon="pixelarticons:warning" className="text-warning-600 text-xl"/>
+                                <div>
+                                    <p className="font-semibold text-warning-800">Warning: This action cannot be undone</p>
+                                    <p className="text-sm text-warning-700">
+                                        Restoring this backup will replace all current server files. Your current server data will be backed up before restoration.
+                                    </p>
+                                </div>
+                            </div>
+                            <p className="text-default-600">
+                                Are you sure you want to restore from this backup? This will:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-default-600 ml-4">
+                                <li>Stop the server if it's currently running</li>
+                                <li>Create a backup of your current server files</li>
+                                <li>Replace all server files with the backup data</li>
+                                <li>You may need to restart the server manually after restoration</li>
+                            </ul>
+                        </div>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="flat" onPress={onRestoreClose}>
+                            Cancel
+                        </Button>
+                        <Button
+                            color="warning"
+                            onPress={restoreBackup}
+                            isLoading={restoring === restoreBackupId}
+                        >
+                            Restore Backup
                         </Button>
                     </ModalFooter>
                 </ModalContent>
