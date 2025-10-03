@@ -27,7 +27,7 @@ log = "0.4.22"
 anyhow = "1.0.95"
 thiserror = "2.0.11"
 vite-actix = ">=0.2.6"
-chrono = { version = "0.4.41", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde", "clock", "now"] }
 sqlx = { version = "0.8.6", features = ["sqlite", "chrono", "json", "runtime-tokio", "derive", "time"] }
 serde_hash = { version = "0.1.3" }
 bcrypt = { version = "0.17.0" }
@@ -52,8 +52,11 @@ toml = "0.9.4"
 base64 = "0.22.1"
 notify = { version = "8.1.0", features = ["default", "serde"] }
 clap = { version = "4.5.42", features = ["error-context", "derive", "help", "suggestions", "color", "usage", "wrap_help", "unicode", "string"] }
-cron_tab = { version = "0.2.10", features = ["async"] }
 rand = "0.9.1"
+once_cell = "1.19.0"
+cron = "0.12.1"
+obsidian-scheduler = { version = "0.1.0", features = ["event-timers", "log", "tokio", "callback-timers"] }
+obsidian-backups = { version = "0.1.0", features = ["serde", "logging", "zip"] }
 
 [build-dependencies]
 include_dir = "0.7.4"

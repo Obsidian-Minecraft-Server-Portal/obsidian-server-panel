@@ -1,5 +1,4 @@
 use crate::server::backups::backup_scheduler;
-use crate::server::backups::backup_type::BackupType;
 use crate::server::installed_mods::mod_data::ModData;
 use crate::server::server_properties::ServerProperties;
 use crate::server::server_status::ServerStatus;
@@ -44,8 +43,6 @@ pub struct ServerData {
     pub auto_restart: bool,
     /// Whether automatic backups are enabled
     pub backup_enabled: bool,
-    /// Type of backup to perform: 'full', 'incremental', or 'world'
-    pub backup_type: BackupType,
     /// Backup interval in minutes
     pub backup_cron: String,
     /// Number of backups to keep for retention
@@ -87,7 +84,6 @@ impl Default for ServerData {
             auto_restart: false,
             backup_enabled: false,
             backup_cron: "0 0 * * * *".to_string(),
-            backup_type: BackupType::Incremental,
             backup_retention: 7,
             description: None,
             minecraft_version: None,
@@ -155,7 +151,6 @@ impl ServerData {
         self.auto_restart = server_data.auto_restart;
         self.backup_enabled = server_data.backup_enabled;
         self.backup_cron = server_data.backup_cron.clone();
-        self.backup_type = server_data.backup_type.clone();
         self.backup_retention = server_data.backup_retention;
         self.description = server_data.description.clone();
         self.minecraft_version = server_data.minecraft_version.clone();

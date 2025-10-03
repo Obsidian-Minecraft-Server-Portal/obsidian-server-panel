@@ -29,8 +29,8 @@ impl ServerData {
     }
     pub async fn create(&mut self, pool: &SqlitePool) -> Result<()> {
         sqlx::query(
-			r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_type, backup_cron, backup_retention, description, minecraft_version, server_type, loader_version, owner_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+			r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_cron, backup_retention, description, minecraft_version, server_type, loader_version, owner_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
 			.bind(&self.name)
 			.bind(&self.directory)
 			.bind(&self.java_executable)
@@ -44,7 +44,6 @@ impl ServerData {
 			.bind(self.auto_start)
 			.bind(self.auto_restart)
 			.bind(self.backup_enabled)
-			.bind(&self.backup_type)
 			.bind(&self.backup_cron)
 			.bind(self.backup_retention)
 			.bind(self.description.as_deref())
@@ -63,7 +62,7 @@ impl ServerData {
 
     pub async fn save_with_pool(&self, pool: &SqlitePool) -> Result<()> {
         sqlx::query(
-			r#"UPDATE servers SET name = ?, directory = ?, java_executable = ?, java_args = ?, max_memory = ?, min_memory = ?, minecraft_args = ?, server_jar = ?, upnp = ?, status = ?, auto_start = ?, auto_restart = ?, backup_enabled = ?, backup_type = ?, backup_cron = ?, backup_retention = ?, description = ?, minecraft_version = ?, server_type = ?, loader_version = ?, last_started = ?, updated_at = ? WHERE id = ? AND owner_id = ?"#)
+			r#"UPDATE servers SET name = ?, directory = ?, java_executable = ?, java_args = ?, max_memory = ?, min_memory = ?, minecraft_args = ?, server_jar = ?, upnp = ?, status = ?, auto_start = ?, auto_restart = ?, backup_enabled = ?, backup_cron = ?, backup_retention = ?, description = ?, minecraft_version = ?, server_type = ?, loader_version = ?, last_started = ?, updated_at = ? WHERE id = ? AND owner_id = ?"#)
 			.bind(&self.name)
 			.bind(&self.directory)
 			.bind(&self.java_executable)
@@ -77,7 +76,6 @@ impl ServerData {
 			.bind(self.auto_start)
 			.bind(self.auto_restart)
 			.bind(self.backup_enabled)
-			.bind(&self.backup_type)
 			.bind(&self.backup_cron)
 			.bind(self.backup_retention)
 			.bind(self.description.as_deref())

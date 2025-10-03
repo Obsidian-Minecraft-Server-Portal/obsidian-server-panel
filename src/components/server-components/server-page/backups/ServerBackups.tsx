@@ -17,6 +17,7 @@ interface BackupData
     file_size: number;
     created_at: number;
     description?: string;
+    git_commit_id?: string; // For git-based incremental backups
 }
 
 interface BackupListResponse
@@ -30,7 +31,6 @@ interface BackupSettings
 {
     backup_enabled: boolean;
     backup_cron: string;
-    backup_type: string;
     backup_retention: number;
     is_scheduled: boolean;
 }
@@ -50,8 +50,10 @@ export function ServerBackups()
     const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
     const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose} = useDisclosure();
     const {isOpen: isRestoreOpen, onOpen: onRestoreOpen, onClose: onRestoreClose} = useDisclosure();
+    const {isOpen: isDownloadOpen, onOpen: onDownloadOpen, onClose: onDownloadClose} = useDisclosure();
     const [createDescription, setCreateDescription] = useState("");
     const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
+    const [downloadBackup, setDownloadBackup] = useState<BackupListResponse | null>(null);
 
     // Settings form state
     const [formSettings, setFormSettings] = useState<BackupSettings | null>(null);
@@ -207,6 +209,35 @@ export function ServerBackups()
         onRestoreOpen();
     };
 
+    const handleDownloadClick = (backup: BackupListResponse) =>
+    {
+        // Check if it's a git-based backup
+        if (backup.backup.git_commit_id) {
+            // Show download options modal for git-based backups
+            setDownloadBackup(backup);
+            onDownloadOpen();
+        } else {
+            // Direct download for legacy ZIP-based backups
+            const link = document.createElement('a');
+            link.href = `/api/server/${server?.id}/backups/${backup.backup.id}/download`;
+            link.target = '_blank';
+            link.click();
+        }
+    };
+
+    const handleDownloadOption = (downloadType: string) =>
+    {
+        if (!downloadBackup) return;
+        
+        const link = document.createElement('a');
+        link.href = `/api/server/${server?.id}/backups/${downloadBackup.backup.id}/download?type=${downloadType}`;
+        link.target = '_blank';
+        link.click();
+        
+        onDownloadClose();
+        setDownloadBackup(null);
+    };
+
     const saveSettings = async () =>
     {
         if (!server?.id || !formSettings) return;
@@ -239,26 +270,6 @@ export function ServerBackups()
             setSavingSettings(false);
         }
     };
-
-    const getBackupTypeColor = (type: string) =>
-    {
-        if (!type) return "default";
-        switch (type.toLowerCase())
-        {
-            case "full":
-                return "primary";
-            case "incremental":
-                return "warning";
-            case "world":
-                return "success";
-            default:
-                return "default";
-        }
-    };
-
-    // const formatDate = (timestamp: number) => {
-    //     return new Date(timestamp * 1000).toLocaleString();
-    // };
 
     if (loading)
     {
@@ -316,7 +327,6 @@ export function ServerBackups()
                     >
                         <TableHeader>
                             <TableColumn>Filename</TableColumn>
-                            <TableColumn>Type</TableColumn>
                             <TableColumn>Size</TableColumn>
                             <TableColumn>Created</TableColumn>
                             <TableColumn>Description</TableColumn>
@@ -333,16 +343,6 @@ export function ServerBackups()
                                             <Icon icon="pixelarticons:archive" className="text-default-400"/>
                                             <span className="text-sm">{backup.backup.filename}</span>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            size="sm"
-                                            color={getBackupTypeColor(backup.backup.backup_type) as any}
-                                            variant="flat"
-                                            className="capitalize"
-                                        >
-                                            {backup.backup.backup_type}
-                                        </Chip>
                                     </TableCell>
                                     <TableCell>
                                         <span className="text-sm">{backup.file_size_formatted}</span>
@@ -363,9 +363,7 @@ export function ServerBackups()
                                                     color="primary"
                                                     variant="flat"
                                                     isIconOnly
-                                                    as={Link}
-                                                    href={`/api/server/${server?.id}/backups/${backup.backup.id}/download`}
-                                                    target="_blank"
+                                                    onPress={() => handleDownloadClick(backup)}
                                                 >
                                                     <Icon icon="pixelarticons:download"/>
                                                 </Button>
@@ -449,20 +447,17 @@ export function ServerBackups()
                     <ModalBody className="gap-4">
                         {formSettings && (
                             <>
-                                <Select
-                                    label="Backup Type"
-                                    selectedKeys={[formSettings.backup_type]}
-                                    onSelectionChange={(keys) =>
-                                        setFormSettings({
-                                            ...formSettings,
-                                            backup_type: Array.from(keys)[0] as string
-                                        })
-                                    }
-                                >
-                                    <SelectItem key="full">Full Backup</SelectItem>
-                                    <SelectItem key="incremental">Incremental Backup</SelectItem>
-                                    <SelectItem key="world">World Only</SelectItem>
-                                </Select>
+                                <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
+                                    <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
+                                    <div>
+                                        <p className="text-sm font-medium text-primary-800">
+                                            Incremental Backups Only
+                                        </p>
+                                        <p className="text-sm text-primary-600">
+                                            All backups are created using efficient incremental Git-based storage.
+                                        </p>
+                                    </div>
+                                </div>
                                 <div className={"flex flex-row gap-2 items-start"}>
                                     <Select
                                         label={"Backup Schedule"}
@@ -588,6 +583,80 @@ export function ServerBackups()
                             isLoading={restoring === restoreBackupId}
                         >
                             Restore Backup
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Download Options Modal for Git-based Incremental Backups */}
+            <Modal
+                isOpen={isDownloadOpen}
+                onClose={onDownloadClose}
+                className={"font-minecraft-body"}
+                radius={"none"}
+                backdrop={"blur"}
+                scrollBehavior="inside"
+                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
+                classNames={{
+                    closeButton: "rounded-none"
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader>Download Backup Options</ModalHeader>
+                    <ModalBody>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
+                                <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
+                                <div>
+                                    <p className="text-sm font-medium text-primary-800">
+                                        Git-based Incremental Backup
+                                    </p>
+                                    <p className="text-sm text-primary-600">
+                                        Choose how you want to download this backup.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="p-3 border border-default-300 rounded-lg">
+                                    <h4 className="font-medium text-sm mb-1">Modified Files Only (Diff)</h4>
+                                    <p className="text-xs text-default-500 mb-3">
+                                        Download only the files that were changed in this backup compared to the previous backup.
+                                        Smaller download size, but requires manual merging.
+                                    </p>
+                                    <Button
+                                        size="sm"
+                                        color="primary"
+                                        variant="flat"
+                                        onPress={() => handleDownloadOption("diff")}
+                                        startContent={<Icon icon="pixelarticons:diff"/>}
+                                    >
+                                        Download Changes Only
+                                    </Button>
+                                </div>
+
+                                <div className="p-3 border border-default-300 rounded-lg">
+                                    <h4 className="font-medium text-sm mb-1">Full Backup From This Point</h4>
+                                    <p className="text-xs text-default-500 mb-3">
+                                        Download a complete backup containing all files as they were at this backup point.
+                                        Larger download size, but ready to restore directly.
+                                    </p>
+                                    <Button
+                                        size="sm"
+                                        color="success"
+                                        variant="flat"
+                                        onPress={() => handleDownloadOption("full")}
+                                        startContent={<Icon icon="pixelarticons:archive"/>}
+                                    >
+                                        Download Full Backup
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="flat" onPress={onDownloadClose}>
+                            Cancel
                         </Button>
                     </ModalFooter>
                 </ModalContent>

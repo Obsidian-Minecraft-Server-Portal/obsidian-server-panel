@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS `servers`
     `auto_restart`      BOOLEAN NOT NULL DEFAULT 1,                       -- whether the server should restart automatically if it crashes
     `backup_enabled`    BOOLEAN NOT NULL DEFAULT 1,                       -- whether the server should create backups
     `backup_cron`       TEXT    NOT NULL DEFAULT '0 0 * * * *',           -- cron string (0 0 * * * * = every hour)
-    `backup_type`       tinyint NOT NULL DEFAULT 0,                       -- 0 => full backup, 1 => incremental backup, 2 => world backup
     `backup_retention`  INTEGER NOT NULL DEFAULT 7,                       -- number of backups to keep, e.g. 7 for weekly backups
     `description`       TEXT             DEFAULT '',                      -- a short description of the server
     `minecraft_version` TEXT             DEFAULT '',                      -- e.g. '1.20.1', '1.19.4', or `custom`
