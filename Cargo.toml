@@ -61,3 +61,11 @@ obsidian-backups = { version = "0.1.0", features = ["serde", "logging", "zip"] }
 [build-dependencies]
 include_dir = "0.7.4"
 walkdir = "2.5.0"
+
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Better optimization (slower compile)
+strip = true        # Strip symbols from binary
+panic = "abort"     # Remove panic unwinding code
