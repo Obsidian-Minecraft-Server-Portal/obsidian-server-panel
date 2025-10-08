@@ -277,7 +277,7 @@ export default function NewServerModal(props: NewServerProperties)
                                 isDisabled={isCreatingServer}
                             />
                             <RamSlider value={ram} onValueChange={setRam} isDisabled={isCreatingServer}/>
-                            <JavaExecutableSelector onVersionChange={setSelectedJavaExecutable} isDisabled={isCreatingServer}/>
+                            <JavaExecutableSelector minecraftVersion={selectedMinecraftVersion} onVersionChange={setSelectedJavaExecutable} isDisabled={isCreatingServer}/>
                             {!isValidForm && (
                                 <div className={"text-danger"}>
                                     <p>The new server form is invalid:</p>

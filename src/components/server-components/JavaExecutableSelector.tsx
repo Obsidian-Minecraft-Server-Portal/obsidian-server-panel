@@ -1,7 +1,7 @@
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
 import {Button, Progress, Select, SelectItem, SelectSection} from "@heroui/react";
 import {useCallback, useEffect, useState} from "react";
-import {JavaRuntime, JavaVersion} from "../../ts/java-versions.ts";
+import {getJavaRuntimeForMinecraftVersion, JavaRuntime, JavaVersion} from "../../ts/java-versions.ts";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useMessage} from "../../providers/MessageProvider.tsx";
@@ -9,6 +9,7 @@ import {MessageResponseType} from "../MessageModal.tsx";
 
 type JavaExecutableSelectorProps = {
     defaultSelectedExecutable?: string
+    minecraftVersion?: string
     onVersionChange: (version: string | undefined) => void;
     isDisabled: boolean
 }
@@ -63,6 +64,29 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
             }
         }
     }, [javaVersions, selectedVersion]);
+
+    // Auto-select Java version based on Minecraft version
+    useEffect(() =>
+    {
+        if (!props.minecraftVersion || javaVersions.length === 0 || Object.keys(versionMap).length === 0) return;
+
+        const requiredRuntime = getJavaRuntimeForMinecraftVersion(props.minecraftVersion, versionMap);
+        if (!requiredRuntime) return;
+
+        // Find the Java version matching the required runtime
+        const matchingVersion = javaVersions.find(v => v.runtime === requiredRuntime);
+        if (matchingVersion)
+        {
+            setSelectedVersion(matchingVersion);
+            if (!matchingVersion.installed)
+            {
+                setMessage(`Minecraft ${props.minecraftVersion} requires Java ${matchingVersion.version}. Please install it.`);
+            } else
+            {
+                setMessage("");
+            }
+        }
+    }, [props.minecraftVersion, javaVersions, versionMap]);
 
     const handleInstall = useCallback(async () =>
     {

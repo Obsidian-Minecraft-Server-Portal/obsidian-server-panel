@@ -35,3 +35,42 @@ export const installRuntime = async (runtime: JavaRuntime, onProgress: (report: 
 export type JavaVersionMap = {
     [key in JavaRuntime]: { min: string, max: string };
 }
+
+/**
+ * Compare two Minecraft versions
+ * Returns: -1 if a < b, 0 if a === b, 1 if a > b
+ */
+function compareMinecraftVersions(a: string, b: string): number {
+    const aParts = a.split('.').map(p => parseInt(p, 10) || 0);
+    const bParts = b.split('.').map(p => parseInt(p, 10) || 0);
+
+    const maxLength = Math.max(aParts.length, bParts.length);
+
+    for (let i = 0; i < maxLength; i++) {
+        const aVal = aParts[i] || 0;
+        const bVal = bParts[i] || 0;
+
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * Find the appropriate Java runtime for a given Minecraft version
+ */
+export function getJavaRuntimeForMinecraftVersion(minecraftVersion: string, versionMap: JavaVersionMap): JavaRuntime | undefined {
+    // Try each runtime to see if the Minecraft version falls within its range
+    for (const [runtime, range] of Object.entries(versionMap) as [JavaRuntime, { min: string, max: string }][]) {
+        const minCompare = compareMinecraftVersions(minecraftVersion, range.min);
+        const maxCompare = compareMinecraftVersions(minecraftVersion, range.max);
+
+        // Version is in range if: min <= minecraftVersion <= max
+        if (minCompare >= 0 && maxCompare <= 0) {
+            return runtime;
+        }
+    }
+
+    return undefined;
+}
