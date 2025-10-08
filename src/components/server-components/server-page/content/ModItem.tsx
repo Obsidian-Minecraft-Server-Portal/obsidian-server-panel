@@ -47,6 +47,7 @@ export function ModItem(props: ModItemProps)
     // Build the discover URL with back parameter
     const discoverUrl = `/app/discover/mods/${platform}/${modId}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`;
 
+    // @ts-ignore
     const installLatestVersion = useCallback(async () =>
     {
 

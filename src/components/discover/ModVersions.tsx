@@ -23,8 +23,8 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
     const [loaderFilter, setLoaderFilter] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
     const [hasMoreVersions, setHasMoreVersions] = useState(false);
-    const [isInstallingVersion, setIsInstallingVersion] = useState(false);
-    const [installedVersion, setInstalledVersion] = useState<ModVersion|undefined>(undefined);
+    const [_isInstallingVersion, setIsInstallingVersion] = useState(false);
+    const [_installedVersion, setInstalledVersion] = useState<ModVersion|undefined>(undefined);
 
     const versionsPerPage = 50;
 
