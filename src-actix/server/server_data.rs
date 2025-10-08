@@ -1,4 +1,3 @@
-use crate::server::backups::backup_scheduler;
 use crate::server::installed_mods::mod_data::ModData;
 use crate::server::server_properties::ServerProperties;
 use crate::server::server_status::ServerStatus;
@@ -9,7 +8,7 @@ use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use serde_hash::HashIds;
 use sqlx::{FromRow, Row, SqlitePool};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 const SERVER_DIRECTORY: &str = "./servers";
 #[derive(HashIds, Debug, Clone, FromRow)]
@@ -344,13 +343,6 @@ impl ServerData {
                     log::error!("Failed to auto-start server {}: {}", server.name, e);
                 }
             }
-        }
-
-        // Initialize backup scheduler
-        if let Err(e) = backup_scheduler::initialize_backup_scheduler().await {
-            log::error!("Failed to initialize backup scheduler: {}", e);
-        } else {
-            log::info!("Backup scheduler initialized successfully");
         }
 
         Ok(())
