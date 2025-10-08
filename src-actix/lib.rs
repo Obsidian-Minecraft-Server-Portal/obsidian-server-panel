@@ -62,8 +62,14 @@ pub async fn run() -> Result<()> {
             let pool = open_pool().await?;
             app_db::initialize_databases(&pool).await?;
             ServerData::initialize_servers(&pool).await?;
+
+            // Only refresh Java version map if expired (older than 1 day)
+            let is_expired = java::is_version_map_expired(&pool).await?;
             pool.close().await;
-            java::refresh_java_minecraft_version_map().await?;
+
+            if is_expired {
+                java::refresh_java_minecraft_version_map().await?;
+            }
             Ok(())
         }
         .await;
