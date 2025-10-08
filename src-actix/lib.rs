@@ -9,6 +9,7 @@ use log::*;
 use obsidian_upnp::{close_all_ports, open_port};
 use serde_json::json;
 use std::env::set_current_dir;
+use obsidian_scheduler::timer_trait::Timer;
 use vite_actix::proxy_vite_options::ProxyViteOptions;
 use vite_actix::start_vite_server;
 
@@ -71,6 +72,10 @@ pub async fn run() -> Result<()> {
             error!("Database initialization failed: {}", e);
         }
     });
+
+    // Start the scheduler to refresh Java Minecraft version map daily
+    let scheduler = java::start_scheduler();
+    scheduler.start().await?;
 
     let server = HttpServer::new(move || {
         App::new()

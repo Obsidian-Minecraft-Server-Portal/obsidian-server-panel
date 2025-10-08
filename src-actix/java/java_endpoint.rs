@@ -56,10 +56,10 @@ pub async fn install_java_version(runtime: web::Path<String>) -> Result<impl Res
 
 #[get("/version-map")]
 pub async fn version_map() -> Result<impl Responder> {
-    match crate::java::java_minecraft_version_map::get_java_minecraft_version_map() {
-        Some(map) => Ok(HttpResponse::Ok().json(map)),
-        None => Ok(HttpResponse::InternalServerError().json(json!({
-            "error": "Failed to get Java Minecraft version map".to_string(),
+    match crate::java::java_minecraft_version_map::get_java_minecraft_version_map().await {
+        Ok(map) => Ok(HttpResponse::Ok().json(map)),
+        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
+            "error": format!("Failed to get Java Minecraft version map: {}", e),
         }))),
     }
 }
