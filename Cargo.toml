@@ -53,9 +53,7 @@ base64 = "0.22.1"
 notify = { version = "8.1.0", features = ["default", "serde"] }
 clap = { version = "4.5.42", features = ["error-context", "derive", "help", "suggestions", "color", "usage", "wrap_help", "unicode", "string"] }
 rand = "0.9.1"
-once_cell = "1.19.0"
-cron = "0.12.1"
-obsidian-scheduler = { version = "0.1.0", features = ["event-timers", "log", "tokio", "callback-timers"] }
+obsidian-scheduler = { version = "0.1.0", features = [ "event-timers", "log", "callback-timers" ] }
 obsidian-backups = { version = "0.1.0", features = ["serde", "logging", "zip"] }
 
 [build-dependencies]
