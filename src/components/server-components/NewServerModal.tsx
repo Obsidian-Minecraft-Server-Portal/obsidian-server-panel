@@ -35,6 +35,7 @@ export default function NewServerModal(props: NewServerProperties)
     const [isCreatingServer, setIsCreatingServer] = useState(false);
     const [isValidForm, setIsValidForm] = useState(false);
     const [creationProgress, setCreationProgress] = useState(0);
+    const [creationStatusText, setCreationStatusText] = useState("Create");
     const [invalidReasons, setInvalidReasons] = useState<string[]>([]);
 
 
@@ -47,6 +48,7 @@ export default function NewServerModal(props: NewServerProperties)
         }
         setIsCreatingServer(true);
         setCreationProgress(0.1); // Started creating server
+        setCreationStatusText("Creating server...");
 
         let filepath = `server-${selectedMinecraftVersion}.jar`;
         if (selectedLoader === "fabric" || selectedLoader === "quilt" || selectedLoader === "neoforge")
@@ -82,6 +84,7 @@ export default function NewServerModal(props: NewServerProperties)
                     color: "danger"
                 });
                 setIsCreatingServer(false);
+                setCreationStatusText("Create");
                 return;
             }
 
@@ -96,11 +99,15 @@ export default function NewServerModal(props: NewServerProperties)
                         color: "danger"
                     });
                     setIsCreatingServer(false);
+                    setCreationStatusText("Create");
                     return;
                 }
                 const onProgress = (progress: number, downloaded: number, total: number) =>
                 {
                     setCreationProgress(0.3 + (progress / 100 * 0.5)); // Progress from 30% to 80%
+                    const loaderName = selectedLoader === "neoforge" ? "NeoForge" :
+                        selectedLoader.charAt(0).toUpperCase() + selectedLoader.slice(1);
+                    setCreationStatusText(`Downloading ${loaderName} Server: ${(progress * 100).toFixed(1)}%`);
                     console.log(`Downloading ${selectedLoader} server: ${progress}% (${downloaded}/${total} bytes)`);
                 };
                 const onSuccess = () =>
@@ -124,6 +131,7 @@ export default function NewServerModal(props: NewServerProperties)
                         color: "danger"
                     });
                     setIsCreatingServer(false);
+                    setCreationStatusText("Create");
                     return;
                 }
             } else
@@ -141,6 +149,7 @@ export default function NewServerModal(props: NewServerProperties)
                 {
                     const percentage = bytes / customJarFile.size;
                     setCreationProgress(0.3 + (percentage * 0.5)); // Progress from 30% to 80%
+                    setCreationStatusText(`Uploading Custom Jar: ${(percentage * 100).toFixed(1)}%`);
                     console.log(`Uploading custom server jar: ${bytes} bytes uploaded of ${customJarFile.size} bytes ${Math.round(percentage * 100)}%`);
                 };
                 const onCancel = () =>
@@ -159,12 +168,14 @@ export default function NewServerModal(props: NewServerProperties)
                         color: "danger"
                     });
                     setIsCreatingServer(false);
+                    setCreationStatusText("Create");
                     return;
                 }
             }
 
             try
             {
+                setCreationStatusText("Configuring server...");
                 await updateServer({max_memory: ram, server_jar: filepath}, serverId);
                 setCreationProgress(1); // Server settings updated
             } catch (error)
@@ -176,10 +187,12 @@ export default function NewServerModal(props: NewServerProperties)
                     color: "danger"
                 });
                 setIsCreatingServer(false);
+                setCreationStatusText("Create");
                 return;
             }
 
             setIsCreatingServer(false);
+            setCreationStatusText("Create");
             props.onClose();
         } catch (error)
         {
@@ -190,6 +203,8 @@ export default function NewServerModal(props: NewServerProperties)
                 description: "Failed to create server. Please try again.",
                 color: "danger"
             });
+            setIsCreatingServer(false);
+            setCreationStatusText("Create");
         }
     }, [loaderUrl, selectedLoader, selectedMinecraftVersion, ram, selectedJavaExecutable, isValidForm, name]);
 
@@ -303,7 +318,7 @@ export default function NewServerModal(props: NewServerProperties)
                                         }}
                                     />
                                 }
-                                Create
+                                {creationStatusText}
                             </Button>
                             <Button onPress={onClose} radius={"none"} variant={"light"} color={"danger"} isLoading={isCreatingServer}>Cancel</Button>
                         </ModalFooter>
