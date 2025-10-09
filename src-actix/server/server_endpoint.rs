@@ -350,8 +350,8 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
         })));
     }
 
-    if let Some(extension) = log_file_path.extension() {
-        if extension == "gz" {
+    if let Some(extension) = log_file_path.extension()
+        && extension == "gz" {
             return match (|| -> anyhow::Result<String> {
                 let file = std::fs::File::open(&log_file_path).map_err(|e| anyhow!("Failed to open compressed file: {}", e))?;
 
@@ -367,7 +367,6 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
                 }))),
             };
         }
-    }
 
     match std::fs::read_to_string(log_file_path) {
         Ok(contents) => Ok(HttpResponse::Ok().content_type("text/plain").body(contents)),

@@ -99,9 +99,9 @@ pub enum OS {
     #[serde(rename = "linux-i386")]
     LinuxI386,
     #[serde(rename = "mac-os")]
-    MacOS,
+    Mac,
     #[serde(rename = "mac-os-arm64")]
-    MacOSArm64,
+    MacArm64,
     #[serde(rename = "windows-arm64")]
     WindowsArm64,
     #[serde(rename = "windows-x64")]

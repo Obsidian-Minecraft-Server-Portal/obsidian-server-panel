@@ -29,9 +29,9 @@ impl ModData {
 
         for entry in std::fs::read_dir(mod_dir)? {
             let entry = entry?;
-            if entry.path().is_file() {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "jar" {
+            if entry.path().is_file()
+                && let Some(ext) = entry.path().extension()
+                    && ext == "jar" {
                         let result = Self::from_path(entry.path()).await;
                         if let Ok(mod_data) = result {
                             if let Some(mod_data) = mod_data {
@@ -42,8 +42,6 @@ impl ModData {
                             continue;
                         }
                     }
-                }
-            }
         }
 
         Ok(mods)
@@ -265,32 +263,27 @@ impl ModData {
         for hit in hits {
             if let Some(project_name) = hit.get("title").and_then(|v| v.as_str()) {
                 // Try exact match first
-                if project_name.to_lowercase() == name.to_lowercase() {
-                    if let Some(project_id) = hit.get("project_id").and_then(|v| v.as_str()) {
+                if project_name.to_lowercase() == name.to_lowercase()
+                    && let Some(project_id) = hit.get("project_id").and_then(|v| v.as_str()) {
                         return Ok(Some(project_id.to_string()));
                     }
-                }
 
                 // Calculate fuzzy match score
                 let score = Self::calculate_fuzzy_score(&name, project_name);
-                if score >= MIN_THRESHOLD {
-                    if let Some(project_id) = hit.get("project_id").and_then(|v| v.as_str()) {
-                        if best_match.is_none() || score > best_match.as_ref().unwrap().1 {
+                if score >= MIN_THRESHOLD
+                    && let Some(project_id) = hit.get("project_id").and_then(|v| v.as_str())
+                        && (best_match.is_none() || score > best_match.as_ref().unwrap().1) {
                             best_match = Some((project_id.to_string(), score));
                         }
-                    }
-                }
 
                 // Also check slug for additional matching
                 if let Some(slug) = hit.get("slug").and_then(|v| v.as_str()) {
                     let slug_score = Self::calculate_fuzzy_score(&name, slug);
-                    if slug_score >= MIN_THRESHOLD {
-                        if let Some(project_id) = hit.get("project_id").and_then(|v| v.as_str()) {
-                            if best_match.is_none() || slug_score > best_match.as_ref().unwrap().1 {
+                    if slug_score >= MIN_THRESHOLD
+                        && let Some(project_id) = hit.get("project_id").and_then(|v| v.as_str())
+                            && (best_match.is_none() || slug_score > best_match.as_ref().unwrap().1) {
                                 best_match = Some((project_id.to_string(), slug_score));
                             }
-                        }
-                    }
                 }
             }
         }
@@ -321,32 +314,27 @@ impl ModData {
         for item in data {
             if let Some(project_name) = item.get("name").and_then(|v| v.as_str()) {
                 // Try exact match first
-                if project_name.to_lowercase() == name.to_lowercase() {
-                    if let Some(project_id) = item.get("id").and_then(|v| v.as_u64()) {
+                if project_name.to_lowercase() == name.to_lowercase()
+                    && let Some(project_id) = item.get("id").and_then(|v| v.as_u64()) {
                         return Ok(Some(project_id.to_string()));
                     }
-                }
 
                 // Calculate fuzzy match score
                 let score = Self::calculate_fuzzy_score(&name, project_name);
-                if score >= MIN_THRESHOLD {
-                    if let Some(project_id) = item.get("id").and_then(|v| v.as_u64()) {
-                        if best_match.is_none() || score > best_match.as_ref().unwrap().1 {
+                if score >= MIN_THRESHOLD
+                    && let Some(project_id) = item.get("id").and_then(|v| v.as_u64())
+                        && (best_match.is_none() || score > best_match.as_ref().unwrap().1) {
                             best_match = Some((project_id.to_string(), score));
                         }
-                    }
-                }
 
                 // Also check slug for additional matching
                 if let Some(slug) = item.get("slug").and_then(|v| v.as_str()) {
                     let slug_score = Self::calculate_fuzzy_score(&name, slug);
-                    if slug_score >= MIN_THRESHOLD {
-                        if let Some(project_id) = item.get("id").and_then(|v| v.as_u64()) {
-                            if best_match.is_none() || slug_score > best_match.as_ref().unwrap().1 {
+                    if slug_score >= MIN_THRESHOLD
+                        && let Some(project_id) = item.get("id").and_then(|v| v.as_u64())
+                            && (best_match.is_none() || slug_score > best_match.as_ref().unwrap().1) {
                                 best_match = Some((project_id.to_string(), slug_score));
                             }
-                        }
-                    }
                 }
             }
         }

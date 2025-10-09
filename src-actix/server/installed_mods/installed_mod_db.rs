@@ -162,10 +162,4 @@ impl ServerData {
 
         Ok(())
     }
-
-    pub async fn clear_saved_installed_mods(&self, pool: &SqlitePool) -> Result<()> {
-        sqlx::query(r#"delete from installed_mods where server_id = ?"#).bind(self.id as i64).execute(pool).await?;
-
-        Ok(())
-    }
 }

@@ -38,8 +38,8 @@ impl JavaVersion {
         let current_os_versions = match current_os {
             OS::Linux => data.linux,
             OS::LinuxI386 => data.linux_i386,
-            OS::MacOS => data.macos,
-            OS::MacOSArm64 => data.macos_arm64,
+            OS::Mac => data.macos,
+            OS::MacArm64 => data.macos_arm64,
             OS::WindowsArm64 => data.windows_arm64,
             OS::WindowsX64 => data.windows_x64,
             OS::WindowsX86 => data.windows_x86,
@@ -157,7 +157,7 @@ impl JavaVersion {
                             progress[index] = item;
 
                             let sender = sender.lock().unwrap();
-                            let data = actix_web_lab::sse::Data::new_json(&progress.clone()).unwrap().event("progress");
+                            let data = actix_web_lab::sse::Data::new_json(progress.clone()).unwrap().event("progress");
                             sender.try_send(data.into()).unwrap()
                         })
                         .await
@@ -202,11 +202,10 @@ impl JavaVersion {
             tokio::fs::create_dir_all(&path).await?;
         } else {
             debug!("Downloading file {}", key);
-            if let Some(parent) = path.parent() {
-                if !parent.exists() {
+            if let Some(parent) = path.parent()
+                && !parent.exists() {
                     tokio::fs::create_dir_all(parent).await?;
                 }
-            }
             let mut file = File::create(&path)?;
             let content = response.bytes().await?;
             file.write_all(&content)?;
@@ -240,9 +239,9 @@ fn get_current_os() -> Option<OS> {
     }
     if cfg!(target_os = "macos") {
         if cfg!(target_arch = "arm") {
-            return Some(OS::MacOSArm64);
+            return Some(OS::MacArm64);
         }
-        return Some(OS::MacOS);
+        return Some(OS::Mac);
     }
     if cfg!(target_os = "windows") {
         if cfg!(target_arch = "x86") {
@@ -264,7 +263,7 @@ where
         let executable = executable.to_string_lossy();
         // replace the \\?\ from the beginning of the Windows path
         let executable = executable.trim_start_matches(r#"\\?\"#);
-        serializer.serialize_str(&executable)
+        serializer.serialize_str(executable)
     } else {
         serializer.serialize_none()
     }

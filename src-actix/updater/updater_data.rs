@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use serde::Deserialize;
 use tokio::fs;
 use tokio::process::Command;
 
@@ -18,8 +17,6 @@ const CURRENT_VERSION: [&str; 3] = [
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
     tag_name: String,
-    name: String,
-    body: Option<String>,
     assets: Vec<GitHubAsset>,
     prerelease: bool,
 }
@@ -28,7 +25,6 @@ struct GitHubRelease {
 struct GitHubAsset {
     name: String,
     browser_download_url: String,
-    size: u64,
 }
 
 #[derive(Debug, Clone)]

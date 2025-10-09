@@ -82,11 +82,10 @@ impl TryFrom<PathBuf> for FilesystemData {
         for entry in readdir {
             let entry = entry?;
             let path = entry.path();
-            if !is_special_file(&path) {
-                if let Ok(entry) = path.try_into() {
+            if !is_special_file(&path)
+                && let Ok(entry) = path.try_into() {
                     entries.push(entry);
                 }
-            }
         }
 
         // Format parent path according to platform
@@ -132,14 +131,13 @@ pub fn is_special_file(path: &Path) -> bool {
     #[cfg(windows)]
     {
         // Check for Windows special files/directories
-        if let Some(file_name) = path.file_name() {
-            if let Some(name) = file_name.to_str() {
+        if let Some(file_name) = path.file_name()
+            && let Some(name) = file_name.to_str() {
                 return name.eq_ignore_ascii_case("desktop.ini")
                     || name.eq_ignore_ascii_case("thumbs.db")
                     || name.starts_with("$")
                     || name.starts_with("~$");
             }
-        }
     }
     false
 }

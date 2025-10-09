@@ -161,7 +161,7 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn get(id: u64, user_id: u64) -> Result<Option<Self>> {
+    pub async fn get(id: u64, _user_id: u64) -> Result<Option<Self>> {
         let pool = app_db::open_pool().await?;
         // All users can view all servers under the new permission system
         let server = Self::get_with_pool(id, &pool).await?;
@@ -169,7 +169,7 @@ impl ServerData {
         Ok(server)
     }
 
-    pub async fn list(user_id: u64) -> Result<Vec<Self>> {
+    pub async fn list(_user_id: u64) -> Result<Vec<Self>> {
         let pool = app_db::open_pool().await?;
         // All users can see all servers under the new permission system
         let servers = Self::list_all_with_pool(&pool).await?;
@@ -338,11 +338,10 @@ impl ServerData {
             if let Err(e) = server.refresh_installed_mods(pool).await {
                 log::error!("Failed to refresh installed mods for server {}: {}", server.name, e);
             }
-            if server.auto_start {
-                if let Err(e) = server.start_server().await {
+            if server.auto_start
+                && let Err(e) = server.start_server().await {
                     log::error!("Failed to auto-start server {}: {}", server.name, e);
                 }
-            }
         }
 
         Ok(())

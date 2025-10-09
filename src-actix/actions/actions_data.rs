@@ -3,10 +3,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock, OnceLock, atomic::{AtomicU64, Ordering}};
 use chrono::{DateTime, Utc};
 
-static ACTION_STORE: OnceLock<Arc<RwLock<HashMap<i64, Vec<TrackedAction>>>>> = OnceLock::new();
+type ActionStore = Arc<RwLock<HashMap<i64, Vec<TrackedAction>>>>;
+
+static ACTION_STORE: OnceLock<ActionStore> = OnceLock::new();
 static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
-pub fn get_action_store() -> &'static Arc<RwLock<HashMap<i64, Vec<TrackedAction>>>> {
+pub fn get_action_store() -> &'static ActionStore {
     ACTION_STORE.get_or_init(|| Arc::new(RwLock::new(HashMap::new())))
 }
 
@@ -67,19 +69,6 @@ impl ActionType {
             ActionType::ModDownload => "mod_download",
         }
     }
-
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "archive" => Some(ActionType::Archive),
-            "extract" => Some(ActionType::Extract),
-            "move" => Some(ActionType::Move),
-            "copy" => Some(ActionType::Copy),
-            "upload" => Some(ActionType::Upload),
-            "backup_create" => Some(ActionType::BackupCreate),
-            "mod_download" => Some(ActionType::ModDownload),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -95,15 +84,6 @@ impl ActionStatus {
             ActionStatus::InProgress => "in_progress",
             ActionStatus::Completed => "completed",
             ActionStatus::Failed => "failed",
-        }
-    }
-
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "in_progress" => Some(ActionStatus::InProgress),
-            "completed" => Some(ActionStatus::Completed),
-            "failed" => Some(ActionStatus::Failed),
-            _ => None,
         }
     }
 }
@@ -230,11 +210,10 @@ impl TrackedAction {
         
         match store.write() {
             Ok(mut store_guard) => {
-                if let Some(user_actions) = store_guard.get_mut(&self.user_id) {
-                    if let Some(existing_action) = user_actions.iter_mut().find(|a| a.tracker_id == self.tracker_id) {
+                if let Some(user_actions) = store_guard.get_mut(&self.user_id)
+                    && let Some(existing_action) = user_actions.iter_mut().find(|a| a.tracker_id == self.tracker_id) {
                         *existing_action = self.clone();
                     }
-                }
                 Ok(())
             }
             Err(_) => Err("Failed to acquire write lock".to_string()),
@@ -303,63 +282,10 @@ mod tests {
     }
 
     #[test]
-    fn test_action_type_from_str() {
-        assert_eq!(ActionType::from_str("archive"), Some(ActionType::Archive));
-        assert_eq!(ActionType::from_str("extract"), Some(ActionType::Extract));
-        assert_eq!(ActionType::from_str("move"), Some(ActionType::Move));
-        assert_eq!(ActionType::from_str("copy"), Some(ActionType::Copy));
-        assert_eq!(ActionType::from_str("upload"), Some(ActionType::Upload));
-        assert_eq!(ActionType::from_str("backup_create"), Some(ActionType::BackupCreate));
-        assert_eq!(ActionType::from_str("mod_download"), Some(ActionType::ModDownload));
-        assert_eq!(ActionType::from_str("invalid"), None);
-    }
-
-    #[test]
     fn test_action_status_as_str() {
         assert_eq!(ActionStatus::InProgress.as_str(), "in_progress");
         assert_eq!(ActionStatus::Completed.as_str(), "completed");
         assert_eq!(ActionStatus::Failed.as_str(), "failed");
     }
 
-    #[test]
-    fn test_action_status_from_str() {
-        assert_eq!(ActionStatus::from_str("in_progress"), Some(ActionStatus::InProgress));
-        assert_eq!(ActionStatus::from_str("completed"), Some(ActionStatus::Completed));
-        assert_eq!(ActionStatus::from_str("failed"), Some(ActionStatus::Failed));
-        assert_eq!(ActionStatus::from_str("invalid"), None);
-    }
-
-    #[test]
-    fn test_action_type_round_trip() {
-        let types = vec![
-            ActionType::Archive,
-            ActionType::Extract,
-            ActionType::Move,
-            ActionType::Copy,
-            ActionType::Upload,
-            ActionType::BackupCreate,
-            ActionType::ModDownload,
-        ];
-
-        for action_type in types {
-            let str_repr = action_type.as_str();
-            let parsed = ActionType::from_str(str_repr).unwrap();
-            assert_eq!(action_type.as_str(), parsed.as_str());
-        }
-    }
-
-    #[test]
-    fn test_action_status_round_trip() {
-        let statuses = vec![
-            ActionStatus::InProgress,
-            ActionStatus::Completed,
-            ActionStatus::Failed,
-        ];
-
-        for status in statuses {
-            let str_repr = status.as_str();
-            let parsed = ActionStatus::from_str(str_repr).unwrap();
-            assert_eq!(status.as_str(), parsed.as_str());
-        }
-    }
 }

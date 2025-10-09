@@ -4,7 +4,6 @@ use crate::server::server_data::ServerData;
 use anyhow::Result;
 use log::*;
 use notify::{RecursiveMode, Watcher};
-use std::fs::exists;
 use std::sync::mpsc;
 
 impl ServerData {

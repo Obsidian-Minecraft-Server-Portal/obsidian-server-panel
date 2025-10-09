@@ -2,20 +2,17 @@ use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::Result;
 use log::{debug, error};
-use obsidian_upnp::open_port;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_interactive::AsynchronousInteractiveProcess;
 
 impl ServerData {
     pub(crate) fn is_forge_installer(&self) -> bool {
-        if let Some(server_type) = &self.server_type {
-            if *server_type == crate::server::server_type::ServerType::Forge {
+        if let Some(server_type) = &self.server_type
+            && *server_type == crate::server::server_type::ServerType::Forge {
                 return self.server_jar.contains("installer") || self.server_jar.contains("forge") && !self.server_jar.contains("server");
             }
-        }
         false
     }
     pub(crate) async fn install_forge_server(&mut self) -> Result<()> {

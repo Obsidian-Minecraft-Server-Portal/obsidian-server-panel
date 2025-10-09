@@ -18,7 +18,6 @@ mod actix_util;
 mod app_db;
 mod authentication;
 mod command_line_args;
-mod ddos_middleware;
 mod forge_endpoint;
 mod host_info;
 mod java;

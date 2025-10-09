@@ -16,14 +16,6 @@ impl ServerData {
     pub async fn list_all_with_pool(pool: &SqlitePool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as(r#"select * from servers"#).fetch_all(pool).await?)
     }
-    pub async fn list_with_pool(server_ids: Vec<u64>, pool: &SqlitePool) -> Result<Vec<Self>> {
-        if server_ids.is_empty() {
-            return Ok(vec![]);
-        }
-        let ids = server_ids.into_iter().map(|i| format!("{}", i)).collect::<Vec<String>>().join(",");
-        let results = sqlx::query_as(format!(r#"select * from servers where id IN ({})"#, ids).as_str()).fetch_all(pool).await?;
-        Ok(results)
-    }
     pub async fn get_with_pool(id: u64, pool: &SqlitePool) -> Result<Option<Self>> {
         Ok(sqlx::query_as(r#"select * from servers WHERE id = ?"#).bind(id as i64).fetch_optional(pool).await?)
     }

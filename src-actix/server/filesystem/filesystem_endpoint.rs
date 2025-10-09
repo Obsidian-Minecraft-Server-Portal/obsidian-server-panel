@@ -3,7 +3,7 @@ use crate::authentication::auth_data::UserRequestExt;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
 use crate::actions::actions_data::{ActionData, ActionType, ActionStatus};
-use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use serde_hash::hashids::decode_single;
 use serde_json::json;
 use std::collections::HashMap;
@@ -544,8 +544,8 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
                 } else {
                     // Process a single file
                     debug!("Adding file to zip archive: {} -> {}", item.display(), filename);
-                    if let Ok(mut file) = File::open(&item).await {
-                        if let Err(e) = archive.append(filename.as_str(), &options, &mut file).await {
+                    if let Ok(mut file) = File::open(&item).await
+                        && let Err(e) = archive.append(filename.as_str(), &options, &mut file).await {
                             if matches!(&e, ArchiveError::IoError(err) if err.kind() == ErrorKind::BrokenPipe) {
                                 warn!("Zip archive stream closed, this is most-likely due to the client closing the connection.");
                                 break;
@@ -553,7 +553,6 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
                             error!("Failed to add file to zip archive: {}", e);
                             continue;
                         }
-                    }
                 }
             }
         }
@@ -779,8 +778,8 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
         let archive_result = crate::server::filesystem::archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag, &body.tracker_id).await;
 
         // Update action status based on result
-        if let Ok(action) = ActionData::get_by_tracker_id(&body.tracker_id).await {
-            if let Some(action) = action {
+        if let Ok(action) = ActionData::get_by_tracker_id(&body.tracker_id).await
+            && let Some(action) = action {
                 match archive_result {
                     Ok(_) => {
                         let _ = action.update_status(ActionStatus::Completed, Some("Archive created successfully".to_string())).await;
@@ -790,7 +789,6 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
                     }
                 }
             }
-        }
 
         // Clean up the cancellation flag
         {
@@ -942,8 +940,8 @@ pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<Has
                     let result = crate::server::filesystem::extract_wrapper::extract(archive_path, output_path, &tracker, &cancel_flag, &tracker_id).await;
 
                     // Update action status based on result
-                    if let Ok(action) = ActionData::get_by_tracker_id(&tracker_id).await {
-                        if let Some(action) = action {
+                    if let Ok(action) = ActionData::get_by_tracker_id(&tracker_id).await
+                        && let Some(action) = action {
                             match result {
                                 Ok(_) => {
                                     let _ = action.update_status(ActionStatus::Completed, Some("Archive extracted successfully".to_string())).await;
@@ -953,14 +951,13 @@ pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<Has
                                 }
                             }
                         }
-                    }
 
                     if let Err(e) = result {
                         error!("Failed to extract archive: {}", e);
                         let _ = tracker
                             .send(Event::from(sse::Data::new(format!(
                                 "{{ \"progress\": 0, \"status\": \"error\", \"error\": \"{}\" }}",
-                                e.to_string()
+                                e
                             ))))
                             .await;
                     }
