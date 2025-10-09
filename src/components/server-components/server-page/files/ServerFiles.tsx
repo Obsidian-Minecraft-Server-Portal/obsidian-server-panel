@@ -54,18 +54,32 @@ export function ServerFiles()
     const [isEditingFile, setIsEditingFile] = useState(localStorage.getItem("is-editing-file") === "true");
     const [selectedFileContents, setSelectedFileContents] = useState("");
     const [isDragging, setIsDragging] = useState(false);
-    const [editorWidth, setEditorWidth] = useState(() =>
+    const [browserWidth, setBrowserWidth] = useState(() =>
     {
         // Load saved width from localStorage or use default
-        const savedWidth = localStorage.getItem("editor-width");
-        return savedWidth ? parseInt(savedWidth, 10) : 400;
+        const savedWidth = localStorage.getItem("browser-width");
+        return savedWidth ? parseInt(savedWidth, 10) : 500;
     });
     const [needsToSave, setNeedsToSave] = useState(false);
+    const [isExternallyModified, setIsExternallyModified] = useState(false);
     const newContentRef = useRef<string>("");
+    const originalContentHashRef = useRef<string>("");
     const serverFileEditorRef = useRef<ServerFileEditorRef>(null);
     const folderInputRef = useRef<HTMLInputElement>(null); // + add a hidden <input> for folder selection
 
     const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Simple hash function to detect content changes
+    const hashString = useCallback((str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return hash.toString();
+    }, []);
 
     const refresh = useCallback(async () =>
     {
@@ -151,8 +165,142 @@ export function ServerFiles()
 
     const handleWidthChange = useCallback((width: number) =>
     {
-        setEditorWidth(width);
+        setBrowserWidth(width);
+        console.log("Browser width changed:", width);
     }, []);
+
+    const checkUnsavedChanges = useCallback(async () =>
+    {
+        if (needsToSave)
+        {
+            const response = await open({
+                title: "Unsaved Changes",
+                body: "You have unsaved changes. Do you want to discard them?",
+                responseType: MessageResponseType.OkayCancel,
+                severity: "warning"
+            });
+
+            if (response)
+            {
+                // User confirmed, discard changes
+                setNeedsToSave(false);
+                newContentRef.current = "";
+                return true;
+            }
+
+            // User cancelled
+            return false;
+        }
+
+        // No unsaved changes
+        return true;
+    }, [needsToSave, open, newContentRef]);
+
+    const checkForExternalModifications = useCallback(async () => {
+        if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile && !needsToSave) {
+            try {
+                const currentContent = await getFileContents(selectedEntries[0].path);
+                const currentHash = hashString(currentContent);
+
+                if (originalContentHashRef.current && currentHash !== originalContentHashRef.current) {
+                    setIsExternallyModified(true);
+                }
+            } catch (error) {
+                console.error("Failed to check for external modifications:", error);
+            }
+        }
+    }, [selectedEntries, isEditingFile, needsToSave, getFileContents, hashString]);
+
+    const handleRefreshFileContents = useCallback(async () =>
+    {
+        if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path))
+        {
+            // Check for unsaved changes before refreshing
+            if (needsToSave)
+            {
+                const canProceed = await checkUnsavedChanges();
+                if (!canProceed)
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                const contents = await getFileContents(selectedEntries[0].path);
+                setSelectedFileContents(contents);
+                setNeedsToSave(false);
+                setIsExternallyModified(false);
+                newContentRef.current = "";
+                originalContentHashRef.current = hashString(contents);
+            } catch (error)
+            {
+                console.error("Failed to refresh file contents:", error);
+                await open({
+                    title: "Refresh Failed",
+                    body: "An error occurred while refreshing the file contents. Please try again.",
+                    responseType: MessageResponseType.Close,
+                    severity: "danger"
+                });
+            }
+        }
+    }, [selectedEntries, needsToSave, getFileContents, checkUnsavedChanges, open, hashString]);
+
+    const handleSelectionChange = useCallback(async (keys: any) =>
+    {
+        const selected = [...keys].map(key => data?.entries.find(entry => entry.filename === key)).filter(Boolean) as FilesystemEntry[];
+
+        // Check if we're navigating away from a file with unsaved changes
+        if (needsToSave && selectedEntries.length > 0 && selected.length > 0)
+        {
+            // Check if the selection actually changed
+            const selectionChanged = selectedEntries.length !== selected.length ||
+                selectedEntries[0]?.path !== selected[0]?.path;
+
+            if (selectionChanged)
+            {
+                const canProceed = await checkUnsavedChanges();
+                if (!canProceed)
+                {
+                    // User cancelled, keep current selection
+                    return;
+                }
+            }
+        }
+
+        setContextMenuOptions(prev => ({...prev, isOpen: false}));
+        setSelectedEntries(selected);
+    }, [needsToSave, selectedEntries, data, checkUnsavedChanges]);
+
+    const handleToggleEditor = useCallback(async () =>
+    {
+        // If closing the editor with unsaved changes, confirm first
+        if (isEditingFile && needsToSave)
+        {
+            const canProceed = await checkUnsavedChanges();
+            if (!canProceed)
+            {
+                return;
+            }
+        }
+
+        setIsEditingFile(prev => !prev);
+    }, [isEditingFile, needsToSave, checkUnsavedChanges]);
+
+    const handleNavigate = useCallback(async (newPath: string) =>
+    {
+        // Check for unsaved changes before navigating to a different directory
+        if (needsToSave)
+        {
+            const canProceed = await checkUnsavedChanges();
+            if (!canProceed)
+            {
+                return;
+            }
+        }
+
+        setPath(newPath);
+    }, [needsToSave, checkUnsavedChanges]);
 
     // NEW: upload of files with their relative folder path
     const uploadWithRelPaths = useCallback(async (items: FileWithRelPath[]) =>
@@ -655,37 +803,57 @@ export function ServerFiles()
     {
         if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile)
         {
-            setSelectedFileContents("");
-            setNeedsToSave(false);
-
-            // Load file contents for a single text file selection
-            getFileContents(selectedEntries[0].path).then(async contents =>
+            // Only load file contents when first opening a file (when selectedFileContents is empty)
+            // This prevents automatic refreshing while editing
+            if (selectedFileContents === "" && !needsToSave)
             {
-                setSelectedFileContents(contents);
-                setIsEditingFile(true);
-            }).catch(async error =>
-            {
-                console.error("Failed to load file contents:", error);
-                await open({
-                    title: "Load File Failed",
-                    body: "An error occurred while loading the file contents. Please try again.",
-                    responseType: MessageResponseType.Close,
-                    severity: "danger"
+                // Load file contents for a single text file selection
+                getFileContents(selectedEntries[0].path).then(async contents =>
+                {
+                    setSelectedFileContents(contents);
+                    setIsEditingFile(true);
+                    setIsExternallyModified(false);
+                    originalContentHashRef.current = hashString(contents);
+                }).catch(async error =>
+                {
+                    console.error("Failed to load file contents:", error);
+                    await open({
+                        title: "Load File Failed",
+                        body: "An error occurred while loading the file contents. Please try again.",
+                        responseType: MessageResponseType.Close,
+                        severity: "danger"
+                    });
                 });
-            });
+            }
         } else
         {
             // Reset file contents when selection changes or multiple files are selected
             setSelectedFileContents("");
+            originalContentHashRef.current = "";
+            setIsExternallyModified(false);
         }
-    }, [selectedEntries, isEditingFile, getFileContents, open]);
+    }, [selectedEntries, isEditingFile, getFileContents, open, hashString]);
+
+    // Periodically check for external modifications
+    useEffect(() => {
+        if (!isEditingFile || selectedEntries.length !== 1) return;
+
+        const interval = setInterval(() => {
+            checkForExternalModifications();
+        }, 3000); // Check every 3 seconds
+
+        return () => clearInterval(interval);
+    }, [isEditingFile, selectedEntries, checkForExternalModifications]);
 
     return (
-        <div className={
-            cn(
-                "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10"
-            )
-        }>
+        <div
+            ref={containerRef}
+            className={
+                cn(
+                    "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10"
+                )
+            }
+        >
             {/* Hidden folder input for "Choose Folder" */}
             <input
                 ref={folderInputRef}
@@ -707,9 +875,13 @@ export function ServerFiles()
                 id={"server-file-browser"}
                 className={
                     cn(
-                        "flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative grow min-w-[300px]"
+                        "flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative min-w-[300px]"
                     )
                 }
+                style={{
+                    width: isEditingFile && selectedEntries.length === 1 ? `${browserWidth}px` : '100%',
+                    transition: isDragging ? 'none' : 'width 0.3s ease-in-out'
+                }}
                 onDragStart={() => setIsDraggingOver(false)}
                 onDragEnd={() => setIsDraggingOver(false)}
                 onDragEnter={() => setIsDraggingOver(true)}
@@ -732,7 +904,7 @@ export function ServerFiles()
                 )}
 
                 <div className={"flex flex-row justify-between items-center"}>
-                    <FileTableBreadcrumbs onNavigate={setPath} paths={path.split("/").filter(p => p.trim() !== "")}/>
+                    <FileTableBreadcrumbs onNavigate={handleNavigate} paths={path.split("/").filter(p => p.trim() !== "")}/>
                     <ButtonGroup radius={"none"} variant={"flat"}>
                         <Tooltip content={"New File"}>
                             <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => startEntryCreation(false)}>
@@ -755,7 +927,7 @@ export function ServerFiles()
                             </Button>
                         </Tooltip>
                         <Tooltip content={"Toggle File Editor"}>
-                            <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => setIsEditingFile(prev => !prev)} color={isEditingFile ? "primary" : "default"}>
+                            <Button radius={"none"} isIconOnly className={"text-xl"} onPress={handleToggleEditor} color={isEditingFile ? "primary" : "default"}>
                                 <Icon icon={"pixelarticons:notes"}/>
                             </Button>
                         </Tooltip>
@@ -784,12 +956,7 @@ export function ServerFiles()
                             th: "backdrop-blur-md bg-default-50/50 !rounded-none"
                         }}
                         selectedKeys={selectedEntries.map(entry => entry.filename)}
-                        onSelectionChange={keys =>
-                        {
-                            setContextMenuOptions(prev => ({...prev, isOpen: false}));
-                            const selected = [...keys].map(key => data?.entries.find(entry => entry.filename === key)).filter(Boolean) as FilesystemEntry[];
-                            setSelectedEntries(selected);
-                        }}
+                        onSelectionChange={handleSelectionChange}
                         isKeyboardNavigationDisabled={true}
                         onKeyDown={handleKeyDown}
                     >
@@ -867,11 +1034,12 @@ export function ServerFiles()
                                                     }}
                                                     data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
                                                     className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
-                                                    onDoubleClick={() =>
+                                                    onDoubleClick={async () =>
                                                     {
                                                         if (entry.is_dir && !renamingEntry && !newItemCreationEntry)
                                                         {
-                                                            setPath(prev => prev ? `${prev}/${entry.filename}` : entry.filename);
+                                                            const newPath = path ? `${path}/${entry.filename}` : entry.filename;
+                                                            await handleNavigate(newPath);
                                                         }
                                                     }}
                                                 >
@@ -916,7 +1084,65 @@ export function ServerFiles()
                                                                         endContent={<Chip>.zip</Chip>}
                                                                     />
                                                                     :
-                                                                    <><FileEntryIcon entry={entry}/> {entry.filename}</>
+                                                                    <>
+                                                                        <FileEntryIcon entry={entry}/>
+                                                                        <span className="flex-1">{entry.filename}</span>
+                                                                        {/* Show indicators and actions for currently edited file */}
+                                                                        {isEditingFile && selectedEntries.length === 1 && selectedEntries[0] === entry && isTextFile(entry.path) && (
+                                                                            <div className="flex items-center gap-2 ml-auto">
+                                                                                {/* Unsaved changes indicator */}
+                                                                                {needsToSave && (
+                                                                                    <Tooltip content="File has unsaved changes, press Ctrl+S to save">
+                                                                                        <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                                                                                    </Tooltip>
+                                                                                )}
+                                                                                {/* External modification indicator */}
+                                                                                {isExternallyModified && (
+                                                                                    <Tooltip content="File has been modified externally">
+                                                                                        <Button
+                                                                                            size="sm"
+                                                                                            isIconOnly
+                                                                                            radius="none"
+                                                                                            variant="flat"
+                                                                                            color="warning"
+                                                                                            onPress={handleRefreshFileContents}
+                                                                                            className="min-w-6 h-6"
+                                                                                        >
+                                                                                            <Icon icon="pixelarticons:alert" className="text-sm" />
+                                                                                        </Button>
+                                                                                    </Tooltip>
+                                                                                )}
+                                                                                {/* Refresh button */}
+                                                                                <Tooltip content="Refresh file contents">
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        isIconOnly
+                                                                                        radius="none"
+                                                                                        variant="flat"
+                                                                                        onPress={handleRefreshFileContents}
+                                                                                        className="min-w-6 h-6"
+                                                                                    >
+                                                                                        <Icon icon="pixelarticons:reload" className="text-sm" />
+                                                                                    </Button>
+                                                                                </Tooltip>
+                                                                                {/* Save button */}
+                                                                                <Tooltip content="Save file (Ctrl+S)">
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        isIconOnly
+                                                                                        radius="none"
+                                                                                        variant="flat"
+                                                                                        color={needsToSave ? "primary" : "default"}
+                                                                                        isDisabled={!needsToSave}
+                                                                                        onPress={saveContent}
+                                                                                        className="min-w-6 h-6"
+                                                                                    >
+                                                                                        <Icon icon="pixelarticons:save" className="text-sm" />
+                                                                                    </Button>
+                                                                                </Tooltip>
+                                                                            </div>
+                                                                        )}
+                                                                    </>
                                                         }
                                                     </TableCell>
                                                     <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>{entry.file_type}</TableCell>
@@ -986,7 +1212,8 @@ export function ServerFiles()
                 isEditingFile={isEditingFile}
                 selectedEntries={selectedEntries}
                 selectedFileContents={selectedFileContents}
-                editorWidth={editorWidth}
+                browserWidth={browserWidth}
+                containerRef={containerRef}
                 isDragging={isDragging}
                 needsToSave={needsToSave}
                 onContentChange={handleContentChange}

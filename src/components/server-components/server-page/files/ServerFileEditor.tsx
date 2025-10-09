@@ -1,12 +1,10 @@
-import {Button, cn} from "@heroui/react";
+import {cn} from "@heroui/react";
 import {Editor} from "@monaco-editor/react";
-import {Icon} from "@iconify-icon/react";
 import {AnimatePresence, motion} from "framer-motion";
 import {forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
 import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";
 import {registerMinecraftPropertiesLanguage} from "../../../../ts/minecraft-properties-language.ts";
-import {Tooltip} from "../../../extended/Tooltip.tsx";
 
 // Define the theme outside the component
 const defineObsidianTheme = (monaco: any) =>
@@ -36,7 +34,8 @@ interface ServerFileEditorProps
     isEditingFile: boolean;
     selectedEntries: FilesystemEntry[];
     selectedFileContents: string;
-    editorWidth: number;
+    browserWidth: number;
+    containerRef: React.RefObject<HTMLDivElement>;
     isDragging: boolean;
     needsToSave: boolean;
     onContentChange: (content: string) => void;
@@ -51,9 +50,9 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
          isEditingFile,
          selectedEntries,
          selectedFileContents,
-         editorWidth,
+         browserWidth,
+         containerRef,
          isDragging,
-         needsToSave,
          onContentChange,
          onSave,
          onWidthChange,
@@ -140,15 +139,17 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                 <motion.div
                     id={"server-file-editor"}
                     ref={editorWrapperRef}
-                    className={"max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}
-                    initial={{opacity: 0, width: 0}}
+                    className={"max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative flex-1 w-0"}
+                    initial={{opacity: 0}}
                     animate={{
-                        opacity: isEditingFile && selectedEntries.length === 1 ? 1 : 0,
-                        width: isEditingFile && selectedEntries.length === 1 ? `${editorWidth}px` : "0"
+                        opacity: isEditingFile && selectedEntries.length === 1 ? 1 : 0
                     }}
-                    exit={{opacity: 0, width: 0}}
+                    exit={{opacity: 0}}
                     transition={{duration: isDragging ? 0 : 0.3, ease: "easeInOut"}}
                     data-editing-file={isEditingFile && selectedEntries.length === 1}
+                    style={{
+                        display: isEditingFile && selectedEntries.length === 1 ? 'block' : 'none'
+                    }}
                 >
                     {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) ? (
                         <Editor
@@ -157,7 +158,6 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                             value={selectedFileContents}
                             language={getMonacoLanguage(selectedEntries[0]?.path ?? "") ?? "auto"}
                             onMount={handleEditorMount}
-                            width={`${editorWidth}px`}
                             onChange={async content =>
                             {
                                 console.log("Editor content changed:", content);
@@ -242,15 +242,19 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                                 onDragStart();
 
                                 const startX = e.clientX;
-                                const startWidth = editorWidth;
-                                const parentWidth = editorWrapperRef.current?.parentElement?.clientWidth;
+                                const startWidth = browserWidth;
+                                const containerWidth = containerRef.current?.clientWidth;
 
                                 const onMouseMove = (moveEvent: MouseEvent) =>
                                 {
                                     moveEvent.preventDefault();
-                                    const newWidth = startWidth - (moveEvent.clientX - startX);
-                                    if (!parentWidth) return;
-                                    onWidthChange(Math.min(parentWidth - 300, Math.max(300, newWidth)));
+                                    const deltaX = moveEvent.clientX - startX;
+                                    const newWidth = startWidth + deltaX;
+                                    if (!containerWidth) return;
+                                    // Browser can be between 300px and container width - 300px (to leave room for editor)
+                                    // Account for the gap-2 (8px) between browser and editor
+                                    const gap = 8;
+                                    onWidthChange(Math.min(containerWidth - 300 - gap, Math.max(300, newWidth)));
                                 };
 
                                 const onMouseUp = (mouseEvent: MouseEvent) =>
@@ -258,8 +262,11 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                                     mouseEvent.preventDefault();
                                     onDragEnd();
 
-                                    const newWidth = Math.max(300, startWidth - (mouseEvent.clientX - startX));
-                                    localStorage.setItem("editor-width", newWidth.toString());
+                                    const deltaX = mouseEvent.clientX - startX;
+                                    const gap = 8;
+                                    const newWidth = Math.min(containerWidth! - 300 - gap, Math.max(300, startWidth + deltaX));
+                                    onWidthChange(newWidth)
+                                    localStorage.setItem("browser-width", newWidth.toString());
                                     document.removeEventListener("mousemove", onMouseMove);
                                     document.removeEventListener("mouseup", onMouseUp);
                                 };
@@ -279,23 +286,6 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                     )}
                 </motion.div>
 
-                {/* Save Button */}
-                {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && (
-                    <div className={"absolute bottom-8 right-8 z-50"}>
-                        <Tooltip content={"Save Content"}>
-                            <Button
-                                radius={"none"}
-                                onPress={onSave}
-                                isIconOnly
-                                isDisabled={!needsToSave}
-                                color={needsToSave ? "primary" : "default"}
-                                size={"lg"}
-                            >
-                                <Icon icon={"pixelarticons:save"}/>
-                            </Button>
-                        </Tooltip>
-                    </div>
-                )}
 
                 {/* Overlay to prevent clicks during dragging */}
                 <AnimatePresence>
