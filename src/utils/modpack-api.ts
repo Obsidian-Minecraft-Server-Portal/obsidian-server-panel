@@ -209,38 +209,90 @@ export async function fetchCurseForgeModpackVersions(projectId: string): Promise
 
 // ============= ATLAUNCHER =============
 
+const ATLAUNCHER_GRAPHQL_URL = "https://api.atlauncher.com/v2/graphql";
+
+async function atlLauncherGraphQL(query: string, variables?: any): Promise<any>
+{
+    const response = await fetch(ATLAUNCHER_GRAPHQL_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "ObsidianServerPanel/1.0 (contact@example.com)" // Required by ATLauncher API
+        },
+        body: JSON.stringify({query, variables})
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+
+    if (result.errors)
+    {
+        console.error("GraphQL errors:", result.errors);
+        throw new Error(result.errors[0]?.message || "GraphQL query failed");
+    }
+
+    return result.data;
+}
+
 export async function searchATLauncherModpacks(params: {
     query?: string;
 }): Promise<ModpackItemProps[]>
 {
     try
     {
-        const response = await fetch("https://api.atlauncher.com/v1/packs");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
+        const gqlQuery = params.query
+            ? `query SearchPacks($query: String!) {
+                searchPacks(first: 50, query: $query, field: NAME) {
+                    id
+                    name
+                    safeName
+                    description
+                    logo {
+                        url
+                    }
+                    developers {
+                        username
+                    }
+                    latestVersion {
+                        minecraftVersion
+                        updatedAt
+                    }
+                }
+            }`
+            : `query GetPacks {
+                packs(first: 50) {
+                    id
+                    name
+                    safeName
+                    description
+                    logo {
+                        url
+                    }
+                    developers {
+                        username
+                    }
+                    latestVersion {
+                        minecraftVersion
+                        updatedAt
+                    }
+                }
+            }`;
 
-        let packs = data;
+        const variables = params.query ? {query: params.query} : undefined;
+        const data = await atlLauncherGraphQL(gqlQuery, variables);
 
-        // Filter by search query if provided
-        if (params.query)
-        {
-            const query = params.query.toLowerCase();
-            packs = packs.filter((pack: any) =>
-                pack.name.toLowerCase().includes(query) ||
-                pack.description?.toLowerCase().includes(query)
-            );
-        }
+        const packs = params.query ? data.searchPacks : data.packs;
 
         return packs.map((pack: any) => ({
-            packId: pack.id.toString(),
+            packId: pack.safeName,
             platform: "atlauncher" as const,
             description: pack.description || "",
-            iconUrl: `https://atlauncher.com/images/packs/${pack.safeName}/logo.png`,
+            iconUrl: pack.logo?.url || "https://atlauncher.com/assets/images/logo.svg",
             name: pack.name,
-            downloadCount: 0, // ATLauncher doesn't provide download counts
-            author: pack.devs?.join(", ") || "Unknown",
-            categories: pack.type ? [pack.type] : [],
-            lastUpdated: new Date(pack.updated_at || Date.now()),
+            downloadCount: 0,
+            author: pack.developers?.map((d: any) => d.username).join(", ") || "Unknown",
+            categories: [],
+            lastUpdated: pack.latestVersion?.updatedAt ? new Date(pack.latestVersion.updatedAt) : new Date(),
             slug: pack.safeName
         }));
     } catch (error)
@@ -252,46 +304,83 @@ export async function searchATLauncherModpacks(params: {
 
 export async function fetchATLauncherModpackDetails(packId: string): Promise<ModpackDetails>
 {
-    const response = await fetch(`https://api.atlauncher.com/v1/pack/${packId}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const gqlQuery = `query GetPack($safeName: String!) {
+        pack(safeName: $safeName) {
+            id
+            name
+            safeName
+            description
+            logo {
+                url
+            }
+            developers {
+                username
+            }
+            versions {
+                id
+                version
+                minecraftVersion
+                changelog
+                isRecommended
+                createdAt
+                updatedAt
+                publishedAt
+            }
+        }
+    }`;
+
+    const data = await atlLauncherGraphQL(gqlQuery, {safeName: packId});
+    const pack = data.pack;
 
     return {
-        id: data.id.toString(),
-        name: data.name,
-        description: data.description || "",
-        body: data.description || "",
-        icon_url: `https://atlauncher.com/images/packs/${data.safeName}/logo.png`,
+        id: pack.id.toString(),
+        name: pack.name,
+        description: pack.description || "",
+        body: pack.description || "",
+        icon_url: pack.logo?.url || "https://atlauncher.com/assets/images/logo.svg",
         downloads: 0,
-        categories: data.type ? [data.type] : [],
-        versions: data.versions?.map((v: any) => v.version) || [],
-        game_versions: [...new Set<string>(data.versions?.map((v: any) => v.minecraft as string) || [])],
+        categories: [],
+        versions: pack.versions?.map((v: any) => v.version) || [],
+        game_versions: [...new Set<string>(pack.versions?.map((v: any) => v.minecraftVersion as string) || [])],
         loaders: [],
-        published: data.created_at || "",
-        updated: data.updated_at || "",
-        authors: data.devs?.map((dev: string) => ({name: dev})),
-        slug: data.safeName
+        published: pack.versions?.[0]?.createdAt || "",
+        updated: pack.versions?.[0]?.updatedAt || "",
+        authors: pack.developers?.map((dev: any) => ({name: dev.username})),
+        slug: pack.safeName
     };
 }
 
 export async function fetchATLauncherModpackVersions(packId: string): Promise<ModpackVersion[]>
 {
-    const response = await fetch(`https://api.atlauncher.com/v1/pack/${packId}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const gqlQuery = `query GetPackVersions($safeName: String!) {
+        pack(safeName: $safeName) {
+            safeName
+            versions {
+                id
+                version
+                minecraftVersion
+                changelog
+                isRecommended
+                publishedAt
+            }
+        }
+    }`;
 
-    return data.versions?.map((version: any) => ({
-        id: version.version,
+    const data = await atlLauncherGraphQL(gqlQuery, {safeName: packId});
+    const pack = data.pack;
+
+    return pack.versions?.map((version: any) => ({
+        id: version.id.toString(),
         version_number: version.version,
         name: version.version,
-        version_type: "release" as const,
+        version_type: version.isRecommended ? "release" : "beta",
         loaders: [],
-        game_versions: [version.minecraft],
-        date_published: version.published || "",
+        game_versions: [version.minecraftVersion],
+        date_published: version.publishedAt || "",
         downloads: 0,
         files: [{
-            url: "", // ATLauncher handles downloads differently
-            filename: `${data.safeName}-${version.version}.zip`,
+            url: "",
+            filename: `${pack.safeName}-${version.version}.zip`,
             primary: true,
             size: 0
         }],

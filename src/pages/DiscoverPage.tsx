@@ -19,32 +19,40 @@ export default function DiscoverPage()
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [selectedPlatform, setSelectedPlatform] = useState<ModpackPlatform>("modrinth");
-    const [search, setSearch] = useState("");
-    const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
-    const [categories, setCategories] = useState<string[]>([]);
+    // Initialize state from URL params directly to avoid double-loading
+    const [selectedPlatform, setSelectedPlatform] = useState<ModpackPlatform>(() =>
+    {
+        if (platform && ["modrinth", "curseforge", "atlauncher", "technic"].includes(platform))
+        {
+            return platform as ModpackPlatform;
+        }
+        return "modrinth";
+    });
+    const [search, setSearch] = useState(searchParams.get("search") || "");
+    const [minecraftVersions, setMinecraftVersions] = useState<string[]>(() =>
+    {
+        const param = searchParams.get("minecraftVersions");
+        return param ? param.split(",").filter(Boolean) : [];
+    });
+    const [categories, setCategories] = useState<string[]>(() =>
+    {
+        const param = searchParams.get("categories");
+        return param ? param.split(",").filter(Boolean) : [];
+    });
     const [modpacks, setModpacks] = useState<ModpackItemProps[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Initialize from URL parameters
+    // Update platform when URL changes
     useEffect(() =>
     {
         if (platform && ["modrinth", "curseforge", "atlauncher", "technic"].includes(platform))
         {
             setSelectedPlatform(platform as ModpackPlatform);
-        } else
+        } else if (!platform)
         {
             // Default to modrinth if no platform specified
-            navigate(`/app/discover/${type}/modrinth`);
+            navigate(`/app/discover/${type}/modrinth`, {replace: true});
         }
-
-        const searchQuery = searchParams.get("search") || "";
-        const minecraftVersionsQuery = searchParams.get("minecraftVersions") || "";
-        const categoriesQuery = searchParams.get("categories") || "";
-
-        setSearch(searchQuery);
-        setMinecraftVersions(minecraftVersionsQuery ? minecraftVersionsQuery.split(",").filter(Boolean) : []);
-        setCategories(categoriesQuery ? categoriesQuery.split(",").filter(Boolean) : []);
     }, [platform, type, navigate]);
 
     // Update URL when filters change
@@ -158,7 +166,7 @@ export default function DiscoverPage()
             case "curseforge":
                 return "!bg-[#f16436]";
             case "atlauncher":
-                return "!bg-[#3498db]";
+                return "!bg-[#89c236]";
             case "technic":
                 return "!bg-[#e74c3c]";
             default:
@@ -166,20 +174,20 @@ export default function DiscoverPage()
         }
     };
 
-    const getPlatformIcon = (plat: ModpackPlatform) =>
+    const getPlatformIcon = (plat: ModpackPlatform): {type: "icon" | "image"; value: string} =>
     {
         switch (plat)
         {
             case "modrinth":
-                return "simple-icons:modrinth";
+                return {type: "icon", value: "simple-icons:modrinth"};
             case "curseforge":
-                return "simple-icons:curseforge";
+                return {type: "icon", value: "simple-icons:curseforge"};
             case "atlauncher":
-                return "pixelarticons:archive";
+                return {type: "image", value: "https://atlauncher.com/assets/images/logo.svg"};
             case "technic":
-                return "pixelarticons:zap";
+                return {type: "icon", value: "pixelarticons:zap"};
             default:
-                return "pixelarticons:folder";
+                return {type: "icon", value: "pixelarticons:folder"};
         }
     };
 
@@ -210,7 +218,8 @@ export default function DiscoverPage()
                     size={"lg"}
                     radius={"none"}
                     classNames={{
-                        cursor: getPlatformColor(selectedPlatform)
+                        cursor: getPlatformColor(selectedPlatform),
+                        tabContent: "w-[20px]"
                     }}
                     selectedKey={selectedPlatform}
                     onSelectionChange={value => setSelectedPlatform(value as ModpackPlatform)}
@@ -220,7 +229,7 @@ export default function DiscoverPage()
                         title={
                             <Tooltip content={"Modrinth"}>
                                 <Icon
-                                    icon={getPlatformIcon("modrinth")}
+                                    icon={getPlatformIcon("modrinth").value}
                                     className={selectedPlatform === "modrinth" ? "text-black" : ""}
                                 />
                             </Tooltip>
@@ -230,7 +239,7 @@ export default function DiscoverPage()
                         key={"curseforge"}
                         title={
                             <Tooltip content={"CurseForge"}>
-                                <Icon icon={getPlatformIcon("curseforge")}/>
+                                <Icon icon={getPlatformIcon("curseforge").value}/>
                             </Tooltip>
                         }
                     />
@@ -238,7 +247,11 @@ export default function DiscoverPage()
                         key={"atlauncher"}
                         title={
                             <Tooltip content={"ATLauncher"}>
-                                <Icon icon={getPlatformIcon("atlauncher")}/>
+                                <img
+                                    src={getPlatformIcon("atlauncher").value}
+                                    alt="ATLauncher"
+                                    className="w-5 h-5"
+                                />
                             </Tooltip>
                         }
                     />
@@ -246,7 +259,7 @@ export default function DiscoverPage()
                         key={"technic"}
                         title={
                             <Tooltip content={"Technic"}>
-                                <Icon icon={getPlatformIcon("technic")}/>
+                                <Icon icon={getPlatformIcon("technic").value}/>
                             </Tooltip>
                         }
                     />
@@ -290,7 +303,7 @@ export default function DiscoverPage()
                     backgroundColor:
                         selectedPlatform === "modrinth" ? "#1bd96a" :
                             selectedPlatform === "curseforge" ? "#f16436" :
-                                selectedPlatform === "atlauncher" ? "#3498db" :
+                                selectedPlatform === "atlauncher" ? "#89c236" :
                                     selectedPlatform === "technic" ? "#e74c3c" :
                                         "transparent"
                 }}

@@ -3,7 +3,10 @@
     "allow": [
       "WebFetch(domain:docs.rs)",
       "Bash(cargo check:*)",
-      "Bash(cargo clippy:*)"
+      "Bash(cargo clippy:*)",
+      "WebFetch(domain:wiki.atlauncher.com)",
+      "WebFetch(domain:api.atlauncher.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

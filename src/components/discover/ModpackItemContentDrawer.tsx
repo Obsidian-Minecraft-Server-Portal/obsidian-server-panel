@@ -59,7 +59,7 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
             case "curseforge":
                 return "#f16436";
             case "atlauncher":
-                return "#3498db";
+                return "#89c236";
             case "technic":
                 return "#e74c3c";
             default:
