@@ -1,0 +1,3040 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Obsidian Server Panel API",
+    "description": "API for managing Minecraft servers with support for various mod loaders (Vanilla, Fabric, Forge, NeoForge, Quilt)",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Obsidian Server Panel"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Host Info",
+      "description": "System resource monitoring and host information"
+    },
+    {
+      "name": "Authentication",
+      "description": "User authentication and authorization"
+    },
+    {
+      "name": "Actions",
+      "description": "Long-running action tracking system"
+    },
+    {
+      "name": "Java",
+      "description": "Java runtime management and version mapping"
+    },
+    {
+      "name": "Forge",
+      "description": "Forge mod loader versions"
+    },
+    {
+      "name": "Servers",
+      "description": "Minecraft server management"
+    },
+    {
+      "name": "Filesystem",
+      "description": "Server file operations"
+    },
+    {
+      "name": "Updater",
+      "description": "Application update system"
+    }
+  ],
+  "paths": {
+    "/info": {
+      "get": {
+        "tags": ["Host Info"],
+        "summary": "Get host information",
+        "description": "Returns system information including CPU, RAM, disk, and network details",
+        "operationId": "getHostInfo",
+        "responses": {
+          "200": {
+            "description": "Host information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/info/resources": {
+      "get": {
+        "tags": ["Host Info"],
+        "summary": "Get real-time resource monitoring stream",
+        "description": "Server-Sent Events stream for real-time CPU, RAM, disk, and network monitoring",
+        "operationId": "getResources",
+        "responses": {
+          "200": {
+            "description": "SSE stream of resource data",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login with username and password",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "remember": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/UserData"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Login with token",
+        "operationId": "loginWithToken",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User is logged in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/UserData"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Username already exists"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Logout current user",
+        "operationId": "logout",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "308": {
+            "description": "Logout successful, redirect to home"
+          }
+        }
+      }
+    },
+    "/auth/permissions": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get list of available permissions",
+        "operationId": "getPermissionsList",
+        "responses": {
+          "200": {
+            "description": "Permissions list retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Permission"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/users": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get all users",
+        "operationId": "getUsers",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users list retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserData"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Create a new user",
+        "operationId": "createUser",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "permissions"],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "username": {
+                      "type": "string"
+                    },
+                    "password": {
+                      "type": "string"
+                    },
+                    "password_change_required": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/auth/users/{user_id}": {
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Update user",
+        "operationId": "updateUser",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Delete user",
+        "operationId": "deleteUser",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted successfully"
+          },
+          "400": {
+            "description": "Cannot delete own account"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/auth/{user_id}/permissions": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Update user permissions",
+        "operationId": "updatePermissions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "description": "Comma-separated permission IDs",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permissions updated successfully"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Change current user's password",
+        "operationId": "changePassword",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "400": {
+            "description": "Password cannot be empty"
+          }
+        }
+      }
+    },
+    "/auth/users/{user_id}/force-password-reset": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Force password reset for a user",
+        "operationId": "forcePasswordReset",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Password reset forced successfully"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/actions": {
+      "get": {
+        "tags": ["Actions"],
+        "summary": "Get all actions for current user",
+        "operationId": "getActions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActionData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Actions"],
+        "summary": "Create a new action",
+        "operationId": "createAction",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Action created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/active": {
+      "get": {
+        "tags": ["Actions"],
+        "summary": "Get active actions for current user",
+        "operationId": "getActiveActions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active actions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActionData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actions/{tracker_id}": {
+      "put": {
+        "tags": ["Actions"],
+        "summary": "Update an action",
+        "operationId": "updateAction",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tracker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionData"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Action not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Actions"],
+        "summary": "Delete an action",
+        "operationId": "deleteAction",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tracker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action deleted successfully"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Action not found"
+          }
+        }
+      }
+    },
+    "/actions/completed": {
+      "delete": {
+        "tags": ["Actions"],
+        "summary": "Delete all completed actions for current user",
+        "operationId": "deleteCompletedActions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completed actions deleted successfully"
+          }
+        }
+      }
+    },
+    "/java/versions": {
+      "get": {
+        "tags": ["Java"],
+        "summary": "Get list of installed Java versions",
+        "operationId": "getJavaVersions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Java versions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/java/versions/{runtime}/files": {
+      "get": {
+        "tags": ["Java"],
+        "summary": "Get installation files for a Java runtime",
+        "operationId": "getInstallationFiles",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "runtime",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Installation files retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/java/versions/{runtime}": {
+      "delete": {
+        "tags": ["Java"],
+        "summary": "Uninstall a Java version",
+        "operationId": "uninstallJavaVersion",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "runtime",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Java version uninstalled"
+          }
+        }
+      }
+    },
+    "/java/versions/{runtime}/install": {
+      "get": {
+        "tags": ["Java"],
+        "summary": "Install a Java version (SSE stream)",
+        "operationId": "installJavaVersion",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "runtime",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Installation progress stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/java/version-map": {
+      "get": {
+        "tags": ["Java"],
+        "summary": "Get Java-Minecraft version compatibility map",
+        "operationId": "getVersionMap",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version map retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/forge/versions": {
+      "get": {
+        "tags": ["Forge"],
+        "summary": "Get Forge versions",
+        "operationId": "getForgeVersions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forge versions retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get all servers",
+        "operationId": "getServers",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Servers retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Servers"],
+        "summary": "Create a new server",
+        "operationId": "createServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "server_type", "minecraft_version", "java_executable"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "server_type": {
+                    "type": "string",
+                    "enum": ["vanilla", "fabric", "forge", "neoforge", "quilt", "custom"]
+                  },
+                  "minecraft_version": {
+                    "type": "string"
+                  },
+                  "loader_version": {
+                    "type": "string"
+                  },
+                  "java_executable": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Server created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "server_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/server/{server_id}": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get server by ID",
+        "operationId": "getServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerData"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Server not found"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Update server configuration",
+        "operationId": "updateServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server updated successfully"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Server not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Servers"],
+        "summary": "Delete server",
+        "operationId": "deleteServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server deleted successfully"
+          },
+          "404": {
+            "description": "Server not found"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/start": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Start server",
+        "operationId": "startServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server start initiated"
+          },
+          "400": {
+            "description": "Server is already running"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/stop": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Stop server gracefully",
+        "operationId": "stopServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server stop initiated"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/restart": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Restart server",
+        "operationId": "restartServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server restart initiated"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/kill": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Force kill server process",
+        "operationId": "killServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server killed successfully"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/send-command": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Send command to server console",
+        "operationId": "sendCommand",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command sent successfully"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/console": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get server console output stream (SSE)",
+        "operationId": "getConsoleOut",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Console output stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/ping": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Ping server to get status",
+        "operationId": "pingServer",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ping response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/icon": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get server icon",
+        "operationId": "getServerIcon",
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server icon image",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/logs": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get list of log files",
+        "operationId": "getLogFiles",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log files list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Log directory not found"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/logs/{log_file}": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get log file contents",
+        "operationId": "getLogFileContents",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "log_file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log file contents",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Log file not found"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/installed-mods": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get installed mods",
+        "operationId": "getInstalledMods",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_icon",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Installed mods list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/download-mod": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Download and install a mod",
+        "operationId": "downloadMod",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["download_url", "filename"],
+                "properties": {
+                  "download_url": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "modrinth_id": {
+                    "type": "string"
+                  },
+                  "curseforge_id": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mod downloaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "mod": {
+                      "$ref": "#/components/schemas/ModData"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/sync-mods": {
+      "post": {
+        "tags": ["Servers"],
+        "summary": "Synchronize installed mods",
+        "operationId": "syncMods",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mods synchronized successfully"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/mod/{mod_id}": {
+      "delete": {
+        "tags": ["Servers"],
+        "summary": "Delete a mod",
+        "operationId": "deleteMod",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mod_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mod deleted successfully"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/mod/{mod_id}/icon": {
+      "get": {
+        "tags": ["Servers"],
+        "summary": "Get mod icon",
+        "operationId": "getModIcon",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mod_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mod icon image",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/files": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Get files and directories",
+        "operationId": "getFiles",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Files and directories list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilesystemData"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/upload": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Upload a file",
+        "operationId": "uploadFile",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upload_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "bytesUploaded": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/upload/progress/{upload_id}": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Monitor upload progress (SSE)",
+        "operationId": "uploadProgress",
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload progress stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/upload/cancel/{upload_id}": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Cancel an upload",
+        "operationId": "cancelUpload",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Upload not found"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/upload-url": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Upload file from URL (SSE)",
+        "operationId": "uploadUrl",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filepath",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload progress stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/download": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Download files or directories as ZIP",
+        "operationId": "downloadFiles",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "items",
+            "in": "query",
+            "required": true,
+            "description": "Array of file/directory paths",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File or ZIP archive",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/copy": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Copy files or directories",
+        "operationId": "copyEntry",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["entries", "path"],
+                "properties": {
+                  "entries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Copy successful"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/move": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Move files or directories",
+        "operationId": "moveEntry",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["entries", "path"],
+                "properties": {
+                  "entries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Move successful"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/rename": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Rename file or directory",
+        "operationId": "renameEntry",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["source", "destination"],
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "destination": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rename successful"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs": {
+      "delete": {
+        "tags": ["Filesystem"],
+        "summary": "Delete files or directories",
+        "operationId": "deleteEntry",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["paths"],
+                "properties": {
+                  "paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delete successful"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/new": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Create new file or directory",
+        "operationId": "createEntry",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["path", "is_directory"],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "is_directory": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entry created successfully"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/search": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Search for files",
+        "operationId": "searchFiles",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filename_only",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/archive": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Create archive from files",
+        "operationId": "archiveFiles",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["entries", "cwd", "filename", "tracker_id"],
+                "properties": {
+                  "entries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "cwd": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "tracker_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Archive created successfully"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/archive/status/{tracker_id}": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Monitor archive progress (SSE)",
+        "operationId": "archiveStatus",
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tracker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archive progress stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/archive/cancel/{tracker_id}": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Cancel archive operation",
+        "operationId": "cancelArchive",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tracker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archive cancelled"
+          },
+          "404": {
+            "description": "Archive operation not found"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/contents": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Get file contents",
+        "operationId": "getFileContents",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filepath",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File contents",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Set file contents",
+        "operationId": "setFileContents",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filepath",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File contents updated"
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/extract": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Extract archive",
+        "operationId": "extractArchive",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archive",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directory",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tracker",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extract initiated"
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/extract/status/{tracker_id}": {
+      "get": {
+        "tags": ["Filesystem"],
+        "summary": "Monitor extract progress (SSE)",
+        "operationId": "extractStatus",
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tracker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extract progress stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/server/{server_id}/fs/extract/cancel/{tracker_id}": {
+      "post": {
+        "tags": ["Filesystem"],
+        "summary": "Cancel extract operation",
+        "operationId": "cancelExtract",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tracker_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extract cancelled"
+          },
+          "404": {
+            "description": "Extract operation not found"
+          }
+        }
+      }
+    },
+    "/updater": {
+      "get": {
+        "tags": ["Updater"],
+        "summary": "Get current version",
+        "operationId": "getCurrentVersion",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "current_version": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin permission required"
+          }
+        }
+      }
+    },
+    "/updater/check": {
+      "get": {
+        "tags": ["Updater"],
+        "summary": "Check for updates",
+        "operationId": "checkForUpdates",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin permission required"
+          }
+        }
+      }
+    },
+    "/updater/perform": {
+      "post": {
+        "tags": ["Updater"],
+        "summary": "Perform update",
+        "operationId": "performUpdate",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin permission required"
+          }
+        }
+      }
+    },
+    "/updater/status": {
+      "get": {
+        "tags": ["Updater"],
+        "summary": "Get update status",
+        "operationId": "getUpdateStatus",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin permission required"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "obathtok_eP4j7XbF20KCn8k5YOjsnQ"
+      }
+    },
+    "schemas": {
+      "HostInfo": {
+        "type": "object",
+        "properties": {
+          "cpu": {
+            "type": "object"
+          },
+          "memory": {
+            "type": "object"
+          },
+          "disk": {
+            "type": "object"
+          },
+          "network": {
+            "type": "object"
+          }
+        }
+      },
+      "UserData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Hash-encoded user ID"
+          },
+          "username": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionFlag"
+            }
+          },
+          "join_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_online": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "needs_password_change": {
+            "type": "boolean"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Permission": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "PermissionFlag": {
+        "type": "string",
+        "enum": [
+          "None",
+          "Admin",
+          "ViewUsers",
+          "ManageUsers",
+          "ManagePermissions",
+          "CreateServer",
+          "OperateServer",
+          "CreateBackup",
+          "RestoreBackup",
+          "DeleteBackups",
+          "UploadFiles",
+          "DeleteFiles",
+          "CreateFiles",
+          "ModifyFiles"
+        ]
+      },
+      "ActionData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "tracker_id": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": ["archive", "extract", "move", "copy", "upload", "backup_create", "mod_download"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["in_progress", "completed", "failed"]
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "details": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateActionRequest": {
+        "type": "object",
+        "required": ["tracker_id", "action_type"],
+        "properties": {
+          "tracker_id": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": ["archive", "extract", "move", "copy", "upload", "backup_create", "mod_download"]
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      },
+      "UpdateActionRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["in_progress", "completed", "failed"]
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      },
+      "ServerData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Hash-encoded server ID"
+          },
+          "name": {
+            "type": "string"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "java_executable": {
+            "type": "string"
+          },
+          "java_args": {
+            "type": "string"
+          },
+          "max_memory": {
+            "type": "integer",
+            "description": "Maximum memory in GB"
+          },
+          "min_memory": {
+            "type": "integer",
+            "description": "Minimum memory in GB"
+          },
+          "minecraft_args": {
+            "type": "string"
+          },
+          "server_jar": {
+            "type": "string"
+          },
+          "upnp": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["idle", "starting", "running", "stopping", "crashed"]
+          },
+          "auto_start": {
+            "type": "boolean"
+          },
+          "auto_restart": {
+            "type": "boolean"
+          },
+          "backup_enabled": {
+            "type": "boolean"
+          },
+          "backup_cron": {
+            "type": "string"
+          },
+          "backup_retention": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "minecraft_version": {
+            "type": "string"
+          },
+          "server_type": {
+            "type": "string",
+            "enum": ["vanilla", "fabric", "forge", "neoforge", "quilt", "custom"]
+          },
+          "loader_version": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string",
+            "description": "Hash-encoded owner user ID"
+          },
+          "created_at": {
+            "type": "integer",
+            "description": "Unix timestamp"
+          },
+          "updated_at": {
+            "type": "integer",
+            "description": "Unix timestamp"
+          },
+          "last_started": {
+            "type": "integer",
+            "description": "Unix timestamp"
+          }
+        }
+      },
+      "ModData": {
+        "type": "object",
+        "properties": {
+          "mod_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Base64 encoded icon or URL"
+          },
+          "modrinth_id": {
+            "type": "string"
+          },
+          "curseforge_id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          }
+        }
+      },
+      "FilesystemData": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "is_directory": {
+                  "type": "boolean"
+                },
+                "modified": {
+                  "type": "integer",
+                  "description": "Unix timestamp"
+                },
+                "created": {
+                  "type": "integer",
+                  "description": "Unix timestamp"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="JetClientState">
+    <option name="folders">
+      <list>
+        <folderState>
+          <option name="apis">
+            <list>
+              <integrationProperties>
+                <option name="framework" value="OPEN_API" />
+                <option name="name" value="/ API" />
+                <option name="openApi">
+                  <openApiIntegrationProperties>
+                    <option name="file" value="openapi-v3.json" />
+                  </openApiIntegrationProperties>
+                </option>
+              </integrationProperties>
+            </list>
+          </option>
+          <option name="environmentGroups">
+            <list>
+              <environmentGroupState>
+                <option name="name" value="Default" />
+              </environmentGroupState>
+            </list>
+          </option>
+          <option name="id" value="27b1e78a-f519-4009-a70f-26cddefc21a4" />
+          <option name="name" value="Obsidian Minecraft Server Panel" />
+          <option name="selectedEnvironmentIds">
+            <map>
+              <entry key="default" />
+            </map>
+          </option>
+          <option name="syncProperties">
+            <synchronizationPropertiesState>
+              <option name="autoSync" value="true" />
+              <option name="folderPath" value="D:\Rust\obsidian-server-panel\.jetclient" />
+            </synchronizationPropertiesState>
+          </option>
+        </folderState>
+      </list>
+    </option>
+    <option name="id" value="647bc677-3428-4c1b-aab3-a5a0f0e6c6ac" />
+    <option name="version" value="6" />
+  </component>
+</project>
