@@ -1,7 +1,8 @@
 import {useNavigate, useParams, useSearchParams} from "react-router-dom";
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
 import {Button, Input, Tab, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
+import {motion, AnimatePresence} from "framer-motion";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {ModpackFilters} from "../components/discover/ModpackFilters.tsx";
 import {ModpackItem, ModpackItemSkeleton} from "../components/discover/ModpackItem.tsx";
@@ -13,16 +14,26 @@ import {
     searchTechnicModpacks
 } from "../utils/modpack-api.ts";
 
+// Platform data structure for lazy loading
+type PlatformData = {
+    modpacks: ModpackItemProps[];
+    isLoading: boolean;
+    isLoaded: boolean;
+};
+
+const PLATFORMS: ModpackPlatform[] = ["modrinth", "curseforge", "atlauncher", "technic"];
+
 export default function DiscoverPage()
 {
     const {type, platform} = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const prevPlatformRef = useRef<ModpackPlatform | null>(null);
 
     // Initialize state from URL params directly to avoid double-loading
     const [selectedPlatform, setSelectedPlatform] = useState<ModpackPlatform>(() =>
     {
-        if (platform && ["modrinth", "curseforge", "atlauncher", "technic"].includes(platform))
+        if (platform && PLATFORMS.includes(platform as ModpackPlatform))
         {
             return platform as ModpackPlatform;
         }
@@ -39,15 +50,35 @@ export default function DiscoverPage()
         const param = searchParams.get("categories");
         return param ? param.split(",").filter(Boolean) : [];
     });
-    const [modpacks, setModpacks] = useState<ModpackItemProps[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
 
-    // Update platform when URL changes
+    // Store data per platform for lazy loading and persistence
+    const [platformData, setPlatformData] = useState<Record<ModpackPlatform, PlatformData>>({
+        modrinth: {modpacks: [], isLoading: false, isLoaded: false},
+        curseforge: {modpacks: [], isLoading: false, isLoaded: false},
+        atlauncher: {modpacks: [], isLoading: false, isLoaded: false},
+        technic: {modpacks: [], isLoading: false, isLoaded: false}
+    });
+
+    // Track filter version to invalidate cache when filters change
+    const [filterVersion, setFilterVersion] = useState(0);
+
+    // Animation direction state
+    const [direction, setDirection] = useState<number>(0);
+
+    // Update platform when URL changes and calculate animation direction
     useEffect(() =>
     {
-        if (platform && ["modrinth", "curseforge", "atlauncher", "technic"].includes(platform))
+        if (platform && PLATFORMS.includes(platform as ModpackPlatform))
         {
-            setSelectedPlatform(platform as ModpackPlatform);
+            const newPlatform = platform as ModpackPlatform;
+            if (prevPlatformRef.current)
+            {
+                const prevIndex = PLATFORMS.indexOf(prevPlatformRef.current);
+                const newIndex = PLATFORMS.indexOf(newPlatform);
+                setDirection(newIndex - prevIndex);
+            }
+            prevPlatformRef.current = newPlatform;
+            setSelectedPlatform(newPlatform);
         } else if (!platform)
         {
             // Default to modrinth if no platform specified
@@ -55,7 +86,7 @@ export default function DiscoverPage()
         }
     }, [platform, type, navigate]);
 
-    // Update URL when filters change
+    // Update URL when filters change and increment filter version to invalidate cache
     useEffect(() =>
     {
         const newParams = new URLSearchParams();
@@ -64,16 +95,38 @@ export default function DiscoverPage()
         if (categories.length > 0) newParams.set("categories", categories.join(","));
 
         setSearchParams(newParams);
+
+        // Reset isLoaded for all platforms to force refetch with new filters
+        setPlatformData(prev => {
+            const updated: Record<ModpackPlatform, PlatformData> = {...prev};
+            for (const platform of PLATFORMS) {
+                updated[platform] = {...updated[platform], isLoaded: false};
+            }
+            return updated;
+        });
+
+        // Increment filter version to trigger refetch
+        setFilterVersion(prev => prev + 1);
     }, [search, minecraftVersions, categories, setSearchParams]);
 
-    // Fetch modpacks when platform or filters change
+    // Fetch modpacks when platform or filters change (with lazy loading)
     useEffect(() =>
     {
         if (!selectedPlatform) return;
 
+        const currentData = platformData[selectedPlatform];
+
+        // Skip if already loaded (lazy loading) or already loading
+        if (currentData.isLoaded || currentData.isLoading) return;
+
         const fetchModpacks = async () =>
         {
-            setIsLoading(true);
+            // Set loading state for current platform
+            setPlatformData(prev => ({
+                ...prev,
+                [selectedPlatform]: {...prev[selectedPlatform], isLoading: true}
+            }));
+
             try
             {
                 let results: ModpackItemProps[] = [];
@@ -134,19 +187,30 @@ export default function DiscoverPage()
                         break;
                 }
 
-                setModpacks(results);
+                setPlatformData(prev => ({
+                    ...prev,
+                    [selectedPlatform]: {
+                        modpacks: results,
+                        isLoading: false,
+                        isLoaded: true
+                    }
+                }));
             } catch (error)
             {
                 console.error(`Failed to fetch ${selectedPlatform} modpacks:`, error);
-                setModpacks([]);
-            } finally
-            {
-                setIsLoading(false);
+                setPlatformData(prev => ({
+                    ...prev,
+                    [selectedPlatform]: {
+                        modpacks: [],
+                        isLoading: false,
+                        isLoaded: true
+                    }
+                }));
             }
         };
 
         fetchModpacks();
-    }, [selectedPlatform, search, minecraftVersions, categories]);
+    }, [selectedPlatform, filterVersion]);
 
     // Update URL when platform changes
     useEffect(() =>
@@ -278,21 +342,50 @@ export default function DiscoverPage()
                     />
                 </div>
 
-                {/* Main Content - Modpack List */}
-                <div className={"h-full overflow-y-auto flex flex-col gap-2 p-2 pr-6 grow"}>
-                    {isLoading ? (
-                        Array.from({length: 10}).map((_, index) => <ModpackItemSkeleton key={index}/>)
-                    ) : modpacks.length === 0 ? (
-                        <div className={"text-center text-default-500 mt-8"}>
-                            <Icon icon={"pixelarticons:folder-open"} width={48} height={48} className={"mx-auto mb-2"}/>
-                            <p>No modpacks found</p>
-                            <p className={"text-sm"}>Try adjusting your search or filters</p>
-                        </div>
-                    ) : (
-                        modpacks.map((modpack, index) => (
-                            <ModpackItem key={modpack.packId || index} {...modpack}/>
-                        ))
-                    )}
+                {/* Main Content - Modpack List with Carousel Animation */}
+                <div className={"h-full overflow-hidden flex flex-col gap-2 p-2 pr-6 grow relative"}>
+                    <AnimatePresence initial={false} custom={direction} mode="wait">
+                        <motion.div
+                            key={selectedPlatform}
+                            custom={direction}
+                            variants={{
+                                enter: (direction: number) => ({
+                                    x: direction > 0 ? 1000 : -1000,
+                                    opacity: 0
+                                }),
+                                center: {
+                                    x: 0,
+                                    opacity: 1
+                                },
+                                exit: (direction: number) => ({
+                                    x: direction > 0 ? -1000 : 1000,
+                                    opacity: 0
+                                })
+                            }}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            transition={{
+                                x: {type: "spring", stiffness: 300, damping: 30},
+                                opacity: {duration: 0.2}
+                            }}
+                            className={"h-full overflow-y-auto flex flex-col gap-2 absolute inset-0"}
+                        >
+                            {platformData[selectedPlatform].isLoading ? (
+                                Array.from({length: 10}).map((_, index) => <ModpackItemSkeleton key={index}/>)
+                            ) : platformData[selectedPlatform].modpacks.length === 0 ? (
+                                <div className={"text-center text-default-500 mt-8"}>
+                                    <Icon icon={"pixelarticons:folder-open"} width={48} height={48} className={"mx-auto mb-2"}/>
+                                    <p>No modpacks found</p>
+                                    <p className={"text-sm"}>Try adjusting your search or filters</p>
+                                </div>
+                            ) : (
+                                platformData[selectedPlatform].modpacks.map((modpack, index) => (
+                                    <ModpackItem key={modpack.packId || index} {...modpack}/>
+                                ))
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
             </div>
 

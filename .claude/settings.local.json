@@ -6,7 +6,9 @@
       "Bash(cargo clippy:*)",
       "WebFetch(domain:wiki.atlauncher.com)",
       "WebFetch(domain:api.atlauncher.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm run:*)"
     ],
     "deny": [],
     "ask": []
