@@ -246,13 +246,6 @@ export async function searchATLauncherModpacks(params: {
                     id
                     name
                     safeName
-                    description
-                    logo {
-                        url
-                    }
-                    developers {
-                        username
-                    }
                     latestVersion {
                         minecraftVersion
                         updatedAt
@@ -264,13 +257,6 @@ export async function searchATLauncherModpacks(params: {
                     id
                     name
                     safeName
-                    description
-                    logo {
-                        url
-                    }
-                    developers {
-                        username
-                    }
                     latestVersion {
                         minecraftVersion
                         updatedAt
@@ -286,11 +272,11 @@ export async function searchATLauncherModpacks(params: {
         return packs.map((pack: any) => ({
             packId: pack.safeName,
             platform: "atlauncher" as const,
-            description: pack.description || "",
-            iconUrl: pack.logo?.url || "https://atlauncher.com/assets/images/logo.svg",
+            description: "",
+            iconUrl: "https://atlauncher.com/assets/images/logo.svg",
             name: pack.name,
             downloadCount: 0,
-            author: pack.developers?.map((d: any) => d.username).join(", ") || "Unknown",
+            author: "Unknown",
             categories: [],
             lastUpdated: pack.latestVersion?.updatedAt ? new Date(pack.latestVersion.updatedAt) : new Date(),
             slug: pack.safeName
@@ -309,13 +295,6 @@ export async function fetchATLauncherModpackDetails(packId: string): Promise<Mod
             id
             name
             safeName
-            description
-            logo {
-                url
-            }
-            developers {
-                username
-            }
             versions {
                 id
                 version
@@ -335,9 +314,9 @@ export async function fetchATLauncherModpackDetails(packId: string): Promise<Mod
     return {
         id: pack.id.toString(),
         name: pack.name,
-        description: pack.description || "",
-        body: pack.description || "",
-        icon_url: pack.logo?.url || "https://atlauncher.com/assets/images/logo.svg",
+        description: "",
+        body: "",
+        icon_url: "https://atlauncher.com/assets/images/logo.svg",
         downloads: 0,
         categories: [],
         versions: pack.versions?.map((v: any) => v.version) || [],
@@ -345,7 +324,7 @@ export async function fetchATLauncherModpackDetails(packId: string): Promise<Mod
         loaders: [],
         published: pack.versions?.[0]?.createdAt || "",
         updated: pack.versions?.[0]?.updatedAt || "",
-        authors: pack.developers?.map((dev: any) => ({name: dev.username})),
+        authors: [],
         slug: pack.safeName
     };
 }
