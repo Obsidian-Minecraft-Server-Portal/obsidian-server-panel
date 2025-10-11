@@ -8,7 +8,9 @@
       "WebFetch(domain:api.atlauncher.com)",
       "WebSearch",
       "Bash(pnpm exec tsc:*)",
-      "Bash(pnpm run:*)"
+      "Bash(pnpm run:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.heroui.com)"
     ],
     "deny": [],
     "ask": []
