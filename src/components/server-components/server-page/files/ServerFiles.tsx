@@ -1,20 +1,21 @@
-import {Button, ButtonGroup, Chip, cn, Input, Progress, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import React, {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
 import "../../../../ts/math-ext.ts";
-import {Icon} from "@iconify-icon/react";
 import $ from "jquery";
 import {ContextMenuOptions, RowContextMenu} from "./RowContextMenu.tsx";
 import {useMessage} from "../../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../../MessageModal.tsx";
 import {FileTableBreadcrumbs} from "./FileTableBreadcrumbs.tsx";
-import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {ErrorBoundary} from "../../../ErrorBoundry.tsx";
-import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {ServerFileEditor, ServerFileEditorRef} from "./ServerFileEditor.tsx";
 import {AnimatePresence, motion} from "framer-motion";
+import {FileTableToolbar} from "./FileTableToolbar.tsx";
+import {FileEntryIcon} from "./FileEntryIcon.tsx";
+import {Tooltip} from "../../../extended/Tooltip.tsx";
+import {Icon} from "@iconify-icon/react";
 
 // Add a tiny helper to get dirname from a relative path like "a/b/c.txt" -> "a/b"
 const dirname = (p: string) =>
@@ -25,17 +26,6 @@ const dirname = (p: string) =>
 
 // Shape we use internally to carry a file with its relative path inside a selected folder
 type FileWithRelPath = { file: File; relativePath: string };
-
-type UploadProgress = {
-    entry: FilesystemEntry;
-    progress: number;
-    files: string[]
-    isUploading: boolean;
-    uploadGroup?: string;
-    filesProcessed?: number;
-    totalFiles?: number;
-    operationType: "upload" | "archive" | "extract";
-}
 
 export function ServerFiles()
 {
@@ -48,8 +38,6 @@ export function ServerFiles()
     const [isLoading, setIsLoading] = useState(false);
     const [renamingEntry, setRenamingEntry] = useState<FilesystemEntry | undefined>(undefined);
     const [newItemCreationEntry, setNewItemCreationEntry] = useState<FilesystemEntry | undefined>(undefined);
-    const [newArchiveEntry, setNewArchiveEntry] = useState<UploadProgress | undefined>(undefined);
-    const [fileUploadEntries, setFileUploadEntries] = useState<UploadProgress[]>([]);
     const [isDraggingOver, setIsDraggingOver] = useState(false);
     const [isEditingFile, setIsEditingFile] = useState(localStorage.getItem("is-editing-file") === "true");
     const [selectedFileContents, setSelectedFileContents] = useState("");
@@ -69,11 +57,14 @@ export function ServerFiles()
 
     const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
+    const loadedFilePathRef = useRef<string>(""); // Track which file is currently loaded
 
     // Simple hash function to detect content changes
-    const hashString = useCallback((str: string) => {
+    const hashString = useCallback((str: string) =>
+    {
         let hash = 0;
-        for (let i = 0; i < str.length; i++) {
+        for (let i = 0; i < str.length; i++)
+        {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash; // Convert to 32-bit integer
@@ -196,16 +187,21 @@ export function ServerFiles()
         return true;
     }, [needsToSave, open, newContentRef]);
 
-    const checkForExternalModifications = useCallback(async () => {
-        if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile && !needsToSave) {
-            try {
+    const checkForExternalModifications = useCallback(async () =>
+    {
+        if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile && !needsToSave)
+        {
+            try
+            {
                 const currentContent = await getFileContents(selectedEntries[0].path);
                 const currentHash = hashString(currentContent);
 
-                if (originalContentHashRef.current && currentHash !== originalContentHashRef.current) {
+                if (originalContentHashRef.current && currentHash !== originalContentHashRef.current)
+                {
                     setIsExternallyModified(true);
                 }
-            } catch (error) {
+            } catch (error)
+            {
                 console.error("Failed to check for external modifications:", error);
             }
         }
@@ -233,6 +229,7 @@ export function ServerFiles()
                 setIsExternallyModified(false);
                 newContentRef.current = "";
                 originalContentHashRef.current = hashString(contents);
+                loadedFilePathRef.current = selectedEntries[0].path; // Update loaded file reference
             } catch (error)
             {
                 console.error("Failed to refresh file contents:", error);
@@ -300,6 +297,7 @@ export function ServerFiles()
         }
 
         setPath(newPath);
+        loadedFilePathRef.current = ""; // Clear loaded file when navigating
     }, [needsToSave, checkUnsavedChanges]);
 
     // NEW: upload of files with their relative folder path
@@ -307,7 +305,6 @@ export function ServerFiles()
     {
         if (items.length === 0) return;
 
-        const uploadGroup = Math.random().toString(36).slice(2);
         const promises: Promise<void>[] = [];
 
         for (const {file, relativePath} of items)
@@ -316,48 +313,12 @@ export function ServerFiles()
             const relDir = dirname(relativePath);
             const targetDir = relDir ? (path ? `${path}/${relDir}` : relDir) : path;
 
-            // Show progress row - for visibility, show the relative path if present
-            const displayName = relativePath || file.name;
-            const entry: FilesystemEntry = {
-                filename: displayName,
-                path: targetDir,
-                is_dir: false,
-                size: file.size,
-                file_type: file.type
-            } as FilesystemEntry;
-
-            setFileUploadEntries(prev => [...prev, {
-                entry,
-                progress: 0,
-                files: [displayName],
-                isUploading: true,
-                uploadGroup,
-                operationType: "upload"
-            }]);
-
-            const totalSize = file.size;
-            const {promise} = await uploadFile(
-                file,
-                targetDir, // IMPORTANT: we pass the target directory; the upload impl appends file.name
-                (bytes: number) =>
-                {
-                    const progress = totalSize > 0 ? bytes / totalSize : 0;
-                    setFileUploadEntries(prev => prev.map(u => u.entry === entry ? {...u, progress} : u));
-                },
-                async () =>
-                {
-                    // On cancel
-                    setFileUploadEntries(prev => prev.filter(u => u.entry !== entry));
-                    await refresh();
-                }
-            );
-
+            const {promise} = await uploadFile(file, targetDir);
             promises.push(promise);
         }
 
         await Promise.all(promises);
         await refresh();
-        setFileUploadEntries(prev => prev.filter(u => u.uploadGroup !== uploadGroup));
     }, [path, uploadFile, refresh]);
 
     // Existing single-level upload still available for plain files
@@ -375,31 +336,15 @@ export function ServerFiles()
             return uploadWithRelPaths(items);
         }
 
-        let uploadGroup = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        let promises: Promise<void>[] = [];
-        for (let file of files)
+        const promises: Promise<void>[] = [];
+        for (const file of files)
         {
-            let entry = {filename: file.name, path, is_dir: false, size: file.size, file_type: file.type, operationType: "upload"} as FilesystemEntry;
-            setFileUploadEntries(prev => [...prev, {entry, progress: 0, files: [file.name], isUploading: true, uploadGroup, operationType: "upload"}]);
-            let totalSize = file.size;
-            const {promise} = await uploadFile(file, entry.path, async (bytes: number) =>
-                {
-                    let progress = totalSize > 0 ? bytes / totalSize : 0;
-                    setFileUploadEntries(prev => prev.map(upload => upload.entry === entry ? {...upload, progress} : upload));
-                    console.log("Upload progress:", progress);
-                }, async () =>
-                {
-                    // On Canceled
-                    setFileUploadEntries(prev => prev.filter(upload => upload.entry !== entry));
-                    await refresh();
-                }
-            );
+            const {promise} = await uploadFile(file, path);
             promises.push(promise);
         }
         await Promise.all(promises);
         await refresh();
-        setFileUploadEntries(prev => prev.filter(upload => upload.uploadGroup !== uploadGroup));
-    }, [setFileUploadEntries, path, uploadFile, refresh, uploadWithRelPaths]);
+    }, [path, uploadFile, refresh, uploadWithRelPaths]);
 
     // Helper: recursively collect files from a DataTransferItem (drag-and-drop folder)
     const collectFromEntry = useCallback(async (entry: any, prefix: string): Promise<FileWithRelPath[]> =>
@@ -550,7 +495,7 @@ export function ServerFiles()
     const startArchiveCreation = useCallback(async () =>
     {
         setContextMenuOptions(prev => ({...prev, isOpen: false}));
-        scrollToTop();
+
         let filename = "New Archive";
         let index = 0;
         while (data?.entries.some(entry => entry.filename === `${filename}.zip`))
@@ -558,45 +503,31 @@ export function ServerFiles()
             index++;
             filename = `New Archive (${index})`;
         }
-        let entry = {filename, path, is_dir: false, size: 0, file_type: "Archive"} as FilesystemEntry;
-        setData(prev => ({...prev, entries: [entry, ...(prev?.entries || [])]} as FilesystemData));
-        setNewArchiveEntry({entry, progress: 0, files: selectedEntries.map(entry => entry.path), isUploading: false, operationType: "archive"});
-    }, [path, data, selectedEntries, scrollToTop]);
 
-    const completeArchiveCreation = useCallback(async (newName: string) =>
-    {
-        setNewArchiveEntry(prev => prev ? {...prev, isUploading: true, operationType: "archive"} : undefined);
-        if (!newArchiveEntry || newName.trim() === "")
-        {
-            setNewArchiveEntry(undefined);
-            await refresh();
-            return;
-        }
+        // Prompt user for archive name
+        const archiveName = prompt("Enter archive name:", filename);
+        if (!archiveName || archiveName.trim() === "") return;
 
         try
         {
-            archiveFiles(`${newName}.zip`, newArchiveEntry.files, path, progress =>
-            {
-                setNewArchiveEntry(prev => prev ? {...prev, progress} : undefined);
-                console.log("Archive progress:", progress);
-            }, async () =>
-            {
-                setNewArchiveEntry(undefined);
-                await refresh();
-            }, error =>
-            {
-                open({
-                    title: "Archive Creation Failed",
-                    body: `An error occurred while creating the archive: ${error}`,
-                    responseType: MessageResponseType.Close,
-                    severity: "danger"
-                });
-                console.error("Failed to create archive:", error);
-                setNewArchiveEntry(undefined);
-            }, () =>
-            {
-                setNewArchiveEntry(undefined);
-            });
+            archiveFiles(
+                `${archiveName}.zip`,
+                selectedEntries.map(entry => entry.path),
+                path,
+                () =>
+                {
+                }, // on_progress - no longer needed
+                async () => await refresh(), // on_success
+                (error) =>
+                {
+                    open({
+                        title: "Archive Creation Failed",
+                        body: `An error occurred while creating the archive: ${error}`,
+                        responseType: MessageResponseType.Close,
+                        severity: "danger"
+                    });
+                }
+            );
         } catch (error)
         {
             console.error("Failed to create archive:", error);
@@ -606,98 +537,39 @@ export function ServerFiles()
                 responseType: MessageResponseType.Close,
                 severity: "danger"
             });
-            setNewArchiveEntry(undefined);
         }
-    }, [archiveFiles, newArchiveEntry, refresh, open]);
+    }, [path, data, selectedEntries, archiveFiles, refresh, open]);
+
 
     const handleExtract = useCallback(async (entry: FilesystemEntry, outputPath?: string) =>
     {
-        scrollToTop();
-
         // Determine the output path - either provided or current directory
         const extractPath = outputPath || path;
 
-        // Create a unique ID for this extraction operation
-        const extractId = `extract-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-        // Create a temporary entry to show progress
-        const extractEntry: FilesystemEntry = {
-            filename: `Extracting ${entry.filename}...`,
-            path: `${path}/extracting-${entry.filename}`,
-            is_dir: false,
-            size: 0,
-            file_type: "Extracting"
-        };
-
-        const progressEntry: UploadProgress = {
-            entry: extractEntry,
-            progress: 0,
-            files: [entry.path],
-            isUploading: true,
-            operationType: "extract",
-            filesProcessed: 0,
-            totalFiles: 0,
-            uploadGroup: extractId // Use the unique ID to track this specific extraction
-        };
-
-        setFileUploadEntries(prev => [...prev, progressEntry]);
-
-        // Helper function to remove the progress entry
-        const removeProgressEntry = () =>
-        {
-            setFileUploadEntries(prev => prev.filter(upload => upload.uploadGroup !== extractId));
-        };
-
         try
         {
-            const {trackerId} = extractArchive(
+            extractArchive(
                 entry.path,
                 extractPath,
-                (progress, filesProcessed, totalFiles) =>
+                () =>
                 {
-                    setFileUploadEntries(prev =>
-                        prev.map(upload =>
-                            upload.uploadGroup === extractId
-                                ? {...upload, progress, filesProcessed, totalFiles}
-                                : upload
-                        )
-                    );
-                    console.log("Extract progress:", progress, "Files:", filesProcessed, "/", totalFiles);
-                },
-                async () =>
-                {
-                    // Success - remove progress entry and refresh
-                    console.log("Extract completed successfully, removing progress entry");
-                    removeProgressEntry();
-                    await refresh();
-                },
+                }, // on_progress - no longer needed
+                async () => await refresh(), // on_success
                 (error) =>
                 {
-                    // Error - remove progress entry and show an error
+                    // Error - show an error
                     console.error("Failed to extract archive:", error);
-                    removeProgressEntry();
                     open({
                         title: "Extract Failed",
                         body: `An error occurred while extracting the archive: ${error}`,
                         responseType: MessageResponseType.Close,
                         severity: "danger"
                     });
-                },
-                () =>
-                {
-                    // Cancelled - remove progress entry
-                    console.log("Extract cancelled, removing progress entry");
-                    removeProgressEntry();
                 }
             );
-
-            // Store the cancel function and track ID for potential future use
-            console.log("Extract operation started with track ID:", trackerId);
-
         } catch (error)
         {
             console.error("Failed to start extract:", error);
-            removeProgressEntry();
             await open({
                 title: "Extract Failed",
                 body: "An error occurred while starting the extraction. Please try again.",
@@ -803,17 +675,29 @@ export function ServerFiles()
     {
         if (selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) && isEditingFile)
         {
-            // Only load file contents when first opening a file (when selectedFileContents is empty)
-            // This prevents automatic refreshing while editing
-            if (selectedFileContents === "" && !needsToSave)
+            const selectedFilePath = selectedEntries[0].path;
+
+            // Load file contents if:
+            // 1. No file is currently loaded, OR
+            // 2. A different file is selected (file switched), OR
+            // 3. Content is empty and there are no unsaved changes
+            const shouldLoadFile =
+                loadedFilePathRef.current === "" ||
+                loadedFilePathRef.current !== selectedFilePath ||
+                (selectedFileContents === "" && !needsToSave);
+
+            if (shouldLoadFile)
             {
                 // Load file contents for a single text file selection
-                getFileContents(selectedEntries[0].path).then(async contents =>
+                getFileContents(selectedFilePath).then(async contents =>
                 {
                     setSelectedFileContents(contents);
                     setIsEditingFile(true);
                     setIsExternallyModified(false);
+                    setNeedsToSave(false);
+                    newContentRef.current = "";
                     originalContentHashRef.current = hashString(contents);
+                    loadedFilePathRef.current = selectedFilePath; // Track the loaded file
                 }).catch(async error =>
                 {
                     console.error("Failed to load file contents:", error);
@@ -831,14 +715,17 @@ export function ServerFiles()
             setSelectedFileContents("");
             originalContentHashRef.current = "";
             setIsExternallyModified(false);
+            loadedFilePathRef.current = ""; // Clear the loaded file reference
         }
-    }, [selectedEntries, isEditingFile, getFileContents, open, hashString]);
+    }, [selectedEntries, isEditingFile, getFileContents, open, hashString, needsToSave, selectedFileContents]);
 
     // Periodically check for external modifications
-    useEffect(() => {
+    useEffect(() =>
+    {
         if (!isEditingFile || selectedEntries.length !== 1) return;
 
-        const interval = setInterval(() => {
+        const interval = setInterval(() =>
+        {
             checkForExternalModifications();
         }, 3000); // Check every 3 seconds
 
@@ -879,8 +766,8 @@ export function ServerFiles()
                     )
                 }
                 style={{
-                    width: isEditingFile && selectedEntries.length === 1 ? `${browserWidth}px` : '100%',
-                    transition: isDragging ? 'none' : 'width 0.3s ease-in-out'
+                    width: isEditingFile && selectedEntries.length === 1 ? `${browserWidth}px` : "100%",
+                    transition: isDragging ? "none" : "width 0.3s ease-in-out"
                 }}
                 onDragStart={() => setIsDraggingOver(false)}
                 onDragEnd={() => setIsDraggingOver(false)}
@@ -905,38 +792,15 @@ export function ServerFiles()
 
                 <div className={"flex flex-row justify-between items-center"}>
                     <FileTableBreadcrumbs onNavigate={handleNavigate} paths={path.split("/").filter(p => p.trim() !== "")}/>
-                    <ButtonGroup radius={"none"} variant={"flat"}>
-                        <Tooltip content={"New File"}>
-                            <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => startEntryCreation(false)}>
-                                <Icon icon={"pixelarticons:file-plus"}/>
-                            </Button>
-                        </Tooltip>
-                        <Tooltip content={"New Directory"}>
-                            <Button radius={"none"} isIconOnly className={"text-xl"} onPress={() => startEntryCreation(true)}>
-                                <Icon icon={"pixelarticons:folder-plus"}/>
-                            </Button>
-                        </Tooltip>
-                        <Tooltip content={"Upload Folder"}>
-                            <Button
-                                radius={"none"}
-                                isIconOnly
-                                className={"text-xl"}
-                                onPress={() => folderInputRef.current?.click()}
-                            >
-                                <Icon icon={"pixelarticons:cloud-upload"}/>
-                            </Button>
-                        </Tooltip>
-                        <Tooltip content={"Toggle File Editor"}>
-                            <Button radius={"none"} isIconOnly className={"text-xl"} onPress={handleToggleEditor} color={isEditingFile ? "primary" : "default"}>
-                                <Icon icon={"pixelarticons:notes"}/>
-                            </Button>
-                        </Tooltip>
-                        <Tooltip content={"Refresh Files"}>
-                            <Button radius={"none"} isIconOnly className={"text-xl"} isDisabled={isLoading} onPress={refresh}>
-                                <Icon icon={"pixelarticons:repeat"}/>
-                            </Button>
-                        </Tooltip>
-                    </ButtonGroup>
+                    <FileTableToolbar
+                        onCreateFile={() => startEntryCreation(false)}
+                        onCreateDirectory={() => startEntryCreation(true)}
+                        onUploadFolder={() => folderInputRef.current?.click()}
+                        onToggleEditor={handleToggleEditor}
+                        onRefresh={refresh}
+                        isEditingFile={isEditingFile}
+                        isLoading={isLoading}
+                    />
                 </div>
                 <ErrorBoundary>
                     <Table
@@ -985,7 +849,7 @@ export function ServerFiles()
                                 </TableRow>
                             )) : (
                                 <>
-                                    {data?.entries?.length === 0 && fileUploadEntries.length === 0 ? (
+                                    {data?.entries?.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4} className="text-center text-gray-500">
                                                 This directory is empty
@@ -993,70 +857,50 @@ export function ServerFiles()
                                         </TableRow>
                                     ) : (
                                         <>
-                                            {fileUploadEntries.map(upload => (
-                                                <TableRow key={`upload-${upload.entry.filename}`}>
-                                                    <TableCell className={"flex items-center h-14 gap-2"}>
-                                                        <FileEntryIcon entry={upload.entry}/> {upload.entry.filename}
-                                                    </TableCell>
-                                                    <TableCell className={"text-gray-500"}>{upload.entry.file_type}</TableCell>
-                                                    <TableCell className={"text-gray-500"}>
-                                                        <div className="flex flex-col gap-1">
-                                                            <Progress
-                                                                minValue={0}
-                                                                maxValue={upload.operationType === "upload" ? 1 : 100}
-                                                                value={upload.progress}
-                                                                size={"sm"}
-                                                            />
-                                                            {upload.operationType === "extract" && upload.totalFiles && upload.totalFiles > 0 && (
-                                                                <span className="text-xs text-gray-400">
-                                                                    {upload.filesProcessed || 0}/{upload.totalFiles} files
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <></>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
                                             {data?.entries.map(entry =>
-                                                <TableRow
-                                                    key={entry.filename}
-                                                    onContextMenu={e =>
-                                                    {
-                                                        e.preventDefault();
-                                                        setContextMenuOptions({
-                                                            entry: selectedEntries.length > 1 ? selectedEntries : entry,
-                                                            x: e.clientX - 30,
-                                                            y: e.clientY - 50,
-                                                            isOpen: true
-                                                        });
-                                                    }}
-                                                    data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
-                                                    className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
-                                                    onDoubleClick={async () =>
-                                                    {
-                                                        if (entry.is_dir && !renamingEntry && !newItemCreationEntry)
+                                            {
+                                                const isSelected = selectedEntries.length === 1 && selectedEntries[0] === entry;
+                                                const isRenaming = renamingEntry === entry;
+                                                const isNewItem = newItemCreationEntry === entry;
+
+                                                return (
+                                                    <TableRow
+                                                        key={entry.filename}
+                                                        onContextMenu={e =>
                                                         {
-                                                            const newPath = path ? `${path}/${entry.filename}` : entry.filename;
-                                                            await handleNavigate(newPath);
-                                                        }
-                                                    }}
-                                                >
-                                                    <TableCell className={"flex items-center h-14 gap-2"}>
-                                                        {renamingEntry === entry ?
-                                                            <Input
-                                                                defaultValue={entry.filename}
-                                                                autoFocus
-                                                                onBlur={e => renameSelectedEntry(e.currentTarget.value)}
-                                                                onKeyDown={async e =>
-                                                                {
-                                                                    if (e.key === "Enter") await renameSelectedEntry(e.currentTarget.value);
-                                                                }}
-                                                                radius={"none"}
-                                                                className={"font-minecraft-body"}
-                                                            /> :
-                                                            newItemCreationEntry === entry ?
+                                                            e.preventDefault();
+                                                            setContextMenuOptions({
+                                                                entry: selectedEntries.length > 1 ? selectedEntries : entry,
+                                                                x: e.clientX - 30,
+                                                                y: e.clientY - 50,
+                                                                isOpen: true
+                                                            });
+                                                        }}
+                                                        data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
+                                                        className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
+                                                        onDoubleClick={async () =>
+                                                        {
+                                                            if (entry.is_dir && !renamingEntry && !newItemCreationEntry)
+                                                            {
+                                                                const newPath = path ? `${path}/${entry.filename}` : entry.filename;
+                                                                await handleNavigate(newPath);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <TableCell className={"flex items-center h-14 gap-2"}>
+                                                            {isRenaming ? (
+                                                                <Input
+                                                                    defaultValue={entry.filename}
+                                                                    autoFocus
+                                                                    onBlur={e => renameSelectedEntry(e.currentTarget.value)}
+                                                                    onKeyDown={async e =>
+                                                                    {
+                                                                        if (e.key === "Enter") await renameSelectedEntry(e.currentTarget.value);
+                                                                    }}
+                                                                    radius={"none"}
+                                                                    className={"font-minecraft-body"}
+                                                                />
+                                                            ) : isNewItem ? (
                                                                 <Input
                                                                     startContent={<FileEntryIcon entry={entry}/>}
                                                                     defaultValue={entry.filename}
@@ -1069,121 +913,92 @@ export function ServerFiles()
                                                                     radius={"none"}
                                                                     className={"font-minecraft-body"}
                                                                 />
-                                                                : (newArchiveEntry?.entry === entry && !newArchiveEntry.isUploading) ?
-                                                                    <Input
-                                                                        startContent={<FileEntryIcon entry={{filename: ".zip"} as FilesystemEntry}/>}
-                                                                        defaultValue={entry.filename}
-                                                                        autoFocus
-                                                                        onBlur={e => completeArchiveCreation(e.currentTarget.value)}
-                                                                        onKeyDown={async e =>
-                                                                        {
-                                                                            if (e.key === "Enter") await completeArchiveCreation(e.currentTarget.value);
-                                                                        }}
-                                                                        radius={"none"}
-                                                                        className={"font-minecraft-body"}
-                                                                        endContent={<Chip>.zip</Chip>}
-                                                                    />
-                                                                    :
-                                                                    <>
-                                                                        <FileEntryIcon entry={entry}/>
-                                                                        <span className="flex-1">{entry.filename}</span>
-                                                                        {/* Show indicators and actions for currently edited file */}
-                                                                        {isEditingFile && selectedEntries.length === 1 && selectedEntries[0] === entry && isTextFile(entry.path) && (
-                                                                            <div className="flex items-center gap-2 ml-auto">
-                                                                                {/* Unsaved changes indicator */}
-                                                                                {needsToSave && (
-                                                                                    <Tooltip content="File has unsaved changes, press Ctrl+S to save">
-                                                                                        <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
-                                                                                    </Tooltip>
-                                                                                )}
-                                                                                {/* External modification indicator */}
-                                                                                {isExternallyModified && (
-                                                                                    <Tooltip content="File has been modified externally">
-                                                                                        <Button
-                                                                                            size="sm"
-                                                                                            isIconOnly
-                                                                                            radius="none"
-                                                                                            variant="flat"
-                                                                                            color="warning"
-                                                                                            onPress={handleRefreshFileContents}
-                                                                                            className="min-w-6 h-6"
-                                                                                        >
-                                                                                            <Icon icon="pixelarticons:alert" className="text-sm" />
-                                                                                        </Button>
-                                                                                    </Tooltip>
-                                                                                )}
-                                                                                {/* Refresh button */}
-                                                                                <Tooltip content="Refresh file contents">
+                                                            ) : (
+                                                                <>
+                                                                    <FileEntryIcon entry={entry}/>
+                                                                    <span className="flex-1">{entry.filename}</span>
+                                                                    {isEditingFile && isSelected && isTextFile(entry.path) && (
+                                                                        <div className="flex items-center gap-2 ml-auto">
+                                                                            {needsToSave && (
+                                                                                <Tooltip content="File has unsaved changes, press Ctrl+S to save">
+                                                                                    <div className="w-2 h-2 rounded-full bg-warning animate-pulse"/>
+                                                                                </Tooltip>
+                                                                            )}
+                                                                            {isExternallyModified && (
+                                                                                <Tooltip content="File has been modified externally">
                                                                                     <Button
                                                                                         size="sm"
                                                                                         isIconOnly
                                                                                         radius="none"
                                                                                         variant="flat"
+                                                                                        color="warning"
                                                                                         onPress={handleRefreshFileContents}
                                                                                         className="min-w-6 h-6"
                                                                                     >
-                                                                                        <Icon icon="pixelarticons:reload" className="text-sm" />
+                                                                                        <Icon icon="pixelarticons:alert" className="text-sm"/>
                                                                                     </Button>
                                                                                 </Tooltip>
-                                                                                {/* Save button */}
-                                                                                <Tooltip content="Save file (Ctrl+S)">
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        isIconOnly
-                                                                                        radius="none"
-                                                                                        variant="flat"
-                                                                                        color={needsToSave ? "primary" : "default"}
-                                                                                        isDisabled={!needsToSave}
-                                                                                        onPress={saveContent}
-                                                                                        className="min-w-6 h-6"
-                                                                                    >
-                                                                                        <Icon icon="pixelarticons:save" className="text-sm" />
-                                                                                    </Button>
-                                                                                </Tooltip>
-                                                                            </div>
-                                                                        )}
-                                                                    </>
-                                                        }
-                                                    </TableCell>
-                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>{entry.file_type}</TableCell>
-                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
-                                                        {entry === newArchiveEntry?.entry ?
-                                                            <>
-                                                                <Progress
-                                                                    minValue={0}
-                                                                    maxValue={100}
-                                                                    value={newArchiveEntry.progress}
-                                                                    size={"sm"}
-                                                                />
-                                                            </>
-                                                            :
-                                                            <>
-                                                                {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
-                                                            </>
-                                                        }
-                                                    </TableCell>
-                                                    <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
-                                                        <Button
-                                                            isIconOnly
-                                                            radius={"none"}
-                                                            variant={"light"}
-                                                            onPress={e =>
-                                                            {
-                                                                let position = $(e.target).offset();
-                                                                if (!position) return;
-                                                                setContextMenuOptions({
-                                                                    entry,
-                                                                    x: position.left - 264,
-                                                                    y: position.top,
-                                                                    isOpen: true
-                                                                });
-                                                            }}
-                                                        >
-                                                            <Icon icon={"pixelarticons:more-horizontal"}/>
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
+                                                                            )}
+                                                                            <Tooltip content="Refresh file contents">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    isIconOnly
+                                                                                    radius="none"
+                                                                                    variant="flat"
+                                                                                    onPress={handleRefreshFileContents}
+                                                                                    className="min-w-6 h-6"
+                                                                                >
+                                                                                    <Icon icon="pixelarticons:reload" className="text-sm"/>
+                                                                                </Button>
+                                                                            </Tooltip>
+                                                                            <Tooltip content="Save file (Ctrl+S)">
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    isIconOnly
+                                                                                    radius="none"
+                                                                                    variant="flat"
+                                                                                    color={needsToSave ? "primary" : "default"}
+                                                                                    isDisabled={!needsToSave}
+                                                                                    onPress={saveContent}
+                                                                                    className="min-w-6 h-6"
+                                                                                >
+                                                                                    <Icon icon="pixelarticons:save" className="text-sm"/>
+                                                                                </Button>
+                                                                            </Tooltip>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
+                                                            {entry.file_type}
+                                                        </TableCell>
+                                                        <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
+                                                            {entry.is_dir ? "-" : Math.convertToByteString(entry.size)}
+                                                        </TableCell>
+                                                        <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
+                                                            <Button
+                                                                isIconOnly
+                                                                radius={"none"}
+                                                                variant={"light"}
+                                                                onPress={e =>
+                                                                {
+                                                                    let position = $(e.target).offset();
+                                                                    if (!position) return;
+                                                                    setContextMenuOptions({
+                                                                        entry,
+                                                                        x: position.left - 264,
+                                                                        y: position.top,
+                                                                        isOpen: true
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <Icon icon={"pixelarticons:more-horizontal"}/>
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
                                         </>
                                     )}
                                 </>

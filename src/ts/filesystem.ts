@@ -314,7 +314,6 @@ export class FileSystem
                 switch (data.status)
                 {
                     case "progress":
-                        console.log(`Upload progress: ${data.bytesUploaded} bytes`);
                         if (updateProgress) updateProgress(data.bytesUploaded);
                         break;
                     case "complete":
