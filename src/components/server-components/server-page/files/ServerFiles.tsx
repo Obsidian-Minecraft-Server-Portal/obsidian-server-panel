@@ -29,7 +29,7 @@ type FileWithRelPath = { file: File; relativePath: string };
 
 export function ServerFiles()
 {
-    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents} = useServer();
+    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents, downloadEntry} = useServer();
     const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
@@ -737,7 +737,7 @@ export function ServerFiles()
             ref={containerRef}
             className={
                 cn(
-                    "flex flex-row gap-2 bg-default-50 overflow-x-hidden border-2 border-default-500/10"
+                    "flex flex-col gap-2 bg-default-50 border-2 border-default-500/10"
                 )
             }
         >
@@ -758,50 +758,53 @@ export function ServerFiles()
                 }}
             />
 
-            <div
-                id={"server-file-browser"}
-                className={
-                    cn(
-                        "flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative min-w-[300px]"
-                    )
-                }
-                style={{
-                    width: isEditingFile && selectedEntries.length === 1 ? `${browserWidth}px` : "100%",
-                    transition: isDragging ? "none" : "width 0.3s ease-in-out"
-                }}
-                onDragStart={() => setIsDraggingOver(false)}
-                onDragEnd={() => setIsDraggingOver(false)}
-                onDragEnter={() => setIsDraggingOver(true)}
-                onDragExit={() => setIsDraggingOver(false)}
-                onDragOver={e => e.preventDefault()}
-                onDrop={async e =>
-                {
-                    e.preventDefault();
-                    setIsDraggingOver(false);
-                    // Collect recursively if folders are dropped
-                    const items = await collectDroppedFiles(e);
-                    await uploadWithRelPaths(items);
-                }}
-                data-dragging-over={isDraggingOver}
-            >
-                {isDraggingOver && (
-                    <div className="absolute inset-0 z-30 border-dotted border-4 border-primary bg-background/90 flex items-center justify-center">
-                        <span className="font-minecraft-body text-4xl">Drop Files or Folders to Upload</span>
-                    </div>
-                )}
+            {/* Breadcrumbs and Toolbar - Always full width */}
+            <div className={"flex flex-row justify-between items-center px-4 pt-4"}>
+                <FileTableBreadcrumbs onNavigate={handleNavigate} paths={path.split("/").filter(p => p.trim() !== "")}/>
+                <FileTableToolbar
+                    onCreateFile={() => startEntryCreation(false)}
+                    onCreateDirectory={() => startEntryCreation(true)}
+                    onUploadFolder={() => folderInputRef.current?.click()}
+                    onToggleEditor={handleToggleEditor}
+                    onRefresh={refresh}
+                    isEditingFile={isEditingFile}
+                    isLoading={isLoading}
+                />
+            </div>
 
-                <div className={"flex flex-row justify-between items-center"}>
-                    <FileTableBreadcrumbs onNavigate={handleNavigate} paths={path.split("/").filter(p => p.trim() !== "")}/>
-                    <FileTableToolbar
-                        onCreateFile={() => startEntryCreation(false)}
-                        onCreateDirectory={() => startEntryCreation(true)}
-                        onUploadFolder={() => folderInputRef.current?.click()}
-                        onToggleEditor={handleToggleEditor}
-                        onRefresh={refresh}
-                        isEditingFile={isEditingFile}
-                        isLoading={isLoading}
-                    />
-                </div>
+            {/* Content area with file browser and editor */}
+            <div className={"flex flex-row gap-2 overflow-x-hidden"}>
+                <div
+                    id={"server-file-browser"}
+                    className={
+                        cn(
+                            "flex flex-col gap-2 px-4 pb-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative min-w-[300px]"
+                        )
+                    }
+                    style={{
+                        width: isEditingFile && selectedEntries.length === 1 ? `${browserWidth}px` : "100%",
+                        transition: isDragging ? "none" : "width 0.3s ease-in-out"
+                    }}
+                    onDragStart={() => setIsDraggingOver(false)}
+                    onDragEnd={() => setIsDraggingOver(false)}
+                    onDragEnter={() => setIsDraggingOver(true)}
+                    onDragExit={() => setIsDraggingOver(false)}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={async e =>
+                    {
+                        e.preventDefault();
+                        setIsDraggingOver(false);
+                        // Collect recursively if folders are dropped
+                        const items = await collectDroppedFiles(e);
+                        await uploadWithRelPaths(items);
+                    }}
+                    data-dragging-over={isDraggingOver}
+                >
+                    {isDraggingOver && (
+                        <div className="absolute inset-0 z-30 border-dotted border-4 border-primary bg-background/90 flex items-center justify-center">
+                            <span className="font-minecraft-body text-4xl">Drop Files or Folders to Upload</span>
+                        </div>
+                    )}
                 <ErrorBoundary>
                     <Table
                         id={"server-files-table"}
@@ -880,10 +883,23 @@ export function ServerFiles()
                                                         className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
                                                         onDoubleClick={async () =>
                                                         {
-                                                            if (entry.is_dir && !renamingEntry && !newItemCreationEntry)
+                                                            if (renamingEntry || newItemCreationEntry) return;
+
+                                                            if (entry.is_dir)
                                                             {
+                                                                // Navigate into directory
                                                                 const newPath = path ? `${path}/${entry.filename}` : entry.filename;
                                                                 await handleNavigate(newPath);
+                                                            }
+                                                            else if (isTextFile(entry.path))
+                                                            {
+                                                                // Toggle edit mode for text files
+                                                                setIsEditingFile(prev => !prev);
+                                                            }
+                                                            else
+                                                            {
+                                                                // Download non-text, non-directory files
+                                                                await downloadEntry(entry);
                                                             }
                                                         }}
                                                     >
@@ -1006,37 +1022,37 @@ export function ServerFiles()
                         </TableBody>
                     </Table>
                 </ErrorBoundary>
-                {(!isEditingFile || selectedEntries.length !== 1) ? (
-                    <RowContextMenu
-                        {...contextMenuOptions}
-                        onRename={setRenamingEntry}
-                        onDelete={deleteSelected}
-                        onArchive={startArchiveCreation}
-                        onExtract={handleExtract}
-                        onEdit={() =>
-                        {
-                            setIsEditingFile(true);
-                            setContextMenuOptions(prev => ({...prev, isOpen: false}));
-                        }}
-                        onClose={() => setContextMenuOptions(prev => ({...prev, isOpen: false}))}
-                    />
-                ) : null}
+                <RowContextMenu
+                    {...contextMenuOptions}
+                    onRename={setRenamingEntry}
+                    onDelete={deleteSelected}
+                    onArchive={startArchiveCreation}
+                    onExtract={handleExtract}
+                    onEdit={() =>
+                    {
+                        setIsEditingFile(true);
+                        setContextMenuOptions(prev => ({...prev, isOpen: false}));
+                    }}
+                    onClose={() => setContextMenuOptions(prev => ({...prev, isOpen: false}))}
+                />
             </div>
-            <ServerFileEditor
-                ref={serverFileEditorRef}
-                isEditingFile={isEditingFile}
-                selectedEntries={selectedEntries}
-                selectedFileContents={selectedFileContents}
-                browserWidth={browserWidth}
-                containerRef={containerRef}
-                isDragging={isDragging}
-                needsToSave={needsToSave}
-                onContentChange={handleContentChange}
-                onSave={saveContent}
-                onWidthChange={handleWidthChange}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-            />
+
+                <ServerFileEditor
+                    ref={serverFileEditorRef}
+                    isEditingFile={isEditingFile}
+                    selectedEntries={selectedEntries}
+                    selectedFileContents={selectedFileContents}
+                    browserWidth={browserWidth}
+                    containerRef={containerRef}
+                    isDragging={isDragging}
+                    needsToSave={needsToSave}
+                    onContentChange={handleContentChange}
+                    onSave={saveContent}
+                    onWidthChange={handleWidthChange}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                />
+            </div>
 
             {/* Overlay to prevent clicks during dragging */}
             <AnimatePresence>
