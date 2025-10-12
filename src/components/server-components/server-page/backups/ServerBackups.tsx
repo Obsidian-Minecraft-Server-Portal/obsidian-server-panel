@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Card, CardBody, Chip, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Textarea, useDisclosure} from "@heroui/react";
+import {Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Textarea, useDisclosure} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Button} from "../../../extended/Button.tsx";
 import {Select} from "../../../extended/Select.tsx";
@@ -10,53 +10,72 @@ import {Tooltip} from "../../../extended/Tooltip.tsx";
 
 interface BackupData
 {
-    id: string;
-    server_id: string;
-    filename: string;
-    backup_type: string;
+    id: string; // Git commit ID
+    backup_type: number; // 0=Full, 1=Incremental, 2=WorldOnly
     file_size: number;
     created_at: number;
-    description?: string;
-    git_commit_id?: string; // For git-based incremental backups
+    description: string;
 }
 
-interface BackupListResponse
+interface BackupSchedule
 {
-    backup: BackupData;
-    file_size_formatted: string;
-    created_at_formatted: string;
+    id: number;
+    server_id: number;
+    interval_amount: number;
+    interval_unit: string; // "hours", "days", or "weeks"
+    backup_type: number;
+    enabled: boolean;
+    retention_days?: number;
+    last_run?: number;
+    next_run?: number;
+    created_at: number;
+    updated_at: number;
 }
 
 interface BackupSettings
 {
-    backup_enabled: boolean;
-    backup_cron: string;
-    backup_retention: number;
-    is_scheduled: boolean;
+    schedules: BackupSchedule[];
+}
+
+interface IgnoreEntry
+{
+    pattern: string;
+    comment?: string;
 }
 
 export function ServerBackups()
 {
     const {server} = useServer();
-    const [backups, setBackups] = useState<BackupListResponse[]>([]);
+    const [backups, setBackups] = useState<BackupData[]>([]);
     const [settings, setSettings] = useState<BackupSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [restoring, setRestoring] = useState<string | null>(null);
-    const [savingSettings, setSavingSettings] = useState(false);
 
     // Modal states
     const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
-    const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose} = useDisclosure();
+    const {isOpen: isScheduleOpen, onOpen: onScheduleOpen, onClose: onScheduleClose} = useDisclosure();
     const {isOpen: isRestoreOpen, onOpen: onRestoreOpen, onClose: onRestoreClose} = useDisclosure();
-    const {isOpen: isDownloadOpen, onOpen: onDownloadOpen, onClose: onDownloadClose} = useDisclosure();
-    const [createDescription, setCreateDescription] = useState("");
-    const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
-    const [downloadBackup, setDownloadBackup] = useState<BackupListResponse | null>(null);
+    const {isOpen: isIgnoreOpen, onOpen: onIgnoreOpen, onClose: onIgnoreClose} = useDisclosure();
 
-    // Settings form state
-    const [formSettings, setFormSettings] = useState<BackupSettings | null>(null);
+    const [createDescription, setCreateDescription] = useState("");
+    const [createBackupType, setCreateBackupType] = useState("0");
+    const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
+
+    // Schedule form state
+    const [scheduleForm, setScheduleForm] = useState({
+        intervalAmount: 6,
+        intervalUnit: "hours" as "hours" | "days" | "weeks",
+        backupType: 0,
+        enabled: true,
+        retentionDays: 7
+    });
+
+    // Ignore management state
+    const [ignoreEntries, setIgnoreEntries] = useState<IgnoreEntry[]>([]);
+    const [loadingIgnore, setLoadingIgnore] = useState(false);
+    const [savingIgnore, setSavingIgnore] = useState(false);
 
     useEffect(() =>
     {
@@ -75,7 +94,7 @@ export function ServerBackups()
             if (response.ok)
             {
                 const data = await response.json();
-                setBackups(data.backups || []);
+                setBackups(data);
             } else
             {
                 console.error("Failed to load backups");
@@ -98,7 +117,6 @@ export function ServerBackups()
             {
                 const data = await response.json();
                 setSettings(data);
-                setFormSettings(data);
             } else
             {
                 console.error("Failed to load backup settings");
@@ -106,6 +124,53 @@ export function ServerBackups()
         } catch (error)
         {
             console.error("Error loading backup settings:", error);
+        }
+    };
+
+    const loadIgnoreList = async () =>
+    {
+        setLoadingIgnore(true);
+        try
+        {
+            const response = await fetch(`/api/server/${server?.id}/backups/ignore`);
+            if (response.ok)
+            {
+                const data = await response.json();
+                setIgnoreEntries(data.entries || []);
+            }
+        } catch (error)
+        {
+            console.error("Error loading ignore list:", error);
+        } finally
+        {
+            setLoadingIgnore(false);
+        }
+    };
+
+    const saveIgnoreList = async () =>
+    {
+        setSavingIgnore(true);
+        try
+        {
+            const response = await fetch(`/api/server/${server?.id}/backups/ignore`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({entries: ignoreEntries})
+            });
+
+            if (response.ok)
+            {
+                onIgnoreClose();
+            } else
+            {
+                console.error("Failed to save ignore list");
+            }
+        } catch (error)
+        {
+            console.error("Error saving ignore list:", error);
+        } finally
+        {
+            setSavingIgnore(false);
         }
     };
 
@@ -118,11 +183,10 @@ export function ServerBackups()
         {
             const response = await fetch(`/api/server/${server?.id}/backups`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
-                    description: createDescription || undefined
+                    backup_type: parseInt(createBackupType),
+                    description: createDescription || null
                 })
             });
 
@@ -131,6 +195,7 @@ export function ServerBackups()
                 await loadBackups();
                 onCreateClose();
                 setCreateDescription("");
+                setCreateBackupType("0");
             } else
             {
                 const error = await response.json();
@@ -188,7 +253,6 @@ export function ServerBackups()
             {
                 onRestoreClose();
                 setRestoreBackupId(null);
-                // Show success message or refresh data
             } else
             {
                 const error = await response.json();
@@ -203,72 +267,129 @@ export function ServerBackups()
         }
     };
 
+    const createSchedule = async () =>
+    {
+        if (!server?.id) return;
+
+        try
+        {
+            const response = await fetch(`/api/server/${server?.id}/backups/settings`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    interval_amount: scheduleForm.intervalAmount,
+                    interval_unit: scheduleForm.intervalUnit,
+                    backup_type: scheduleForm.backupType,
+                    enabled: scheduleForm.enabled,
+                    retention_days: scheduleForm.retentionDays
+                })
+            });
+
+            if (response.ok)
+            {
+                await loadSettings();
+                onScheduleClose();
+            } else
+            {
+                const error = await response.json();
+                console.error("Failed to create schedule:", error);
+            }
+        } catch (error)
+        {
+            console.error("Error creating schedule:", error);
+        }
+    };
+
+    const deleteSchedule = async (scheduleId: number) =>
+    {
+        if (!server?.id) return;
+
+        try
+        {
+            const response = await fetch(`/api/server/${server?.id}/backups/schedules/${scheduleId}`, {
+                method: "DELETE"
+            });
+
+            if (response.ok)
+            {
+                await loadSettings();
+            }
+        } catch (error)
+        {
+            console.error("Error deleting schedule:", error);
+        }
+    };
+
+    const downloadBackup = (backupId: string) =>
+    {
+        const link = document.createElement('a');
+        link.href = `/api/server/${server?.id}/backups/${backupId}/download`;
+        link.target = '_blank';
+        link.click();
+    };
+
     const openRestoreConfirmation = (backupId: string) =>
     {
         setRestoreBackupId(backupId);
         onRestoreOpen();
     };
 
-    const handleDownloadClick = (backup: BackupListResponse) =>
+    const openIgnoreModal = () =>
     {
-        // Check if it's a git-based backup
-        if (backup.backup.git_commit_id) {
-            // Show download options modal for git-based backups
-            setDownloadBackup(backup);
-            onDownloadOpen();
-        } else {
-            // Direct download for legacy ZIP-based backups
-            const link = document.createElement('a');
-            link.href = `/api/server/${server?.id}/backups/${backup.backup.id}/download`;
-            link.target = '_blank';
-            link.click();
+        loadIgnoreList();
+        onIgnoreOpen();
+    };
+
+    const addIgnoreEntry = () =>
+    {
+        setIgnoreEntries([...ignoreEntries, {pattern: "", comment: ""}]);
+    };
+
+    const removeIgnoreEntry = (index: number) =>
+    {
+        setIgnoreEntries(ignoreEntries.filter((_, i) => i !== index));
+    };
+
+    const updateIgnoreEntry = (index: number, field: "pattern" | "comment", value: string) =>
+    {
+        const newEntries = [...ignoreEntries];
+        newEntries[index][field] = value;
+        setIgnoreEntries(newEntries);
+    };
+
+    const formatDate = (timestamp: number) =>
+    {
+        return new Date(timestamp * 1000).toLocaleString();
+    };
+
+    const formatSize = (bytes: number) =>
+    {
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+    };
+
+    const getBackupTypeName = (type: number) =>
+    {
+        switch(type) {
+            case 0: return "Full";
+            case 1: return "Incremental";
+            case 2: return "World Only";
+            default: return "Unknown";
         }
     };
 
-    const handleDownloadOption = (downloadType: string) =>
+    const getScheduleInterval = (schedule: BackupSchedule): {amount: number, unit: string} =>
     {
-        if (!downloadBackup) return;
-        
-        const link = document.createElement('a');
-        link.href = `/api/server/${server?.id}/backups/${downloadBackup.backup.id}/download?type=${downloadType}`;
-        link.target = '_blank';
-        link.click();
-        
-        onDownloadClose();
-        setDownloadBackup(null);
-    };
-
-    const saveSettings = async () =>
-    {
-        if (!server?.id || !formSettings) return;
-
-        setSavingSettings(true);
-        try
-        {
-            const response = await fetch(`/api/server/${server?.id}/backups/settings`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(formSettings)
-            });
-
-            if (response.ok)
-            {
-                await loadSettings();
-                onSettingsClose();
-            } else
-            {
-                const error = await response.json();
-                console.error("Failed to save backup settings:", error);
-            }
-        } catch (error)
-        {
-            console.error("Error saving backup settings:", error);
-        } finally
-        {
-            setSavingSettings(false);
-        }
+        return {
+            amount: schedule.interval_amount,
+            unit: schedule.interval_unit
+        };
     };
 
     if (loading)
@@ -280,6 +401,8 @@ export function ServerBackups()
         );
     }
 
+    const activeSchedules = settings?.schedules.filter(s => s.enabled) || [];
+
     return (
         <div className="flex flex-col gap-4 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative font-minecraft-body">
             {/* Header with actions */}
@@ -288,9 +411,9 @@ export function ServerBackups()
                     <h2 className="text-2xl">Server Backups</h2>
                     <p className="text-default-500">
                         {backups.length} backup{backups.length !== 1 ? "s" : ""} available
-                        {settings?.is_scheduled && (
+                        {activeSchedules.length > 0 && (
                             <Chip size="sm" color="success" variant="flat" className="ml-2">
-                                Scheduled
+                                {activeSchedules.length} Active Schedule{activeSchedules.length !== 1 ? "s" : ""}
                             </Chip>
                         )}
                     </p>
@@ -298,10 +421,17 @@ export function ServerBackups()
                 <div className="flex gap-2">
                     <Button
                         variant="flat"
-                        onPress={onSettingsOpen}
-                        startContent={<Icon icon="pixelarticons:settings"/>}
+                        onPress={openIgnoreModal}
+                        startContent={<Icon icon="pixelarticons:eye-closed"/>}
                     >
-                        Settings
+                        Ignored Files
+                    </Button>
+                    <Button
+                        variant="flat"
+                        onPress={onScheduleOpen}
+                        startContent={<Icon icon="pixelarticons:calendar"/>}
+                    >
+                        Schedule
                     </Button>
                     <Button
                         color="primary"
@@ -313,6 +443,45 @@ export function ServerBackups()
                     </Button>
                 </div>
             </div>
+
+            {/* Active Schedules */}
+            {activeSchedules.length > 0 && (
+                <Card>
+                    <CardBody>
+                        <h3 className="text-lg mb-2">Active Schedules</h3>
+                        <div className="flex flex-col gap-2">
+                            {activeSchedules.map(schedule => {
+                                const interval = getScheduleInterval(schedule);
+                                return (
+                                    <div key={schedule.id} className="flex items-center justify-between p-2 bg-default-100 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <Icon icon="pixelarticons:clock" className="text-primary"/>
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    Every {interval.amount} {interval.unit}
+                                                </p>
+                                                <p className="text-xs text-default-500">
+                                                    {getBackupTypeName(schedule.backup_type)} backup •
+                                                    Keep {schedule.retention_days || 7} days
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            color="danger"
+                                            variant="flat"
+                                            isIconOnly
+                                            onPress={() => deleteSchedule(schedule.id)}
+                                        >
+                                            <Icon icon="pixelarticons:trash"/>
+                                        </Button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </CardBody>
+                </Card>
+            )}
 
             {/* Backups Table */}
             <Card className="flex-1">
@@ -326,7 +495,8 @@ export function ServerBackups()
                         removeWrapper
                     >
                         <TableHeader>
-                            <TableColumn>Filename</TableColumn>
+                            <TableColumn>Commit ID</TableColumn>
+                            <TableColumn>Type</TableColumn>
                             <TableColumn>Size</TableColumn>
                             <TableColumn>Created</TableColumn>
                             <TableColumn>Description</TableColumn>
@@ -337,57 +507,62 @@ export function ServerBackups()
                             items={backups}
                         >
                             {(backup) => (
-                                <TableRow key={backup.backup.id}>
+                                <TableRow key={backup.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <Icon icon="pixelarticons:archive" className="text-default-400"/>
-                                            <span className="text-sm">{backup.backup.filename}</span>
+                                            <Icon icon="pixelarticons:git-commit" className="text-default-400"/>
+                                            <span className="text-sm font-mono">{backup.id.substring(0, 8)}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <span className="text-sm">{backup.file_size_formatted}</span>
+                                        <Chip size="sm" variant="flat">
+                                            {getBackupTypeName(backup.backup_type)}
+                                        </Chip>
                                     </TableCell>
                                     <TableCell>
-                                        <span className="text-sm">{backup.created_at_formatted}</span>
+                                        <span className="text-sm">{formatSize(backup.file_size)}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className="text-sm">{formatDate(backup.created_at)}</span>
                                     </TableCell>
                                     <TableCell>
                                         <span className="text-sm text-default-500">
-                                            {backup.backup.description || "No description"}
+                                            {backup.description}
                                         </span>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-1">
-                                            <Tooltip content={"Download this backup"}>
+                                            <Tooltip content="Download this backup">
                                                 <Button
                                                     size="sm"
                                                     color="primary"
                                                     variant="flat"
                                                     isIconOnly
-                                                    onPress={() => handleDownloadClick(backup)}
+                                                    onPress={() => downloadBackup(backup.id)}
                                                 >
                                                     <Icon icon="pixelarticons:download"/>
                                                 </Button>
                                             </Tooltip>
-                                            <Tooltip content={"Restore this backup"}>
+                                            <Tooltip content="Restore this backup">
                                                 <Button
                                                     size="sm"
                                                     color="warning"
                                                     variant="flat"
                                                     isIconOnly
-                                                    onPress={() => openRestoreConfirmation(backup.backup.id)}
-                                                    isLoading={restoring === backup.backup.id}
+                                                    onPress={() => openRestoreConfirmation(backup.id)}
+                                                    isLoading={restoring === backup.id}
                                                 >
                                                     <Icon icon="pixelarticons:reply-all"/>
                                                 </Button>
                                             </Tooltip>
-                                            <Tooltip content={"Delete this backup"}>
+                                            <Tooltip content="Delete this backup">
                                                 <Button
                                                     size="sm"
                                                     color="danger"
                                                     variant="flat"
                                                     isIconOnly
-                                                    onPress={() => deleteBackup(backup.backup.id)}
-                                                    isLoading={deleting === backup.backup.id}
+                                                    onPress={() => deleteBackup(backup.id)}
+                                                    isLoading={deleting === backup.id}
                                                 >
                                                     <Icon icon="pixelarticons:trash"/>
                                                 </Button>
@@ -409,20 +584,27 @@ export function ServerBackups()
                 backdrop="blur"
                 radius="none"
                 closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{
-                    closeButton: "rounded-none"
-                }}
+                classNames={{closeButton: "rounded-none"}}
             >
                 <ModalContent>
                     <ModalHeader>Create New Backup</ModalHeader>
                     <ModalBody>
+                        <Select
+                            label="Backup Type"
+                            selectedKeys={[createBackupType]}
+                            onSelectionChange={(keys) => setCreateBackupType(Array.from(keys)[0] as string)}
+                        >
+                            <SelectItem key="0">Full Backup</SelectItem>
+                            <SelectItem key="1">Incremental Backup</SelectItem>
+                            <SelectItem key="2">World Only</SelectItem>
+                        </Select>
                         <Textarea
                             label="Description (Optional)"
                             placeholder="Enter a description for this backup..."
                             value={createDescription}
                             onValueChange={setCreateDescription}
                             maxRows={3}
-                            radius={"none"}
+                            radius="none"
                         />
                     </ModalBody>
                     <ModalFooter>
@@ -440,97 +622,179 @@ export function ServerBackups()
                 </ModalContent>
             </Modal>
 
-            {/* Settings Modal */}
-            <Modal isOpen={isSettingsOpen} onClose={onSettingsClose} size="lg" className={"font-minecraft-body"} radius={"none"} backdrop={"blur"}>
+            {/* Schedule Modal */}
+            <Modal
+                isOpen={isScheduleOpen}
+                onClose={onScheduleClose}
+                size="lg"
+                backdrop="blur"
+                radius="none"
+            >
                 <ModalContent>
-                    <ModalHeader>Backup Settings</ModalHeader>
+                    <ModalHeader>Create Backup Schedule</ModalHeader>
                     <ModalBody className="gap-4">
-                        {formSettings && (
-                            <>
-                                <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
-                                    <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
-                                    <div>
-                                        <p className="text-sm font-medium text-primary-800">
-                                            Incremental Backups Only
-                                        </p>
-                                        <p className="text-sm text-primary-600">
-                                            All backups are created using efficient incremental Git-based storage.
-                                        </p>
+                        <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
+                            <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
+                            <div>
+                                <p className="text-sm font-medium text-primary-800">
+                                    Automated Backups
+                                </p>
+                                <p className="text-sm text-primary-600">
+                                    Schedule automatic backups to run at regular intervals.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Input
+                                label="Every"
+                                type="number"
+                                min={1}
+                                value={scheduleForm.intervalAmount.toString()}
+                                onValueChange={(v) => setScheduleForm({...scheduleForm, intervalAmount: parseInt(v) || 1})}
+                                className="w-1/3"
+                            />
+                            <Select
+                                label="Unit"
+                                selectedKeys={[scheduleForm.intervalUnit]}
+                                onSelectionChange={(keys) => setScheduleForm({...scheduleForm, intervalUnit: Array.from(keys)[0] as any})}
+                                className="w-2/3"
+                            >
+                                <SelectItem key="hours">Hours</SelectItem>
+                                <SelectItem key="days">Days</SelectItem>
+                                <SelectItem key="weeks">Weeks</SelectItem>
+                            </Select>
+                        </div>
+
+                        <Select
+                            label="Backup Type"
+                            selectedKeys={[scheduleForm.backupType.toString()]}
+                            onSelectionChange={(keys) => setScheduleForm({...scheduleForm, backupType: parseInt(Array.from(keys)[0] as string)})}
+                        >
+                            <SelectItem key="0">Full Backup</SelectItem>
+                            <SelectItem key="1">Incremental Backup</SelectItem>
+                            <SelectItem key="2">World Only</SelectItem>
+                        </Select>
+
+                        <Input
+                            label="Retention Days"
+                            type="number"
+                            min={1}
+                            value={scheduleForm.retentionDays.toString()}
+                            onValueChange={(v) => setScheduleForm({...scheduleForm, retentionDays: parseInt(v) || 7})}
+                            description="Number of days to keep backups (older backups will be deleted)"
+                        />
+
+                        <Checkbox
+                            label="Enable Schedule"
+                            checked={scheduleForm.enabled}
+                            onChange={(enabled) => setScheduleForm({...scheduleForm, enabled})}
+                            labelPlacement="left"
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="flat" onPress={onScheduleClose}>
+                            Cancel
+                        </Button>
+                        <Button
+                            color="primary"
+                            onPress={createSchedule}
+                        >
+                            Create Schedule
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Manage Ignored Files Modal */}
+            <Modal
+                isOpen={isIgnoreOpen}
+                onClose={onIgnoreClose}
+                size="2xl"
+                backdrop="blur"
+                radius="none"
+                scrollBehavior="inside"
+            >
+                <ModalContent>
+                    <ModalHeader>Manage Ignored Files</ModalHeader>
+                    <ModalBody>
+                        <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg border border-warning-200 mb-4">
+                            <Icon icon="pixelarticons:info" className="text-warning-600 text-xl"/>
+                            <div>
+                                <p className="text-sm font-medium text-warning-800">
+                                    .obakignore Configuration
+                                </p>
+                                <p className="text-sm text-warning-600">
+                                    Files and directories matching these patterns will be excluded from backups.
+                                </p>
+                            </div>
+                        </div>
+
+                        {loadingIgnore ? (
+                            <div className="flex justify-center py-8">
+                                <Spinner/>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {ignoreEntries.map((entry, index) => (
+                                    <div key={index} className="flex gap-2 items-start">
+                                        <Input
+                                            placeholder="Pattern (e.g., *.log, cache/, temp/**)"
+                                            value={entry.pattern}
+                                            onValueChange={(v) => updateIgnoreEntry(index, "pattern", v)}
+                                            className="flex-1"
+                                            size="sm"
+                                        />
+                                        <Input
+                                            placeholder="Comment (optional)"
+                                            value={entry.comment || ""}
+                                            onValueChange={(v) => updateIgnoreEntry(index, "comment", v)}
+                                            className="flex-1"
+                                            size="sm"
+                                        />
+                                        <Button
+                                            size="sm"
+                                            color="danger"
+                                            variant="flat"
+                                            isIconOnly
+                                            onPress={() => removeIgnoreEntry(index)}
+                                        >
+                                            <Icon icon="pixelarticons:trash"/>
+                                        </Button>
                                     </div>
+                                ))}
+
+                                <Button
+                                    variant="flat"
+                                    onPress={addIgnoreEntry}
+                                    startContent={<Icon icon="pixelarticons:plus"/>}
+                                    className="mt-2"
+                                >
+                                    Add Pattern
+                                </Button>
+
+                                <div className="mt-4 p-3 bg-default-100 rounded-lg">
+                                    <p className="text-sm font-medium mb-2">Pattern Examples:</p>
+                                    <ul className="text-xs text-default-600 space-y-1">
+                                        <li>• <code>*.log</code> - Ignore all .log files</li>
+                                        <li>• <code>cache/</code> - Ignore the cache directory</li>
+                                        <li>• <code>temp/**</code> - Ignore temp directory and all contents</li>
+                                        <li>• <code>logs/*.txt</code> - Ignore .txt files in logs folder</li>
+                                    </ul>
                                 </div>
-                                <div className={"flex flex-row gap-2 items-start"}>
-                                    <Select
-                                        label={"Backup Schedule"}
-                                        description="Cron expression for backup schedule (e.g., '0 0 * * * *' for hourly)"
-                                        selectedKeys={formSettings.backup_cron}
-                                        onSelectionChange={
-                                            (key) =>
-                                            {
-                                                if (!key) return;
-                                                setFormSettings({
-                                                    ...formSettings,
-                                                    backup_cron: key as string,
-                                                    is_scheduled: true
-                                                });
-                                            }
-                                        }
-                                        size={"sm"}
-                                    >
-                                        <SelectItem key={"0 */15 * * * *"}>Every 15 Minutes</SelectItem>
-                                        <SelectItem key={"0 */30 * * * *"}>Every 30 Minutes</SelectItem>
-                                        <SelectItem key={"0 0 * * * *"}>Every Hour</SelectItem>
-                                        <SelectItem key={"0 0 */2 * * *"}>Every Other Hour</SelectItem>
-                                        <SelectItem key={"0 0 */6 * * *"}>Every 6 Hours</SelectItem>
-                                        <SelectItem key={"0 0 0 * * *"}>Every Day</SelectItem>
-                                        <SelectItem key={"0 0 0 */2 * *"}>Every Other Day</SelectItem>
-                                        <SelectItem key={"0 0 0 */14 * *"}>BiWeekly</SelectItem>
-                                        <SelectItem key={"0 0 0 1 * *"}>1st of Every Month</SelectItem>
-                                        <SelectItem key={"0 0 0 1 */2 *"}>Every Other Month</SelectItem>
-                                        <SelectItem key={"0 0 0 1 */6 *"}>Every 6 Months</SelectItem>
-                                        <SelectItem key={"0 0 0 1 1 *"}>Every Year</SelectItem>
-
-                                    </Select>
-
-                                    <Tooltip content={"Open Cron Expression Generator"}>
-                                        <Button isIconOnly as={Link} href={"https://crontab.cronhub.io/"} target={"_blank"} size={"lg"}><Icon icon={"pixelarticons:external-link"}/></Button>
-                                    </Tooltip>
-                                </div>
-
-                                <Input
-                                    label="Backup Retention"
-                                    type="number"
-                                    min={1}
-                                    max={100}
-                                    value={formSettings.backup_retention.toString()}
-                                    onValueChange={(retention) =>
-                                        setFormSettings({
-                                            ...formSettings,
-                                            backup_retention: parseInt(retention) || 7
-                                        })
-                                    }
-                                    description="Number of backups to keep (older backups will be deleted)"
-                                />
-                                <Checkbox
-                                    label={"Enable Automatic Backups"}
-                                    checked={formSettings.backup_enabled}
-                                    onChange={(enabled) =>
-                                        setFormSettings({...formSettings, backup_enabled: enabled})
-                                    }
-                                    labelPlacement={"left"}
-                                />
-                            </>
+                            </div>
                         )}
                     </ModalBody>
                     <ModalFooter>
+                        <Button variant="flat" onPress={onIgnoreClose}>
+                            Cancel
+                        </Button>
                         <Button
                             color="primary"
-                            onPress={saveSettings}
-                            isLoading={savingSettings}
+                            onPress={saveIgnoreList}
+                            isLoading={savingIgnore}
                         >
-                            Save Settings
-                        </Button>
-                        <Button variant="flat" onPress={onSettingsClose}>
-                            Cancel
+                            Save
                         </Button>
                     </ModalFooter>
                 </ModalContent>
@@ -540,14 +804,11 @@ export function ServerBackups()
             <Modal
                 isOpen={isRestoreOpen}
                 onClose={onRestoreClose}
-                className={"font-minecraft-body"}
-                radius={"none"}
-                backdrop={"blur"}
+                radius="none"
+                backdrop="blur"
                 scrollBehavior="inside"
                 closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{
-                    closeButton: "rounded-none"
-                }}
+                classNames={{closeButton: "rounded-none"}}
             >
                 <ModalContent>
                     <ModalHeader>Restore Backup</ModalHeader>
@@ -558,7 +819,7 @@ export function ServerBackups()
                                 <div>
                                     <p className="font-semibold text-warning-800">Warning: This action cannot be undone</p>
                                     <p className="text-sm text-warning-700">
-                                        Restoring this backup will replace all current server files. Your current server data will be backed up before restoration.
+                                        Restoring will replace all current server files with the backup data.
                                     </p>
                                 </div>
                             </div>
@@ -567,9 +828,8 @@ export function ServerBackups()
                             </p>
                             <ul className="list-disc list-inside text-sm text-default-600 ml-4">
                                 <li>Stop the server if it's currently running</li>
-                                <li>Create a backup of your current server files</li>
                                 <li>Replace all server files with the backup data</li>
-                                <li>You may need to restart the server manually after restoration</li>
+                                <li>You may need to restart the server manually</li>
                             </ul>
                         </div>
                     </ModalBody>
@@ -583,80 +843,6 @@ export function ServerBackups()
                             isLoading={restoring === restoreBackupId}
                         >
                             Restore Backup
-                        </Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
-
-            {/* Download Options Modal for Git-based Incremental Backups */}
-            <Modal
-                isOpen={isDownloadOpen}
-                onClose={onDownloadClose}
-                className={"font-minecraft-body"}
-                radius={"none"}
-                backdrop={"blur"}
-                scrollBehavior="inside"
-                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{
-                    closeButton: "rounded-none"
-                }}
-            >
-                <ModalContent>
-                    <ModalHeader>Download Backup Options</ModalHeader>
-                    <ModalBody>
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
-                                <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
-                                <div>
-                                    <p className="text-sm font-medium text-primary-800">
-                                        Git-based Incremental Backup
-                                    </p>
-                                    <p className="text-sm text-primary-600">
-                                        Choose how you want to download this backup.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <div className="p-3 border border-default-300 rounded-lg">
-                                    <h4 className="font-medium text-sm mb-1">Modified Files Only (Diff)</h4>
-                                    <p className="text-xs text-default-500 mb-3">
-                                        Download only the files that were changed in this backup compared to the previous backup.
-                                        Smaller download size, but requires manual merging.
-                                    </p>
-                                    <Button
-                                        size="sm"
-                                        color="primary"
-                                        variant="flat"
-                                        onPress={() => handleDownloadOption("diff")}
-                                        startContent={<Icon icon="pixelarticons:diff"/>}
-                                    >
-                                        Download Changes Only
-                                    </Button>
-                                </div>
-
-                                <div className="p-3 border border-default-300 rounded-lg">
-                                    <h4 className="font-medium text-sm mb-1">Full Backup From This Point</h4>
-                                    <p className="text-xs text-default-500 mb-3">
-                                        Download a complete backup containing all files as they were at this backup point.
-                                        Larger download size, but ready to restore directly.
-                                    </p>
-                                    <Button
-                                        size="sm"
-                                        color="success"
-                                        variant="flat"
-                                        onPress={() => handleDownloadOption("full")}
-                                        startContent={<Icon icon="pixelarticons:archive"/>}
-                                    >
-                                        Download Full Backup
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button variant="flat" onPress={onDownloadClose}>
-                            Cancel
                         </Button>
                     </ModalFooter>
                 </ModalContent>

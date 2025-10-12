@@ -79,8 +79,31 @@ pub async fn run() -> Result<()> {
     });
 
     // Start the scheduler to refresh Java Minecraft version map daily
-    let scheduler = java::start_scheduler();
-    scheduler.start().await?;
+    let java_scheduler = java::start_scheduler();
+    java_scheduler.start().await?;
+
+    // Start the backup scheduler
+    tokio::spawn(async {
+        let result: Result<()> = async {
+            let pool = open_pool().await?;
+            let mut backup_scheduler = server::backups::BackupScheduler::new(pool);
+            backup_scheduler.start().await?;
+
+            // Keep the scheduler running
+            loop {
+                if !backup_scheduler.is_running().await {
+                    warn!("Backup scheduler stopped, restarting...");
+                    backup_scheduler.start().await?;
+                }
+                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+            }
+        }
+        .await;
+
+        if let Err(e) = result {
+            error!("Backup scheduler failed: {}", e);
+        }
+    });
 
     let server = HttpServer::new(move || {
         App::new()

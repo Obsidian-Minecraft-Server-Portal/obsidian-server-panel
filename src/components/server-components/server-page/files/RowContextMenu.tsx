@@ -38,10 +38,11 @@ type RowContextMenuProps = {
     onArchive: (entry: FilesystemEntry[]) => void;
     onExtract: (entry: FilesystemEntry, outputPath?: string) => void;
     onEdit: (entry: FilesystemEntry) => void;
+    onAddToIgnore: (entry: FilesystemEntry[]) => void;
     onClose: () => void;
 } & ContextMenuOptions;
 
-export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive, onEdit, onExtract}: RowContextMenuProps)
+export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete, onArchive, onEdit, onExtract, onAddToIgnore}: RowContextMenuProps)
 {
     const {downloadEntry} = useServer();
     const [position, setPosition] = useState({x, y});
@@ -145,6 +146,10 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
                 })() : null}
                 <ListboxItem key={"archive"} endContent={<Icon icon={"pixelarticons:archive"}/>} onPress={() => onArchive(Array.isArray(entry) ? entry : [entry] as FilesystemEntry[])}>Archive</ListboxItem>
                 <ListboxItem key={"download"} endContent={<Icon icon={"pixelarticons:flatten"}/>} onPress={downloadSelectedEntries}>Download</ListboxItem>
+                <ListboxItem key={"add-to-ignore"} endContent={<Icon icon={"pixelarticons:eye-closed"}/>} onPress={() => {
+                    onAddToIgnore(Array.isArray(entry) ? entry : [entry] as FilesystemEntry[]);
+                    onClose();
+                }}>Add to .obakignore</ListboxItem>
                 <ListboxItem key={"delete"} color={"danger"} className={"text-danger"} endContent={<Icon icon={"pixelarticons:trash"}/>} onPress={deleteSelectedEntries}>Delete</ListboxItem>
             </ListboxSection>
         </Listbox>

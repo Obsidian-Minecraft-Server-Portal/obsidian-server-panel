@@ -1,15 +1,19 @@
--- This SQL script creates a table for managing server backups in a database.
--- It stores metadata about backup files including their location, size, and type.
+-- This SQL script creates tables for managing server backups in a database.
+-- Backup schedules for automated backups are stored in the database.
+-- Actual backup metadata is managed by the obsidian-backups crate using git.
 
-CREATE TABLE IF NOT EXISTS `backups`
+CREATE TABLE IF NOT EXISTS `backup_schedules`
 (
-    `id`            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, -- unique identifier for the backup
-    `server_id`     INTEGER NOT NULL,                           -- reference to the server this backup belongs to
-    `filename`      TEXT    NOT NULL,                           -- name of the backup file (e.g., 'backup_2025-08-03_11-58-00.zip')
-    `backup_type`   tinyint NOT NULL DEFAULT 0,                 -- 0 => full backup, 1 => incremental backup, 2 => world backup
-    `file_size`     INTEGER NOT NULL DEFAULT 0,                 -- size of the backup file in bytes
-    `created_at`    INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch when backup was created
-    `description`   TEXT             DEFAULT NULL,              -- optional description of the backup
-    `git_commit_id` TEXT             DEFAULT NULL,              -- git commit ID for incremental backups (NULL for ZIP-based backups)
+    `id`              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,       -- unique identifier for the schedule
+    `server_id`       INTEGER NOT NULL,                                 -- reference to the server this schedule belongs to
+    `interval_amount` INTEGER NOT NULL,                                 -- interval amount (e.g., 6 for "every 6 hours")
+    `interval_unit`   TEXT    NOT NULL,                                 -- interval unit: 'hours', 'days', or 'weeks'
+    `backup_type`     tinyint NOT NULL DEFAULT 0,                       -- 0 => full backup, 1 => incremental backup, 2 => world backup
+    `enabled`         BOOLEAN NOT NULL DEFAULT 1,                       -- whether this schedule is active
+    `retention_days`  INTEGER          DEFAULT 7,                       -- number of days to retain backups before deletion (NULL = keep forever)
+    `last_run`        INTEGER          DEFAULT NULL,                    -- timestamp of last execution in seconds since epoch
+    `next_run`        INTEGER          DEFAULT NULL,                    -- timestamp of next scheduled run in seconds since epoch
+    `created_at`      INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch when schedule was created
+    `updated_at`      INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch when schedule was last updated
     FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 )

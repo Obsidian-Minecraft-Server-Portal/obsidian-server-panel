@@ -54,7 +54,7 @@ notify = { version = "8.1.0", features = ["default", "serde"] }
 clap = { version = "4.5.42", features = ["error-context", "derive", "help", "suggestions", "color", "usage", "wrap_help", "unicode", "string"] }
 rand = "0.9.1"
 obsidian-scheduler = { version = "0.1.0", features = [ "event-timers", "log", "callback-timers" ] }
-obsidian-backups = { version = "0.1.0", features = ["serde", "logging", "zip"] }
+obsidian-backups = { version = "0.1.1", features = ["serde", "logging", "zip"] }
 
 [build-dependencies]
 include_dir = "0.7.4"

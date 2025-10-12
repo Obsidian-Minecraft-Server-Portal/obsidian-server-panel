@@ -29,7 +29,7 @@ type FileWithRelPath = { file: File; relativePath: string };
 
 export function ServerFiles()
 {
-    const {getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents, downloadEntry} = useServer();
+    const {server, getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents, downloadEntry} = useServer();
     const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
@@ -636,6 +636,70 @@ export function ServerFiles()
         }
     }, [path]);
 
+    const handleAddToIgnore = useCallback(async (entries: FilesystemEntry[]) =>
+    {
+        setContextMenuOptions(prev => ({...prev, isOpen: false}));
+
+        if (entries.length === 0) return;
+
+        try
+        {
+            // Fetch the current ignore list from the backup API
+            const response = await fetch(`/api/server/${server?.id}/backups/ignore`);
+            let ignoreEntries: {pattern: string, comment?: string}[] = [];
+
+            if (response.ok)
+            {
+                const data = await response.json();
+                ignoreEntries = data.entries || [];
+            }
+
+            // Add new entries (relative to server root)
+            for (const entry of entries)
+            {
+                const entryPath = entry.path;
+                // Check if already in ignore list
+                const exists = ignoreEntries.some(e => e.pattern === entryPath);
+                if (!exists)
+                {
+                    ignoreEntries.push({
+                        pattern: entryPath,
+                        comment: undefined
+                    });
+                }
+            }
+
+            // Update the ignore list via the backup API
+            const updateResponse = await fetch(`/api/server/${server?.id}/backups/ignore`, {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({entries: ignoreEntries})
+            });
+
+            if (!updateResponse.ok)
+            {
+                throw new Error("Failed to update ignore list");
+            }
+
+            // Show success message
+            await open({
+                title: "Added to Ignore List",
+                body: `${entries.length} ${entries.length === 1 ? "item" : "items"} added to .obakignore`,
+                responseType: MessageResponseType.Close,
+                severity: "success"
+            });
+        } catch (error)
+        {
+            console.error("Failed to add to ignore list:", error);
+            await open({
+                title: "Failed to Add to Ignore List",
+                body: "An error occurred while updating .obakignore. Please try again.",
+                responseType: MessageResponseType.Close,
+                severity: "danger"
+            });
+        }
+    }, [server, open]);
+
     useEffect(() =>
     {
         refresh().then();
@@ -1033,6 +1097,7 @@ export function ServerFiles()
                         setIsEditingFile(true);
                         setContextMenuOptions(prev => ({...prev, isOpen: false}));
                     }}
+                    onAddToIgnore={handleAddToIgnore}
                     onClose={() => setContextMenuOptions(prev => ({...prev, isOpen: false}))}
                 />
             </div>

@@ -1,4 +1,4 @@
-mod backups;
+pub mod backups;
 mod filesystem;
 pub mod installed_mods;
 mod server_actions;
