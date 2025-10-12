@@ -46,7 +46,6 @@ flate2 = { version = "1.1.2" }
 tar = "0.4.44"
 serde_ini = { version = "0.2.0" }
 craftping = { version = "0.7.0", features = ["tokio", "async-tokio"] }
-obsidian-upnp = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/upnp.git" }
 strsim = "0.11.1"
 toml = "0.9.4"
 base64 = "0.22.1"
@@ -55,6 +54,7 @@ clap = { version = "4.5.42", features = ["error-context", "derive", "help", "sug
 rand = "0.9.1"
 obsidian-scheduler = { version = "0.1.0", features = [ "event-timers", "log", "callback-timers" ] }
 obsidian-backups = { version = "0.1.1", features = ["serde", "logging", "zip"] }
+easy-upnp = {version = "0.3.0"}
 
 [build-dependencies]
 include_dir = "0.7.4"

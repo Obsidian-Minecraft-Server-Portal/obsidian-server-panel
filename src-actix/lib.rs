@@ -6,7 +6,8 @@ use actix_web::{App, HttpResponse, HttpServer, get, middleware, web};
 use anyhow::Result;
 use clap::Parser;
 use log::*;
-use obsidian_upnp::{close_all_ports, open_port};
+use easy_upnp::{add_ports, delete_ports, PortMappingProtocol, UpnpConfig};
+use std::sync::{Mutex, OnceLock};
 use serde_json::json;
 use std::env::set_current_dir;
 use obsidian_scheduler::timer_trait::Timer;
@@ -26,6 +27,7 @@ mod updater;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 static ICON: &[u8] = include_bytes!("../resources/logo/icon.ico");
+static UPNP_PORTS: OnceLock<Mutex<Vec<u16>>> = OnceLock::new();
 
 pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder().filter_level(if DEBUG { LevelFilter::Debug } else { LevelFilter::Info }).format_timestamp(None).init();
@@ -133,13 +135,66 @@ pub async fn run() -> Result<()> {
     info!("Starting {} server at http://127.0.0.1:{}...", if DEBUG { "development" } else { "production" }, args.port);
 
     if args.forward_webpanel {
-        open_port!(args.port, "Obsidian Minecraft Server Panel");
+        let config = UpnpConfig {
+            address: None,
+            port: args.port,
+            protocol: PortMappingProtocol::TCP,
+            duration: 0, // 0 means indefinite or default lease time
+            comment: "Obsidian Minecraft Server Panel".to_string(),
+        };
+
+        for result in add_ports(vec![config]) {
+            if let Err(e) = result {
+                error!("Failed to open UPnP port {}: {}", args.port, e);
+            } else {
+                info!("Successfully opened UPnP port {}", args.port);
+                match UPNP_PORTS.get_or_init(|| Mutex::new(Vec::new())).lock() {
+                    Ok(mut ports) => ports.push(args.port),
+                    Err(e) => error!("Failed to store UPnP port (mutex poisoned): {}", e),
+                }
+            }
+        }
     }
 
     let stop_result = server.await;
     debug!("Server stopped");
 
-    close_all_ports!();
+    // Close all UPnP ports
+    if let Some(upnp_ports) = UPNP_PORTS.get() {
+        match upnp_ports.lock() {
+            Ok(ports_guard) => {
+                let ports = ports_guard.clone();
+                drop(ports_guard); // Release lock before blocking operation
+
+                if !ports.is_empty() {
+                    let configs: Vec<UpnpConfig> = ports
+                        .iter()
+                        .map(|&port| UpnpConfig {
+                            address: None,
+                            port,
+                            protocol: PortMappingProtocol::TCP,
+                            duration: 0,
+                            comment: "Obsidian Port".to_string(),
+                        })
+                        .collect();
+
+                    for result in delete_ports(configs) {
+                        if let Err(e) = result {
+                            error!("Failed to close UPnP port: {}", e);
+                        } else {
+                            debug!("Successfully closed UPnP port");
+                        }
+                    }
+
+                    // Clear the ports list after attempting to close them
+                    if let Ok(mut ports_guard) = upnp_ports.lock() {
+                        ports_guard.clear();
+                    }
+                }
+            }
+            Err(e) => error!("Failed to access UPnP ports for cleanup (mutex poisoned): {}", e),
+        }
+    }
 
     Ok(stop_result?)
 }

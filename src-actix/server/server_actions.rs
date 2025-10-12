@@ -2,7 +2,7 @@ use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::Result;
 use log::{debug, error, warn};
-use obsidian_upnp::open_port;
+use easy_upnp::{add_ports, PortMappingProtocol, UpnpConfig};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -34,8 +34,24 @@ impl ServerData {
                 self.save().await?;
                 return Err(anyhow::anyhow!("Failed to get server properties: {}", e));
             } else if let Ok(properties) = properties {
-                debug!("Opening port {} for server {}", properties.server_port.unwrap_or(25565) as u16, self.id);
-                open_port!(properties.server_port.unwrap_or(25565) as u16, format!("Minecraft Server {}", self.id))
+                let port = properties.server_port.unwrap_or(25565) as u16;
+                debug!("Opening port {} for server {}", port, self.id);
+
+                let config = UpnpConfig {
+                    address: None,
+                    port,
+                    protocol: PortMappingProtocol::TCP,
+                    duration: 0, // 0 means indefinite or default lease time
+                    comment: format!("Minecraft Server {}", self.id),
+                };
+
+                for result in add_ports(vec![config]) {
+                    if let Err(e) = result {
+                        error!("Failed to open UPnP port {} for server {}: {}", port, self.id, e);
+                    } else {
+                        debug!("Successfully opened UPnP port {} for server {}", port, self.id);
+                    }
+                }
             }
         }
         debug!("Starting server {}", self.id);
