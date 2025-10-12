@@ -240,3 +240,11 @@ SQLite database initialized in `app_db::initialize_databases()`:
 1. Update table definitions in `*_db.rs` `initialize()` function
 2. Write migration if needed (manual SQLite schema updates)
 3. Update corresponding data types in `*_data.rs`
+
+
+## Memory
+- The backend uses async Rust with `tokio` for concurrency.
+- The frontend uses React with functional components and hooks.
+- The project uses `sqlx` for database interactions with compile-time query checking.
+- use rust 2024 edition or later
+- The project uses `anyhow` for error handling and `thiserror` for custom error types.
