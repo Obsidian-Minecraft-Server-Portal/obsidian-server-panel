@@ -36,7 +36,7 @@ futures = "0.3.31"
 reqwest = { version = "0.12.22", features = ["json", "stream"] }
 sysinfo = { version = "0.36.1", features = ["multithread", "disk", "windows", "system", "user", "network"] }
 tokio = { version = "1.46.1", features = ["time", "fs", "rt-multi-thread", "sync", "rt", "macros"] }
-tokio-util = "0.7.15"
+tokio-util = { version = "0.7.16", features = ["io-util"] }
 regex = { version = "1.11.1", features = ["perf"] }
 uuid = { version = "1.17.0", features = ["v4"] }
 zip = "3.0.0"
@@ -52,9 +52,10 @@ base64 = "0.22.1"
 notify = { version = "8.1.0", features = ["default", "serde"] }
 clap = { version = "4.5.42", features = ["error-context", "derive", "help", "suggestions", "color", "usage", "wrap_help", "unicode", "string"] }
 rand = "0.9.1"
-obsidian-scheduler = { version = "0.1.0", features = [ "event-timers", "log", "callback-timers" ] }
-obsidian-backups = { version = "0.1.1", features = ["serde", "logging", "zip"] }
-easy-upnp = {version = "0.3.0"}
+obsidian-scheduler = { version = "0.1.0", features = ["event-timers", "log", "callback-timers"] }
+obsidian-backups = { path = "../obsidian-backup-system", features = ["serde", "logging", "zip", "async-stream"] }
+#obsidian-backups = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-backup-system.git", features = ["serde", "logging", "zip", "async-stream"] }
+easy-upnp = { version = "0.3.0" }
 
 [build-dependencies]
 include_dir = "0.7.4"

@@ -220,6 +220,17 @@ pub async fn restore_backup(
     }
 }
 
+
+pub async fn delete_backup(server: &ServerData, commit_id: &str) -> Result<()> {
+    info!("Deleting backup {} for server '{}'", commit_id, server.name);
+    let manager = create_backup_manager(server)?;
+    if let Err(e)= manager.purge_commit(commit_id) {
+        return Err(anyhow!("Failed to delete backup: {}", e));
+    }
+    info!("Backup {} deleted successfully for server '{}'", commit_id, server.name);
+    Ok(())
+}
+
 /// Export a backup as a .7z archive
 pub async fn export_backup(
     server: &ServerData,
@@ -233,7 +244,7 @@ pub async fn export_backup(
 
     // Try regular backup manager first
     let manager = create_backup_manager(server)?;
-
+    
     match manager.export(commit_id, output_path, 5) {
         Ok(_) => {
             info!(

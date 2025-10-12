@@ -52,6 +52,7 @@ export function ServerBackups()
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [restoring, setRestoring] = useState<string | null>(null);
+    const [downloading, setDownloading] = useState<string | null>(null);
 
     // Modal states
     const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
@@ -320,12 +321,54 @@ export function ServerBackups()
         }
     };
 
-    const downloadBackup = (backupId: string) =>
+    const downloadBackup = async (backupId: string) =>
     {
-        const link = document.createElement('a');
-        link.href = `/api/server/${server?.id}/backups/${backupId}/download`;
-        link.target = '_blank';
-        link.click();
+        if (!server?.id) return;
+
+        setDownloading(backupId);
+        try
+        {
+            // Fetch the backup file as a blob
+            const response = await fetch(`/api/server/${server?.id}/backups/${backupId}/download`);
+
+            if (!response.ok)
+            {
+                console.error("Failed to download backup");
+                return;
+            }
+
+            // Get the filename from Content-Disposition header or generate one
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `backup_${backupId.substring(0, 8)}.7z`;
+            if (contentDisposition)
+            {
+                const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+                if (filenameMatch) filename = filenameMatch[1];
+            }
+
+            // Convert response to blob
+            const blob = await response.blob();
+
+            // Create a temporary URL for the blob
+            const url = window.URL.createObjectURL(blob);
+
+            // Create a temporary link and trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+
+            // Clean up
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error)
+        {
+            console.error("Error downloading backup:", error);
+        } finally
+        {
+            setDownloading(null);
+        }
     };
 
     const openRestoreConfirmation = (backupId: string) =>
@@ -532,13 +575,14 @@ export function ServerBackups()
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-1">
-                                            <Tooltip content="Download this backup">
+                                            <Tooltip content={downloading === backup.id ? "Preparing download..." : "Download this backup"}>
                                                 <Button
                                                     size="sm"
                                                     color="primary"
                                                     variant="flat"
                                                     isIconOnly
                                                     onPress={() => downloadBackup(backup.id)}
+                                                    isLoading={downloading === backup.id}
                                                 >
                                                     <Icon icon="pixelarticons:download"/>
                                                 </Button>
