@@ -153,7 +153,7 @@ echo "Creating systemd service file..."
 echo "$service_text" | sudo tee /etc/systemd/system/obsidian.service >/dev/null
 sudo chmod 644 /etc/systemd/system/obsidian.service
 sudo systemctl daemon-reload
-sudo systemctl start obsidian
+sudo systemctl restart obsidian
 sudo systemctl enable obsidian
 echo "Systemd service 'obsidian' created and started."
 echo "You can check its status with: sudo systemctl status obsidian"
