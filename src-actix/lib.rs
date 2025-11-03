@@ -22,6 +22,7 @@ mod command_line_args;
 mod forge_endpoint;
 mod host_info;
 mod java;
+mod notifications;
 mod server;
 mod updater;
 
@@ -123,7 +124,8 @@ pub async fn run() -> Result<()> {
                         .configure(java::configure)
                         .configure(forge_endpoint::configure)
                         .configure(server::configure)
-                        .configure(updater::configure),
+                        .configure(updater::configure)
+                        .configure(notifications::configure),
                 ),
             )
             .configure_frontend_routes()

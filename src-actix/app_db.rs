@@ -11,6 +11,7 @@ pub async fn initialize_databases(pool: &SqlitePool) -> Result<()> {
     crate::server::initialize(pool).await?;
     crate::server::installed_mods::initialize(pool).await?;
     crate::java::initialize(pool).await?;
+    crate::notifications::initialize(pool).await?;
 
     Ok(())
 }

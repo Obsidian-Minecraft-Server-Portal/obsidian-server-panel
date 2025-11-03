@@ -49,6 +49,11 @@ impl ServerData {
         let last_inserted_id: i64 = sqlx::query_scalar("SELECT seq from sqlite_sequence where name = 'servers';").fetch_one(pool).await?;
         self.id = last_inserted_id as u64;
 
+        // Send notification that server has been created
+        if let Err(e) = self.send_create_notification(pool).await {
+            log::error!("Failed to send server create notification: {}", e);
+        }
+
         Ok(())
     }
 
@@ -85,8 +90,76 @@ impl ServerData {
     }
 
     pub async fn delete(&self, pool: &SqlitePool) -> Result<()> {
+        // Send notification before deleting
+        if let Err(e) = self.send_delete_notification(pool).await {
+            log::error!("Failed to send server delete notification: {}", e);
+        }
+
         sqlx::query(r#"DELETE FROM servers WHERE id = ? AND owner_id = ?"#).bind(self.id as i64).bind(self.owner_id as i64).execute(pool).await?;
         tokio::fs::remove_dir_all(self.get_directory_path()).await?;
+
+        Ok(())
+    }
+
+    // Notification helper functions
+    async fn send_create_notification(&self, pool: &SqlitePool) -> Result<()> {
+        use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
+
+        let server_id_hash = serde_hash::hashids::encode_single(self.id);
+
+        let notification = NotificationData::create(
+            format!("{} Created", self.name),
+            format!("Server \"{}\" has been successfully created.", self.name),
+            NotificationType::System,
+            NotificationActionType::StartServer.to_bits(),
+            Some(server_id_hash.clone()),
+            pool,
+        )
+        .await?;
+
+        // Broadcast to all connected users
+        let notification_item = crate::notifications::NotificationItem {
+            id: notification.id.clone(),
+            title: notification.title.clone(),
+            message: notification.message.clone(),
+            is_read: false,
+            timestamp: notification.timestamp,
+            notification_type: notification.notification_type,
+            action: notification.action,
+            referenced_server: Some(server_id_hash),
+        };
+
+        crate::notifications::broadcast_notification(notification_item).await;
+
+        Ok(())
+    }
+
+    async fn send_delete_notification(&self, pool: &SqlitePool) -> Result<()> {
+        use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
+
+        let notification = NotificationData::create(
+            format!("{} Deleted", self.name),
+            format!("Server \"{}\" has been deleted.", self.name),
+            NotificationType::System,
+            NotificationActionType::None.to_bits(),
+            None,
+            pool,
+        )
+        .await?;
+
+        // Broadcast to all connected users
+        let notification_item = crate::notifications::NotificationItem {
+            id: notification.id.clone(),
+            title: notification.title.clone(),
+            message: notification.message.clone(),
+            is_read: false,
+            timestamp: notification.timestamp,
+            notification_type: notification.notification_type,
+            action: notification.action,
+            referenced_server: None,
+        };
+
+        crate::notifications::broadcast_notification(notification_item).await;
 
         Ok(())
     }

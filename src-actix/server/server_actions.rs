@@ -138,6 +138,12 @@ impl ServerData {
                 if line.contains("Done (") && line.contains(r#")! For help, type "help""#) {
                     self.status = ServerStatus::Running;
                     self.save().await?;
+
+                    // Send notification that server has started
+                    if let Err(e) = self.send_start_notification().await {
+                        error!("Failed to send server start notification: {}", e);
+                    }
+
                     break;
                 }
                 if line.contains("has been compiled by a more recent version of the Java Runtime") {
@@ -182,6 +188,11 @@ impl ServerData {
         self.status = ServerStatus::Stopped;
         self.save().await?;
 
+        // Send notification that server has stopped
+        if let Err(e) = self.send_stop_notification().await {
+            error!("Failed to send server stop notification: {}", e);
+        }
+
         Ok(())
     }
 
@@ -193,6 +204,11 @@ impl ServerData {
         }
         self.status = ServerStatus::Crashed;
         self.save().await?;
+
+        // Send notification that server has crashed
+        if let Err(e) = self.send_crash_notification().await {
+            error!("Failed to send server crash notification: {}", e);
+        }
 
         Ok(())
     }
@@ -284,5 +300,108 @@ impl ServerData {
         let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
         let servers = servers.lock().await;
         servers.contains_key(&self.id)
+    }
+
+    // Notification helper functions
+    async fn send_start_notification(&self) -> Result<()> {
+        use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
+        use crate::app_db::open_pool;
+
+        let pool = open_pool().await?;
+        let server_id_hash = serde_hash::hashids::encode_single(self.id);
+
+        let notification = NotificationData::create(
+            format!("{} Started", self.name),
+            format!("Server \"{}\" has been successfully started.", self.name),
+            NotificationType::System,
+            NotificationActionType::StopServer.to_bits(),
+            Some(server_id_hash.clone()),
+            &pool,
+        )
+        .await?;
+
+        // Broadcast to all connected users
+        let notification_item = crate::notifications::NotificationItem {
+            id: notification.id.clone(),
+            title: notification.title.clone(),
+            message: notification.message.clone(),
+            is_read: false,
+            timestamp: notification.timestamp,
+            notification_type: notification.notification_type,
+            action: notification.action,
+            referenced_server: Some(server_id_hash),
+        };
+
+        crate::notifications::broadcast_notification(notification_item).await;
+
+        Ok(())
+    }
+
+    async fn send_stop_notification(&self) -> Result<()> {
+        use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
+        use crate::app_db::open_pool;
+
+        let pool = open_pool().await?;
+        let server_id_hash = serde_hash::hashids::encode_single(self.id);
+
+        let notification = NotificationData::create(
+            format!("{} Stopped", self.name),
+            format!("Server \"{}\" has been stopped.", self.name),
+            NotificationType::System,
+            NotificationActionType::StartServer.to_bits(),
+            Some(server_id_hash.clone()),
+            &pool,
+        )
+        .await?;
+
+        // Broadcast to all connected users
+        let notification_item = crate::notifications::NotificationItem {
+            id: notification.id.clone(),
+            title: notification.title.clone(),
+            message: notification.message.clone(),
+            is_read: false,
+            timestamp: notification.timestamp,
+            notification_type: notification.notification_type,
+            action: notification.action,
+            referenced_server: Some(server_id_hash),
+        };
+
+        crate::notifications::broadcast_notification(notification_item).await;
+
+        Ok(())
+    }
+
+    async fn send_crash_notification(&self) -> Result<()> {
+        use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
+        use crate::app_db::open_pool;
+
+        let pool = open_pool().await?;
+        let server_id_hash = serde_hash::hashids::encode_single(self.id);
+
+        let notification = NotificationData::create(
+            format!("{} Crashed", self.name),
+            format!("Server \"{}\" has crashed unexpectedly.", self.name),
+            NotificationType::System,
+            NotificationActionType::RestartServer.to_bits() | NotificationActionType::ViewDetails.to_bits(),
+            Some(server_id_hash.clone()),
+            &pool,
+        )
+        .await?;
+
+        // Broadcast to all connected users
+        let notification_item = crate::notifications::NotificationItem {
+            id: notification.id.clone(),
+            title: notification.title.clone(),
+            message: notification.message.clone(),
+            is_read: false,
+            timestamp: notification.timestamp,
+            notification_type: notification.notification_type,
+            action: notification.action,
+            referenced_server: Some(server_id_hash),
+        };
+
+        crate::notifications::broadcast_notification(notification_item).await;
+
+        Ok(())
     }
 }
