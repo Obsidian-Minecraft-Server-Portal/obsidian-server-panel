@@ -1,11 +1,12 @@
 import "../ts/time-ext.ts";
-import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
+import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {Popover} from "../components/extended/Popover.tsx";
 import {Badge, Chip, PopoverContent, PopoverTrigger, ScrollShadow, Tab, Tabs} from "@heroui/react";
 import {Button} from "../components/extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
+import {useAuthentication} from "./AuthenticationProvider.tsx";
 
 type NotificationItem = {
     id: string;
@@ -37,102 +38,206 @@ interface NotificationContextType
     markAllAsRead: () => void;
     deleteNotification: (id: string) => void;
     deleteAllNotifications: () => void;
+    isConnected: boolean;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({children}: { children: ReactNode })
 {
-    const [notifications, setNotifications] = useState<NotificationItem[]>([
-        {
-            id: "1",
-            title: <><span className={"font-bold underline text-primary"}>Jake from State Farm</span> sent you a message</>,
-            message: `Hey! Just wanted to check in and see how everything's going with your new server. Let me know if you need any help setting things up!`,
-            isRead: false,
-            type: "user",
-            timestamp: new Date(),
-            action: NotificationActionType.VIEW_MESSAGE,
-            referenced_server: null
-        },
-        {
-            id: "2",
-            title: `Server Invitation`,
-            message: `You have been invited to join the server "Vanilla SMP".`,
-            isRead: true,
-            type: "user",
-            timestamp: new Date(),
-            action: NotificationActionType.ACCEPT_DECLINE,
-            referenced_server: "RK5BG0wLnmpndgJE"
-        },
-        {
-            id: "3",
-            title: `Vanilla SMP Server Created`,
-            message: `Server named "Vanilla SMP" has been successfully created.`,
-            isRead: false,
-            timestamp: new Date((new Date()).setHours(new Date().getHours(), new Date().getMinutes() - 32)),
-            type: "system",
-            action: NotificationActionType.START_SERVER,
-            referenced_server: "RK5BG0wLnmpndgJE"
-        },
-        {
-            id: "4",
-            title: `Vanilla SMP Server Crashed`,
-            message: `Server named "Vanilla SMP" has crashed.`,
-            isRead: false,
-            type: "system",
-            timestamp: new Date((new Date()).setHours(new Date().getHours() - 5)),
-            action: NotificationActionType.RESTART_SERVER | NotificationActionType.VIEW_DETAILS,
-            referenced_server: "RK5BG0wLnmpndgJE"
-        },
-        {
-            id: "5",
-            title: `New Update Available!`,
-            message: "Version 1.1.0 is now available. Click below to update now.",
-            isRead: true,
-            timestamp: new Date((new Date()).setDate(new Date().getDate() - 2)),
-            type: "system",
-            action: NotificationActionType.UPDATE_NOW | NotificationActionType.VIEW_DETAILS,
-            referenced_server: null
-        },
-        {
-            id: "6",
-            title: `Welcome to Obsidian!`,
-            message: "Thank you for installing Obsidian. We're excited to have you on board!",
-            isRead: true,
-            timestamp: new Date((new Date()).setDate(new Date().getDate() - 86)),
-            type: "system",
-            action: NotificationActionType.NONE,
-            referenced_server: null
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [isConnected, setIsConnected] = useState(false);
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const {isAuthenticated} = useAuthentication();
+
+    const sendCommand = useCallback((command: any) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(command));
         }
-    ]);
+    }, []);
 
     const markAsRead = useCallback((id: string) =>
     {
+        // Optimistic update
         setNotifications(prevNotifications =>
             prevNotifications.map(notification =>
                 notification.id === id ? {...notification, isRead: true} : notification
             )
         );
-    }, [notifications, setNotifications]);
+
+        // Send command to backend
+        sendCommand({type: "mark_as_read", id});
+    }, [sendCommand]);
+
     const markAllAsRead = useCallback(() =>
     {
+        // Optimistic update
         setNotifications(prevNotifications =>
             prevNotifications.map(notification => ({...notification, isRead: true}))
         );
-    }, [notifications, setNotifications]);
+
+        // Send command to backend
+        sendCommand({type: "mark_all_as_read"});
+    }, [sendCommand]);
+
     const deleteNotification = useCallback((id: string) =>
     {
+        // Optimistic update
         setNotifications(prevNotifications =>
             prevNotifications.filter(notification => notification.id !== id)
         );
-    }, [notifications, setNotifications]);
+
+        // Send command to backend
+        sendCommand({type: "delete_notification", id});
+    }, [sendCommand]);
+
     const deleteAllNotifications = useCallback(() =>
     {
+        // Optimistic update
         setNotifications([]);
-    }, [notifications, setNotifications]);
+
+        // Send command to backend
+        sendCommand({type: "delete_all_notifications"});
+    }, [sendCommand]);
+
+    // WebSocket connection management
+    useEffect(() => {
+        if (!isAuthenticated) {
+            // Disconnect if not authenticated
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            setIsConnected(false);
+            return;
+        }
+
+        const connectWebSocket = () => {
+            // Clean up existing connection
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+
+            // Determine WebSocket protocol based on current page protocol
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/api/notifications/ws`;
+
+            console.log('[NotificationProvider] Connecting to WebSocket:', wsUrl);
+
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                console.log('[NotificationProvider] WebSocket connected');
+                setIsConnected(true);
+
+                // Clear any reconnection timeout
+                if (reconnectTimeoutRef.current) {
+                    clearTimeout(reconnectTimeoutRef.current);
+                    reconnectTimeoutRef.current = null;
+                }
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('[NotificationProvider] Received message:', message);
+
+                    switch (message.type) {
+                        case 'initial_list':
+                            // Parse timestamps from ISO strings to Date objects
+                            const parsedNotifications = message.notifications.map((n: any) => ({
+                                ...n,
+                                timestamp: new Date(n.timestamp)
+                            }));
+                            setNotifications(parsedNotifications);
+                            break;
+
+                        case 'new_notification':
+                            // Parse timestamp from ISO string to Date object
+                            const parsedNotification = {
+                                ...message.notification,
+                                timestamp: new Date(message.notification.timestamp)
+                            };
+                            setNotifications(prev => [parsedNotification, ...prev]);
+                            break;
+
+                        case 'mark_as_read':
+                            setNotifications(prev =>
+                                prev.map(n => n.id === message.id ? {...n, isRead: true} : n)
+                            );
+                            break;
+
+                        case 'mark_all_as_read':
+                            setNotifications(prev =>
+                                prev.map(n => ({...n, isRead: true}))
+                            );
+                            break;
+
+                        case 'delete_notification':
+                            setNotifications(prev =>
+                                prev.filter(n => n.id !== message.id)
+                            );
+                            break;
+
+                        case 'delete_all_notifications':
+                            setNotifications([]);
+                            break;
+
+                        case 'error':
+                            console.error('[NotificationProvider] Server error:', message.message);
+                            break;
+
+                        case 'success':
+                            console.log('[NotificationProvider] Server success:', message.message);
+                            break;
+
+                        default:
+                            console.warn('[NotificationProvider] Unknown message type:', message.type);
+                    }
+                } catch (error) {
+                    console.error('[NotificationProvider] Failed to parse WebSocket message:', error);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('[NotificationProvider] WebSocket error:', error);
+                setIsConnected(false);
+            };
+
+            ws.onclose = (event) => {
+                console.log('[NotificationProvider] WebSocket closed:', event.code, event.reason);
+                setIsConnected(false);
+                wsRef.current = null;
+
+                // Attempt to reconnect after 3 seconds if authenticated
+                if (isAuthenticated) {
+                    console.log('[NotificationProvider] Scheduling reconnection in 3 seconds...');
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        console.log('[NotificationProvider] Attempting to reconnect...');
+                        connectWebSocket();
+                    }, 3000);
+                }
+            };
+        };
+
+        connectWebSocket();
+
+        // Cleanup on unmount
+        return () => {
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
+    }, [isAuthenticated]);
 
     return (
-        <NotificationContext.Provider value={{notifications, markAllAsRead, deleteNotification, deleteAllNotifications, markAsRead}}>
+        <NotificationContext.Provider value={{notifications, markAllAsRead, deleteNotification, deleteAllNotifications, markAsRead, isConnected}}>
             {children}
         </NotificationContext.Provider>
     );
@@ -150,7 +255,7 @@ export function useNotification(): NotificationContextType
 
 export function NotificationDropdown()
 {
-    const {notifications} = useNotification();
+    const {notifications, markAllAsRead, markAsRead, deleteNotification} = useNotification();
     const [selectedTab, setSelectedTab] = useState("all");
     const [filteredNotifications, setFilteredNotifications] = useState([] as NotificationItem[]);
     const unreadNotifications = notifications.filter(n => !n.isRead);
@@ -192,7 +297,7 @@ export function NotificationDropdown()
                         <p className={"text-xl font-minecraft-header"}>Notifications <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></p>
                         <div className={"flex flex-row"}>
                             <Tooltip content={"Mark all as read"}>
-                                <Button isIconOnly variant={"light"} size={"lg"}><Icon icon={"pixelarticons:radio-on"}/></Button>
+                                <Button isIconOnly variant={"light"} size={"lg"} onPress={markAllAsRead}><Icon icon={"pixelarticons:radio-on"}/></Button>
                             </Tooltip>
                             <Tooltip content={"Configure Notification Settings"}>
                                 <Button isIconOnly variant={"light"} size={"lg"}><Icon icon={"pixelarticons:sliders-2"}/></Button>
@@ -218,8 +323,34 @@ export function NotificationDropdown()
                     ) : (
                         <ScrollShadow className={"w-full"}>
                             {filteredNotifications.map((notification) => (
-                                <div className={"px-4 py-2 border-b-1 border-white/10 w-full flex flex-col gap-2 data-[unread=true]:bg-primary/10"} data-unread={notification.isRead ? "false" : "true"}>
-                                    <p className={"font-bold"}>{notification.title}</p>
+                                <div key={notification.id} className={"px-4 py-2 border-b-1 border-white/10 w-full flex flex-col gap-2 data-[unread=true]:bg-primary/10"} data-unread={notification.isRead ? "false" : "true"}>
+                                    <div className={"flex flex-row justify-between items-start"}>
+                                        <p className={"font-bold flex-1"}>{notification.title}</p>
+                                        <div className={"flex flex-row gap-1"}>
+                                            {!notification.isRead && (
+                                                <Tooltip content={"Mark as read"}>
+                                                    <Button
+                                                        isIconOnly
+                                                        size={"sm"}
+                                                        variant={"light"}
+                                                        onPress={() => markAsRead(notification.id)}
+                                                    >
+                                                        <Icon icon={"pixelarticons:check"} />
+                                                    </Button>
+                                                </Tooltip>
+                                            )}
+                                            <Tooltip content={"Dismiss"}>
+                                                <Button
+                                                    isIconOnly
+                                                    size={"sm"}
+                                                    variant={"light"}
+                                                    onPress={() => deleteNotification(notification.id)}
+                                                >
+                                                    <Icon icon={"pixelarticons:close"} />
+                                                </Button>
+                                            </Tooltip>
+                                        </div>
+                                    </div>
                                     <p className={"text-tiny opacity-50"}>{notification.timestamp.formatAsRelativeString()}</p>
                                     <div className={"text-sm opacity-80"}>{notification.message}</div>
                                     {notification.action !== NotificationActionType.NONE && (
