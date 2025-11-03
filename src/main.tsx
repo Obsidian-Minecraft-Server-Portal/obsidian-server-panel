@@ -14,6 +14,7 @@ import {MinecraftVersionsProvider} from "./providers/LoaderVersionProviders/Mine
 import {ServerProvider} from "./providers/ServerProvider.tsx";
 import {MessageProvider} from "./providers/MessageProvider.tsx";
 import {JavaVersionProvider} from "./providers/JavaVersionProvider.tsx";
+import {SettingsProvider} from "./providers/SettingsProvider.tsx";
 import {WindowProvider} from "./providers/WindowProvider.tsx";
 import Login from "./pages/Login.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
@@ -29,25 +30,27 @@ ReactDOM.createRoot($("#root")[0]!).render(
     <React.StrictMode>
         <BrowserRouter>
             <WindowProvider>
-                <PersistentActionProvider>
-                    <NotificationProvider>
-                        <ThemeProvider>
-                            <MessageProvider>
-                                <HostInfoProvider>
-                                    <AuthenticationProvider>
-                                        <MinecraftVersionsProvider>
-                                            <ServerProvider>
-                                                <JavaVersionProvider>
-                                                    <MainContentRenderer/>
-                                                </JavaVersionProvider>
-                                            </ServerProvider>
-                                        </MinecraftVersionsProvider>
-                                    </AuthenticationProvider>
-                                </HostInfoProvider>
-                            </MessageProvider>
-                        </ThemeProvider>
-                    </NotificationProvider>
-                </PersistentActionProvider>
+                <ThemeProvider>
+                    <MessageProvider>
+                        <HostInfoProvider>
+                            <AuthenticationProvider>
+                                <NotificationProvider>
+                                    <PersistentActionProvider>
+                                        <SettingsProvider>
+                                            <MinecraftVersionsProvider>
+                                                <ServerProvider>
+                                                    <JavaVersionProvider>
+                                                        <MainContentRenderer/>
+                                                    </JavaVersionProvider>
+                                                </ServerProvider>
+                                            </MinecraftVersionsProvider>
+                                        </SettingsProvider>
+                                    </PersistentActionProvider>
+                                </NotificationProvider>
+                            </AuthenticationProvider>
+                        </HostInfoProvider>
+                    </MessageProvider>
+                </ThemeProvider>
             </WindowProvider>
         </BrowserRouter>
     </React.StrictMode>

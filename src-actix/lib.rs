@@ -24,6 +24,7 @@ mod host_info;
 mod java;
 mod notifications;
 mod server;
+mod settings;
 mod updater;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
@@ -34,6 +35,9 @@ pub async fn run() -> Result<()> {
     pretty_env_logger::env_logger::builder().filter_level(if DEBUG { LevelFilter::Debug } else { LevelFilter::Info }).format_timestamp(None).init();
     info!("Starting Obsidian Minecraft Server Panel...");
     let args = command_line_args::CommandLineArgs::parse();
+
+    // Initialize settings path
+    settings::initialize_settings_path();
 
     #[cfg(debug_assertions)]
     {
@@ -124,6 +128,7 @@ pub async fn run() -> Result<()> {
                         .configure(java::configure)
                         .configure(forge_endpoint::configure)
                         .configure(server::configure)
+                        .configure(settings::configure)
                         .configure(updater::configure)
                         .configure(notifications::configure),
                 ),

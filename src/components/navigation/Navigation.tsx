@@ -11,19 +11,28 @@ import {useState} from "react";
 import {AccessibilityThemeSwitch} from "../AccessibilityThemeSwitch.tsx";
 import {NotificationDropdown} from "../../providers/NotificationProvider.tsx";
 import {ActionsDropdown} from "./ActionsDropdown.tsx";
+import SettingsModal from "../settings/SettingsModal.tsx";
+import {useMessage} from "../../providers/MessageProvider.tsx";
 
 export default function Navigation()
 {
     const {pathname} = useLocation();
     const {logout, user} = useAuthentication();
+    const messageApi = useMessage();
     const [isAccountPopoverOpen, setIsAccountPopoverOpen] = useState(false);
     const {isOpen: isUserManagementOpen, onOpen: onUserManagementOpen, onClose: onUserManagementClose} = useDisclosure();
+    const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose} = useDisclosure();
 
     if (!pathname.startsWith("/app") || user == null) return null;
 
     // Check if user has Admin or ManageUsers permission
     const hasUserManagementPermission = user?.permissions?.some((p: any) =>
         p.name === "Admin" || p.name === "ManageUsers"
+    );
+
+    // Check if user has Admin or ManageSettings permission
+    const hasSettingsPermission = user?.permissions?.some((p: any) =>
+        p.name === "Admin" || p.name === "ManageSettings"
     );
 
     return (
@@ -86,7 +95,22 @@ export default function Navigation()
                                         <p className={"text-tiny opacity-50 text-start w-full"}>{user.username}</p>
                                         <Divider/>
                                         <Button key={"account"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:users"}/>} as={Link} href={`/app/user/${user.id}`} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Account </Button>
-                                        <Button key={"settings"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:sliders"}/>} as={Link} href={`/app/user/${user.id}/settings`} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Settings </Button>
+                                        {hasSettingsPermission && (
+                                            <Button
+                                                key={"settings"}
+                                                className={"text-foreground justify-start"}
+                                                startContent={<Icon icon={"pixelarticons:sliders"}/>}
+                                                fullWidth
+                                                variant={"light"}
+                                                size={"sm"}
+                                                onPress={() => {
+                                                    setIsAccountPopoverOpen(false);
+                                                    onSettingsOpen();
+                                                }}
+                                            >
+                                                Settings
+                                            </Button>
+                                        )}
                                         {hasUserManagementPermission ? (
                                             <Button
                                                 key={"manage-users"}
@@ -126,6 +150,15 @@ export default function Navigation()
                 isOpen={isUserManagementOpen}
                 onClose={onUserManagementClose}
             />
+
+            {/* Settings Modal */}
+            {hasSettingsPermission && (
+                <SettingsModal
+                    isOpen={isSettingsOpen}
+                    onClose={onSettingsClose}
+                    onShowMessage={(options) => messageApi.open(options as any)}
+                />
+            )}
         </>
     );
 }
