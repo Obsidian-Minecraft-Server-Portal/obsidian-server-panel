@@ -36,9 +36,6 @@ pub async fn run() -> Result<()> {
     info!("Starting Obsidian Minecraft Server Panel...");
     let args = command_line_args::CommandLineArgs::parse();
 
-    // Initialize settings path
-    settings::initialize_settings_path();
-
     #[cfg(debug_assertions)]
     {
         ProxyViteOptions::new().disable_logging().build()?;
@@ -63,6 +60,9 @@ pub async fn run() -> Result<()> {
     #[cfg(not(debug_assertions))]
     serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).build();
 
+    // Initialize settings path
+    settings::initialize_settings_path();
+    
     tokio::spawn(async {
         let result: Result<()> = async {
             let pool = open_pool().await?;

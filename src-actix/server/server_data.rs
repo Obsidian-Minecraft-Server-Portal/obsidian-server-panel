@@ -10,7 +10,23 @@ use serde_hash::HashIds;
 use sqlx::{FromRow, Row, SqlitePool};
 use std::path::{PathBuf};
 
-const SERVER_DIRECTORY: &str = "./servers";
+/// Get the servers directory from settings, with fallback to default
+fn get_servers_directory() -> PathBuf {
+    if let Ok(settings) = crate::settings::load_settings() {
+        settings.storage.servers_directory
+    } else {
+        PathBuf::from("./meta/servers")
+    }
+}
+
+/// Get the temp directory from settings, with fallback to default
+fn get_temp_directory() -> PathBuf {
+    if let Ok(settings) = crate::settings::load_settings() {
+        settings.storage.temp_directory
+    } else {
+        PathBuf::from("./meta/temp")
+    }
+}
 #[derive(HashIds, Debug, Clone, FromRow)]
 pub struct ServerData {
     /// Unique identifier for the server
@@ -118,7 +134,7 @@ impl ServerData {
     }
 
     pub fn get_directory_path(&self) -> PathBuf {
-        let path = PathBuf::from(SERVER_DIRECTORY).join(&self.directory);
+        let path = get_servers_directory().join(&self.directory);
         // Convert to absolute path to avoid issues with relative paths
         match path.canonicalize() {
             Ok(absolute_path) => absolute_path,
@@ -204,7 +220,7 @@ impl ServerData {
 
     fn generate_directory_name(name: &str) -> String {
         let dir_name = regex::Regex::new(r"[^a-zA-Z0-9_\-]").unwrap().replace_all(name, "_").to_string().to_lowercase();
-        let mut path = PathBuf::from(SERVER_DIRECTORY).join(&dir_name);
+        let mut path = get_servers_directory().join(&dir_name);
         let mut index = 1u32;
         loop {
             if !path.exists() {
@@ -262,9 +278,9 @@ impl ServerData {
 
         // Ensure .jar extension
         let filename = if filename.ends_with(".jar") { filename } else { format!("{}.jar", filename) };
-        let temp_dir = format!("./tmp/{}/mods/", self.id);
+        let temp_dir = get_temp_directory().join(format!("{}/mods/", self.id));
         tokio::fs::create_dir_all(&temp_dir).await?;
-        let temp_file_path = PathBuf::from(&temp_dir).join(&filename);
+        let temp_file_path = temp_dir.join(&filename);
 
         // Write the file after inserting into the database to prevent against multiple inserts from the file watcher
         let bytes = response.bytes().await?;

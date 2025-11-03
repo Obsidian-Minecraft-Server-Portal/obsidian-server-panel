@@ -98,8 +98,20 @@ impl JavaVersion {
     }
 
     fn get_installation_directory(&self) -> PathBuf {
-        let path = std::fs::canonicalize("meta/java").unwrap_or_else(|_| PathBuf::from("meta/java"));
-        path.join(format!("{}-{}", self.runtime, self.version))
+        // Try to load settings, fallback to default if it fails
+        let java_dir = if let Ok(settings) = crate::settings::load_settings() {
+            settings.storage.java_directory
+        } else {
+            // Fallback to default path if settings can't be loaded
+            PathBuf::from("./meta/java")
+        };
+
+        // Create the directory if it doesn't exist
+        if !java_dir.exists() {
+            let _ = std::fs::create_dir_all(&java_dir);
+        }
+
+        java_dir.join(format!("{}-{}", self.runtime, self.version))
     }
 
     fn get_executable(&mut self) -> PathBuf {

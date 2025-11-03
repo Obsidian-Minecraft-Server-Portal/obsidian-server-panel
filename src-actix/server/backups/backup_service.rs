@@ -8,7 +8,12 @@ use tokio::fs;
 
 /// Get the backup directory for a server
 pub fn get_backup_dir(server: &ServerData) -> PathBuf {
-    PathBuf::from("./backups").join(&server.name)
+    let backups_dir = if let Ok(settings) = crate::settings::load_settings() {
+        settings.storage.backups_directory
+    } else {
+        PathBuf::from("./meta/backups")
+    };
+    backups_dir.join(&server.name)
 }
 
 /// Get the server directory path
