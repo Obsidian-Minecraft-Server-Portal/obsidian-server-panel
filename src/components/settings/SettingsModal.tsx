@@ -4,6 +4,7 @@ import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {motion} from "framer-motion";
 import {useSettings} from "../../providers/SettingsProvider.tsx";
+import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
 import {Settings} from "../../types/SettingsTypes.ts";
 import {GeneralSettings} from "./sections/GeneralSettings.tsx";
 import {NetworkSettings} from "./sections/NetworkSettings.tsx";
@@ -20,6 +21,7 @@ interface SettingsModalProps {
 
 export default function SettingsModal({isOpen, onClose, onShowMessage}: SettingsModalProps) {
     const {settings: serverSettings, loading, error, updateSettings, refreshSettings} = useSettings();
+    const {refreshJavaVersions} = useJavaVersion();
     const [selectedTab, setSelectedTab] = useState("general");
     const [localSettings, setLocalSettings] = useState<Settings | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
@@ -33,13 +35,29 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
         }
     }, [isOpen, serverSettings]);
 
+    // Refresh Java versions when Java tab is selected
+    useEffect(() => {
+        if (selectedTab === "java") {
+            refreshJavaVersions();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedTab]);
+
     const handleSave = async () => {
         if (!localSettings) return;
+
+        // Track if Java directory changed
+        const javaDirectoryChanged = serverSettings?.storage.java_directory !== localSettings.storage.java_directory;
 
         try {
             setSaving(true);
             const response = await updateSettings(localSettings);
             setHasChanges(false);
+
+            // Refresh Java versions if directory changed to pick up installations from new location
+            if (javaDirectoryChanged) {
+                await refreshJavaVersions();
+            }
 
             // Check if there's migration info in the response
             let description = "Your settings have been saved successfully";

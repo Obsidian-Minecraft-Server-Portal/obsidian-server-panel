@@ -7,7 +7,7 @@ mod server_db;
 mod server_endpoint;
 mod server_ping;
 mod server_properties;
-mod server_status;
+pub mod server_status;
 mod server_type;
 mod forge_server;
 
