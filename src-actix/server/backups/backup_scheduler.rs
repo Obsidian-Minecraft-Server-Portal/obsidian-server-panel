@@ -141,7 +141,6 @@ impl BackupScheduler {
                 let description = Some(format!(
                     "Scheduled {} at {}",
                     match schedule.backup_type {
-                        super::backup_data::BackupType::Full => "full backup",
                         super::backup_data::BackupType::Incremental => "incremental backup",
                         super::backup_data::BackupType::WorldOnly => "world backup",
                     },

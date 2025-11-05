@@ -63,6 +63,7 @@ export function ServerBackups()
     const [createDescription, setCreateDescription] = useState("");
     const [createBackupType, setCreateBackupType] = useState("0");
     const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
+    const [worldEditInstalled, setWorldEditInstalled] = useState(false);
 
     // Schedule form state
     const [scheduleForm, setScheduleForm] = useState({
@@ -84,6 +85,7 @@ export function ServerBackups()
         {
             loadBackups();
             loadSettings();
+            checkWorldEditStatus();
         }
     }, [server]);
 
@@ -125,6 +127,25 @@ export function ServerBackups()
         } catch (error)
         {
             console.error("Error loading backup settings:", error);
+        }
+    };
+
+    const checkWorldEditStatus = async () =>
+    {
+        try
+        {
+            const response = await fetch(`/api/server/${server?.id}/backups/worldedit-status`);
+            if (response.ok)
+            {
+                const data = await response.json();
+                setWorldEditInstalled(data.installed);
+            } else
+            {
+                console.error("Failed to check WorldEdit status");
+            }
+        } catch (error)
+        {
+            console.error("Error checking WorldEdit status:", error);
         }
     };
 
@@ -420,9 +441,8 @@ export function ServerBackups()
     const getBackupTypeName = (type: number) =>
     {
         switch(type) {
-            case 0: return "Full";
-            case 1: return "Incremental";
-            case 2: return "World Only";
+            case 0: return "Incremental";
+            case 1: return "World Only";
             default: return "Unknown";
         }
     };
@@ -638,10 +658,14 @@ export function ServerBackups()
                             selectedKeys={[createBackupType]}
                             onSelectionChange={(keys) => setCreateBackupType(Array.from(keys)[0] as string)}
                         >
-                            <SelectItem key="0">Full Backup</SelectItem>
-                            <SelectItem key="1">Incremental Backup</SelectItem>
-                            <SelectItem key="2">World Only</SelectItem>
+                            <SelectItem key="0">Incremental Backup</SelectItem>
+                            {worldEditInstalled && <SelectItem key="1">World Only</SelectItem>}
                         </Select>
+                        {!worldEditInstalled && (
+                            <div className="text-sm text-warning-600 bg-warning-50 p-2 rounded">
+                                World-Only backups require WorldEdit to be installed on the server.
+                            </div>
+                        )}
                         <Textarea
                             label="Description (Optional)"
                             placeholder="Enter a description for this backup..."
@@ -715,10 +739,15 @@ export function ServerBackups()
                             selectedKeys={[scheduleForm.backupType.toString()]}
                             onSelectionChange={(keys) => setScheduleForm({...scheduleForm, backupType: parseInt(Array.from(keys)[0] as string)})}
                         >
-                            <SelectItem key="0">Full Backup</SelectItem>
-                            <SelectItem key="1">Incremental Backup</SelectItem>
-                            <SelectItem key="2">World Only</SelectItem>
+                            <SelectItem key="0">Incremental Backup</SelectItem>
+                            {worldEditInstalled && <SelectItem key="1">World Only</SelectItem>}
                         </Select>
+
+                        {!worldEditInstalled && (
+                            <div className="text-sm text-warning-600 bg-warning-50 p-2 rounded">
+                                World-Only backups require WorldEdit to be installed on the server.
+                            </div>
+                        )}
 
                         <Input
                             label="Retention Days"

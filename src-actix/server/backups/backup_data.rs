@@ -6,21 +6,18 @@ use sqlx::FromRow;
 #[serde(from = "u8", into = "u8")]
 #[repr(u8)]
 pub enum BackupType {
-    /// Full server backup (all files)
-    Full = 0,
-    /// Incremental backup using git (only changed files)
-    Incremental = 1,
-    /// World-only backup (just world folders)
-    WorldOnly = 2,
+    /// Incremental backup using git (tracks all server files)
+    Incremental = 0,
+    /// World-only backup (WorldEdit-compatible ZIP in backups/ folder)
+    WorldOnly = 1,
 }
 
 impl From<u8> for BackupType {
     fn from(value: u8) -> Self {
         match value {
-            0 => BackupType::Full,
-            1 => BackupType::Incremental,
-            2 => BackupType::WorldOnly,
-            _ => BackupType::Full, // Default to full
+            0 => BackupType::Incremental,
+            1 => BackupType::WorldOnly,
+            _ => BackupType::Incremental, // Default to incremental
         }
     }
 }

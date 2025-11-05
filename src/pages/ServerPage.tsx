@@ -17,7 +17,9 @@ export default function ServerPage()
     const [selectedTab, setSelectedTab] = useState("console");
     const {id} = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [shouldCollapseHeader, setShouldCollapseHeader] = useState(true);
+    // Initialize based on URL tab parameter - only collapse if on content tab
+    const initialTab = searchParams.get("tab") || "console";
+    const [shouldCollapseHeader, setShouldCollapseHeader] = useState(initialTab === "content");
 
     useEffect(() =>
     {

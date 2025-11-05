@@ -1,10 +1,13 @@
 use super::backup_data::{Backup, BackupType};
 use crate::server::server_data::ServerData;
 use anyhow::{anyhow, Result};
+use chrono::{Datelike, Timelike, Utc};
 use log::{debug, info, warn};
 use obsidian_backups::BackupManager;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use tokio::fs;
+use zip::{write::FileOptions, ZipWriter};
 
 /// Get the backup directory for a server
 pub fn get_backup_dir(server: &ServerData) -> PathBuf {
@@ -34,10 +37,46 @@ pub fn create_backup_manager(server: &ServerData) -> Result<BackupManager> {
         server.name, backup_dir, server_dir
     );
 
-    BackupManager::new(backup_dir, server_dir)
+    let mut manager = BackupManager::new(backup_dir, server_dir.clone())?;
+
+    // Setup ignore patterns
+    // 1. Add backups/ folder to auto-ignore (WorldEdit backups)
+    let obakignore_path = server_dir.join(".obakignore");
+
+    // Read existing .obakignore or create default
+    let ignore_content = if obakignore_path.exists() {
+        std::fs::read_to_string(&obakignore_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    // Ensure backups/ is in the ignore list
+    let mut updated_ignore = ignore_content;
+    if !updated_ignore.contains("backups/") {
+        if !updated_ignore.is_empty() && !updated_ignore.ends_with('\n') {
+            updated_ignore.push('\n');
+        }
+        updated_ignore.push_str("# WorldEdit backup directory (auto-added)\nbackups/\n");
+
+        // Write back to .obakignore
+        if let Err(e) = std::fs::write(&obakignore_path, &updated_ignore) {
+            warn!("Failed to update .obakignore: {}", e);
+        }
+    }
+
+    // Apply ignore file to BackupManager
+    if obakignore_path.exists() {
+        if let Err(e) = manager.setup_ignore_file(&obakignore_path) {
+            warn!("Failed to setup ignore file: {}", e);
+        } else {
+            debug!("Ignore file configured for backup manager");
+        }
+    }
+
+    Ok(manager)
 }
 
-/// Perform a full backup of the server
+/// Perform a backup of the server
 pub async fn perform_backup(
     server: &ServerData,
     backup_type: BackupType,
@@ -46,7 +85,6 @@ pub async fn perform_backup(
     info!(
         "Starting {} for server '{}' (ID: {})",
         match backup_type {
-            BackupType::Full => "full backup",
             BackupType::Incremental => "incremental backup",
             BackupType::WorldOnly => "world backup",
         },
@@ -54,17 +92,17 @@ pub async fn perform_backup(
         server.id
     );
 
-    let manager = create_backup_manager(server)?;
-
     // For world-only backups, we need to handle this specially
     if backup_type == BackupType::WorldOnly {
         return perform_world_only_backup(server, description).await;
     }
 
+    let manager = create_backup_manager(server)?;
+
     // Create description with backup type prefix
     let full_description = match description {
         Some(desc) => format!("[{}] {}", backup_type_name(backup_type), desc),
-        None => format!("[{}] Backup created at {}", backup_type_name(backup_type), chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")),
+        None => format!("[{}] Backup created at {}", backup_type_name(backup_type), Utc::now().format("%Y-%m-%d %H:%M:%S")),
     };
 
     // Perform the backup using obsidian-backups
@@ -83,22 +121,21 @@ pub async fn perform_backup(
 /// Get the display name for backup type
 fn backup_type_name(backup_type: BackupType) -> &'static str {
     match backup_type {
-        BackupType::Full => "Full",
         BackupType::Incremental => "Incremental",
         BackupType::WorldOnly => "World",
     }
 }
 
-/// Perform a world-only backup
+/// Perform a world-only backup (WorldEdit-compatible)
 async fn perform_world_only_backup(
     server: &ServerData,
-    description: Option<String>,
+    _description: Option<String>,
 ) -> Result<String> {
-    let backup_dir = get_backup_dir(server).join("world-backups");
     let server_dir = get_server_dir(server);
+    let backups_dir = server_dir.join("backups");
 
-    // Ensure backup directory exists
-    fs::create_dir_all(&backup_dir).await?;
+    // Ensure backups directory exists
+    fs::create_dir_all(&backups_dir).await?;
 
     // Find world folders
     let world_folders = find_world_folders(&server_dir).await?;
@@ -113,165 +150,317 @@ async fn perform_world_only_backup(
         world_folders
     );
 
-    // Create a temporary directory for world-only backup
-    let temp_world_dir = backup_dir.join("temp_world");
-    if temp_world_dir.exists() {
-        fs::remove_dir_all(&temp_world_dir).await?;
+    // Create filename using WorldEdit format: YYYY-MM-DD-HH-MM-SS.zip
+    let now = Utc::now();
+    let filename = format!(
+        "{:04}-{:02}-{:02}-{:02}-{:02}-{:02}.zip",
+        now.year(),
+        now.month(),
+        now.day(),
+        now.hour(),
+        now.minute(),
+        now.second()
+    );
+    let zip_path = backups_dir.join(&filename);
+
+    info!(
+        "Creating WorldEdit backup for server '{}' at {:?}",
+        server.name, zip_path
+    );
+
+    // Create ZIP file in a blocking task to avoid blocking the async runtime
+    let server_dir_clone = server_dir.clone();
+    let world_folders_clone = world_folders.clone();
+    let zip_path_clone = zip_path.clone();
+
+    tokio::task::spawn_blocking(move || {
+        create_worldedit_zip(&server_dir_clone, &world_folders_clone, &zip_path_clone)
+    })
+    .await??;
+
+    info!(
+        "WorldEdit backup created successfully: {}",
+        filename
+    );
+
+    // Return the filename as the backup ID
+    Ok(filename)
+}
+
+/// Create a WorldEdit-compatible ZIP file
+fn create_worldedit_zip(
+    server_dir: &Path,
+    world_folders: &[String],
+    output_path: &Path,
+) -> Result<()> {
+    let file = File::create(output_path)?;
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o755);
+
+    // Add each world folder to the ZIP
+    for world_folder in world_folders {
+        let world_path = server_dir.join(world_folder);
+        add_directory_to_zip(&mut zip, &world_path, world_folder, &options)?;
     }
-    fs::create_dir_all(&temp_world_dir).await?;
 
-    // Copy world folders to temp directory
-    for world_folder in &world_folders {
-        let source = server_dir.join(world_folder);
-        let dest = temp_world_dir.join(world_folder);
-        copy_dir_recursive(&source, &dest).await?;
+    zip.finish()?;
+    Ok(())
+}
+
+/// Recursively add a directory to a ZIP archive
+fn add_directory_to_zip(
+    zip: &mut ZipWriter<File>,
+    dir_path: &Path,
+    prefix: &str,
+    options: &FileOptions<()>,
+) -> Result<()> {
+    let entries = std::fs::read_dir(dir_path)?;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        let name = entry.file_name();
+        let zip_path = format!("{}/{}", prefix, name.to_string_lossy());
+
+        if path.is_file() {
+            zip.start_file(&zip_path, *options)?;
+            let mut file = File::open(&path)?;
+            std::io::copy(&mut file, zip)?;
+        } else if path.is_dir() {
+            // Add directory entry
+            zip.add_directory(&zip_path, *options)?;
+            // Recursively add contents
+            add_directory_to_zip(zip, &path, &zip_path, options)?;
+        }
     }
 
-    // Create description with backup type prefix
-    let full_description = match description {
-        Some(desc) => format!("[World] {}", desc),
-        None => format!("[World] Backup created at {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")),
-    };
-
-    // Create BackupManager for the temp world directory
-    let manager = BackupManager::new(&backup_dir, &temp_world_dir)?;
-    let commit_id = manager
-        .backup(Some(full_description))
-        .map_err(|e| anyhow!("Failed to create world backup: {}", e))?;
-
-    // Clean up temp directory
-    fs::remove_dir_all(&temp_world_dir).await?;
-
-    Ok(commit_id)
+    Ok(())
 }
 
 /// List all backups for a server
 pub async fn list_backups(server: &ServerData) -> Result<Vec<Backup>> {
-    let backup_dir = get_backup_dir(server);
-
-    // Check if backup directory exists
-    if !backup_dir.exists() {
-        return Ok(vec![]);
-    }
-
-    let server_dir = get_server_dir(server);
-    let manager = BackupManager::new(&backup_dir, &server_dir)?;
-
-    let backup_items = manager.list().map_err(|e| anyhow!("Failed to list backups: {}", e))?;
-
-    // Get backup directory size once
-    let total_size = get_directory_size(&backup_dir).await.unwrap_or(0);
-
-    // Convert BackupItem to our Backup struct
     let mut backups = Vec::new();
-    for item in backup_items {
-        // Parse backup type from description
-        let backup_type = if item.description.starts_with("[Full]") {
-            BackupType::Full
-        } else if item.description.starts_with("[Incremental]") {
-            BackupType::Incremental
-        } else if item.description.starts_with("[World]") {
-            BackupType::WorldOnly
-        } else {
-            BackupType::Incremental // Default
-        };
 
-        backups.push(Backup {
-            id: item.id,
-            created_at: item.timestamp.timestamp(),
-            description: item.description,
-            file_size: total_size as i64 / (backups.len() as i64 + 1).max(1), // Approximate per backup
-            backup_type,
-        });
+    // 1. List Git backups (incremental)
+    let backup_dir = get_backup_dir(server);
+    if backup_dir.exists() {
+        let server_dir = get_server_dir(server);
+        let manager = BackupManager::new(&backup_dir, &server_dir)?;
+
+        let backup_items = manager.list().map_err(|e| anyhow!("Failed to list backups: {}", e))?;
+
+        // Get backup directory size once
+        let total_size = get_directory_size(&backup_dir).await.unwrap_or(0);
+
+        // Convert BackupItem to our Backup struct
+        for item in backup_items {
+            // Parse backup type from description
+            let backup_type = if item.description.starts_with("[Incremental]") {
+                BackupType::Incremental
+            } else if item.description.starts_with("[World]") {
+                BackupType::WorldOnly
+            } else {
+                BackupType::Incremental // Default
+            };
+
+            backups.push(Backup {
+                id: item.id,
+                created_at: item.timestamp.timestamp(),
+                description: item.description,
+                file_size: total_size as i64 / (backups.len() as i64 + 1).max(1), // Approximate per backup
+                backup_type,
+            });
+        }
     }
+
+    // 2. List World-Only backups (WorldEdit ZIPs)
+    let server_dir = get_server_dir(server);
+    let worldedit_backups_dir = server_dir.join("backups");
+
+    if worldedit_backups_dir.exists() {
+        let mut entries = fs::read_dir(&worldedit_backups_dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(filename) = path.file_name() {
+                    let filename_str = filename.to_string_lossy();
+                    if filename_str.ends_with(".zip") {
+                        // Parse WorldEdit format: YYYY-MM-DD-HH-MM-SS.zip
+                        if let Some(timestamp) = parse_worldedit_filename(&filename_str) {
+                            let metadata = entry.metadata().await?;
+                            let file_size = metadata.len() as i64;
+
+                            backups.push(Backup {
+                                id: filename_str.to_string(), // Use filename as ID for World-Only backups
+                                created_at: timestamp,
+                                description: format!("[World] WorldEdit backup from {}", filename_str.trim_end_matches(".zip")),
+                                file_size,
+                                backup_type: BackupType::WorldOnly,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort backups by timestamp (newest first)
+    backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
     Ok(backups)
+}
+
+/// Parse WorldEdit filename format (YYYY-MM-DD-HH-MM-SS.zip) to Unix timestamp
+fn parse_worldedit_filename(filename: &str) -> Option<i64> {
+    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+
+    // Remove .zip extension
+    let name = filename.strip_suffix(".zip")?;
+
+    // Split by hyphen: YYYY-MM-DD-HH-MM-SS
+    let parts: Vec<&str> = name.split('-').collect();
+    if parts.len() != 6 {
+        return None;
+    }
+
+    let year: i32 = parts[0].parse().ok()?;
+    let month: u32 = parts[1].parse().ok()?;
+    let day: u32 = parts[2].parse().ok()?;
+    let hour: u32 = parts[3].parse().ok()?;
+    let minute: u32 = parts[4].parse().ok()?;
+    let second: u32 = parts[5].parse().ok()?;
+
+    let date = NaiveDate::from_ymd_opt(year, month, day)?;
+    let time = NaiveTime::from_hms_opt(hour, minute, second)?;
+    let datetime = NaiveDateTime::new(date, time);
+
+    Some(datetime.and_utc().timestamp())
 }
 
 /// Restore a backup
 pub async fn restore_backup(
     server: &ServerData,
-    commit_id: &str,
+    backup_id: &str,
 ) -> Result<()> {
     info!(
         "Restoring backup {} for server '{}' (ID: {})",
-        commit_id, server.name, server.id
+        backup_id, server.name, server.id
     );
 
-    // Try regular backup manager first
-    let manager = create_backup_manager(server)?;
-
-    match manager.restore(commit_id) {
-        Ok(_) => {
-            info!(
-                "Backup {} restored successfully for server '{}'",
-                commit_id, server.name
-            );
-            Ok(())
-        }
-        Err(e) => {
-            // If regular restore fails, try world-only
-            warn!("Regular restore failed, trying world-only: {}", e);
-            let backup_dir = get_backup_dir(server).join("world-backups");
-            let server_dir = get_server_dir(server);
-            let world_manager = BackupManager::new(backup_dir, server_dir)?;
-            world_manager.restore(commit_id).map_err(|e2| anyhow!("Failed to restore backup: {} (world-only also failed: {})", e, e2))?;
-            info!(
-                "Backup {} restored successfully for server '{}' (world-only)",
-                commit_id, server.name
-            );
-            Ok(())
-        }
+    // Check if this is a World-Only backup (filename ends with .zip)
+    if backup_id.ends_with(".zip") {
+        return restore_worldedit_backup(server, backup_id).await;
     }
-}
 
-
-pub async fn delete_backup(server: &ServerData, commit_id: &str) -> Result<()> {
-    info!("Deleting backup {} for server '{}'", commit_id, server.name);
+    // Regular Git backup restore
     let manager = create_backup_manager(server)?;
-    if let Err(e)= manager.purge_commit(commit_id) {
-        return Err(anyhow!("Failed to delete backup: {}", e));
-    }
-    info!("Backup {} deleted successfully for server '{}'", commit_id, server.name);
+    manager.restore(backup_id).map_err(|e| anyhow!("Failed to restore backup: {}", e))?;
+
+    info!(
+        "Backup {} restored successfully for server '{}'",
+        backup_id, server.name
+    );
+
     Ok(())
 }
 
-/// Export a backup as a .7z archive
-pub async fn export_backup(
-    server: &ServerData,
-    commit_id: &str,
-    output_path: &Path,
-) -> Result<()> {
+/// Restore a WorldEdit backup (unzip to server directory)
+async fn restore_worldedit_backup(server: &ServerData, filename: &str) -> Result<()> {
+    let server_dir = get_server_dir(server);
+    let backup_path = server_dir.join("backups").join(filename);
+
+    if !backup_path.exists() {
+        return Err(anyhow!("WorldEdit backup file not found: {}", filename));
+    }
+
     info!(
-        "Exporting backup {} for server '{}' to {:?}",
-        commit_id, server.name, output_path
+        "Restoring WorldEdit backup {} for server '{}'",
+        filename, server.name
     );
 
-    // Try regular backup manager first
-    let manager = create_backup_manager(server)?;
-    
-    match manager.export(commit_id, output_path, 5) {
-        Ok(_) => {
-            info!(
-                "Backup {} exported successfully to {:?}",
-                commit_id, output_path
-            );
-            Ok(())
-        }
-        Err(e) => {
-            // If regular export fails, try world-only
-            warn!("Regular export failed, trying world-only: {}", e);
-            let backup_dir = get_backup_dir(server).join("world-backups");
-            let server_dir = get_server_dir(server);
-            let world_manager = BackupManager::new(backup_dir, server_dir)?;
-            world_manager.export(commit_id, output_path, 5).map_err(|e2| anyhow!("Failed to export backup: {} (world-only also failed: {})", e, e2))?;
-            info!(
-                "Backup {} exported successfully to {:?} (world-only)",
-                commit_id, output_path
-            );
-            Ok(())
+    // Extract ZIP in blocking task
+    let server_dir_clone = server_dir.clone();
+    let backup_path_clone = backup_path.clone();
+
+    tokio::task::spawn_blocking(move || {
+        extract_worldedit_backup(&backup_path_clone, &server_dir_clone)
+    })
+    .await??;
+
+    info!(
+        "WorldEdit backup {} restored successfully for server '{}'",
+        filename, server.name
+    );
+
+    Ok(())
+}
+
+/// Extract a WorldEdit ZIP backup to the server directory
+fn extract_worldedit_backup(zip_path: &Path, server_dir: &Path) -> Result<()> {
+    use zip::ZipArchive;
+
+    let file = File::open(zip_path)?;
+    let mut archive = ZipArchive::new(file)?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let outpath = server_dir.join(file.name());
+
+        if file.name().ends_with('/') {
+            // Directory
+            std::fs::create_dir_all(&outpath)?;
+        } else {
+            // File
+            if let Some(parent) = outpath.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut outfile = File::create(&outpath)?;
+            std::io::copy(&mut file, &mut outfile)?;
         }
     }
+
+    Ok(())
+}
+
+
+pub async fn delete_backup(server: &ServerData, backup_id: &str) -> Result<()> {
+    info!("Deleting backup {} for server '{}'", backup_id, server.name);
+
+    // Check if this is a World-Only backup (filename ends with .zip)
+    if backup_id.ends_with(".zip") {
+        let server_dir = get_server_dir(server);
+        let backup_path = server_dir.join("backups").join(backup_id);
+
+        if !backup_path.exists() {
+            return Err(anyhow!("WorldEdit backup file not found: {}", backup_id));
+        }
+
+        fs::remove_file(&backup_path).await?;
+        info!("WorldEdit backup {} deleted successfully for server '{}'", backup_id, server.name);
+        return Ok(());
+    }
+
+    // Regular Git backup deletion
+    let manager = create_backup_manager(server)?;
+    if let Err(e) = manager.purge_commit(backup_id) {
+        return Err(anyhow!("Failed to delete backup: {}", e));
+    }
+    info!("Backup {} deleted successfully for server '{}'", backup_id, server.name);
+    Ok(())
+}
+
+/// Get the path to a WorldEdit backup file (for direct downloads)
+pub fn get_worldedit_backup_path(server: &ServerData, filename: &str) -> Result<PathBuf> {
+    let server_dir = get_server_dir(server);
+    let backup_path = server_dir.join("backups").join(filename);
+
+    if !backup_path.exists() {
+        return Err(anyhow!("WorldEdit backup file not found: {}", filename));
+    }
+
+    Ok(backup_path)
 }
 
 /// Get the size of a directory recursively
@@ -312,23 +501,36 @@ async fn find_world_folders(server_dir: &Path) -> Result<Vec<String>> {
     Ok(world_folders)
 }
 
-/// Copy a directory recursively
-fn copy_dir_recursive<'a>(src: &'a Path, dst: &'a Path) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
-    Box::pin(async move {
-        fs::create_dir_all(dst).await?;
+/// Detect if WorldEdit is installed on the server
+pub async fn is_worldedit_installed(server: &ServerData) -> bool {
+    let server_dir = get_server_dir(server);
 
-        let mut entries = fs::read_dir(src).await?;
-        while let Some(entry) = entries.next_entry().await? {
-            let src_path = entry.path();
-            let dst_path = dst.join(entry.file_name());
-
-            if entry.metadata().await?.is_dir() {
-                copy_dir_recursive(&src_path, &dst_path).await?;
-            } else {
-                fs::copy(&src_path, &dst_path).await?;
+    // Check plugins directory (Bukkit/Spigot/Paper)
+    let plugins_dir = server_dir.join("plugins");
+    if plugins_dir.exists() {
+        if let Ok(mut entries) = fs::read_dir(&plugins_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let name = entry.file_name().to_string_lossy().to_lowercase();
+                if name.starts_with("worldedit") && name.ends_with(".jar") {
+                    return true;
+                }
             }
         }
+    }
 
-        Ok(())
-    })
+    // Check mods directory (Fabric/Forge/NeoForge/Quilt)
+    let mods_dir = server_dir.join("mods");
+    if mods_dir.exists() {
+        if let Ok(mut entries) = fs::read_dir(&mods_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let name = entry.file_name().to_string_lossy().to_lowercase();
+                if name.starts_with("worldedit") && name.ends_with(".jar") {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
 }
+

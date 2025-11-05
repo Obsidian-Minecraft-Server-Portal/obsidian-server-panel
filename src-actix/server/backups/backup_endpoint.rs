@@ -23,6 +23,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(update_backup_settings)
             .service(get_ignore_list)
             .service(update_ignore_list)
+            .service(worldedit_status)
             .service(delete_schedule)
             .service(delete_backup)
             .service(restore_backup)
@@ -188,17 +189,18 @@ async fn restore_backup(
 }
 
 /// GET /api/server/:id/backups/:backupId/download - Download a backup as ZIP archive
-#[get("/{commit_id}/download")]
+#[get("/{backup_id}/download")]
 async fn download_backup(
     path: web::Path<(String, String)>,
     req: HttpRequest,
 ) -> Result<impl Responder> {
+    use actix_files::NamedFile;
     use archflow::compress::tokio::archive::ZipArchive;
     use archflow::compress::FileOptions;
     use archflow::compression::CompressionMethod;
     use obsidian_backups::BackupManager;
 
-    let (server_id, commit_id) = path.into_inner();
+    let (server_id, backup_id) = path.into_inner();
     let server_id = decode_single(server_id)?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
@@ -213,11 +215,37 @@ async fn download_backup(
         }
     };
 
-    let export_filename = format!("backup_{}_{}.zip", server.name, &commit_id[..8]);
+    // Check if this is a WorldEdit backup (filename ends with .zip)
+    if backup_id.ends_with(".zip") {
+        info!(
+            "Serving WorldEdit backup {} for server '{}'",
+            backup_id, server.name
+        );
+
+        match backup_service::get_worldedit_backup_path(&server, &backup_id) {
+            Ok(path) => {
+                let file = NamedFile::open(path)?;
+                let response = file.into_response(&req);
+                return Ok(HttpResponse::Ok()
+                    .content_type("application/zip")
+                    .insert_header(ContentDisposition::attachment(backup_id.clone()))
+                    .body(response.into_body()));
+            }
+            Err(e) => {
+                error!("Failed to get WorldEdit backup path: {}", e);
+                return Ok(HttpResponse::NotFound().json(json!({
+                    "error": "WorldEdit backup not found"
+                })));
+            }
+        }
+    }
+
+    // Git backup - stream using BackupManager
+    let export_filename = format!("backup_{}_{}.zip", server.name, &backup_id[..8.min(backup_id.len())]);
 
     info!(
         "Streaming backup {} for server '{}' as '{}'",
-        commit_id, server.name, export_filename
+        backup_id, server.name, export_filename
     );
 
     // Create a duplex pipe for streaming (same pattern as filesystem endpoint)
@@ -226,7 +254,7 @@ async fn download_backup(
     // Get paths before moving into spawn
     let backup_dir = backup_service::get_backup_dir(&server);
     let server_dir = server.get_directory_path();
-    let commit_id_clone = commit_id.clone();
+    let backup_id_clone = backup_id.clone();
 
     // Spawn blocking task to handle git operations (git2::Repository is not Send)
     tokio::task::spawn_blocking(move || {
@@ -248,7 +276,7 @@ async fn download_backup(
             let options = FileOptions::default().compression_method(CompressionMethod::Deflate());
 
             // Populate the archive with files from the backup
-            if let Err(e) = manager.populate_archive_async(&commit_id_clone, &mut archive, &options).await {
+            if let Err(e) = manager.populate_archive_async(&backup_id_clone, &mut archive, &options).await {
                 error!("Failed to populate archive: {}", e);
                 return;
             }
@@ -488,6 +516,33 @@ async fn update_ignore_list(
             })))
         }
     }
+}
+
+/// GET /api/server/:id/backups/worldedit-status - Check if WorldEdit is installed
+#[get("/worldedit-status")]
+async fn worldedit_status(
+    server_id: web::Path<String>,
+    req: HttpRequest,
+) -> Result<impl Responder> {
+    let server_id = decode_single(server_id.into_inner())?;
+    let user = req.get_user()?;
+    let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
+
+    // Verify server exists and user has access
+    let server = match ServerData::get(server_id, user_id).await? {
+        Some(server) => server,
+        None => {
+            return Ok(HttpResponse::NotFound().json(json!({
+                "error": "Server not found"
+            })));
+        }
+    };
+
+    let installed = backup_service::is_worldedit_installed(&server).await;
+
+    Ok(HttpResponse::Ok().json(json!({
+        "installed": installed
+    })))
 }
 
 /// DELETE /api/server/:id/backups/schedules/:scheduleId - Delete a backup schedule
