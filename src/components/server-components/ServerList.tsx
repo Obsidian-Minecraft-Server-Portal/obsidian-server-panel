@@ -13,16 +13,10 @@ export default function ServerList()
 
     useEffect(() =>
     {
-        // Load servers on initial mount
+        // Load servers once on initial mount
+        // WebSocket updates are handled by ServerProvider
         loadServers().catch(console.error);
-
-        const updateInterval = setInterval(() =>
-        {
-            loadServers().catch(console.error);
-        }, 5000);
-
-        return () => clearInterval(updateInterval);
-    }, []);
+    }, [loadServers]);
 
     return (
         <>

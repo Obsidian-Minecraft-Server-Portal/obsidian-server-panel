@@ -1,7 +1,7 @@
 import {Button, cn, Divider} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useState} from "react";
 import {useMessage} from "../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../MessageModal.tsx";
 import {motion} from "framer-motion";
@@ -39,16 +39,16 @@ export function ServerHeader(props: ServerHeaderProps)
     const [isServerStarting, setIsServerStarting] = useState<boolean>(false);
     const [ping, setPing] = useState<PingResponse>();
     const {open} = useMessage();
-    const pingTimerRef = useRef(0);
-
 
     useEffect(() =>
     {
-        if (status.toLowerCase() !== "running") return;
-        if (pingTimerRef.current) clearInterval(pingTimerRef.current);
-        pingTimerRef.current = setInterval(async () =>
-        {
-            // Ping the server to check if it's running
+        if (status.toLowerCase() !== "running") {
+            setPing(undefined);
+            return;
+        }
+
+        // Fetch ping once when server starts running
+        const fetchPing = async () => {
             try
             {
                 const pingResponse: PingResponse = await $.get(`/api/server/${id}/ping`);
@@ -58,9 +58,25 @@ export function ServerHeader(props: ServerHeaderProps)
                 // If the ping fails, we assume the server is not running
                 setPing(undefined);
             }
-        }, 5000); // Ping every 5 seconds
+        };
 
-    }, [status]);
+        fetchPing();
+
+        // Listen for server ping updates via WebSocket (if implemented)
+        const handleServerPing = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const {serverId, ping: pingData} = customEvent.detail;
+            if (serverId === id) {
+                setPing(pingData);
+            }
+        };
+
+        window.addEventListener('server-ping', handleServerPing);
+
+        return () => {
+            window.removeEventListener('server-ping', handleServerPing);
+        };
+    }, [status, id]);
     return (
         <div className={"flex flex-row gap-4 mt-8"}>
             <motion.div

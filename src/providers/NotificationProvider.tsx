@@ -122,7 +122,7 @@ export function NotificationProvider({children}: { children: ReactNode })
             // Determine WebSocket protocol based on current page protocol
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/api/notifications/ws`;
+            const wsUrl = `${protocol}//${host}/api/updates/ws`;
 
             console.log('[NotificationProvider] Connecting to WebSocket:', wsUrl);
 
@@ -146,6 +146,12 @@ export function NotificationProvider({children}: { children: ReactNode })
                     console.log('[NotificationProvider] Received message:', message);
 
                     switch (message.type) {
+                        // Notification-specific messages
+                        case 'notification':
+                            // Handle nested notification messages
+                            handleNotificationMessage(message);
+                            break;
+
                         case 'initial_list':
                             // Parse timestamps from ISO strings to Date objects
                             const parsedNotifications = message.notifications.map((n: any) => ({
@@ -186,6 +192,33 @@ export function NotificationProvider({children}: { children: ReactNode })
                             setNotifications([]);
                             break;
 
+                        // Server update messages
+                        case 'server_update':
+                            console.log('[NotificationProvider] Server update:', message.server);
+                            window.dispatchEvent(new CustomEvent('server-update', {detail: message.server}));
+                            break;
+
+                        case 'server_deleted':
+                            console.log('[NotificationProvider] Server deleted:', message.server_id);
+                            window.dispatchEvent(new CustomEvent('server-deleted', {detail: message.server_id}));
+                            break;
+
+                        case 'server_ping':
+                            console.log('[NotificationProvider] Server ping:', message.server_id, message.ping);
+                            window.dispatchEvent(new CustomEvent('server-ping', {detail: {serverId: message.server_id, ping: message.ping}}));
+                            break;
+
+                        // Action update messages
+                        case 'action_update':
+                            console.log('[NotificationProvider] Action update:', message.action);
+                            window.dispatchEvent(new CustomEvent('action-update', {detail: message.action}));
+                            break;
+
+                        case 'action_complete':
+                            console.log('[NotificationProvider] Action complete:', message.action_id);
+                            window.dispatchEvent(new CustomEvent('action-complete', {detail: message.action_id}));
+                            break;
+
                         case 'error':
                             console.error('[NotificationProvider] Server error:', message.message);
                             break;
@@ -201,6 +234,29 @@ export function NotificationProvider({children}: { children: ReactNode })
                     console.error('[NotificationProvider] Failed to parse WebSocket message:', error);
                 }
             };
+
+            // Helper function to handle nested notification messages
+            function handleNotificationMessage(message: any) {
+                const innerMessage = message.message || message;
+
+                switch (innerMessage.type) {
+                    case 'initial_list':
+                        const parsedNotifications = innerMessage.notifications.map((n: any) => ({
+                            ...n,
+                            timestamp: new Date(n.timestamp)
+                        }));
+                        setNotifications(parsedNotifications);
+                        break;
+                    case 'new_notification':
+                        const parsedNotification = {
+                            ...innerMessage.notification,
+                            timestamp: new Date(innerMessage.notification.timestamp)
+                        };
+                        setNotifications(prev => [parsedNotification, ...prev]);
+                        break;
+                    // Add other notification handlers as needed
+                }
+            }
 
             ws.onerror = (error) => {
                 console.error('[NotificationProvider] WebSocket error:', error);
@@ -294,7 +350,7 @@ export function NotificationDropdown()
                 </Tooltip>
                 <PopoverContent className={"font-minecraft-body w-[32rem] max-h-[70dvh] h-[48rem] p-2 flex flex-col items-start justify-start"}>
                     <div className={"flex flex-row justify-between w-full px-2 pt-2"}>
-                        <p className={"text-xl font-minecraft-header"}>Notifications <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></p>
+                        <div className={"text-xl font-minecraft-header"}>Notifications <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></div>
                         <div className={"flex flex-row"}>
                             <Tooltip content={"Mark all as read"}>
                                 <Button isIconOnly variant={"light"} size={"lg"} onPress={markAllAsRead}><Icon icon={"pixelarticons:radio-on"}/></Button>

@@ -54,17 +54,19 @@ export default function ServerPage()
     useEffect(() =>
     {
         if (!id) return;
+
+        // Load server once on mount
         loadServer(id).catch(error => console.error("Failed to load server:", error));
-        const pollingInterval = setInterval(() =>
-        {
-            loadServer(id).catch(error => console.error("Failed to load server:", error));
-        }, 5000);
+
+        // Server updates are handled automatically by ServerProvider's
+        // updateServerInState function called from ServerList's event handlers
+        // No need for additional polling or event listeners here
+
         return () =>
         {
-            clearInterval(pollingInterval);
             unloadServer();
         };
-    }, [id]);
+    }, [id, loadServer, unloadServer]);
 
     if (!server || !id) return null;
     return (

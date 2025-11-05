@@ -1,4 +1,4 @@
-import {createContext, ReactNode, useCallback, useContext, useRef, useState} from "react";
+import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
 import $ from "jquery";
 import {FileSystem, FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 
@@ -92,6 +92,8 @@ interface ServerContextType
     loadServer: (id: string) => Promise<void>;
     unloadServer: () => void;
     loadServers: () => Promise<void>;
+    updateServerInState: (serverData: Server) => void;
+    removeServerFromState: (serverId: string) => void;
     createServer: (server: CreateServerData) => Promise<string>;
     updateServer: (server: Partial<Server>, serverId?: string) => Promise<void>;
     deleteServer: (serverId?: string) => Promise<void>;
@@ -143,24 +145,99 @@ export function ServerProvider({children}: { children: ReactNode })
     // Connection tracking for console subscriptions
     const consoleConnections = useRef<Map<string, () => void>>(new Map());
 
-    const loadServer = async (id: string) =>
+    // Update or add a server in state without refetching from API
+    const updateServerInState = useCallback((serverData: Server) => {
+        // Normalize status to lowercase
+        const normalizedServer = {
+            ...serverData,
+            status: serverData.status.toLowerCase() as ServerStatus
+        };
+
+        // Update in servers list
+        setServers(prev => {
+            const existingIndex = prev.findIndex(s => s.id === normalizedServer.id);
+            if (existingIndex >= 0) {
+                // Update existing server
+                const newServers = [...prev];
+                newServers[existingIndex] = normalizedServer;
+                return newServers;
+            } else {
+                // Add new server
+                return [...prev, normalizedServer];
+            }
+        });
+
+        // Update currently loaded server if it matches
+        setServer(prev => {
+            if (prev && prev.id === normalizedServer.id) {
+                return normalizedServer;
+            }
+            return prev;
+        });
+    }, []);
+
+    // Remove a server from state without API call
+    const removeServerFromState = useCallback((serverId: string) => {
+        setServers(prev => prev.filter(s => s.id !== serverId));
+
+        // Clear currently loaded server if it matches
+        setServer(prev => {
+            if (prev && prev.id === serverId) {
+                return null;
+            }
+            return prev;
+        });
+    }, []);
+
+    // Set up WebSocket event listeners for server updates
+    useEffect(() => {
+        const handleServerUpdate = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const serverData = customEvent.detail;
+            if (serverData) {
+                console.log('[ServerProvider] Server update received:', serverData);
+                updateServerInState(serverData);
+            }
+        };
+
+        const handleServerDeleted = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const serverId = customEvent.detail;
+            if (serverId) {
+                console.log('[ServerProvider] Server deleted:', serverId);
+                removeServerFromState(serverId);
+            } else {
+                console.warn('[ServerProvider] Invalid server deletion event received');
+            }
+        };
+
+        window.addEventListener("server-update", handleServerUpdate);
+        window.addEventListener("server-deleted", handleServerDeleted);
+
+        return () => {
+            window.removeEventListener("server-update", handleServerUpdate);
+            window.removeEventListener("server-deleted", handleServerDeleted);
+        };
+    }, [updateServerInState, removeServerFromState]);
+
+    const loadServer = useCallback(async (id: string) =>
     {
         let server: Server = await $.get(`/api/server/${id}`);
         server.status = server.status.toLowerCase() as ServerStatus; // Ensure server_type is lowercase
         setServer(server);
-    };
+    }, []);
 
-    const unloadServer = () =>
+    const unloadServer = useCallback(() =>
     {
         setServer(null);
-    };
+    }, []);
 
-    const loadServers = async () =>
+    const loadServers = useCallback(async () =>
     {
         let servers: Server[] = await $.get("/api/server");
         servers = servers.map(s => ({...s, status: s.status.toLowerCase()} as Server));
         setServers(servers);
-    };
+    }, []);
 
     const createServer = async (server: CreateServerData): Promise<string> =>
     {
@@ -176,8 +253,8 @@ export function ServerProvider({children}: { children: ReactNode })
             throw new Error("Server creation failed");
         }
 
-        // Refresh servers list
-        await loadServers();
+        // Server list will be updated via WebSocket broadcast automatically
+        // No need to call loadServers() here
         return response.server_id;
     };
 
@@ -210,7 +287,8 @@ export function ServerProvider({children}: { children: ReactNode })
             contentType: "application/json",
             data: JSON.stringify(updatedServer)
         });
-        await loadServers();
+        // Server state will be updated via WebSocket broadcast automatically
+        // No need to call loadServers() here
     }, [server, servers]);
 
     const deleteServer = useCallback(async (serverId?: string) =>
@@ -614,6 +692,8 @@ export function ServerProvider({children}: { children: ReactNode })
             loadServer,
             unloadServer,
             loadServers,
+            updateServerInState,
+            removeServerFromState,
             createServer,
             updateServer,
             deleteServer,

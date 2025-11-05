@@ -1,5 +1,7 @@
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserRequestExt;
+use crate::broadcast;
+use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use crate::server::{backups, filesystem};
@@ -51,8 +53,14 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
 
     let pool = crate::app_db::open_pool().await?;
     if let Some(server) = server {
+        let server_id_u64 = server.id;
         server.delete(&pool).await?;
         pool.close().await;
+
+        // Broadcast server deletion with hashed ID
+        let server_id = encode_single(server_id_u64);
+        broadcast::broadcast(BroadcastMessage::ServerDeleted { server_id });
+
         Ok(HttpResponse::Ok().finish())
     } else {
         pool.close().await;
@@ -89,6 +97,11 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
 
     std::fs::create_dir_all(server.get_directory_path())?;
 
+    // Broadcast server creation
+    broadcast::broadcast(BroadcastMessage::ServerUpdate {
+        server: server.clone(),
+    });
+
     Ok(HttpResponse::Created().json(json!({
         "message": "Server created successfully",
         "server_id": encode_single(server.id),
@@ -123,6 +136,12 @@ pub async fn update_server(server_id: web::Path<String>, body: web::Json<ServerD
     if let Some(mut server) = server {
         server.update(&body)?;
         server.save().await?;
+
+        // Broadcast server update
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: server.clone(),
+        });
+
         Ok(HttpResponse::Ok().finish())
     } else {
         Ok(HttpResponse::NotFound().json(json!({

@@ -1,5 +1,7 @@
 use crate::actix_util::http_error::Result;
 use crate::authentication::auth_data::UserRequestExt;
+use crate::broadcast;
+use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::server::filesystem::filesystem_data::FilesystemData;
 use crate::server::server_data::ServerData;
 use crate::actions::actions_data::{ActionData, ActionType, ActionStatus};
@@ -298,6 +300,15 @@ pub async fn upload_file(
     if let Ok(Some(action)) = ActionData::get_by_tracker_id(&upload_id).await {
         let _ = action.update_status(ActionStatus::Completed, Some(format!("Upload completed successfully ({} bytes)", total_bytes))).await;
         let _ = action.update_progress(100).await; // Set to 100% on completion
+    }
+
+    // Check if the uploaded file is the server icon - if so, broadcast an update
+    let filename = full_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if filename == "server-icon.png" {
+        // Broadcast server update so all clients refresh the icon
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: server.clone(),
+        });
     }
 
     // Clean up the cancellation flag
@@ -654,13 +665,29 @@ pub async fn delete_entry(server_id: web::Path<String>, body: web::Json<DeleteRe
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
 
+    let mut icon_deleted = false;
     for path in &body.paths {
         let full_path = base_path.join(path);
+
+        // Check if this is the server icon before deleting
+        if let Some(filename) = full_path.file_name().and_then(|n| n.to_str()) {
+            if filename == "server-icon.png" {
+                icon_deleted = true;
+            }
+        }
+
         if full_path.is_dir() {
             std::fs::remove_dir_all(&full_path)?;
         } else {
             std::fs::remove_file(&full_path)?;
         }
+    }
+
+    // If the server icon was deleted, broadcast an update
+    if icon_deleted {
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: server.clone(),
+        });
     }
 
     Ok(HttpResponse::Ok().json(json!({"status": "success"})))

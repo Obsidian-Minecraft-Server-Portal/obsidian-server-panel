@@ -121,18 +121,28 @@ export function PersistentActionProvider({children}: { children: ReactNode })
         }
     }, [fetchActions]);
 
-    // Fetch actions on mount and set up polling
+    // Fetch actions on mount and listen for WebSocket updates
     useEffect(() =>
     {
+        // Fetch actions once on mount
         fetchActions();
 
-        // Poll for updates every 2 seconds
-        const interval = setInterval(() =>
-        {
+        // Listen for action updates via WebSocket
+        const handleActionUpdate = () => {
             fetchActions();
-        }, 2000);
+        };
 
-        return () => clearInterval(interval);
+        const handleActionComplete = () => {
+            fetchActions();
+        };
+
+        window.addEventListener('action-update', handleActionUpdate);
+        window.addEventListener('action-complete', handleActionComplete);
+
+        return () => {
+            window.removeEventListener('action-update', handleActionUpdate);
+            window.removeEventListener('action-complete', handleActionComplete);
+        };
     }, [fetchActions]);
 
     const value = {

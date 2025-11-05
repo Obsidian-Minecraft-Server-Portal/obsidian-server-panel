@@ -18,6 +18,7 @@ mod actions;
 mod actix_util;
 mod app_db;
 mod authentication;
+mod broadcast;
 mod command_line_args;
 mod forge_endpoint;
 mod host_info;
@@ -130,7 +131,7 @@ pub async fn run() -> Result<()> {
                         .configure(server::configure)
                         .configure(settings::configure)
                         .configure(updater::configure)
-                        .configure(notifications::configure),
+                        .configure(broadcast::updates_endpoint::configure),
                 ),
             )
             .configure_frontend_routes()

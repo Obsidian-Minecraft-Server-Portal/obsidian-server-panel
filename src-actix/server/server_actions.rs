@@ -1,3 +1,5 @@
+use crate::broadcast;
+use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::Result;
@@ -27,11 +29,22 @@ impl ServerData {
         self.status = ServerStatus::Starting;
         self.save().await?;
 
+        // Broadcast server status change
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: self.clone(),
+        });
+
         if self.upnp {
             let properties = self.get_server_properties();
             if let Err(e) = properties {
                 self.status = ServerStatus::Crashed;
                 self.save().await?;
+
+                // Broadcast server status change
+                broadcast::broadcast(BroadcastMessage::ServerUpdate {
+                    server: self.clone(),
+                });
+
                 return Err(anyhow::anyhow!("Failed to get server properties: {}", e));
             } else if let Ok(properties) = properties {
                 let port = properties.server_port.unwrap_or(25565) as u16;
@@ -139,6 +152,11 @@ impl ServerData {
                     self.status = ServerStatus::Running;
                     self.save().await?;
 
+                    // Broadcast server status change
+                    broadcast::broadcast(BroadcastMessage::ServerUpdate {
+                        server: self.clone(),
+                    });
+
                     // Send notification that server has started
                     if let Err(e) = self.send_start_notification().await {
                         error!("Failed to send server start notification: {}", e);
@@ -149,6 +167,12 @@ impl ServerData {
                 if line.contains("has been compiled by a more recent version of the Java Runtime") {
                     self.status = ServerStatus::Crashed;
                     self.save().await?;
+
+                    // Broadcast server status change
+                    broadcast::broadcast(BroadcastMessage::ServerUpdate {
+                        server: self.clone(),
+                    });
+
                     break;
                 }
             }
@@ -160,6 +184,12 @@ impl ServerData {
     pub async fn stop_server(&mut self) -> Result<()> {
         self.status = ServerStatus::Stopping;
         self.save().await?;
+
+        // Broadcast server status change
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: self.clone(),
+        });
+
         self.send_command("stop").await?;
         Ok(())
     }
@@ -188,6 +218,11 @@ impl ServerData {
         self.status = ServerStatus::Stopped;
         self.save().await?;
 
+        // Broadcast server status change
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: self.clone(),
+        });
+
         // Send notification that server has stopped
         if let Err(e) = self.send_stop_notification().await {
             error!("Failed to send server stop notification: {}", e);
@@ -204,6 +239,11 @@ impl ServerData {
         }
         self.status = ServerStatus::Crashed;
         self.save().await?;
+
+        // Broadcast server status change
+        broadcast::broadcast(BroadcastMessage::ServerUpdate {
+            server: self.clone(),
+        });
 
         // Send notification that server has crashed
         if let Err(e) = self.send_crash_notification().await {

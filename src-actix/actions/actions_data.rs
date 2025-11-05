@@ -1,3 +1,5 @@
+use crate::broadcast;
+use crate::broadcast::broadcast_data::BroadcastMessage;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, OnceLock, atomic::{AtomicU64, Ordering}};
@@ -188,7 +190,16 @@ impl TrackedAction {
     pub fn update_progress(&mut self, progress: i64) -> Result<(), String> {
         self.progress = progress;
         self.updated_at = Utc::now();
-        self.update_in_store()
+        let result = self.update_in_store();
+
+        // Broadcast action update
+        if result.is_ok() {
+            broadcast::broadcast(BroadcastMessage::ActionUpdate {
+                action: ActionData::from(self.clone()),
+            });
+        }
+
+        result
     }
 
     pub fn update_status(&mut self, status: ActionStatus, details: Option<String>) -> Result<(), String> {
@@ -197,12 +208,28 @@ impl TrackedAction {
             self.details = Some(details);
         }
         self.updated_at = Utc::now();
-        
-        if status == ActionStatus::Completed || status == ActionStatus::Failed {
+
+        let is_completed = status == ActionStatus::Completed || status == ActionStatus::Failed;
+        if is_completed {
             self.completed_at = Some(Utc::now());
         }
-        
-        self.update_in_store()
+
+        let result = self.update_in_store();
+
+        // Broadcast action update or completion
+        if result.is_ok() {
+            if is_completed {
+                broadcast::broadcast(BroadcastMessage::ActionComplete {
+                    action_id: self.id.clone(),
+                });
+            } else {
+                broadcast::broadcast(BroadcastMessage::ActionUpdate {
+                    action: ActionData::from(self.clone()),
+                });
+            }
+        }
+
+        result
     }
 
     fn update_in_store(&self) -> Result<(), String> {
