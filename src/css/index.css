@@ -16,10 +16,6 @@
     scrollbar-gutter: stable;
 }
 
-body {
-    font-family: 'Noto Sans', sans-serif;
-}
-
 ::-webkit-scrollbar {
     width: 12px;
 }
