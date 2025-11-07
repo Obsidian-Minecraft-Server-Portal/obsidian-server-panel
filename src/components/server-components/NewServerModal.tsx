@@ -1,4 +1,4 @@
-import {addToast, Button, CircularProgress, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
+import {addToast, CircularProgress, DropdownItem, DropdownTrigger, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
@@ -14,6 +14,9 @@ import {LoaderType, useServer} from "../../providers/ServerProvider.tsx";
 import RamSlider from "./RamSlider.tsx";
 import JavaExecutableSelector from "./JavaExecutableSelector.tsx";
 import {getMinecraftVersionDownloadUrl} from "../../ts/minecraft-versions.ts";
+import {Dropdown, DropdownMenu} from "../extended/Dropdown.tsx";
+import {ErrorBoundary} from "../ErrorBoundry.tsx";
+import {Button} from "../extended/Button.tsx";
 
 type NewServerProperties = {
     isOpen: boolean;
@@ -235,8 +238,8 @@ export default function NewServerModal(props: NewServerProperties)
         >
             <ModalContent>
                 {onClose => (
-                    <>
-                        <ModalHeader className={"font-minecraft-header"}>Create New Server</ModalHeader>
+                    <ErrorBoundary>
+                        <ModalHeader className={"font-minecraft-header font-normal"}>Create New Server</ModalHeader>
                         <ModalBody className={"flex flex-col gap-4"}>
                             <p className={"font-minecraft-body"}>Configure your server</p>
                             <Input
@@ -249,7 +252,7 @@ export default function NewServerModal(props: NewServerProperties)
                                 onValueChange={setName}
                                 isDisabled={isCreatingServer}
                             />
-                            <div className={"mx-auto"}>
+                            <div className={"mx-auto flex flex-row"}>
                                 <Tabs
                                     radius={"none"}
                                     className={"font-minecraft-body"}
@@ -266,10 +269,21 @@ export default function NewServerModal(props: NewServerProperties)
                                     <Tab key={"vanilla"} title={<><Icon icon={"heroicons:cube-transparent-16-solid"} width={32}/><p>Vanilla</p></>}/>
                                     <Tab key={"fabric"} title={<div className={"relative"}><Icon icon={"file-icons:fabric"} width={32}/><p>Fabric</p></div>}/>
                                     <Tab key={"forge"} title={<><Icon icon={"simple-icons:curseforge"} width={32}/><p>Forge</p></>}/>
-                                    <Tab key={"quilt"} title={<div className={"flex justify-center items-center flex-col gap-2"}><Quilt size={32}/><p>Quilt</p></div>}/>
-                                    <Tab key={"neo_forge"} title={<div className={"flex justify-center items-center flex-col gap-2"}><NeoForge size={32}/><p>NeoForge</p></div>}/>
-                                    <Tab key={"custom"} title={<div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"pixelarticons:cloud-upload"} width={32}/><p>Custom Jar</p></div>}/>
+                                    <Tab key={"bukkit"} title={<div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"pixelarticons:paint-bucket"} width={32}/><p>Bukkit</p></div>}/>
+                                    <Tab key={"spigot"} title={<div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"simple-icons:spigotmc"} width={32}/><p>Spigot</p></div>}/>
                                 </Tabs>
+                                <Dropdown>
+                                    <DropdownTrigger>
+                                        <Button className={"h-[104px] w-[112px] shrink-0 bg-default-100 text-default-500 font-minecraft-body text-sm"} size={"lg"}>
+                                            <div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"pixelarticons:cloud-download"} width={32}/><p>More...</p></div>
+                                        </Button>
+                                    </DropdownTrigger>
+                                    <DropdownMenu>
+                                        <DropdownItem key={"quilt"} startContent={<Quilt size={18}/>} onPress={() => setSelectedLoader("quilt")}>Quilt</DropdownItem>
+                                        <DropdownItem key={"neoforge"} startContent={<NeoForge size={18}/>} onPress={() => setSelectedLoader("neoforge")}>NeoForge</DropdownItem>
+                                        <DropdownItem key={"custom_jar"} startContent={<Icon icon={"pixelarticons:cloud-upload"} width={18}/>} onPress={() => setSelectedLoader("custom")}>Custom Jar</DropdownItem>
+                                    </DropdownMenu>
+                                </Dropdown>
                             </div>
                             <div className={"flex flex-row gap-1 items-center text-gray-500 text-sm font-minecraft-body"}>
                                 <Tooltip content={<p>For more information about these settings, <Link href={"https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel"}>visit the documentation</Link>.</p>}>
@@ -305,7 +319,7 @@ export default function NewServerModal(props: NewServerProperties)
                             )}
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={submit} radius={"none"} variant={"ghost"} color={"primary"} isDisabled={!isValidForm || isCreatingServer}>
+                            <Button onPress={submit} variant={"ghost"} color={"primary"} isDisabled={!isValidForm || isCreatingServer}>
                                 {isCreatingServer &&
                                     <CircularProgress
                                         minValue={0}
@@ -320,9 +334,9 @@ export default function NewServerModal(props: NewServerProperties)
                                 }
                                 {creationStatusText}
                             </Button>
-                            <Button onPress={onClose} radius={"none"} variant={"light"} color={"danger"} isLoading={isCreatingServer}>Cancel</Button>
+                            <Button onPress={onClose} variant={"light"} color={"danger"} isLoading={isCreatingServer}>Cancel</Button>
                         </ModalFooter>
-                    </>
+                    </ErrorBoundary>
                 )}
             </ModalContent>
         </Modal>
@@ -355,7 +369,7 @@ function LoaderSelector(props: LoaderSelectorProps)
             return <ForgeVersionSelector minecraftVersion={version} onVersionChange={onChange} isDisabled={isDisabled}/>;
         case "quilt":
             return <QuiltVersionSelector minecraftVersion={version} isDisabled={isDisabled}/>;
-        case "neo_forge":
+        case "neoforge":
             return <NeoForgeVersionSelector minecraftVersion={version} isDisabled={isDisabled}/>;
         case "custom":
             return (
