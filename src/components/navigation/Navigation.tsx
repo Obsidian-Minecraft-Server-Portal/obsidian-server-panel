@@ -1,7 +1,7 @@
 import {useLocation} from "react-router-dom";
-import {Divider, DropdownItem, DropdownMenu, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, PopoverContent, PopoverTrigger, useDisclosure} from "@heroui/react";
+import {Divider, DropdownItem, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, PopoverContent, PopoverTrigger, useDisclosure} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {Dropdown} from "../extended/Dropdown";
+import {Dropdown, DropdownMenu} from "../extended/Dropdown";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
 import {AnimatePresence, motion} from "framer-motion";
 import UserManagementModal from "../authentication/UserManagementModal.tsx";
@@ -64,7 +64,7 @@ export default function Navigation()
                                     <DropdownTrigger>
                                         <Button startContent={<Icon icon={"pixelarticons:map"}/>} variant={"light"}>Discover</Button>
                                     </DropdownTrigger>
-                                    <DropdownMenu itemClasses={{base: "rounded-none font-minecraft-body"}}>
+                                    <DropdownMenu>
                                         <DropdownItem key={"packs"} as={Link} href={"/app/discover/packs"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:subscriptions"}/>}>Modpacks</DropdownItem>
                                         <DropdownItem key={"mods"} as={Link} href={"/app/discover/mods"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:note-multiple"}/>}>Mods</DropdownItem>
                                         <DropdownItem key={"worlds"} as={Link} href={"/app/discover/worlds"} className={"text-foreground"} startContent={<Icon icon={"pixel:globe-americas-solid"}/>}>Worlds</DropdownItem>
@@ -81,10 +81,10 @@ export default function Navigation()
                     >
                         <NavbarContent justify={"end"} className={"gap-2"}>
                             <NavbarItem>
-                                <ActionsDropdown />
+                                <ActionsDropdown/>
                             </NavbarItem>
                             <NavbarItem>
-                                <NotificationDropdown />
+                                <NotificationDropdown/>
                             </NavbarItem>
                             <NavbarItem>
                                 <Popover isOpen={isAccountPopoverOpen} onOpenChange={setIsAccountPopoverOpen} placement={"bottom-end"} className={"rounded-none font-minecraft-body"}>
@@ -103,7 +103,8 @@ export default function Navigation()
                                                 fullWidth
                                                 variant={"light"}
                                                 size={"sm"}
-                                                onPress={() => {
+                                                onPress={() =>
+                                                {
                                                     setIsAccountPopoverOpen(false);
                                                     onSettingsOpen();
                                                 }}
