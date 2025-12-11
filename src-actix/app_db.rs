@@ -16,12 +16,12 @@ pub async fn initialize_databases(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-pub async fn open_pool() -> Result<sqlx::SqlitePool> {
+pub async fn open_pool() -> Result<SqlitePool> {
     let options = SqliteConnectOptions::new()
         .journal_mode(SqliteJournalMode::Wal)
         .foreign_keys(true)
         .filename("app.db")
         .log_statements(LevelFilter::Trace)
         .create_if_missing(true);
-    Ok(sqlx::SqlitePool::connect_with(options).await?)
+    Ok(SqlitePool::connect_with(options).await?)
 }
