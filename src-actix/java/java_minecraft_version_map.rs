@@ -1,11 +1,10 @@
 use anyhow::Result;
 use log::*;
+use obsidian_scheduler::callback::CallbackTimer;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use obsidian_scheduler::callback::CallbackTimer;
-
 
 #[derive(Debug, Serialize, Clone)]
 pub struct MinMax {
@@ -32,9 +31,7 @@ pub async fn get_java_minecraft_version_map() -> Result<HashMap<String, MinMax>>
     let map = crate::java::java_db::load_version_map(&pool).await?;
     pool.close().await;
 
-    let result = map.into_iter()
-        .map(|(k, (min, max))| (k, MinMax { min, max }))
-        .collect();
+    let result = map.into_iter().map(|(k, (min, max))| (k, MinMax { min, max })).collect();
 
     Ok(result)
 }
@@ -49,7 +46,7 @@ pub fn start_scheduler() -> Arc<CallbackTimer> {
                 Ok(())
             })
         },
-        Duration::from_secs(86400), // 24 hours
+        Duration::from_hours(72)
     )
 }
 

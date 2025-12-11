@@ -70,7 +70,7 @@ pub async fn is_version_map_expired(pool: &SqlitePool) -> Result<bool> {
     let now = chrono::Utc::now().naive_utc();
     let age = now.signed_duration_since(updated_at);
 
-    let is_expired = age.num_hours() >= 24;
+    let is_expired = age.num_hours() >= 72;
     if is_expired {
         debug!("Java version map is expired (age: {} hours), needs refresh", age.num_hours());
     } else {
