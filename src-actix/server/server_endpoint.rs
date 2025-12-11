@@ -93,15 +93,6 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     let pool = crate::app_db::open_pool().await?;
     let mut server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
     server.create(&pool).await?;
-
-    // Verify server was created and is readable before returning
-    let server_id = server.id;
-    let verification = ServerData::get_with_pool(server_id, &pool).await?;
-    if verification.is_none() {
-        pool.close().await;
-        return Err(anyhow!("Server was created but could not be verified in database").into());
-    }
-
     pool.close().await;
 
     std::fs::create_dir_all(server.get_directory_path())?;
@@ -548,6 +539,12 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
+            .service(
+                web::scope("/{server_id}")
+                    .configure(filesystem::configure)
+                    .configure(backups::configure)
+                    .configure(updates::configure)
+            )
             .service(get_installed_mods)
             .service(download_mod)
             .service(sync_mods)
@@ -568,12 +565,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(ping_server)
             .service(get_log_files)
             .service(get_log_file_contents)
-            .service(
-                web::scope("/{server_id}")
-                    .configure(filesystem::configure)
-                    .configure(backups::configure)
-                    .configure(updates::configure)
-            )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),
