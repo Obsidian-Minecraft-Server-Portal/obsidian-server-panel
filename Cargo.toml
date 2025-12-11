@@ -1,6 +1,12 @@
+[workspace]
+members = [
+    "tools/update_version",
+    "tools/publish_docker",
+]
+
 [package]
 name = "obsidian_server_panel"
-version = "1.0.0-alpha.1"
+version = "0.0.1-alpha"
 edition = "2024"
 authors = ["Drew Chase (Work) <dcmanproductions@gmail.com>"]
 build = "src-actix/build.rs"
