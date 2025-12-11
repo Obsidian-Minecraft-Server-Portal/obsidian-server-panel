@@ -28,5 +28,8 @@ CREATE TABLE IF NOT EXISTS `servers`
     `created_at`        INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch
     `updated_at`        INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch
     `last_started`      INTEGER          DEFAULT NULL,                    -- timestamp in seconds since epoch, NULL if never started
+    `last_update_check` INTEGER          DEFAULT NULL,                    -- timestamp in seconds since epoch, NULL if never checked
+    `update_available`  BOOLEAN NOT NULL DEFAULT 0,                       -- whether an update is available for this server
+    `latest_version`    TEXT             DEFAULT NULL,                    -- the latest version available for this server (loader or minecraft version)
     FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 )

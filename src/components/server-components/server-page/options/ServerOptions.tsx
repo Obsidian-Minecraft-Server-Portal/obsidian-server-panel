@@ -1,5 +1,5 @@
 import "../../../../ts/string-ext.ts";
-import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea} from "@heroui/react";
+import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea, Chip, addToast} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";
@@ -18,12 +18,24 @@ import {getMinecraftVersionDownloadUrl} from "../../../../ts/minecraft-versions.
 import {ServerIcon} from "../ServerIcon.tsx";
 import {Button} from "../../../extended/Button.tsx";
 import {Select} from "../../../extended/Select.tsx"
+import {useServerUpdates} from "../../../../hooks/useServerUpdates.ts";
 
 export function ServerOptions()
 {
     const {server, updateServer, getEntries, uploadFromUrl, uploadFile, loadServer} = useServer();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Server updates
+    const {
+        checking: checkingUpdates,
+        applying: applyingUpdate,
+        rollingBack: rollingBackUpdate,
+        updateInfo,
+        checkUpdates,
+        applyServerUpdate,
+        rollbackServerUpdate
+    } = useServerUpdates(server?.id || "");
 
     // Form state
     const [name, setName] = useState("");
@@ -237,6 +249,74 @@ export function ServerOptions()
         maxMemory, minMemory, serverJar, upnpEnabled, autoStart, autoRestart,
         hasLoaderChanges
     ]);
+
+    // Handler for checking updates
+    const handleCheckUpdates = useCallback(async () => {
+        if (!server) return;
+        try {
+            const info = await checkUpdates();
+            if (info.update_available) {
+                addToast({
+                    title: "Update Available",
+                    description: `Version ${info.latest_version} is available!`,
+                    color: "success"
+                });
+            } else {
+                addToast({
+                    title: "Up to Date",
+                    description: info.message || "Server is running the latest version",
+                    color: "success"
+                });
+            }
+        } catch (error) {
+            addToast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to check for updates",
+                color: "danger"
+            });
+        }
+    }, [server, checkUpdates, addToast]);
+
+    // Handler for applying updates
+    const handleApplyUpdate = useCallback(async () => {
+        if (!server || !updateInfo?.update_available) return;
+        try {
+            const result = await applyServerUpdate();
+            addToast({
+                title: "Update Applied",
+                description: `Server updated to version ${result.new_version}`,
+                color: "success"
+            });
+            await loadServer(server.id);
+        } catch (error) {
+            addToast({
+                title: "Update Failed",
+                description: error instanceof Error ? error.message : "Failed to apply update",
+                color: "danger"
+            });
+        }
+    }, [server, updateInfo, applyServerUpdate, addToast, loadServer]);
+
+    // Handler for rolling back
+    const handleRollback = useCallback(async () => {
+        if (!server) return;
+        try {
+            await rollbackServerUpdate();
+            addToast({
+                title: "Rollback Complete",
+                description: "Server has been rolled back to the previous version",
+                color: "success"
+            });
+            await loadServer(server.id);
+        } catch (error) {
+            addToast({
+                title: "Rollback Failed",
+                description: error instanceof Error ? error.message : "Failed to rollback",
+                color: "danger"
+            });
+        }
+    }, [server, rollbackServerUpdate, addToast, loadServer]);
+
     // Load server data when the component mounts or server changes
     useEffect(() =>
     {
@@ -575,6 +655,89 @@ export function ServerOptions()
                     startContent={<Icon icon="pixelarticons:command-line"/>}
                     description="Additional arguments passed to the Minecraft server"
                 />
+            </section>
+
+            <Divider/>
+
+            {/* Server Updates */}
+            <section className="flex flex-col gap-4">
+                <h3 className="text-lg font-minecraft-header">Server Updates</h3>
+
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="font-minecraft-body text-sm">
+                            Check for updates to your server software ({loaderType} {loaderType !== "vanilla" ? loaderVersion : minecraftVersion})
+                        </p>
+                        <Button
+                            onPress={handleCheckUpdates}
+                            isLoading={checkingUpdates}
+                            isDisabled={!server || isSaving}
+                            startContent={!checkingUpdates && <Icon icon="pixelarticons:reload"/>}
+                        >
+                            Check for Updates
+                        </Button>
+                    </div>
+
+                    {updateInfo && updateInfo.update_available && (
+                        <div className="p-4 border border-success bg-success/10 rounded-none space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Icon icon="pixelarticons:circle-check" className="text-success" width={20}/>
+                                <p className="font-minecraft-body font-semibold">Update Available!</p>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm font-minecraft-body">
+                                <span>Current:</span>
+                                <Chip size="sm" variant="flat" radius="none">{updateInfo.current_version}</Chip>
+                                <Icon icon="pixelarticons:arrow-right" width={16}/>
+                                <span>Latest:</span>
+                                <Chip size="sm" color="success" variant="flat" radius="none">{updateInfo.latest_version}</Chip>
+                            </div>
+                            {updateInfo.changelog_url && (
+                                <a
+                                    href={updateInfo.changelog_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline flex items-center gap-1 font-minecraft-body"
+                                >
+                                    <Icon icon="pixelarticons:external-link" width={14}/>
+                                    View Changelog
+                                </a>
+                            )}
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    color="success"
+                                    onPress={handleApplyUpdate}
+                                    isLoading={applyingUpdate}
+                                    isDisabled={!server || isSaving || server.status !== "idle"}
+                                    startContent={!applyingUpdate && <Icon icon="pixelarticons:download"/>}
+                                >
+                                    Apply Update
+                                </Button>
+                                {server && server.status !== "idle" && (
+                                    <p className="text-xs text-warning flex items-center gap-1 font-minecraft-body">
+                                        <Icon icon="pixelarticons:alert" width={14}/>
+                                        Server must be stopped to apply updates
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="flat"
+                            onPress={handleRollback}
+                            isLoading={rollingBackUpdate}
+                            isDisabled={!server || isSaving}
+                            startContent={!rollingBackUpdate && <Icon icon="pixelarticons:undo"/>}
+                        >
+                            Rollback to Previous Version
+                        </Button>
+                        <Tooltip content="Restore the previous server JAR from backup">
+                            <Icon icon="pixelarticons:info" width={16} className="text-default-400"/>
+                        </Tooltip>
+                    </div>
+                </div>
             </section>
 
             <Divider/>

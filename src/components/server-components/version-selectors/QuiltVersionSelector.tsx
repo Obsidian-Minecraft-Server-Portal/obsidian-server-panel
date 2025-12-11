@@ -1,6 +1,7 @@
-import {Autocomplete, AutocompleteItem} from "@heroui/react";
+import {addToast, Autocomplete, AutocompleteItem} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {useQuiltVersions} from "../../../providers/LoaderVersionProviders/QuiltVersionsProvider.tsx";
+import {getQuiltServerUrl} from "../../../ts/quilt-versions.ts";
 
 type QuiltVersionSelectorProps = {
     minecraftVersion: string;
@@ -43,13 +44,21 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
 
     useEffect(() =>
     {
-        if (onVersionChange && selectedVersion && minecraftVersion)
+        let installer: string | undefined = quiltVersions?.installer?.find(i => i.stable)?.version;
+        if (!installer)
         {
-            // Quilt uses similar URL structure to Fabric
-            const url = `https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/${selectedVersion}/quilt-loader-${selectedVersion}-installer.jar`;
-            onVersionChange(url, selectedVersion);
+            addToast({
+                title: "Error",
+                description: "No stable Quilt installer version found.",
+                color: "danger"
+            });
+            return;
         }
-    }, [selectedVersion, onVersionChange, minecraftVersion]);
+        if (!selectedVersion || !minecraftVersion) return;
+        const url = getQuiltServerUrl(selectedVersion, minecraftVersion, installer);
+        onVersionChange?.(url, selectedVersion);
+        console.log(`Selected Quilt version: ${selectedVersion}, URL: ${url}`);
+    }, [selectedVersion, minecraftVersion, quiltVersions, onVersionChange]);
 
     useEffect(() =>
     {

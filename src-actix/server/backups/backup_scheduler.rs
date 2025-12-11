@@ -160,14 +160,46 @@ impl BackupScheduler {
                             commit_id
                         );
 
-                        // Note: Retention policy management would require implementing
-                        // backup cleanup logic using git operations, which is not currently
-                        // supported by obsidian-backups. Consider implementing this in the future.
-                        if schedule.retention_days.is_some() {
-                            debug!(
-                                "Retention policy is set to {} days but automatic cleanup is not yet implemented",
-                                schedule.retention_days.unwrap()
+                        // Apply retention policy if configured
+                        if let Some(retention_days) = schedule.retention_days {
+                            let cutoff_timestamp = now - (retention_days * 86400);
+
+                            info!(
+                                "Applying retention policy: keeping backups newer than {} days for server {}",
+                                retention_days, server.name
                             );
+
+                            match backup_service::list_backups(&server).await {
+                                Ok(backups) => {
+                                    for backup in backups {
+                                        if backup.created_at < cutoff_timestamp {
+                                            info!(
+                                                "Deleting old backup {} for server '{}' (retention: {} days, age: {} days)",
+                                                backup.id,
+                                                server.name,
+                                                retention_days,
+                                                (now - backup.created_at) / 86400
+                                            );
+
+                                            if let Err(e) = backup_service::delete_backup(&server, &backup.id).await {
+                                                warn!(
+                                                    "Failed to delete old backup {} for server '{}': {}",
+                                                    backup.id, server.name, e
+                                                );
+                                            } else {
+                                                debug!(
+                                                    "Successfully deleted old backup {} for server '{}'",
+                                                    backup.id, server.name
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => error!(
+                                    "Failed to list backups for retention cleanup on server '{}': {}",
+                                    server.name, e
+                                ),
+                            }
                         }
                     }
                     Err(e) => {

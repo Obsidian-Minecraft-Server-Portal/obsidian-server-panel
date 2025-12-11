@@ -4,7 +4,7 @@ use crate::broadcast;
 use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
-use crate::server::{backups, filesystem};
+use crate::server::{backups, filesystem, updates};
 use crate::ICON;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
@@ -559,7 +559,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(ping_server)
             .service(get_log_files)
             .service(get_log_file_contents)
-            .service(web::scope("/{server_id}").configure(filesystem::configure).configure(backups::configure))
+            .service(
+                web::scope("/{server_id}")
+                    .configure(filesystem::configure)
+                    .configure(backups::configure)
+                    .configure(updates::configure)
+            )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),

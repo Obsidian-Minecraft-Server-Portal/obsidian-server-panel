@@ -10,6 +10,7 @@ mod server_properties;
 pub mod server_status;
 mod server_type;
 mod forge_server;
+pub mod updates;
 
 pub use server_db::initialize;
 pub use server_endpoint::configure;

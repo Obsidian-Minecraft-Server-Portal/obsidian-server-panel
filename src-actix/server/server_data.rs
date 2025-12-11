@@ -79,6 +79,12 @@ pub struct ServerData {
     pub updated_at: u64,
     /// Timestamp of when the server was last started (seconds since epoch)
     pub last_started: Option<u64>,
+    /// Timestamp of when the server was last checked for updates (seconds since epoch)
+    pub last_update_check: Option<u64>,
+    /// Whether an update is available for this server
+    pub update_available: bool,
+    /// The latest version available for this server (loader or minecraft version)
+    pub latest_version: Option<String>,
 }
 
 impl Default for ServerData {
@@ -108,6 +114,9 @@ impl Default for ServerData {
             created_at: 0,
             updated_at: 0,
             last_started: None,
+            last_update_check: None,
+            update_available: false,
+            latest_version: None,
         }
     }
 }
