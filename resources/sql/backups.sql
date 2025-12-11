@@ -4,16 +4,16 @@
 
 CREATE TABLE IF NOT EXISTS `backup_schedules`
 (
-    `id`              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,       -- unique identifier for the schedule
-    `server_id`       INTEGER NOT NULL,                                 -- reference to the server this schedule belongs to
-    `interval_amount` INTEGER NOT NULL,                                 -- interval amount (e.g., 6 for "every 6 hours")
-    `interval_unit`   TEXT    NOT NULL,                                 -- interval unit: 'hours', 'days', or 'weeks'
-    `backup_type`     tinyint NOT NULL DEFAULT 0,                       -- 0 => full backup, 1 => incremental backup, 2 => world backup
-    `enabled`         BOOLEAN NOT NULL DEFAULT 1,                       -- whether this schedule is active
-    `retention_days`  INTEGER          DEFAULT 7,                       -- number of days to retain backups before deletion (NULL = keep forever)
-    `last_run`        INTEGER          DEFAULT NULL,                    -- timestamp of last execution in seconds since epoch
-    `next_run`        INTEGER          DEFAULT NULL,                    -- timestamp of next scheduled run in seconds since epoch
-    `created_at`      INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch when schedule was created
-    `updated_at`      INTEGER NOT NULL DEFAULT (STRFTIME('%s', 'now')), -- timestamp in seconds since epoch when schedule was last updated
-    FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-)
+	`id`              INT NOT NULL AUTO_INCREMENT PRIMARY KEY,         -- unique identifier for the schedule
+	`server_id`       INT NOT NULL,                                    -- reference to the server
+	`interval_amount` INT NOT NULL,                                    -- interval amount (e.g., 6)
+	`interval_unit`   VARCHAR(20) NOT NULL,                            -- 'hours', 'days', or 'weeks'
+	`backup_type`     TINYINT NOT NULL DEFAULT 0,                      -- 0 => full, 1 => incremental, 2 => world
+	`enabled`         BOOLEAN NOT NULL DEFAULT 1,
+	`retention_days`  INT DEFAULT 7,
+	`last_run`        INT DEFAULT NULL,
+	`next_run`        INT DEFAULT NULL,
+	`created_at`      INT NOT NULL DEFAULT (UNIX_TIMESTAMP()),         -- timestamp in seconds
+	`updated_at`      INT NOT NULL DEFAULT (UNIX_TIMESTAMP()),         -- timestamp in seconds
+	FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+);

@@ -1,9 +1,9 @@
 use super::backup_data::{BackupSchedule, BackupType};
 use anyhow::Result;
-use sqlx::SqlitePool;
+use sqlx::MySqlPool;
 
 /// List all backup schedules for a specific server
-pub async fn list_schedules(server_id: i64, pool: &SqlitePool) -> Result<Vec<BackupSchedule>> {
+pub async fn list_schedules(server_id: i64, pool: &MySqlPool) -> Result<Vec<BackupSchedule>> {
     let schedules = sqlx::query_as::<_, BackupSchedule>(
         r#"SELECT * FROM backup_schedules WHERE server_id = ? ORDER BY created_at DESC"#,
     )
@@ -15,7 +15,7 @@ pub async fn list_schedules(server_id: i64, pool: &SqlitePool) -> Result<Vec<Bac
 }
 
 /// Get a specific schedule by ID
-pub async fn get_schedule(schedule_id: i64, server_id: i64, pool: &SqlitePool) -> Result<Option<BackupSchedule>> {
+pub async fn get_schedule(schedule_id: i64, server_id: i64, pool: &MySqlPool) -> Result<Option<BackupSchedule>> {
     let schedule = sqlx::query_as::<_, BackupSchedule>(
         r#"SELECT * FROM backup_schedules WHERE id = ? AND server_id = ?"#,
     )
@@ -35,7 +35,7 @@ pub async fn create_schedule(
     backup_type: BackupType,
     enabled: bool,
     retention_days: Option<i64>,
-    pool: &SqlitePool,
+    pool: &MySqlPool,
 ) -> Result<BackupSchedule> {
     let result = sqlx::query(
         r#"INSERT INTO backup_schedules (server_id, interval_amount, interval_unit, backup_type, enabled, retention_days)
@@ -50,7 +50,7 @@ pub async fn create_schedule(
     .execute(pool)
     .await?;
 
-    let id = result.last_insert_rowid();
+    let id = result.last_insert_id() as i64;
 
     // Fetch the created schedule
     let schedule = sqlx::query_as::<_, BackupSchedule>(
@@ -72,11 +72,11 @@ pub async fn update_schedule(
     backup_type: BackupType,
     enabled: bool,
     retention_days: Option<i64>,
-    pool: &SqlitePool,
+    pool: &MySqlPool,
 ) -> Result<bool> {
     let result = sqlx::query(
         r#"UPDATE backup_schedules
-           SET interval_amount = ?, interval_unit = ?, backup_type = ?, enabled = ?, retention_days = ?, updated_at = STRFTIME('%s', 'now')
+           SET interval_amount = ?, interval_unit = ?, backup_type = ?, enabled = ?, retention_days = ?, updated_at = UNIX_TIMESTAMP()
            WHERE id = ? AND server_id = ?"#,
     )
     .bind(interval_amount)
@@ -93,7 +93,7 @@ pub async fn update_schedule(
 }
 
 /// Delete a backup schedule
-pub async fn delete_schedule(schedule_id: i64, server_id: i64, pool: &SqlitePool) -> Result<bool> {
+pub async fn delete_schedule(schedule_id: i64, server_id: i64, pool: &MySqlPool) -> Result<bool> {
     let result = sqlx::query(
         r#"DELETE FROM backup_schedules WHERE id = ? AND server_id = ?"#,
     )
@@ -110,7 +110,7 @@ pub async fn update_schedule_run_times(
     schedule_id: i64,
     last_run: i64,
     next_run: i64,
-    pool: &SqlitePool,
+    pool: &MySqlPool,
 ) -> Result<()> {
     sqlx::query(
         r#"UPDATE backup_schedules
@@ -127,7 +127,7 @@ pub async fn update_schedule_run_times(
 }
 
 /// Get all enabled schedules across all servers (for scheduler)
-pub async fn list_all_enabled_schedules(pool: &SqlitePool) -> Result<Vec<BackupSchedule>> {
+pub async fn list_all_enabled_schedules(pool: &MySqlPool) -> Result<Vec<BackupSchedule>> {
     let schedules = sqlx::query_as::<_, BackupSchedule>(
         r#"SELECT * FROM backup_schedules WHERE enabled = 1 ORDER BY next_run ASC"#,
     )

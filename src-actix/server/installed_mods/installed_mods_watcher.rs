@@ -35,7 +35,7 @@ impl ServerData {
         Ok(())
     }
 
-    async fn on_file_watcher_trigger(&self, event: &notify::Event, pool: &sqlx::SqlitePool) -> Result<()> {
+    async fn on_file_watcher_trigger(&self, event: &notify::Event, pool: &sqlx::MySqlPool) -> Result<()> {
         let paths = &event.paths;
         match &event.kind {
             notify::EventKind::Create(_) => {

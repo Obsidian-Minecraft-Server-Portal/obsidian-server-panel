@@ -1,13 +1,13 @@
 use crate::notifications::notification_data::{NotificationData, NotificationItem, NotificationType};
 use anyhow::Result;
 use log::debug;
-use sqlx::{Executor, Row, SqlitePool};
+use sqlx::{Executor, Row, MySqlPool};
 use uuid::Uuid;
 
 static CREATE_NOTIFICATIONS_TABLE_SQL: &str = include_str!("../../resources/sql/notifications.sql");
 
 /// Initialize the notifications tables
-pub async fn initialize(pool: &SqlitePool) -> Result<()> {
+pub async fn initialize(pool: &MySqlPool) -> Result<()> {
     debug!("Initializing notifications database...");
     pool.execute(CREATE_NOTIFICATIONS_TABLE_SQL).await?;
     Ok(())
@@ -21,7 +21,7 @@ impl NotificationData {
         notification_type: NotificationType,
         action: u16,
         referenced_server: Option<String>,
-        pool: &SqlitePool,
+        pool: &MySqlPool,
     ) -> Result<Self> {
         let id = Uuid::new_v4().to_string();
         let title = title.into();
@@ -70,7 +70,7 @@ impl NotificationData {
     }
 
     /// Get all notifications for a specific user with their read/hidden state
-    pub async fn get_for_user(user_id: u64, pool: &SqlitePool) -> Result<Vec<NotificationItem>> {
+    pub async fn get_for_user(user_id: u64, pool: &MySqlPool) -> Result<Vec<NotificationItem>> {
         let notifications = sqlx::query(
             r#"SELECT n.id, n.title, n.message, n.timestamp, n.type, n.action, n.referenced_server,
                       un.is_read, un.is_hidden
@@ -103,7 +103,7 @@ impl NotificationData {
     }
 
     /// Mark a notification as read for a specific user
-    pub async fn mark_as_read(notification_id: &str, user_id: u64, pool: &SqlitePool) -> Result<()> {
+    pub async fn mark_as_read(notification_id: &str, user_id: u64, pool: &MySqlPool) -> Result<()> {
         sqlx::query(
             r#"UPDATE user_notifications
                SET is_read = 1
@@ -118,7 +118,7 @@ impl NotificationData {
     }
 
     /// Mark all notifications as read for a specific user
-    pub async fn mark_all_as_read(user_id: u64, pool: &SqlitePool) -> Result<()> {
+    pub async fn mark_all_as_read(user_id: u64, pool: &MySqlPool) -> Result<()> {
         sqlx::query(r#"UPDATE user_notifications SET is_read = 1 WHERE user_id = ?"#)
             .bind(user_id.to_string())
             .execute(pool)
@@ -128,7 +128,7 @@ impl NotificationData {
     }
 
     /// Hide (delete) a notification for a specific user
-    pub async fn hide_for_user(notification_id: &str, user_id: u64, pool: &SqlitePool) -> Result<()> {
+    pub async fn hide_for_user(notification_id: &str, user_id: u64, pool: &MySqlPool) -> Result<()> {
         sqlx::query(
             r#"UPDATE user_notifications
                SET is_hidden = 1
@@ -168,7 +168,7 @@ impl NotificationData {
     }
 
     /// Hide all notifications for a specific user
-    pub async fn hide_all_for_user(user_id: u64, pool: &SqlitePool) -> Result<()> {
+    pub async fn hide_all_for_user(user_id: u64, pool: &MySqlPool) -> Result<()> {
         sqlx::query(r#"UPDATE user_notifications SET is_hidden = 1 WHERE user_id = ?"#)
             .bind(user_id.to_string())
             .execute(pool)
@@ -191,7 +191,7 @@ impl NotificationData {
     }
 
     /// Associate a notification with a newly created user
-    pub async fn associate_with_new_user(user_id: u64, pool: &SqlitePool) -> Result<()> {
+    pub async fn associate_with_new_user(user_id: u64, pool: &MySqlPool) -> Result<()> {
         // Get all existing notifications
         let notification_ids = sqlx::query_scalar::<_, String>("SELECT id FROM notifications")
             .fetch_all(pool)

@@ -1,11 +1,11 @@
-CREATE TABLE IF NOT EXISTS users
+CREATE TABLE IF NOT EXISTS `users`
 (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    username              TEXT    NOT NULL UNIQUE,
-    password              TEXT    NOT NULL,
-    permissions           INTEGER NOT NULL DEFAULT 0,
-    join_date             TEXT    NOT NULL DEFAULT (DATETIME('now')),
-    last_online           TEXT    NOT NULL DEFAULT (DATETIME('now')),
-    needs_password_change INTEGER NOT NULL DEFAULT 0,
-    is_active             INTEGER NOT NULL DEFAULT 1
+	`id`                    INT AUTO_INCREMENT PRIMARY KEY,
+	`username`              VARCHAR(255) NOT NULL UNIQUE,
+	`password`              VARCHAR(255) NOT NULL,
+	`permissions`           INT NOT NULL DEFAULT 0,
+	`join_date`             DATETIME NOT NULL DEFAULT NOW(),
+	`last_online`           DATETIME NOT NULL DEFAULT NOW(),
+	`needs_password_change` TINYINT NOT NULL DEFAULT 0,
+	`is_active`             TINYINT NOT NULL DEFAULT 1
 );

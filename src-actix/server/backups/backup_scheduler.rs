@@ -4,21 +4,21 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use obsidian_scheduler::callback::CallbackTimer;
 use obsidian_scheduler::timer_trait::Timer;
-use sqlx::SqlitePool;
+use sqlx::MySqlPool;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
 /// Backup scheduler that runs scheduled backups
 pub struct BackupScheduler {
-    pool: SqlitePool,
+    pool: MySqlPool,
     timer: Option<Arc<CallbackTimer>>,
     running: Arc<RwLock<bool>>,
 }
 
 impl BackupScheduler {
     /// Create a new backup scheduler
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: MySqlPool) -> Self {
         Self {
             pool,
             timer: None,
@@ -95,7 +95,7 @@ impl BackupScheduler {
     }
 
     /// Process all scheduled backups that are due
-    async fn process_scheduled_backups(pool: &SqlitePool) -> Result<()> {
+    async fn process_scheduled_backups(pool: &MySqlPool) -> Result<()> {
         let now = chrono::Utc::now().timestamp();
 
         // Get all enabled schedules

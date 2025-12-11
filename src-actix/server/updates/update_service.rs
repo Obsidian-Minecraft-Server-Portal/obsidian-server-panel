@@ -112,7 +112,7 @@ impl UpdateService {
                     SET minecraft_version = ?,
                         update_available = 0,
                         latest_version = NULL,
-                        updated_at = STRFTIME('%s', 'now')
+                        updated_at = UNIX_TIMESTAMP()
                     WHERE id = ?
                     "#
                 )
@@ -133,7 +133,7 @@ impl UpdateService {
                     SET loader_version = ?,
                         update_available = 0,
                         latest_version = NULL,
-                        updated_at = STRFTIME('%s', 'now')
+                        updated_at = UNIX_TIMESTAMP()
                     WHERE id = ?
                     "#
                 )

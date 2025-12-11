@@ -1,8 +1,8 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::encode::IsNull;
 use sqlx::error::BoxDynError;
-use sqlx::sqlite::{SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
-use sqlx::{Database, Decode, Encode, Sqlite, Type};
+use sqlx::mysql::{MySqlTypeInfo, MySqlValueRef};
+use sqlx::{Decode, Encode, MySql, Type};
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -91,40 +91,27 @@ impl From<ServerStatus> for u8 {
     }
 }
 
-impl Encode<'_, Sqlite> for ServerStatus {
-    fn encode(self, buf: &mut <Sqlite as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError>
-    where
-        Self: Sized,
-    {
-        let value: u8 = self.into();
-        buf.push(SqliteArgumentValue::Int(value as i32));
-        Ok(IsNull::No)
-    }
-
-    fn encode_by_ref(&self, buf: &mut <Sqlite as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError> {
+impl Encode<'_, MySql> for ServerStatus {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
         let value: u8 = self.clone().into();
-        buf.push(SqliteArgumentValue::Int(value as i32));
-        Ok(IsNull::No)
+        <u8 as Encode<MySql>>::encode_by_ref(&value, buf)
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for ServerStatus {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        let int_value = <i32 as Decode<Sqlite>>::decode(value)?;
-        if !(0..=255).contains(&int_value) {
-            return Err(format!("Invalid server status value: {}", int_value).into());
-        }
-        Ok(ServerStatus::from(int_value as u8))
+impl<'r> Decode<'r, MySql> for ServerStatus {
+    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        let int_value = <u8 as Decode<MySql>>::decode(value)?;
+        Ok(ServerStatus::from(int_value))
     }
 }
 
-impl Type<Sqlite> for ServerStatus {
-    fn type_info() -> SqliteTypeInfo {
-        <i32 as Type<Sqlite>>::type_info()
+impl Type<MySql> for ServerStatus {
+    fn type_info() -> MySqlTypeInfo {
+        <u8 as Type<MySql>>::type_info()
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
-        <i32 as Type<Sqlite>>::compatible(ty)
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <u8 as Type<MySql>>::compatible(ty)
     }
 }
 

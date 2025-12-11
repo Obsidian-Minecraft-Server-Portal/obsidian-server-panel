@@ -4,18 +4,18 @@ use anyhow::Result;
 use enumflags2::BitFlags;
 use log::debug;
 use serde_hash::hashids::encode_single;
-use sqlx::{Executor, SqlitePool};
+use sqlx::{Executor, MySqlPool};
 
 static CREATE_USER_TABLE_SQL: &str = include_str!("../../resources/sql/user.sql");
 
-pub async fn initialize(pool: &SqlitePool) -> Result<()> {
+pub async fn initialize(pool: &MySqlPool) -> Result<()> {
     debug!("Initializing authentication database...");
     pool.execute(CREATE_USER_TABLE_SQL).await?;
     Ok(())
 }
 
 impl UserData {
-    pub async fn login(username: String, password: String, pool: &SqlitePool) -> Result<(String, Self)> {
+    pub async fn login(username: String, password: String, pool: &MySqlPool) -> Result<(String, Self)> {
         let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#).bind(username).fetch_optional(pool).await?;
         if let Some(user) = user {
             let is_valid_password = bcrypt::verify(password, &user.password)?;
@@ -29,7 +29,7 @@ impl UserData {
             Err(anyhow::anyhow!("User not found"))
         }
     }
-    pub async fn login_with_token(token: &str, pool: &SqlitePool) -> Result<Option<Self>> {
+    pub async fn login_with_token(token: &str, pool: &MySqlPool) -> Result<Option<Self>> {
         let id_part = &token[..16];
         let token = &token[16..];
         let id = serde_hash::hashids::decode_single(id_part).map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
@@ -44,7 +44,7 @@ impl UserData {
         Ok(user)
     }
 
-    pub async fn register(username: impl  Into<String>, password: impl Into<String>, pool: &SqlitePool) -> Result<Self> {
+    pub async fn register(username: impl  Into<String>, password: impl Into<String>, pool: &MySqlPool) -> Result<Self> {
         let username = username.into();
         let password = bcrypt::hash(password.into(), 10)?;
         sqlx::query(r#"INSERT INTO `users` (username, password) VALUES (?, ?)"#).bind(&username).bind(password).execute(pool).await?;
@@ -52,17 +52,17 @@ impl UserData {
         Ok(user)
     }
 
-    pub async fn exists(username: &str, pool: &SqlitePool) -> Result<bool> {
+    pub async fn exists(username: &str, pool: &MySqlPool) -> Result<bool> {
         let exists = sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)"#).bind(username).fetch_one(pool).await?;
         Ok(exists)
     }
 
-    pub async fn get_users(pool: &SqlitePool) -> Result<Vec<Self>> {
+    pub async fn get_users(pool: &MySqlPool) -> Result<Vec<Self>> {
         let users = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users"#).fetch_all(pool).await?;
         Ok(users)
     }
 
-    async fn update_login_time(&self, pool: &SqlitePool) -> Result<()> {
+    async fn update_login_time(&self, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query(r#"UPDATE users SET last_online = ? WHERE id = ?"#).bind(chrono::Utc::now()).bind(id.to_string()).execute(pool).await?;
         }
@@ -70,7 +70,7 @@ impl UserData {
         Ok(())
     }
 
-    pub async fn set_permissions<T>(&self, permissions: T, pool: &SqlitePool) -> Result<()>
+    pub async fn set_permissions<T>(&self, permissions: T, pool: &MySqlPool) -> Result<()>
     where
         T: Into<BitFlags<PermissionFlag>>,
     {
@@ -86,7 +86,7 @@ impl UserData {
         Ok(())
     }
 
-    pub async fn get_users_with_permissions<T>(permissions: T, pool: &SqlitePool) -> Result<Vec<Self>>
+    pub async fn get_users_with_permissions<T>(permissions: T, pool: &MySqlPool) -> Result<Vec<Self>>
     where
         T: Into<BitFlags<PermissionFlag>>,
     {
@@ -95,7 +95,7 @@ impl UserData {
         Ok(users)
     }
 
-    pub async fn change_password(&self, new_password: String, pool: &SqlitePool) -> Result<()> {
+    pub async fn change_password(&self, new_password: String, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             let hashed_password = bcrypt::hash(new_password, 10)?;
             sqlx::query("UPDATE users SET password = ?, needs_password_change = 0 WHERE id = ?")
@@ -119,7 +119,7 @@ impl UserData {
         }
     }
 
-    pub async fn mark_password_change_required(&self, pool: &SqlitePool) -> Result<()> {
+    pub async fn mark_password_change_required(&self, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query("UPDATE users SET needs_password_change = 1 WHERE id = ?")
                 .bind(id.to_string())
@@ -131,7 +131,7 @@ impl UserData {
         }
     }
 
-    pub async fn update_username(&self, new_username: String, pool: &SqlitePool) -> Result<()> {
+    pub async fn update_username(&self, new_username: String, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             // Check if the new username already exists
             if Self::exists(&new_username, pool).await? {
@@ -149,7 +149,7 @@ impl UserData {
         }
     }
 
-    pub async fn set_active_status(&self, is_active: bool, pool: &SqlitePool) -> Result<()> {
+    pub async fn set_active_status(&self, is_active: bool, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query("UPDATE users SET is_active = ? WHERE id = ?")
                 .bind(is_active)
@@ -162,7 +162,7 @@ impl UserData {
         }
     }
 
-    pub async fn delete(&self, pool: &SqlitePool) -> Result<()> {
+    pub async fn delete(&self, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query("DELETE FROM users WHERE id = ?")
                 .bind(id.to_string())

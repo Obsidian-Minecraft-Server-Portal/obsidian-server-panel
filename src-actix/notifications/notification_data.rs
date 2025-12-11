@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::SqliteRow;
+use sqlx::mysql::MySqlRow;
 use sqlx::{Error, FromRow, Row};
 use sqlx::types::chrono::{DateTime, Utc};
 
@@ -77,8 +77,8 @@ pub struct NotificationData {
     pub referenced_server: Option<String>,
 }
 
-impl<'a> FromRow<'a, SqliteRow> for NotificationData {
-    fn from_row(row: &'a SqliteRow) -> Result<Self, Error> {
+impl<'a> FromRow<'a, MySqlRow> for NotificationData {
+    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
         Ok(NotificationData {
             id: row.try_get("id")?,
             title: row.try_get("title")?,
@@ -100,8 +100,8 @@ pub struct UserNotification {
     pub is_hidden: bool,
 }
 
-impl<'a> FromRow<'a, SqliteRow> for UserNotification {
-    fn from_row(row: &'a SqliteRow) -> Result<Self, Error> {
+impl<'a> FromRow<'a, MySqlRow> for UserNotification {
+    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
         Ok(UserNotification {
             user_id: row.try_get::<String, _>("user_id")?.parse().map_err(|_| Error::Decode("Invalid user_id".into()))?,
             notification_id: row.try_get("notification_id")?,

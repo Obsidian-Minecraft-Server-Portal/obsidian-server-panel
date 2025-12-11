@@ -63,7 +63,10 @@ pub async fn run() -> Result<()> {
 
     // Initialize settings path
     settings::initialize_settings_path();
-    
+
+    // Initialize the global database URL
+    app_db::set_database_url(args.database_url.clone());
+
     tokio::spawn(async {
         let result: Result<()> = async {
             let pool = open_pool().await?;

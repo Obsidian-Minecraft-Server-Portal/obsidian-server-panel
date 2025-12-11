@@ -3,7 +3,7 @@ use actix_web::HttpMessage;
 use anyhow::Result;
 use enumflags2::BitFlags;
 use serde::Deserialize;
-use sqlx::sqlite::SqliteRow;
+use sqlx::mysql::MySqlRow;
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::{Error, FromRow, Row};
 
@@ -68,8 +68,8 @@ where
     Ok(Some(id))
 }
 
-impl<'a> FromRow<'a, SqliteRow> for UserData {
-    fn from_row(row: &'a SqliteRow) -> Result<Self, Error> {
+impl<'a> FromRow<'a, MySqlRow> for UserData {
+    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
         let id = row.try_get("id").ok();
         let username: String = row.try_get("username")?;
         let password: String = row.try_get("password")?;

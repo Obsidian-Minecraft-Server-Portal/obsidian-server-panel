@@ -7,7 +7,7 @@ use crate::{app_db, ICON};
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use serde_hash::HashIds;
-use sqlx::{FromRow, Row, SqlitePool};
+use sqlx::{FromRow, Row, MySqlPool};
 use std::path::{PathBuf};
 
 /// Get the servers directory from settings, with fallback to default
@@ -159,7 +159,7 @@ impl ServerData {
     }
 
     /// Update the server structure data
-    /// This will not update the database, use `server.save(&SqlitePool)` for that
+    /// This will not update the database, use `server.save(&MySqlPool)` for that
     pub fn update(&mut self, server_data: &ServerData) -> Result<()> {
         self.name = server_data.name.clone();
         self.directory = server_data.directory.clone();
@@ -354,7 +354,7 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn initialize_servers(pool: &SqlitePool) -> Result<()> {
+    pub async fn initialize_servers(pool: &MySqlPool) -> Result<()> {
         let servers = Self::list_all_with_pool(pool).await?;
         for mut server in servers {
             if let Err(e) = server.start_watch_server_mod_directory_for_changes().await {

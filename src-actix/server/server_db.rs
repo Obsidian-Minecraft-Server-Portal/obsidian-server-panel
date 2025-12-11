@@ -1,11 +1,11 @@
 use crate::server::server_data::ServerData;
 use anyhow::Result;
-use sqlx::{Executor, SqlitePool};
+use sqlx::{Executor, MySqlPool};
 
 static CREATE_SERVER_TABLE_SQL: &str = include_str!("../../resources/sql/server.sql");
 static CREATE_BACKUPS_TABLE_SQL: &str = include_str!("../../resources/sql/backups.sql");
 
-pub async fn initialize(pool: &SqlitePool) -> Result<()> {
+pub async fn initialize(pool: &MySqlPool) -> Result<()> {
     pool.execute(CREATE_SERVER_TABLE_SQL).await?;
     pool.execute(CREATE_BACKUPS_TABLE_SQL).await?;
     pool.execute(r#"UPDATE servers SET status = 0;"#).await?; // Reset all server statuses to 0 (idle)
@@ -13,13 +13,13 @@ pub async fn initialize(pool: &SqlitePool) -> Result<()> {
 }
 
 impl ServerData {
-    pub async fn list_all_with_pool(pool: &SqlitePool) -> Result<Vec<Self>> {
+    pub async fn list_all_with_pool(pool: &MySqlPool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as(r#"select * from servers"#).fetch_all(pool).await?)
     }
-    pub async fn get_with_pool(id: u64, pool: &SqlitePool) -> Result<Option<Self>> {
+    pub async fn get_with_pool(id: u64, pool: &MySqlPool) -> Result<Option<Self>> {
         Ok(sqlx::query_as(r#"select * from servers WHERE id = ?"#).bind(id as i64).fetch_optional(pool).await?)
     }
-    pub async fn create(&mut self, pool: &SqlitePool) -> Result<()> {
+    pub async fn create(&mut self, pool: &MySqlPool) -> Result<()> {
         sqlx::query(
 			r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_cron, backup_retention, description, minecraft_version, server_type, loader_version, owner_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
@@ -46,8 +46,8 @@ impl ServerData {
 			.execute(pool)
 			.await?;
 
-        let last_inserted_id: i64 = sqlx::query_scalar("SELECT seq from sqlite_sequence where name = 'servers';").fetch_one(pool).await?;
-        self.id = last_inserted_id as u64;
+        let last_inserted_id: u64 = sqlx::query_scalar("SELECT LAST_INSERT_ID()").fetch_one(pool).await?;
+        self.id = last_inserted_id;
 
         // Send notification that server has been created
         if let Err(e) = self.send_create_notification(pool).await {
@@ -57,7 +57,7 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn save_with_pool(&self, pool: &SqlitePool) -> Result<()> {
+    pub async fn save_with_pool(&self, pool: &MySqlPool) -> Result<()> {
         sqlx::query(
 			r#"UPDATE servers SET name = ?, directory = ?, java_executable = ?, java_args = ?, max_memory = ?, min_memory = ?, minecraft_args = ?, server_jar = ?, upnp = ?, status = ?, auto_start = ?, auto_restart = ?, backup_enabled = ?, backup_cron = ?, backup_retention = ?, description = ?, minecraft_version = ?, server_type = ?, loader_version = ?, last_started = ?, updated_at = ? WHERE id = ? AND owner_id = ?"#)
 			.bind(&self.name)
@@ -89,7 +89,7 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn delete(&self, pool: &SqlitePool) -> Result<()> {
+    pub async fn delete(&self, pool: &MySqlPool) -> Result<()> {
         // Send notification before deleting
         if let Err(e) = self.send_delete_notification(pool).await {
             log::error!("Failed to send server delete notification: {}", e);
@@ -102,7 +102,7 @@ impl ServerData {
     }
 
     // Notification helper functions
-    async fn send_create_notification(&self, pool: &SqlitePool) -> Result<()> {
+    async fn send_create_notification(&self, pool: &MySqlPool) -> Result<()> {
         use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
 
         let server_id_hash = serde_hash::hashids::encode_single(self.id);
@@ -134,7 +134,7 @@ impl ServerData {
         Ok(())
     }
 
-    async fn send_delete_notification(&self, pool: &SqlitePool) -> Result<()> {
+    async fn send_delete_notification(&self, pool: &MySqlPool) -> Result<()> {
         use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
 
         let notification = NotificationData::create(
