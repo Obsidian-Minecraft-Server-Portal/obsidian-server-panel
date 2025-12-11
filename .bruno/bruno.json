@@ -5,5 +5,13 @@
   "ignore": [
     "node_modules",
     ".git"
-  ]
+  ],
+  "size": 0.014124870300292969,
+  "filesCount": 73,
+  "openapi": {
+    "enabled": true,
+    "version": "3.1",
+    "includeVendorExtensions": true,
+    "outputPath": "openapi.json"
+  }
 }
