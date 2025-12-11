@@ -70,15 +70,16 @@ where
 
 impl<'a> FromRow<'a, MySqlRow> for UserData {
     fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
-        let id = row.try_get("id").ok();
+        // MySQL INT returns as i32, convert to u64
+        let id: Option<u64> = row.try_get::<i32, _>("id").ok().map(|i| i as u64);
         let username: String = row.try_get("username")?;
         let password: String = row.try_get("password")?;
-        let permissions: i64 = row.try_get("permissions")?;
+        let permissions: i32 = row.try_get("permissions")?;
         let permissions = BitFlags::<PermissionFlag>::from_bits_truncate(permissions as u16);
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
         let last_online: DateTime<Utc> = row.try_get("last_online")?;
-        let needs_password_change: i64 = row.try_get("needs_password_change")?;
-        let is_active: i64 = row.try_get("is_active")?;
+        let needs_password_change: i8 = row.try_get("needs_password_change")?;
+        let is_active: i8 = row.try_get("is_active")?;
         Ok(UserData {
             id,
             username,
