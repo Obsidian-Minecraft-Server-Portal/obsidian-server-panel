@@ -283,8 +283,8 @@ pub async fn list_backups(server: &ServerData) -> Result<Vec<Backup>> {
         let mut entries = fs::read_dir(&worldedit_backups_dir).await?;
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(filename) = path.file_name() {
+            if path.is_file()
+                && let Some(filename) = path.file_name() {
                     let filename_str = filename.to_string_lossy();
                     if filename_str.ends_with(".zip") {
                         // Parse WorldEdit format: YYYY-MM-DD-HH-MM-SS.zip
@@ -302,7 +302,6 @@ pub async fn list_backups(server: &ServerData) -> Result<Vec<Backup>> {
                         }
                     }
                 }
-            }
         }
     }
 
@@ -507,8 +506,8 @@ pub async fn is_worldedit_installed(server: &ServerData) -> bool {
 
     // Check plugins directory (Bukkit/Spigot/Paper)
     let plugins_dir = server_dir.join("plugins");
-    if plugins_dir.exists() {
-        if let Ok(mut entries) = fs::read_dir(&plugins_dir).await {
+    if plugins_dir.exists()
+        && let Ok(mut entries) = fs::read_dir(&plugins_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name().to_string_lossy().to_lowercase();
                 if name.starts_with("worldedit") && name.ends_with(".jar") {
@@ -516,12 +515,11 @@ pub async fn is_worldedit_installed(server: &ServerData) -> bool {
                 }
             }
         }
-    }
 
     // Check mods directory (Fabric/Forge/NeoForge/Quilt)
     let mods_dir = server_dir.join("mods");
-    if mods_dir.exists() {
-        if let Ok(mut entries) = fs::read_dir(&mods_dir).await {
+    if mods_dir.exists()
+        && let Ok(mut entries) = fs::read_dir(&mods_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name().to_string_lossy().to_lowercase();
                 if name.starts_with("worldedit") && name.ends_with(".jar") {
@@ -529,7 +527,6 @@ pub async fn is_worldedit_installed(server: &ServerData) -> bool {
                 }
             }
         }
-    }
 
     false
 }

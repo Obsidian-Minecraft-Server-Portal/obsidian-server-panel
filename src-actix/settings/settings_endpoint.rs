@@ -163,15 +163,13 @@ fn migrate_java_installations(old_dir: &PathBuf, new_dir: &PathBuf) -> (bool, Op
     info!("Migrating Java directory from {:?} to {:?}", old_dir, new_dir);
 
     // Ensure parent directory of new path exists
-    if let Some(parent) = new_dir.parent() {
-        if !parent.exists() {
-            if let Err(e) = fs::create_dir_all(parent) {
+    if let Some(parent) = new_dir.parent()
+        && !parent.exists()
+            && let Err(e) = fs::create_dir_all(parent) {
                 let error_msg = format!("Failed to create parent directory for new Java path: {}", e);
                 error!("{}", error_msg);
                 return (false, Some(error_msg));
             }
-        }
-    }
 
     // Check if destination directory exists
     if !new_dir.exists() {
@@ -231,8 +229,8 @@ fn migrate_java_installations(old_dir: &PathBuf, new_dir: &PathBuf) -> (bool, Op
             let path = entry.path();
 
             // Only process directories (Java installations are in subdirectories)
-            if path.is_dir() {
-                if let Some(dir_name) = path.file_name() {
+            if path.is_dir()
+                && let Some(dir_name) = path.file_name() {
                     let new_path = new_dir.join(dir_name);
 
                     match move_java_installation(&path, &new_path) {
@@ -248,22 +246,20 @@ fn migrate_java_installations(old_dir: &PathBuf, new_dir: &PathBuf) -> (bool, Op
                         }
                     }
                 }
-            }
         }
     }
 
     info!("Migration complete: {} installations migrated, {} errors", migrated_count, error_count);
 
     // Try to remove the old directory if it's empty or only has files (not subdirectories)
-    if error_count == 0 {
-        if let Ok(entries) = fs::read_dir(old_dir) {
+    if error_count == 0
+        && let Ok(entries) = fs::read_dir(old_dir) {
             let has_dirs = entries.filter_map(|e| e.ok()).any(|e| e.path().is_dir());
             if !has_dirs {
                 // No subdirectories left, safe to remove
                 let _ = remove_dir_recursive(old_dir);
             }
         }
-    }
 
     if error_count > 0 {
         let error_msg = format!(
@@ -344,8 +340,8 @@ pub async fn update_settings(req: HttpRequest, body: web::Json<Settings>) -> Res
     let old_settings = load_settings().ok();
 
     // Check if Java directory changed and migrate installations if needed
-    if let Some(old) = &old_settings {
-        if old.storage.java_directory != new_settings.storage.java_directory {
+    if let Some(old) = &old_settings
+        && old.storage.java_directory != new_settings.storage.java_directory {
             info!("Java directory changed from {:?} to {:?}, migrating...",
                   old.storage.java_directory, new_settings.storage.java_directory);
 
@@ -372,7 +368,6 @@ pub async fn update_settings(req: HttpRequest, body: web::Json<Settings>) -> Res
                 })));
             }
         }
-    }
 
     save_settings(&new_settings)?;
 

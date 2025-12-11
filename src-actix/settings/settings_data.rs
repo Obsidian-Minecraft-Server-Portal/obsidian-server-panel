@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Settings {
     pub general: GeneralSettings,
     pub network: NetworkSettings,
@@ -29,22 +29,12 @@ pub struct StorageSettings {
     pub temp_directory: PathBuf,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JavaSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_runtime: Option<String>,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            general: GeneralSettings::default(),
-            network: NetworkSettings::default(),
-            storage: StorageSettings::default(),
-            java: JavaSettings::default(),
-        }
-    }
-}
 
 impl Default for GeneralSettings {
     fn default() -> Self {
@@ -75,13 +65,6 @@ impl Default for StorageSettings {
     }
 }
 
-impl Default for JavaSettings {
-    fn default() -> Self {
-        Self {
-            default_runtime: None,
-        }
-    }
-}
 
 impl Settings {
     /// Validate settings to ensure paths exist or can be created
@@ -95,7 +78,7 @@ impl Settings {
 
         for path in paths {
             if path.to_string_lossy().is_empty() {
-                return Err(format!("Path cannot be empty"));
+                return Err("Path cannot be empty".to_string());
             }
         }
 

@@ -191,7 +191,7 @@ impl UpdateService {
         backups.sort_by(|a, b| {
             b.file_name()
                 .unwrap_or_default()
-                .cmp(&a.file_name().unwrap_or_default())
+                .cmp(a.file_name().unwrap_or_default())
         });
 
         let latest_backup = &backups[0];
@@ -227,11 +227,10 @@ impl UpdateService {
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("jar") {
-                if let Some(filename) = path.file_name() {
+            if path.extension().and_then(|s| s.to_str()) == Some("jar")
+                && let Some(filename) = path.file_name() {
                     backups.push(filename.to_string_lossy().to_string());
                 }
-            }
         }
 
         // Sort by filename (newest first)

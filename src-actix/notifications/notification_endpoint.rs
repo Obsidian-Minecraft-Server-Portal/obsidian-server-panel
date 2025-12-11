@@ -108,7 +108,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for NotificationWebSo
         match msg {
             Ok(ws::Message::Text(text)) => {
                 let text = text.trim();
-                match serde_json::from_str::<NotificationCommand>(&text) {
+                match serde_json::from_str::<NotificationCommand>(text) {
                     Ok(command) => {
                         let user_id = self.user_id;
                         let addr = ctx.address();

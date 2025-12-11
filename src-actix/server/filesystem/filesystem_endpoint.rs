@@ -670,11 +670,10 @@ pub async fn delete_entry(server_id: web::Path<String>, body: web::Json<DeleteRe
         let full_path = base_path.join(path);
 
         // Check if this is the server icon before deleting
-        if let Some(filename) = full_path.file_name().and_then(|n| n.to_str()) {
-            if filename == "server-icon.png" {
+        if let Some(filename) = full_path.file_name().and_then(|n| n.to_str())
+            && filename == "server-icon.png" {
                 icon_deleted = true;
             }
-        }
 
         if full_path.is_dir() {
             std::fs::remove_dir_all(&full_path)?;

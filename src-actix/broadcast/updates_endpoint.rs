@@ -126,7 +126,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWebSocket 
             Ok(ws::Message::Text(text)) => {
                 let text = text.trim();
                 // Handle notification commands for backwards compatibility
-                match serde_json::from_str::<NotificationCommand>(&text) {
+                match serde_json::from_str::<NotificationCommand>(text) {
                     Ok(command) => {
                         let user_id = self.user_id;
                         ctx.spawn(

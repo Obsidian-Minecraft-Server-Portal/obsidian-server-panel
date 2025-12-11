@@ -53,7 +53,7 @@ pub async fn open_pool_with_url(database_url: &str) -> Result<MySqlPool> {
 	let db_name = extract_database_name(database_url)?;
 
 	// Create connection pool WITHOUT database selected to check if DB exists
-	let base_url = database_url.rsplitn(2, '/').nth(1)
+	let base_url = database_url.rsplit_once('/').map(|x| x.0)
 		.ok_or_else(|| anyhow::anyhow!("Invalid database URL format"))?;
 
 	let base_options: MySqlConnectOptions = base_url
@@ -66,7 +66,7 @@ pub async fn open_pool_with_url(database_url: &str) -> Result<MySqlPool> {
 
 	// Check if database exists, create if not
 	let exists: bool = sqlx::query_scalar(
-		&format!("SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?")
+		"SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?"
 	)
 	.bind(&db_name)
 	.fetch_one(&base_pool)
@@ -95,7 +95,7 @@ pub async fn open_pool_with_url(database_url: &str) -> Result<MySqlPool> {
 
 fn extract_database_name(url: &str) -> Result<String> {
 	url.split('/')
-		.last()
+		.next_back()
 		.and_then(|s| s.split('?').next()) // Remove query parameters if any
 		.filter(|s| !s.is_empty())
 		.map(String::from)
