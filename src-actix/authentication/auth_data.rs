@@ -71,7 +71,7 @@ where
 impl<'a> FromRow<'a, MySqlRow> for UserData {
     fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
         // MySQL INT returns as i32, convert to u64
-        let id: Option<u64> = row.try_get::<i32, _>("id").ok().map(|i| i as u64);
+        let id: Option<u64> = row.try_get::<u32, _>("id").ok().map(|i| i as u64);
         let username: String = row.try_get("username")?;
         let password: String = row.try_get("password")?;
         let permissions: i32 = row.try_get("permissions")?;

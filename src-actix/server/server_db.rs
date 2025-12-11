@@ -17,7 +17,7 @@ impl ServerData {
         Ok(sqlx::query_as(r#"select * from servers"#).fetch_all(pool).await?)
     }
     pub async fn get_with_pool(id: u64, pool: &MySqlPool) -> Result<Option<Self>> {
-        Ok(sqlx::query_as(r#"select * from servers WHERE id = ?"#).bind(id as i64).fetch_optional(pool).await?)
+        Ok(sqlx::query_as(r#"select * from servers WHERE id = ?"#).bind(id as u32).fetch_optional(pool).await?)
     }
     pub async fn create(&mut self, pool: &MySqlPool) -> Result<()> {
         sqlx::query(
@@ -42,7 +42,7 @@ impl ServerData {
 			.bind(self.minecraft_version.as_deref())
 			.bind(&self.server_type)
 			.bind(self.loader_version.as_deref())
-			.bind(self.owner_id as i64)
+			.bind(self.owner_id as u32)
 			.execute(pool)
 			.await?;
 
@@ -79,10 +79,10 @@ impl ServerData {
 			.bind(self.minecraft_version.as_deref())
 			.bind(&self.server_type)
 			.bind(self.loader_version.as_deref())
-			.bind(self.last_started.map(|ts| ts as i64))
-			.bind(chrono::Utc::now().timestamp())
-			.bind(self.id as i64)
-			.bind(self.owner_id as i64)
+			.bind(self.last_started.map(|ts| ts as i32))
+			.bind(chrono::Utc::now().timestamp() as i32)
+			.bind(self.id as u32)
+			.bind(self.owner_id as u32)
 			.execute(pool)
 			.await?;
 
@@ -95,7 +95,7 @@ impl ServerData {
             log::error!("Failed to send server delete notification: {}", e);
         }
 
-        sqlx::query(r#"DELETE FROM servers WHERE id = ? AND owner_id = ?"#).bind(self.id as i64).bind(self.owner_id as i64).execute(pool).await?;
+        sqlx::query(r#"DELETE FROM servers WHERE id = ? AND owner_id = ?"#).bind(self.id as u32).bind(self.owner_id as u32).execute(pool).await?;
         tokio::fs::remove_dir_all(self.get_directory_path()).await?;
 
         Ok(())

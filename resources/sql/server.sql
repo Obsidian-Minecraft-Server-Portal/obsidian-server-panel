@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS `servers`
 (
-	`id`                INT NOT NULL AUTO_INCREMENT PRIMARY KEY,         -- unique identifier for the server
+	`id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,         -- unique identifier for the server
 	`name`              VARCHAR(255) NOT NULL,                           -- e.g. 'My Minecraft Server'
 	`directory`         VARCHAR(255) NOT NULL,                           -- the directory name where the server files are stored
 	`java_executable`   VARCHAR(512) NOT NULL,                           -- path to the Java executable
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `servers`
 	`minecraft_version` VARCHAR(50) DEFAULT '',
 	`server_type`       TINYINT NOT NULL DEFAULT 0,
 	`loader_version`    VARCHAR(50) DEFAULT NULL,
-	`owner_id`          INT NOT NULL,
+	`owner_id` INT UNSIGNED NOT NULL,
 	`created_at`        INT NOT NULL DEFAULT (UNIX_TIMESTAMP()),         -- timestamp in seconds since epoch
 	`updated_at`        INT NOT NULL DEFAULT (UNIX_TIMESTAMP()),         -- timestamp in seconds since epoch
 	`last_started`      INT DEFAULT NULL,

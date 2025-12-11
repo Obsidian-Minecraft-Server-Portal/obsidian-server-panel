@@ -8,17 +8,17 @@ pub async fn initialize(pool: &MySqlPool) -> Result<()> {
     pool.execute(
         r#"CREATE TABLE IF NOT EXISTS installed_mods
 (
-    id            INT PRIMARY KEY AUTO_INCREMENT,
+    id            INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     mod_id        TEXT NOT NULL,
     name          TEXT NOT NULL,
     version       TEXT NOT NULL,
     author        TEXT NOT NULL,
     description   TEXT NOT NULL,
-    icon          TEXT DEFAULT NULL,
-    modrinth_id   TEXT DEFAULT NULL,
-    curseforge_id TEXT DEFAULT NULL,
-    filename      TEXT DEFAULT NULL,
-    server_id     INT NOT NULL,
+    icon          TEXT,
+    modrinth_id   TEXT,
+    curseforge_id TEXT,
+    filename      TEXT,
+    server_id     INT UNSIGNED NOT NULL,
     FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
 )
 
@@ -71,7 +71,7 @@ impl ServerData {
                     .bind(&mod_data.modrinth_id)
                     .bind(&mod_data.curseforge_id)
                     .bind(&mod_data.filename)
-                    .bind(self.id as i64)
+                    .bind(self.id as u32)
                     .execute(&mut *tx).await?;
             }
 
@@ -82,7 +82,7 @@ impl ServerData {
     }
 
     pub async fn load_installed_mods(&self, pool: &MySqlPool) -> Result<Vec<ModData>> {
-        let rows = sqlx::query(r#"SELECT * FROM installed_mods WHERE server_id = ?"#).bind(self.id as i64).fetch_all(pool).await?;
+        let rows = sqlx::query(r#"SELECT * FROM installed_mods WHERE server_id = ?"#).bind(self.id as u32).fetch_all(pool).await?;
 
         let mut mods = Vec::new();
         for row in rows {
@@ -130,7 +130,7 @@ impl ServerData {
 					.bind(&mod_data.modrinth_id)
 					.bind(&mod_data.curseforge_id)
                     .bind(&mod_data.filename)
-					.bind(self.id as i64)
+					.bind(self.id as u32)
 					.execute(&mut *tx).await?;
             }
 
@@ -153,13 +153,13 @@ impl ServerData {
             .bind(&mod_data.modrinth_id)
             .bind(&mod_data.curseforge_id)
             .bind(&mod_data.filename)
-            .bind(self.id as i64)
+            .bind(self.id as u32)
             .execute(pool).await?;
         Ok(())
     }
 
     pub async fn delete_installed_mod(&self, filename: &str, pool: &MySqlPool) -> Result<()> {
-        sqlx::query(r#"delete from installed_mods where server_id = ? and filename = ?"#).bind(self.id as i64).bind(filename).execute(pool).await?;
+        sqlx::query(r#"delete from installed_mods where server_id = ? and filename = ?"#).bind(self.id as u32).bind(filename).execute(pool).await?;
 
         Ok(())
     }

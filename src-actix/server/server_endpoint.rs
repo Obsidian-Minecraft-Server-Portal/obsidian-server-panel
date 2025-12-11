@@ -93,6 +93,15 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     let pool = crate::app_db::open_pool().await?;
     let mut server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
     server.create(&pool).await?;
+
+    // Verify server was created and is readable before returning
+    let server_id = server.id;
+    let verification = ServerData::get_with_pool(server_id, &pool).await?;
+    if verification.is_none() {
+        pool.close().await;
+        return Err(anyhow!("Server was created but could not be verified in database").into());
+    }
+
     pool.close().await;
 
     std::fs::create_dir_all(server.get_directory_path())?;
@@ -512,7 +521,7 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
     let pool = crate::app_db::open_pool().await?;
     let row = sqlx::query("SELECT icon FROM installed_mods WHERE mod_id = ? AND server_id = ?")
         .bind(&mod_id)
-        .bind(server.id as i64)
+        .bind(server.id as u32)
         .fetch_optional(&pool)
         .await?;
     pool.close().await;

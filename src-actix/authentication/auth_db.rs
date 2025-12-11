@@ -33,7 +33,7 @@ impl UserData {
         let id_part = &token[..16];
         let token = &token[16..];
         let id = serde_hash::hashids::decode_single(id_part).map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
-        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ? LIMIT 1"#).bind(id as i32).fetch_optional(pool).await?;
+        let user = sqlx::query_as::<_, UserData>(r#"SELECT * FROM users WHERE id = ? LIMIT 1"#).bind(id as u32).fetch_optional(pool).await?;
         if let Some(ref user) = user {
             if !bcrypt::verify(format!("{}{}", user.username, user.password), token)? {
                 return Err(anyhow::anyhow!("Invalid token"));
@@ -64,7 +64,7 @@ impl UserData {
 
     async fn update_login_time(&self, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
-            sqlx::query(r#"UPDATE users SET last_online = ? WHERE id = ?"#).bind(chrono::Utc::now()).bind(id as i32).execute(pool).await?;
+            sqlx::query(r#"UPDATE users SET last_online = ? WHERE id = ?"#).bind(chrono::Utc::now()).bind(id as u32).execute(pool).await?;
         }
 
         Ok(())
@@ -100,7 +100,7 @@ impl UserData {
             let hashed_password = bcrypt::hash(new_password, 10)?;
             sqlx::query("UPDATE users SET password = ?, needs_password_change = 0 WHERE id = ?")
                 .bind(hashed_password)
-                .bind(id as i32)
+                .bind(id as u32)
                 .execute(pool)
                 .await?;
             Ok(())
@@ -122,7 +122,7 @@ impl UserData {
     pub async fn mark_password_change_required(&self, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query("UPDATE users SET needs_password_change = 1 WHERE id = ?")
-                .bind(id as i32)
+                .bind(id as u32)
                 .execute(pool)
                 .await?;
             Ok(())
@@ -140,7 +140,7 @@ impl UserData {
 
             sqlx::query("UPDATE users SET username = ? WHERE id = ?")
                 .bind(new_username)
-                .bind(id as i32)
+                .bind(id as u32)
                 .execute(pool)
                 .await?;
             Ok(())
@@ -153,7 +153,7 @@ impl UserData {
         if let Some(id) = self.id {
             sqlx::query("UPDATE users SET is_active = ? WHERE id = ?")
                 .bind(is_active)
-                .bind(id as i32)
+                .bind(id as u32)
                 .execute(pool)
                 .await?;
             Ok(())
@@ -165,7 +165,7 @@ impl UserData {
     pub async fn delete(&self, pool: &MySqlPool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query("DELETE FROM users WHERE id = ?")
-                .bind(id as i32)
+                .bind(id as u32)
                 .execute(pool)
                 .await?;
             Ok(())

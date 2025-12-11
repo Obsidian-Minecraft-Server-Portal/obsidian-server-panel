@@ -37,13 +37,13 @@ impl NotificationData {
         .bind(&message)
         .bind(timestamp)
         .bind(notification_type.as_str())
-        .bind(action as i64)
+        .bind(action as i32)
         .bind(&referenced_server)
         .execute(pool)
         .await?;
 
         // Get all users and create user_notification entries
-        let user_ids = sqlx::query_scalar::<_, String>("SELECT id FROM users")
+        let user_ids = sqlx::query_scalar::<_, u32>("SELECT id FROM users")
             .fetch_all(pool)
             .await?;
 
@@ -52,7 +52,7 @@ impl NotificationData {
                 r#"INSERT INTO user_notifications (user_id, notification_id, is_read, is_hidden)
                    VALUES (?, ?, 0, 0)"#,
             )
-            .bind(&user_id)
+            .bind(user_id)
             .bind(&id)
             .execute(pool)
             .await?;
@@ -79,7 +79,7 @@ impl NotificationData {
                WHERE un.user_id = ? AND un.is_hidden = 0
                ORDER BY n.timestamp DESC"#,
         )
-        .bind(user_id.to_string())
+        .bind(user_id as u32)
         .fetch_all(pool)
         .await?;
 
@@ -90,10 +90,10 @@ impl NotificationData {
                     id: row.try_get("id")?,
                     title: row.try_get("title")?,
                     message: row.try_get("message")?,
-                    is_read: row.try_get::<i64, _>("is_read")? != 0,
+                    is_read: row.try_get::<i8, _>("is_read")? != 0,
                     timestamp: row.try_get("timestamp")?,
                     notification_type: NotificationType::from_str(row.try_get("type")?),
-                    action: row.try_get::<i64, _>("action")? as u16,
+                    action: row.try_get::<i32, _>("action")? as u16,
                     referenced_server: row.try_get("referenced_server").ok(),
                 })
             })
@@ -110,7 +110,7 @@ impl NotificationData {
                WHERE notification_id = ? AND user_id = ?"#,
         )
         .bind(notification_id)
-        .bind(user_id.to_string())
+        .bind(user_id as u32)
         .execute(pool)
         .await?;
 
@@ -120,7 +120,7 @@ impl NotificationData {
     /// Mark all notifications as read for a specific user
     pub async fn mark_all_as_read(user_id: u64, pool: &MySqlPool) -> Result<()> {
         sqlx::query(r#"UPDATE user_notifications SET is_read = 1 WHERE user_id = ?"#)
-            .bind(user_id.to_string())
+            .bind(user_id as u32)
             .execute(pool)
             .await?;
 
@@ -135,7 +135,7 @@ impl NotificationData {
                WHERE notification_id = ? AND user_id = ?"#,
         )
         .bind(notification_id)
-        .bind(user_id.to_string())
+        .bind(user_id as u32)
         .execute(pool)
         .await?;
 
@@ -170,7 +170,7 @@ impl NotificationData {
     /// Hide all notifications for a specific user
     pub async fn hide_all_for_user(user_id: u64, pool: &MySqlPool) -> Result<()> {
         sqlx::query(r#"UPDATE user_notifications SET is_hidden = 1 WHERE user_id = ?"#)
-            .bind(user_id.to_string())
+            .bind(user_id as u32)
             .execute(pool)
             .await?;
 
@@ -203,7 +203,7 @@ impl NotificationData {
                 r#"INSERT INTO user_notifications (user_id, notification_id, is_read, is_hidden)
                    VALUES (?, ?, 0, 0)"#,
             )
-            .bind(user_id.to_string())
+            .bind(user_id as u32)
             .bind(&notification_id)
             .execute(pool)
             .await?;

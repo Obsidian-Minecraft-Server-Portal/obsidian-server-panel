@@ -7,7 +7,8 @@ use crate::{app_db, ICON};
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use serde_hash::HashIds;
-use sqlx::{FromRow, Row, MySqlPool};
+use sqlx::{FromRow, Row, MySqlPool, Error};
+use sqlx::mysql::MySqlRow;
 use std::path::{PathBuf};
 
 /// Get the servers directory from settings, with fallback to default
@@ -27,7 +28,7 @@ fn get_temp_directory() -> PathBuf {
         PathBuf::from("./meta/temp")
     }
 }
-#[derive(HashIds, Debug, Clone, FromRow)]
+#[derive(HashIds, Debug, Clone)]
 pub struct ServerData {
     /// Unique identifier for the server
     #[hash]
@@ -118,6 +119,69 @@ impl Default for ServerData {
             update_available: false,
             latest_version: None,
         }
+    }
+}
+
+impl<'a> FromRow<'a, MySqlRow> for ServerData {
+    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
+        // MySQL INT returns as i32, convert to u64
+        let id: u64 = row.try_get::<u32, _>("id")? as u64;
+        let name: String = row.try_get("name")?;
+        let directory: String = row.try_get("directory")?;
+        let java_executable: String = row.try_get("java_executable")?;
+        let java_args: String = row.try_get("java_args")?;
+        let max_memory: i8 = row.try_get("max_memory")?;
+        let min_memory: i8 = row.try_get("min_memory")?;
+        let minecraft_args: String = row.try_get("minecraft_args")?;
+        let server_jar: String = row.try_get("server_jar")?;
+        let upnp: i8 = row.try_get("upnp")?;
+        let status: i8 = row.try_get("status")?;
+        let auto_start: i8 = row.try_get("auto_start")?;
+        let auto_restart: i8 = row.try_get("auto_restart")?;
+        let backup_enabled: i8 = row.try_get("backup_enabled")?;
+        let backup_cron: String = row.try_get("backup_cron")?;
+        let backup_retention: i32 = row.try_get("backup_retention")?;
+        let description: Option<String> = row.try_get("description")?;
+        let minecraft_version: Option<String> = row.try_get("minecraft_version")?;
+        let server_type: Option<i8> = row.try_get("server_type")?;
+        let loader_version: Option<String> = row.try_get("loader_version")?;
+        let owner_id: u64 = row.try_get::<u32, _>("owner_id")? as u64;
+        let created_at: i32 = row.try_get("created_at")?;
+        let updated_at: i32 = row.try_get("updated_at")?;
+        let last_started: Option<i32> = row.try_get("last_started")?;
+        let last_update_check: Option<i32> = row.try_get("last_update_check")?;
+        let update_available: i8 = row.try_get("update_available")?;
+        let latest_version: Option<String> = row.try_get("latest_version")?;
+
+        Ok(ServerData {
+            id,
+            name,
+            directory,
+            java_executable,
+            java_args,
+            max_memory: max_memory as u8,
+            min_memory: min_memory as u8,
+            minecraft_args,
+            server_jar,
+            upnp: upnp != 0,
+            status: ServerStatus::from(status as u8),
+            auto_start: auto_start != 0,
+            auto_restart: auto_restart != 0,
+            backup_enabled: backup_enabled != 0,
+            backup_cron,
+            backup_retention: backup_retention as u32,
+            description,
+            minecraft_version,
+            server_type: server_type.map(|t| ServerType::from(t as u8)),
+            loader_version,
+            owner_id,
+            created_at: created_at as u64,
+            updated_at: updated_at as u64,
+            last_started: last_started.map(|t| t as u64),
+            last_update_check: last_update_check.map(|t| t as u64),
+            update_available: update_available != 0,
+            latest_version,
+        })
     }
 }
 
@@ -315,7 +379,7 @@ impl ServerData {
             .bind(modrinth_id)
             .bind(curseforge_id)
             .bind(&filename)
-            .bind(self.id as i64)
+            .bind(self.id as u32)
             .execute(&pool)
             .await?;
 
@@ -331,7 +395,7 @@ impl ServerData {
         // Get the filename from database
         let row = sqlx::query("SELECT filename FROM installed_mods WHERE mod_id = ? AND server_id = ?")
             .bind(mod_id)
-            .bind(self.id as i64)
+            .bind(self.id as u32)
             .fetch_optional(&pool)
             .await?;
 
@@ -347,7 +411,7 @@ impl ServerData {
             }
 
             // Delete from database
-            sqlx::query("DELETE FROM installed_mods WHERE mod_id = ? AND server_id = ?").bind(mod_id).bind(self.id as i64).execute(&pool).await?;
+            sqlx::query("DELETE FROM installed_mods WHERE mod_id = ? AND server_id = ?").bind(mod_id).bind(self.id as u32).execute(&pool).await?;
         }
 
         pool.close().await;

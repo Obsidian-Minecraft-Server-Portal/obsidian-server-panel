@@ -51,7 +51,7 @@ impl ServerData {
                         let exists = if let Some(filename) = path.file_name() {
                             let count: i64 = sqlx::query_scalar(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#)
                                 .bind(filename.to_string_lossy())
-                                .bind(self.id as i64)
+                                .bind(self.id as u32)
                                 .fetch_one(pool)
                                 .await?;
                             count > 0
@@ -90,7 +90,7 @@ impl ServerData {
                         let exists = if let Some(filename) = path.file_name() {
                             let count: i64 = sqlx::query_scalar(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#)
                                 .bind(filename.to_string_lossy())
-                                .bind(self.id as i64)
+                                .bind(self.id as u32)
                                 .fetch_one(pool)
                                 .await?;
                             count > 0

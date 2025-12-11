@@ -60,7 +60,7 @@ async fn check_updates(
             )
             .bind(&update_info.latest_version)
             .bind(now)
-            .bind(server_id as i64)
+            .bind(server_id as u32)
             .execute(&pool)
             .await?;
 
@@ -88,7 +88,7 @@ async fn check_updates(
                 "#
             )
             .bind(now)
-            .bind(server_id as i64)
+            .bind(server_id as u32)
             .execute(&pool)
             .await?;
 

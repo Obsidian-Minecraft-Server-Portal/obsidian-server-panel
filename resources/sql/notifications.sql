@@ -12,11 +12,12 @@ CREATE TABLE IF NOT EXISTS `notifications` (
 
 -- User notifications table: tracks per-user read/hidden state
 CREATE TABLE IF NOT EXISTS `user_notifications` (
-	`user_id` VARCHAR(255) NOT NULL,
+	`user_id` INT UNSIGNED NOT NULL,
 	`notification_id` VARCHAR(255) NOT NULL,
 	`is_read` TINYINT NOT NULL DEFAULT 0,
 	`is_hidden` TINYINT NOT NULL DEFAULT 0,
 	PRIMARY KEY (`user_id`, `notification_id`),
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
 	FOREIGN KEY (`notification_id`) REFERENCES `notifications`(`id`) ON DELETE CASCADE,
 	INDEX `idx_user_notifications_user_id` (`user_id`),
 	INDEX `idx_user_notifications_notification_id` (`notification_id`)

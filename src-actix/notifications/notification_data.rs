@@ -85,7 +85,7 @@ impl<'a> FromRow<'a, MySqlRow> for NotificationData {
             message: row.try_get("message")?,
             timestamp: row.try_get("timestamp")?,
             notification_type: NotificationType::from_str(row.try_get("type")?),
-            action: row.try_get::<i64, _>("action")? as u16,
+            action: row.try_get::<i32, _>("action")? as u16,
             referenced_server: row.try_get("referenced_server").ok(),
         })
     }
@@ -103,10 +103,10 @@ pub struct UserNotification {
 impl<'a> FromRow<'a, MySqlRow> for UserNotification {
     fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
         Ok(UserNotification {
-            user_id: row.try_get::<String, _>("user_id")?.parse().map_err(|_| Error::Decode("Invalid user_id".into()))?,
+            user_id: row.try_get::<u32, _>("user_id")? as u64,
             notification_id: row.try_get("notification_id")?,
-            is_read: row.try_get::<i64, _>("is_read")? != 0,
-            is_hidden: row.try_get::<i64, _>("is_hidden")? != 0,
+            is_read: row.try_get::<i8, _>("is_read")? != 0,
+            is_hidden: row.try_get::<i8, _>("is_hidden")? != 0,
         })
     }
 }

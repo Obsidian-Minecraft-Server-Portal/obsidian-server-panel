@@ -117,7 +117,7 @@ impl UpdateService {
                     "#
                 )
                 .bind(&update_info.latest_version)
-                .bind(server.id as i64)
+                .bind(server.id as u32)
                 .execute(&pool)
                 .await?;
             }
@@ -138,7 +138,7 @@ impl UpdateService {
                     "#
                 )
                 .bind(&update_info.latest_version)
-                .bind(server.id as i64)
+                .bind(server.id as u32)
                 .execute(&pool)
                 .await?;
             }

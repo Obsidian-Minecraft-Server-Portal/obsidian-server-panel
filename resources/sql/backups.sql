@@ -4,8 +4,8 @@
 
 CREATE TABLE IF NOT EXISTS `backup_schedules`
 (
-	`id`              INT NOT NULL AUTO_INCREMENT PRIMARY KEY,         -- unique identifier for the schedule
-	`server_id`       INT NOT NULL,                                    -- reference to the server
+	`id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,         -- unique identifier for the schedule
+	`server_id` INT UNSIGNED NOT NULL,                                    -- reference to the server
 	`interval_amount` INT NOT NULL,                                    -- interval amount (e.g., 6)
 	`interval_unit`   VARCHAR(20) NOT NULL,                            -- 'hours', 'days', or 'weeks'
 	`backup_type`     TINYINT NOT NULL DEFAULT 0,                      -- 0 => full, 1 => incremental, 2 => world
