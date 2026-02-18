@@ -1,4 +1,3 @@
-use crate::app_db;
 use crate::server::installed_mods::mod_data::ModData;
 use crate::server::server_data::ServerData;
 use anyhow::Result;
@@ -15,12 +14,12 @@ impl ServerData {
 
         debug!("Started watching mods directory for server {}: {:?}", self.name, mods_path);
 
-        let pool = app_db::open_pool().await?;
+        let pool = crate::database::get_pool();
         for res in receiver {
             match res {
                 Ok(event) => {
                     debug!("File watcher event for server {}: {:?}", self.name, event);
-                    if let Err(e) = self.on_file_watcher_trigger(&event, &pool).await {
+                    if let Err(e) = self.on_file_watcher_trigger(&event, pool).await {
                         error!("Error processing file watcher event for server {}: {}", self.name, e);
                     }
                 }
@@ -31,11 +30,10 @@ impl ServerData {
             }
         }
 
-        pool.close().await;
         Ok(())
     }
 
-    async fn on_file_watcher_trigger(&self, event: &notify::Event, pool: &sqlx::MySqlPool) -> Result<()> {
+    async fn on_file_watcher_trigger(&self, event: &notify::Event, pool: &crate::database::Pool) -> Result<()> {
         let paths = &event.paths;
         match &event.kind {
             notify::EventKind::Create(_) => {
@@ -49,9 +47,9 @@ impl ServerData {
                             }
                         }
                         let exists = if let Some(filename) = path.file_name() {
-                            let count: i64 = sqlx::query_scalar(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#)
+                            let count: i64 = sqlx::query_scalar(&*crate::database::sql(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#))
                                 .bind(filename.to_string_lossy())
-                                .bind(self.id as u32)
+                                .bind(self.id as i64)
                                 .fetch_one(pool)
                                 .await?;
                             count > 0
@@ -88,9 +86,9 @@ impl ServerData {
                             }
                         }
                         let exists = if let Some(filename) = path.file_name() {
-                            let count: i64 = sqlx::query_scalar(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#)
+                            let count: i64 = sqlx::query_scalar(&*crate::database::sql(r#"select count(*) from installed_mods where filename = ? and server_id = ?"#))
                                 .bind(filename.to_string_lossy())
-                                .bind(self.id as u32)
+                                .bind(self.id as i64)
                                 .fetch_one(pool)
                                 .await?;
                             count > 0

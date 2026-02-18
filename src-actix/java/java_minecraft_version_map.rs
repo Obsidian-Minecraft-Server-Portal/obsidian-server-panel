@@ -27,9 +27,8 @@ struct VersionManifest {
 }
 
 pub async fn get_java_minecraft_version_map() -> Result<HashMap<String, MinMax>> {
-    let pool = crate::app_db::open_pool().await?;
-    let map = crate::java::java_db::load_version_map(&pool).await?;
-    pool.close().await;
+    let pool = crate::database::get_pool();
+    let map = crate::java::java_db::load_version_map(pool).await?;
 
     let result = map.into_iter().map(|(k, (min, max))| (k, MinMax { min, max })).collect();
 
@@ -94,9 +93,8 @@ pub async fn refresh_java_minecraft_version_map() -> Result<()> {
     }
 
     // Save to database
-    let pool = crate::app_db::open_pool().await?;
-    crate::java::java_db::save_version_map(&map, &pool).await?;
-    pool.close().await;
+    let pool = crate::database::get_pool();
+    crate::java::java_db::save_version_map(&map, pool).await?;
 
     info!("Refreshed Java Minecraft Version Map in {:.2?}", stopwatch.elapsed());
     debug!("Java Minecraft Version Map refreshed with {} entries", map.len());

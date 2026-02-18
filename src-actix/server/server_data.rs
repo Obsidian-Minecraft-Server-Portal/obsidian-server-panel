@@ -3,13 +3,13 @@ use crate::server::server_properties::ServerProperties;
 use crate::server::server_status::ServerStatus;
 use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
-use crate::{app_db, ICON};
+use crate::database::{Pool, Row, sql};
+use crate::ICON;
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use serde_hash::HashIds;
-use sqlx::{FromRow, Row, MySqlPool, Error};
-use sqlx::mysql::MySqlRow;
-use std::path::{PathBuf};
+use sqlx::{FromRow, Row as _, Error};
+use std::path::PathBuf;
 
 /// Get the servers directory from settings, with fallback to default
 fn get_servers_directory() -> PathBuf {
@@ -122,35 +122,34 @@ impl Default for ServerData {
     }
 }
 
-impl<'a> FromRow<'a, MySqlRow> for ServerData {
-    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
-        // MySQL INT returns as i32, convert to u64
-        let id: u64 = row.try_get::<u32, _>("id")? as u64;
+impl<'a> FromRow<'a, Row> for ServerData {
+    fn from_row(row: &'a Row) -> Result<Self, Error> {
+        let id: u64 = row.try_get::<i64, _>("id")? as u64;
         let name: String = row.try_get("name")?;
         let directory: String = row.try_get("directory")?;
         let java_executable: String = row.try_get("java_executable")?;
         let java_args: String = row.try_get("java_args")?;
-        let max_memory: i8 = row.try_get("max_memory")?;
-        let min_memory: i8 = row.try_get("min_memory")?;
+        let max_memory: i16 = row.try_get("max_memory")?;
+        let min_memory: i16 = row.try_get("min_memory")?;
         let minecraft_args: String = row.try_get("minecraft_args")?;
         let server_jar: String = row.try_get("server_jar")?;
-        let upnp: i8 = row.try_get("upnp")?;
-        let status: i8 = row.try_get("status")?;
-        let auto_start: i8 = row.try_get("auto_start")?;
-        let auto_restart: i8 = row.try_get("auto_restart")?;
-        let backup_enabled: i8 = row.try_get("backup_enabled")?;
+        let upnp: i16 = row.try_get("upnp")?;
+        let status: i32 = row.try_get("status")?;
+        let auto_start: i16 = row.try_get("auto_start")?;
+        let auto_restart: i16 = row.try_get("auto_restart")?;
+        let backup_enabled: i16 = row.try_get("backup_enabled")?;
         let backup_cron: String = row.try_get("backup_cron")?;
         let backup_retention: i32 = row.try_get("backup_retention")?;
         let description: Option<String> = row.try_get("description")?;
         let minecraft_version: Option<String> = row.try_get("minecraft_version")?;
-        let server_type: Option<i8> = row.try_get("server_type")?;
+        let server_type: Option<i32> = row.try_get("server_type")?;
         let loader_version: Option<String> = row.try_get("loader_version")?;
-        let owner_id: u64 = row.try_get::<u32, _>("owner_id")? as u64;
-        let created_at: i32 = row.try_get("created_at")?;
-        let updated_at: i32 = row.try_get("updated_at")?;
-        let last_started: Option<i32> = row.try_get("last_started")?;
-        let last_update_check: Option<i32> = row.try_get("last_update_check")?;
-        let update_available: i8 = row.try_get("update_available")?;
+        let owner_id: u64 = row.try_get::<i64, _>("owner_id")? as u64;
+        let created_at: i64 = row.try_get("created_at")?;
+        let updated_at: i64 = row.try_get("updated_at")?;
+        let last_started: Option<i64> = row.try_get("last_started")?;
+        let last_update_check: Option<i64> = row.try_get("last_update_check")?;
+        let update_available: i16 = row.try_get("update_available")?;
         let latest_version: Option<String> = row.try_get("latest_version")?;
 
         Ok(ServerData {
@@ -223,7 +222,7 @@ impl ServerData {
     }
 
     /// Update the server structure data
-    /// This will not update the database, use `server.save(&MySqlPool)` for that
+    /// This will not update the database, use `server.save()` for that
     pub fn update(&mut self, server_data: &ServerData) -> Result<()> {
         self.name = server_data.name.clone();
         self.directory = server_data.directory.clone();
@@ -251,26 +250,18 @@ impl ServerData {
     }
 
     pub async fn get(id: u64, _user_id: u64) -> Result<Option<Self>> {
-        let pool = app_db::open_pool().await?;
-        // All users can view all servers under the new permission system
-        let server = Self::get_with_pool(id, &pool).await?;
-        pool.close().await;
-        Ok(server)
+        let pool = crate::database::get_pool();
+        Self::get_with_pool(id, pool).await
     }
 
     pub async fn list(_user_id: u64) -> Result<Vec<Self>> {
-        let pool = app_db::open_pool().await?;
-        // All users can see all servers under the new permission system
-        let servers = Self::list_all_with_pool(&pool).await?;
-        pool.close().await;
-        Ok(servers)
+        let pool = crate::database::get_pool();
+        Self::list_all_with_pool(pool).await
     }
 
     pub async fn save(&self) -> Result<()> {
-        let pool = app_db::open_pool().await?;
-        self.save_with_pool(&pool).await?;
-        pool.close().await;
-        Ok(())
+        let pool = crate::database::get_pool();
+        self.save_with_pool(pool).await
     }
 
     pub fn get_icon(&self) -> Vec<u8> {
@@ -305,9 +296,8 @@ impl ServerData {
     }
 
     pub async fn get_installed_mods(&self) -> Result<Vec<ModData>> {
-        let pool = app_db::open_pool().await?;
-        let saved = self.load_installed_mods(&pool).await?;
-        pool.close().await;
+        let pool = crate::database::get_pool();
+        let saved = self.load_installed_mods(pool).await?;
 
         if !saved.is_empty() {
             Ok(saved)
@@ -315,19 +305,15 @@ impl ServerData {
             // If no mods in database, scan filesystem and save to database
             let mods = ModData::from_server(self).await?;
             if !mods.is_empty() {
-                let pool = app_db::open_pool().await?;
-                let _ = self.load_and_save_installed_mods(&pool).await;
-                pool.close().await;
+                let _ = self.load_and_save_installed_mods(pool).await;
             }
             Ok(mods)
         }
     }
 
     pub async fn sync_installed_mods(&self) -> Result<()> {
-        let pool = app_db::open_pool().await?;
-        let result = self.refresh_installed_mods(&pool).await;
-        pool.close().await;
-        result
+        let pool = crate::database::get_pool();
+        self.refresh_installed_mods(pool).await
     }
 
     pub async fn download_and_install_mod(
@@ -363,13 +349,13 @@ impl ServerData {
         let mod_data = ModData::from_path(&temp_file_path).await?.ok_or_else(|| anyhow::anyhow!("Failed to parse mod data from downloaded file"))?;
 
         // Save to database
-        let pool = app_db::open_pool().await?;
+        let pool = crate::database::get_pool();
         let icon_base64 =
             if let Some(icon) = icon { &Some(icon) } else { &mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes)) };
         let modrinth_id = if let Some(id) = modrinth_id { &Some(id) } else { &mod_data.modrinth_id };
         let curseforge_id = if let Some(id) = curseforge_id { &Some(id) } else { &mod_data.curseforge_id };
 
-        sqlx::query(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+        sqlx::query(&*sql(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
             .bind(&mod_data.mod_id)
             .bind(&mod_data.name)
             .bind(version.unwrap_or(mod_data.version.clone()))
@@ -379,28 +365,26 @@ impl ServerData {
             .bind(modrinth_id)
             .bind(curseforge_id)
             .bind(&filename)
-            .bind(self.id as u32)
-            .execute(&pool)
+            .bind(self.id as i64)
+            .execute(pool)
             .await?;
-
-        pool.close().await;
 
         tokio::fs::rename(temp_file_path, mods_dir.join(&filename)).await?;
         Ok(mod_data)
     }
 
     pub async fn delete_mod(&self, mod_id: &str) -> Result<()> {
-        let pool = app_db::open_pool().await?;
+        let pool = crate::database::get_pool();
 
         // Get the filename from database
-        let row = sqlx::query("SELECT filename FROM installed_mods WHERE mod_id = ? AND server_id = ?")
+        let row = sqlx::query(&*sql("SELECT filename FROM installed_mods WHERE mod_id = ? AND server_id = ?"))
             .bind(mod_id)
-            .bind(self.id as u32)
-            .fetch_optional(&pool)
+            .bind(self.id as i64)
+            .fetch_optional(pool)
             .await?;
 
         if let Some(row) = row {
-            let filename: Option<String> = row.get("filename");
+            let filename: Option<String> = row.try_get("filename").ok();
 
             // Delete from filesystem if filename is available
             if let Some(filename) = filename {
@@ -411,14 +395,13 @@ impl ServerData {
             }
 
             // Delete from database
-            sqlx::query("DELETE FROM installed_mods WHERE mod_id = ? AND server_id = ?").bind(mod_id).bind(self.id as u32).execute(&pool).await?;
+            sqlx::query(&*sql("DELETE FROM installed_mods WHERE mod_id = ? AND server_id = ?")).bind(mod_id).bind(self.id as i64).execute(pool).await?;
         }
 
-        pool.close().await;
         Ok(())
     }
 
-    pub async fn initialize_servers(pool: &MySqlPool) -> Result<()> {
+    pub async fn initialize_servers(pool: &Pool) -> Result<()> {
         let servers = Self::list_all_with_pool(pool).await?;
         for mut server in servers {
             if let Err(e) = server.start_watch_server_mod_directory_for_changes().await {

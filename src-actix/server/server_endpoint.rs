@@ -13,7 +13,8 @@ use flate2::read::GzDecoder;
 use log::error;
 use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
-use sqlx::Row;
+use sqlx::Row as _;
+use crate::database::sql;
 use std::collections::HashMap;
 use std::io::Read;
 use std::time::Duration;
@@ -51,11 +52,10 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
 
     let server = ServerData::get(server_id, user_id).await?;
 
-    let pool = crate::app_db::open_pool().await?;
+    let pool = crate::database::get_pool();
     if let Some(server) = server {
         let server_id_u64 = server.id;
-        server.delete(&pool).await?;
-        pool.close().await;
+        server.delete(pool).await?;
 
         // Broadcast server deletion with hashed ID
         let server_id = encode_single(server_id_u64);
@@ -63,7 +63,6 @@ pub async fn delete_server(server_id: web::Path<String>, req: HttpRequest) -> Re
 
         Ok(HttpResponse::Ok().finish())
     } else {
-        pool.close().await;
         Ok(HttpResponse::NotFound().json(json!({
             "error": "Server not found".to_string(),
         })))
@@ -90,10 +89,9 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
     let loader_version: Option<String> = body.get("loader_version").and_then(|v| v.as_str().map(String::from));
     let java_executable: String = body.get("java_executable").ok_or(anyhow!("Java executable not found"))?.as_str().unwrap().to_string();
 
-    let pool = crate::app_db::open_pool().await?;
+    let pool = crate::database::get_pool();
     let mut server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
-    server.create(&pool).await?;
-    pool.close().await;
+    server.create(pool).await?;
 
     std::fs::create_dir_all(server.get_directory_path())?;
 
@@ -509,16 +507,15 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
-    let pool = crate::app_db::open_pool().await?;
-    let row = sqlx::query("SELECT icon FROM installed_mods WHERE mod_id = ? AND server_id = ?")
+    let pool = crate::database::get_pool();
+    let row = sqlx::query(&*sql("SELECT icon FROM installed_mods WHERE mod_id = ? AND server_id = ?"))
         .bind(&mod_id)
-        .bind(server.id as u32)
-        .fetch_optional(&pool)
+        .bind(server.id as i64)
+        .fetch_optional(pool)
         .await?;
-    pool.close().await;
 
     if let Some(row) = row {
-        let icon_data: Option<String> = row.get("icon");
+        let icon_data: Option<String> = row.try_get("icon").ok();
 
         if let Some(icon) = icon_data {
             let is_icon_base64 = icon.starts_with("data:image/png;base64,");

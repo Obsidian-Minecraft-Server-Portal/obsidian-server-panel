@@ -1,4 +1,3 @@
-use crate::app_db::open_pool;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::broadcast;
@@ -35,21 +34,17 @@ impl Actor for UpdatesWebSocket {
         let addr = ctx.address();
         ctx.spawn(
             async move {
-                match open_pool().await {
-                    Ok(pool) => match NotificationData::get_for_user(user_id, &pool).await {
-                        Ok(notifications) => {
-                            let msg = NotificationMessage::InitialList { notifications };
-                            let broadcast_msg = BroadcastMessage::Notification { message: msg };
-                            if let Ok(json) = serde_json::to_string(&broadcast_msg) {
-                                addr.do_send(SendText(json));
-                            }
+                let pool = crate::database::get_pool();
+                match NotificationData::get_for_user(user_id, pool).await {
+                    Ok(notifications) => {
+                        let msg = NotificationMessage::InitialList { notifications };
+                        let broadcast_msg = BroadcastMessage::Notification { message: msg };
+                        if let Ok(json) = serde_json::to_string(&broadcast_msg) {
+                            addr.do_send(SendText(json));
                         }
-                        Err(e) => {
-                            error!("Failed to fetch notifications for user {}: {}", user_id, e);
-                        }
-                    },
+                    }
                     Err(e) => {
-                        error!("Failed to open database pool: {}", e);
+                        error!("Failed to fetch notifications for user {}: {}", user_id, e);
                     }
                 }
             }
@@ -159,26 +154,26 @@ async fn handle_notification_command(
     command: NotificationCommand,
     user_id: u64,
 ) -> Result<()> {
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
 
     match command {
         NotificationCommand::MarkAsRead { ref id } => {
-            NotificationData::mark_as_read(id, user_id, &pool).await?;
+            NotificationData::mark_as_read(id, user_id, pool).await?;
             let msg = NotificationMessage::MarkAsRead { id: id.clone() };
             broadcast::broadcast(BroadcastMessage::Notification { message: msg });
         }
         NotificationCommand::MarkAllAsRead => {
-            NotificationData::mark_all_as_read(user_id, &pool).await?;
+            NotificationData::mark_all_as_read(user_id, pool).await?;
             let msg = NotificationMessage::MarkAllAsRead;
             broadcast::broadcast(BroadcastMessage::Notification { message: msg });
         }
         NotificationCommand::DeleteNotification { ref id } => {
-            NotificationData::hide_for_user(id, user_id, &pool).await?;
+            NotificationData::hide_for_user(id, user_id, pool).await?;
             let msg = NotificationMessage::DeleteNotification { id: id.clone() };
             broadcast::broadcast(BroadcastMessage::Notification { message: msg });
         }
         NotificationCommand::DeleteAllNotifications => {
-            NotificationData::hide_all_for_user(user_id, &pool).await?;
+            NotificationData::hide_all_for_user(user_id, pool).await?;
             let msg = NotificationMessage::DeleteAllNotifications;
             broadcast::broadcast(BroadcastMessage::Notification { message: msg });
         }

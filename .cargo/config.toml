@@ -22,3 +22,13 @@ ar = "x86_64-apple-darwin14-ar"
 [target.aarch64-apple-darwin]
 linker = "aarch64-apple-darwin20.4-clang"
 ar = "aarch64-apple-darwin20.4-ar"
+
+
+[env]
+# Connection string for the database.
+# Build with: cargo build --features sqlite|mysql|postgres
+#
+# SQLite:     optional, defaults to "app.db". Ex: "./my_data.db"
+# MySQL:      required. Ex: "mysql://user:pass@localhost/dbname"
+# PostgreSQL: required. Ex: "postgres://user:pass@localhost/dbname"
+DATABASE_CONNECTION_STRING=""

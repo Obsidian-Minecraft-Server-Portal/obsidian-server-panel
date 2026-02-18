@@ -1,7 +1,6 @@
 use super::backup_data::{BackupScheduleRequest, BackupSettings, CreateBackupRequest, IgnoreEntry, IgnoreList};
 use super::{backup_db, backup_service};
 use crate::actix_util::http_error::Result;
-use crate::app_db;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::server::server_data::ServerData;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
@@ -318,9 +317,9 @@ async fn get_backup_settings(
         }
     };
 
-    let pool = app_db::open_pool().await?;
+    let pool = crate::database::get_pool();
 
-    match backup_db::list_schedules(server_id as i64, &pool).await {
+    match backup_db::list_schedules(server_id as i64, pool).await {
         Ok(schedules) => {
             let settings = BackupSettings { schedules };
             Ok(HttpResponse::Ok().json(settings))
@@ -355,7 +354,7 @@ async fn update_backup_settings(
         }
     };
 
-    let pool = app_db::open_pool().await?;
+    let pool = crate::database::get_pool();
 
     // Create a new schedule
     match backup_db::create_schedule(
@@ -365,7 +364,7 @@ async fn update_backup_settings(
         request.backup_type,
         request.enabled,
         request.retention_days,
-        &pool,
+        pool,
     )
     .await
     {
@@ -566,9 +565,9 @@ async fn delete_schedule(
         }
     };
 
-    let pool = app_db::open_pool().await?;
+    let pool = crate::database::get_pool();
 
-    match backup_db::delete_schedule(schedule_id, server_id as i64, &pool).await {
+    match backup_db::delete_schedule(schedule_id, server_id as i64, pool).await {
         Ok(deleted) => {
             if deleted {
                 Ok(HttpResponse::Ok().json(json!({

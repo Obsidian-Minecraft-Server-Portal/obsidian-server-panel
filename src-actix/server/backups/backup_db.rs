@@ -1,11 +1,11 @@
 use super::backup_data::{BackupSchedule, BackupType};
+use crate::database::{Pool, sql};
 use anyhow::Result;
-use sqlx::MySqlPool;
 
 /// List all backup schedules for a specific server
-pub async fn list_schedules(server_id: i64, pool: &MySqlPool) -> Result<Vec<BackupSchedule>> {
+pub async fn list_schedules(server_id: i64, pool: &Pool) -> Result<Vec<BackupSchedule>> {
     let schedules = sqlx::query_as::<_, BackupSchedule>(
-        r#"SELECT * FROM backup_schedules WHERE server_id = ? ORDER BY created_at DESC"#,
+        &*sql(r#"SELECT * FROM backup_schedules WHERE server_id = ? ORDER BY created_at DESC"#),
     )
     .bind(server_id)
     .fetch_all(pool)
@@ -15,9 +15,9 @@ pub async fn list_schedules(server_id: i64, pool: &MySqlPool) -> Result<Vec<Back
 }
 
 /// Get a specific schedule by ID
-pub async fn get_schedule(schedule_id: i64, server_id: i64, pool: &MySqlPool) -> Result<Option<BackupSchedule>> {
+pub async fn get_schedule(schedule_id: i64, server_id: i64, pool: &Pool) -> Result<Option<BackupSchedule>> {
     let schedule = sqlx::query_as::<_, BackupSchedule>(
-        r#"SELECT * FROM backup_schedules WHERE id = ? AND server_id = ?"#,
+        &*sql(r#"SELECT * FROM backup_schedules WHERE id = ? AND server_id = ?"#),
     )
     .bind(schedule_id)
     .bind(server_id)
@@ -35,26 +35,35 @@ pub async fn create_schedule(
     backup_type: BackupType,
     enabled: bool,
     retention_days: Option<i64>,
-    pool: &MySqlPool,
+    pool: &Pool,
 ) -> Result<BackupSchedule> {
     let result = sqlx::query(
-        r#"INSERT INTO backup_schedules (server_id, interval_amount, interval_unit, backup_type, enabled, retention_days)
-           VALUES (?, ?, ?, ?, ?, ?)"#,
+        &*sql(r#"INSERT INTO backup_schedules (server_id, interval_amount, interval_unit, backup_type, enabled, retention_days)
+           VALUES (?, ?, ?, ?, ?, ?)"#),
     )
     .bind(server_id)
     .bind(interval_amount)
     .bind(&interval_unit)
-    .bind(backup_type as u8)
+    .bind(backup_type as i32)
     .bind(enabled)
     .bind(retention_days)
     .execute(pool)
     .await?;
 
+    #[cfg(feature = "sqlite")]
+    let id = result.last_insert_rowid();
+    #[cfg(feature = "mysql")]
     let id = result.last_insert_id() as i64;
+    #[cfg(feature = "postgres")]
+    let id = {
+        let row: (i64,) = sqlx::query_as(&*sql("SELECT currval(pg_get_serial_sequence('backup_schedules', 'id'))"))
+            .fetch_one(pool).await?;
+        row.0
+    };
 
     // Fetch the created schedule
     let schedule = sqlx::query_as::<_, BackupSchedule>(
-        r#"SELECT * FROM backup_schedules WHERE id = ?"#,
+        &*sql(r#"SELECT * FROM backup_schedules WHERE id = ?"#),
     )
     .bind(id)
     .fetch_one(pool)
@@ -72,18 +81,19 @@ pub async fn update_schedule(
     backup_type: BackupType,
     enabled: bool,
     retention_days: Option<i64>,
-    pool: &MySqlPool,
+    pool: &Pool,
 ) -> Result<bool> {
     let result = sqlx::query(
-        r#"UPDATE backup_schedules
-           SET interval_amount = ?, interval_unit = ?, backup_type = ?, enabled = ?, retention_days = ?, updated_at = UNIX_TIMESTAMP()
-           WHERE id = ? AND server_id = ?"#,
+        &*sql(r#"UPDATE backup_schedules
+           SET interval_amount = ?, interval_unit = ?, backup_type = ?, enabled = ?, retention_days = ?, updated_at = ?
+           WHERE id = ? AND server_id = ?"#),
     )
     .bind(interval_amount)
     .bind(&interval_unit)
-    .bind(backup_type as u8)
+    .bind(backup_type as i32)
     .bind(enabled)
     .bind(retention_days)
+    .bind(chrono::Utc::now().timestamp())
     .bind(schedule_id)
     .bind(server_id)
     .execute(pool)
@@ -93,9 +103,9 @@ pub async fn update_schedule(
 }
 
 /// Delete a backup schedule
-pub async fn delete_schedule(schedule_id: i64, server_id: i64, pool: &MySqlPool) -> Result<bool> {
+pub async fn delete_schedule(schedule_id: i64, server_id: i64, pool: &Pool) -> Result<bool> {
     let result = sqlx::query(
-        r#"DELETE FROM backup_schedules WHERE id = ? AND server_id = ?"#,
+        &*sql(r#"DELETE FROM backup_schedules WHERE id = ? AND server_id = ?"#),
     )
     .bind(schedule_id)
     .bind(server_id)
@@ -110,12 +120,12 @@ pub async fn update_schedule_run_times(
     schedule_id: i64,
     last_run: i64,
     next_run: i64,
-    pool: &MySqlPool,
+    pool: &Pool,
 ) -> Result<()> {
     sqlx::query(
-        r#"UPDATE backup_schedules
+        &*sql(r#"UPDATE backup_schedules
            SET last_run = ?, next_run = ?
-           WHERE id = ?"#,
+           WHERE id = ?"#),
     )
     .bind(last_run)
     .bind(next_run)
@@ -127,9 +137,9 @@ pub async fn update_schedule_run_times(
 }
 
 /// Get all enabled schedules across all servers (for scheduler)
-pub async fn list_all_enabled_schedules(pool: &MySqlPool) -> Result<Vec<BackupSchedule>> {
+pub async fn list_all_enabled_schedules(pool: &Pool) -> Result<Vec<BackupSchedule>> {
     let schedules = sqlx::query_as::<_, BackupSchedule>(
-        r#"SELECT * FROM backup_schedules WHERE enabled = 1 ORDER BY next_run ASC"#,
+        &*sql(r#"SELECT * FROM backup_schedules WHERE enabled = 1 ORDER BY next_run ASC"#),
     )
     .fetch_all(pool)
     .await?;

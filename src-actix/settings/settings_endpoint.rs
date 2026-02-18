@@ -120,12 +120,9 @@ fn move_java_installation(src: &PathBuf, dst: &PathBuf) -> std::io::Result<()> {
 
 /// Check if any servers are running and using Java from the old directory
 async fn check_running_servers_using_java(java_dir: &PathBuf) -> Vec<String> {
-    let pool = match crate::app_db::open_pool().await {
-        Ok(pool) => pool,
-        Err(_) => return Vec::new(),
-    };
+    let pool = crate::database::get_pool();
 
-    let servers = match ServerData::list_all_with_pool(&pool).await {
+    let servers = match ServerData::list_all_with_pool(pool).await {
         Ok(servers) => servers,
         Err(_) => return Vec::new(),
     };

@@ -1,5 +1,4 @@
 use crate::actix_util::http_error::Result;
-use crate::app_db::open_pool;
 use crate::authentication;
 use crate::authentication::auth_data::{TOKEN_KEY, UserData, UserRequestExt};
 use crate::authentication::user_permissions::PermissionFlag;
@@ -14,9 +13,8 @@ pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder>
     let password = body.get("password").expect("Missing password").as_str().expect("Password must be a string").to_string();
     let remember = body.get("remember").is_some_and(|v| v.as_bool().unwrap_or(false));
 
-    let pool = open_pool().await?;
-    let (token, user) = UserData::login(username, password, &pool).await?;
-    pool.close().await; // Close the database connection after use
+    let pool = crate::database::get_pool();
+    let (token, user) = UserData::login(username, password, pool).await?;
 
     let cookie = actix_web::cookie::Cookie::build(TOKEN_KEY, &token).path("/").secure(true).http_only(true);
     let cookie = if remember { cookie.max_age(actix_web::cookie::time::Duration::days(30)) } else { cookie }.finish();
@@ -52,18 +50,17 @@ pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Respond
     let username = body.get("username").expect("Missing username").as_str().expect("Username must be a string").to_string();
     let password = body.get("password").expect("Missing password").as_str().expect("Password must be a string").to_string();
 
-    let pool = open_pool().await?;
-    let should_be_admin_user = UserData::get_users_with_permissions(PermissionFlag::Admin, &pool).await?.is_empty();
-    if UserData::exists(&username, &pool).await? {
+    let pool = crate::database::get_pool();
+    let should_be_admin_user = UserData::get_users_with_permissions(PermissionFlag::Admin, pool).await?.is_empty();
+    if UserData::exists(&username, pool).await? {
         return Ok(HttpResponse::BadRequest().json(json!({
             "message": "Username already exists",
         })));
     }
-    let user = UserData::register(username, password, &pool).await?;
+    let user = UserData::register(username, password, pool).await?;
     if should_be_admin_user {
-        user.set_permissions(PermissionFlag::Admin, &pool).await?;
+        user.set_permissions(PermissionFlag::Admin, pool).await?;
     }
-    pool.close().await;
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "Registration successful",
@@ -116,13 +113,12 @@ pub async fn update_permissions(
     }
 
     // Update permissions in database
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
 
     // Create a temporary UserData with the target user ID to call set_permissions
     let target_user = UserData { id: Some(user_id), ..Default::default() };
 
-    target_user.set_permissions(permissions, &pool).await?;
-    pool.close().await;
+    target_user.set_permissions(permissions, pool).await?;
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "Permissions updated successfully",
@@ -157,9 +153,8 @@ pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
             ]
         })));
     }
-    let pool = open_pool().await?;
-    let users = UserData::get_users(&pool).await?;
-    pool.close().await;
+    let pool = crate::database::get_pool();
+    let users = UserData::get_users(pool).await?;
 
     Ok(HttpResponse::Ok().json(users))
 }
@@ -173,9 +168,8 @@ pub async fn change_password(body: web::Bytes, req: HttpRequest) -> Result<impl 
             "message": "Password cannot be empty",
         })));
     }
-    let pool = open_pool().await?;
-    user.change_password(password, &pool).await?;
-    pool.close().await;
+    let pool = crate::database::get_pool();
+    user.change_password(password, pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -211,10 +205,10 @@ pub async fn create_user(body: web::Json<serde_json::Value>, req: HttpRequest) -
         .and_then(|v| v.as_array())
         .ok_or_else(|| anyhow!("Missing or invalid permissions array"))?;
 
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
 
     // Check if username already exists
-    if UserData::exists(&username, &pool).await? {
+    if UserData::exists(&username, pool).await? {
         return Ok(HttpResponse::BadRequest().json(json!({
             "message": "Username already exists",
         })));
@@ -224,7 +218,7 @@ pub async fn create_user(body: web::Json<serde_json::Value>, req: HttpRequest) -
     let random_password = generate_random_password();
 
     // Create user
-    let new_user = UserData::register(&username, &random_password, &pool).await?;
+    let new_user = UserData::register(&username, &random_password, pool).await?;
 
     // Set permissions
     let mut permissions = BitFlags::<PermissionFlag>::empty();
@@ -235,13 +229,11 @@ pub async fn create_user(body: web::Json<serde_json::Value>, req: HttpRequest) -
     }
 
     if !permissions.is_empty() {
-        new_user.set_permissions(permissions, &pool).await?;
+        new_user.set_permissions(permissions, pool).await?;
     }
 
     // Mark user as needing password change
-    new_user.mark_password_change_required(&pool).await?;
-
-    pool.close().await;
+    new_user.mark_password_change_required(pool).await?;
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "User created successfully",
@@ -281,12 +273,12 @@ pub async fn update_user(
     let user_id = path.into_inner();
     let user_id = serde_hash::hashids::decode_single(&user_id).map_err(|_| anyhow!("Invalid user ID format"))?;
 
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
     let target_user = UserData { id: Some(user_id), ..Default::default() };
 
     // Update username if provided
     if let Some(username) = body.get("username").and_then(|v| v.as_str()) {
-        target_user.update_username(username.to_string(), &pool).await?;
+        target_user.update_username(username.to_string(), pool).await?;
     }
 
     // Update permissions if provided
@@ -297,15 +289,13 @@ pub async fn update_user(
                 permissions |= PermissionFlag::from_u16(id as u16);
             }
         }
-        target_user.set_permissions(permissions, &pool).await?;
+        target_user.set_permissions(permissions, pool).await?;
     }
 
     // Update active status if provided
     if let Some(is_active) = body.get("is_active").and_then(|v| v.as_bool()) {
-        target_user.set_active_status(is_active, &pool).await?;
+        target_user.set_active_status(is_active, pool).await?;
     }
-
-    pool.close().await;
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "User updated successfully",
@@ -345,10 +335,9 @@ pub async fn delete_user(path: web::Path<String>, req: HttpRequest) -> Result<im
         })));
     }
 
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
     let target_user = UserData { id: Some(user_id), ..Default::default() };
-    target_user.delete(&pool).await?;
-    pool.close().await;
+    target_user.delete(pool).await?;
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "User deleted successfully",
@@ -381,10 +370,9 @@ pub async fn force_password_reset(path: web::Path<String>, req: HttpRequest) -> 
     let user_id = path.into_inner();
     let user_id = serde_hash::hashids::decode_single(&user_id).map_err(|_| anyhow!("Invalid user ID format"))?;
 
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
     let target_user = UserData { id: Some(user_id), ..Default::default() };
-    target_user.mark_password_change_required(&pool).await?;
-    pool.close().await;
+    target_user.mark_password_change_required(pool).await?;
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "Password reset forced successfully",

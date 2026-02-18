@@ -1,36 +1,24 @@
+use crate::database::{Pool, sql};
 use crate::server::installed_mods::mod_data::ModData;
 use crate::server::server_data::ServerData;
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
-use sqlx::{Executor, Row, MySqlPool};
+use sqlx::{Executor, Row as _};
 
-pub async fn initialize(pool: &MySqlPool) -> Result<()> {
-    pool.execute(
-        r#"CREATE TABLE IF NOT EXISTS installed_mods
-(
-    id            INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    mod_id        TEXT NOT NULL,
-    name          TEXT NOT NULL,
-    version       TEXT NOT NULL,
-    author        TEXT NOT NULL,
-    description   TEXT NOT NULL,
-    icon          TEXT,
-    modrinth_id   TEXT,
-    curseforge_id TEXT,
-    filename      TEXT,
-    server_id     INT UNSIGNED NOT NULL,
-    FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
-)
+#[cfg(feature = "sqlite")]
+static CREATE_INSTALLED_MODS_TABLE_SQL: &str = include_str!("../../../resources/sql/sqlite/installed_mods.sql");
+#[cfg(feature = "mysql")]
+static CREATE_INSTALLED_MODS_TABLE_SQL: &str = include_str!("../../../resources/sql/mysql/installed_mods.sql");
+#[cfg(feature = "postgres")]
+static CREATE_INSTALLED_MODS_TABLE_SQL: &str = include_str!("../../../resources/sql/postgres/installed_mods.sql");
 
-		"#,
-    )
-    .await?;
-
+pub async fn initialize(pool: &Pool) -> Result<()> {
+    pool.execute(CREATE_INSTALLED_MODS_TABLE_SQL).await?;
     Ok(())
 }
 
 impl ServerData {
-    pub async fn refresh_installed_mods(&self, pool: &MySqlPool) -> Result<()> {
+    pub async fn refresh_installed_mods(&self, pool: &Pool) -> Result<()> {
         // Get current mods from filesystem
         let filesystem_mods: Vec<ModData> = ModData::from_server(self).await?;
 
@@ -61,7 +49,7 @@ impl ServerData {
                 // Encode icon data as a base64 string if present
                 let icon_base64 = mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes));
 
-                sqlx::query(r#"insert into installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+                sqlx::query(&*sql(r#"insert into installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
                     .bind(&mod_data.mod_id)
                     .bind(&mod_data.name)
                     .bind(mod_data.version.to_string())
@@ -71,7 +59,7 @@ impl ServerData {
                     .bind(&mod_data.modrinth_id)
                     .bind(&mod_data.curseforge_id)
                     .bind(&mod_data.filename)
-                    .bind(self.id as u32)
+                    .bind(self.id as i64)
                     .execute(&mut *tx).await?;
             }
 
@@ -81,27 +69,27 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn load_installed_mods(&self, pool: &MySqlPool) -> Result<Vec<ModData>> {
-        let rows = sqlx::query(r#"SELECT * FROM installed_mods WHERE server_id = ?"#).bind(self.id as u32).fetch_all(pool).await?;
+    pub async fn load_installed_mods(&self, pool: &Pool) -> Result<Vec<ModData>> {
+        let rows = sqlx::query(&*sql(r#"SELECT * FROM installed_mods WHERE server_id = ?"#)).bind(self.id as i64).fetch_all(pool).await?;
 
         let mut mods = Vec::new();
         for row in rows {
-            let authors_str: String = row.get("author");
+            let authors_str: String = row.try_get("author")?;
             let authors: Vec<String> = authors_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
 
-            let icon_data: Option<String> = row.get("icon");
+            let icon_data: Option<String> = row.try_get("icon").ok();
             let icon: Option<Vec<u8>> = icon_data.and_then(|data| general_purpose::STANDARD.decode(data).ok());
 
             let mod_data = ModData {
-                mod_id: row.get("mod_id"),
-                name: row.get("name"),
-                version: row.get("version"),
-                description: row.get("description"),
+                mod_id: row.try_get("mod_id")?,
+                name: row.try_get("name")?,
+                version: row.try_get("version")?,
+                description: row.try_get("description")?,
                 authors,
                 icon,
-                modrinth_id: row.get("modrinth_id"),
-                curseforge_id: row.get("curseforge_id"),
-                filename: row.get("filename"),
+                modrinth_id: row.try_get("modrinth_id").ok(),
+                curseforge_id: row.try_get("curseforge_id").ok(),
+                filename: row.try_get("filename")?,
             };
             mods.push(mod_data);
         }
@@ -109,7 +97,7 @@ impl ServerData {
         Ok(mods)
     }
 
-    pub async fn load_and_save_installed_mods(&self, pool: &MySqlPool) -> Result<()> {
+    pub async fn load_and_save_installed_mods(&self, pool: &Pool) -> Result<()> {
         let mods: Vec<ModData> = ModData::from_server(self).await?;
 
         // Process mods in batches of 1000
@@ -120,7 +108,7 @@ impl ServerData {
                 // Encode icon data as base64 string if present
                 let icon_base64 = mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes));
 
-                sqlx::query(r#"insert into installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+                sqlx::query(&*sql(r#"insert into installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
 					.bind(&mod_data.mod_id)
 					.bind(&mod_data.name)
 					.bind(mod_data.version.to_string())
@@ -130,7 +118,7 @@ impl ServerData {
 					.bind(&mod_data.modrinth_id)
 					.bind(&mod_data.curseforge_id)
                     .bind(&mod_data.filename)
-					.bind(self.id as u32)
+					.bind(self.id as i64)
 					.execute(&mut *tx).await?;
             }
 
@@ -140,10 +128,10 @@ impl ServerData {
         Ok(())
     }
 
-    pub async fn insert_installed_mod(&self, mod_data: &ModData, pool: &MySqlPool) -> Result<()> {
+    pub async fn insert_installed_mod(&self, mod_data: &ModData, pool: &Pool) -> Result<()> {
         let icon_base64 = mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes));
 
-        sqlx::query(r#"insert into installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+        sqlx::query(&*sql(r#"insert into installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
             .bind(&mod_data.mod_id)
             .bind(&mod_data.name)
             .bind(mod_data.version.to_string())
@@ -153,13 +141,13 @@ impl ServerData {
             .bind(&mod_data.modrinth_id)
             .bind(&mod_data.curseforge_id)
             .bind(&mod_data.filename)
-            .bind(self.id as u32)
+            .bind(self.id as i64)
             .execute(pool).await?;
         Ok(())
     }
 
-    pub async fn delete_installed_mod(&self, filename: &str, pool: &MySqlPool) -> Result<()> {
-        sqlx::query(r#"delete from installed_mods where server_id = ? and filename = ?"#).bind(self.id as u32).bind(filename).execute(pool).await?;
+    pub async fn delete_installed_mod(&self, filename: &str, pool: &Pool) -> Result<()> {
+        sqlx::query(&*sql(r#"delete from installed_mods where server_id = ? and filename = ?"#)).bind(self.id as i64).bind(filename).execute(pool).await?;
 
         Ok(())
     }

@@ -3,9 +3,9 @@ use actix_web::HttpMessage;
 use anyhow::Result;
 use enumflags2::BitFlags;
 use serde::Deserialize;
-use sqlx::mysql::MySqlRow;
+use crate::database::Row;
 use sqlx::types::chrono::{DateTime, Utc};
-use sqlx::{Error, FromRow, Row};
+use sqlx::{Error, FromRow, Row as _};
 
 pub const TOKEN_KEY: &str = "obathtok_eP4j7XbF20KCn8k5YOjsnQ";
 
@@ -68,18 +68,17 @@ where
     Ok(Some(id))
 }
 
-impl<'a> FromRow<'a, MySqlRow> for UserData {
-    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
-        // MySQL INT returns as i32, convert to u64
-        let id: Option<u64> = row.try_get::<u32, _>("id").ok().map(|i| i as u64);
+impl<'a> FromRow<'a, Row> for UserData {
+    fn from_row(row: &'a Row) -> Result<Self, Error> {
+        let id: Option<u64> = row.try_get::<i64, _>("id").ok().map(|i| i as u64);
         let username: String = row.try_get("username")?;
         let password: String = row.try_get("password")?;
         let permissions: i32 = row.try_get("permissions")?;
         let permissions = BitFlags::<PermissionFlag>::from_bits_truncate(permissions as u16);
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
         let last_online: DateTime<Utc> = row.try_get("last_online")?;
-        let needs_password_change: i8 = row.try_get("needs_password_change")?;
-        let is_active: i8 = row.try_get("is_active")?;
+        let needs_password_change: i32 = row.try_get("needs_password_change")?;
+        let is_active: i32 = row.try_get("is_active")?;
         Ok(UserData {
             id,
             username,
@@ -148,8 +147,8 @@ impl UserData {
     }
 
     pub async fn authenticate_with_session_token(token: &str) -> Result<UserData> {
-        let pool = crate::app_db::open_pool().await?;
-        let user = UserData::login_with_token(token, &pool).await?;
+        let pool = crate::database::get_pool();
+        let user = UserData::login_with_token(token, pool).await?;
         if let Some(user) = user { Ok(user) } else { Err(anyhow::anyhow!("User doesn't exist or token is invalid")) }
     }
 }

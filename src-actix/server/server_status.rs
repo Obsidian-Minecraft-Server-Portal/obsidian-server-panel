@@ -1,20 +1,17 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use sqlx::encode::IsNull;
-use sqlx::error::BoxDynError;
-use sqlx::mysql::{MySqlTypeInfo, MySqlValueRef};
-use sqlx::{Decode, Encode, MySql, Type};
 use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, sqlx::Type)]
+#[repr(i32)]
 pub enum ServerStatus {
-    Idle,
-    Running,
-    Stopped,
-    Error,
-    Starting,
-    Stopping,
-    Crashed,
-    Hanging, // Added Hanging status
+    Idle = 0,
+    Running = 1,
+    Stopped = 2,
+    Error = 3,
+    Starting = 4,
+    Stopping = 5,
+    Crashed = 6,
+    Hanging = 7,
 }
 
 impl From<String> for ServerStatus {
@@ -88,30 +85,6 @@ impl From<ServerStatus> for u8 {
             ServerStatus::Crashed => 6,
             ServerStatus::Hanging => 7, // Added Hanging status
         }
-    }
-}
-
-impl Encode<'_, MySql> for ServerStatus {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        let value: u8 = self.clone().into();
-        <u8 as Encode<MySql>>::encode_by_ref(&value, buf)
-    }
-}
-
-impl<'r> Decode<'r, MySql> for ServerStatus {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        let int_value = <u8 as Decode<MySql>>::decode(value)?;
-        Ok(ServerStatus::from(int_value))
-    }
-}
-
-impl Type<MySql> for ServerStatus {
-    fn type_info() -> MySqlTypeInfo {
-        <u8 as Type<MySql>>::type_info()
-    }
-
-    fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <u8 as Type<MySql>>::compatible(ty)
     }
 }
 

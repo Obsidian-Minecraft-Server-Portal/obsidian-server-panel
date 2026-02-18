@@ -345,9 +345,8 @@ impl ServerData {
     // Notification helper functions
     async fn send_start_notification(&self) -> Result<()> {
         use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
-        use crate::app_db::open_pool;
 
-        let pool = open_pool().await?;
+        let pool = crate::database::get_pool();
         let server_id_hash = serde_hash::hashids::encode_single(self.id);
 
         let notification = NotificationData::create(
@@ -356,7 +355,7 @@ impl ServerData {
             NotificationType::System,
             NotificationActionType::StopServer.to_bits(),
             Some(server_id_hash.clone()),
-            &pool,
+            pool,
         )
         .await?;
 
@@ -379,9 +378,8 @@ impl ServerData {
 
     async fn send_stop_notification(&self) -> Result<()> {
         use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
-        use crate::app_db::open_pool;
 
-        let pool = open_pool().await?;
+        let pool = crate::database::get_pool();
         let server_id_hash = serde_hash::hashids::encode_single(self.id);
 
         let notification = NotificationData::create(
@@ -390,7 +388,7 @@ impl ServerData {
             NotificationType::System,
             NotificationActionType::StartServer.to_bits(),
             Some(server_id_hash.clone()),
-            &pool,
+            pool,
         )
         .await?;
 
@@ -413,9 +411,8 @@ impl ServerData {
 
     async fn send_crash_notification(&self) -> Result<()> {
         use crate::notifications::{NotificationActionType, NotificationData, NotificationType};
-        use crate::app_db::open_pool;
 
-        let pool = open_pool().await?;
+        let pool = crate::database::get_pool();
         let server_id_hash = serde_hash::hashids::encode_single(self.id);
 
         let notification = NotificationData::create(
@@ -424,7 +421,7 @@ impl ServerData {
             NotificationType::System,
             NotificationActionType::RestartServer.to_bits() | NotificationActionType::ViewDetails.to_bits(),
             Some(server_id_hash.clone()),
-            &pool,
+            pool,
         )
         .await?;
 

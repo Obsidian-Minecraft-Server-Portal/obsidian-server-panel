@@ -1,17 +1,14 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use sqlx::encode::IsNull;
-use sqlx::error::BoxDynError;
-use sqlx::mysql::{MySqlTypeInfo, MySqlValueRef};
-use sqlx::{Decode, Encode, MySql, Type};
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, sqlx::Type)]
+#[repr(i32)]
 pub enum ServerType {
-    Vanilla,
-    Forge,
-    Fabric,
-    NeoForge,
-    Quilt,
-    Custom,
+    Vanilla = 0,
+    Forge = 1,
+    Fabric = 2,
+    NeoForge = 3,
+    Quilt = 4,
+    Custom = 5,
 }
 
 impl From<u8> for ServerType {
@@ -65,31 +62,6 @@ impl From<ServerType> for String {
         }
     }
 }
-
-impl Encode<'_, MySql> for ServerType {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> Result<IsNull, BoxDynError> {
-        let value: u8 = self.clone().into();
-        <u8 as Encode<MySql>>::encode_by_ref(&value, buf)
-    }
-}
-
-impl<'r> Decode<'r, MySql> for ServerType {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        let int_value = <u8 as Decode<MySql>>::decode(value)?;
-        Ok(ServerType::from(int_value))
-    }
-}
-
-impl Type<MySql> for ServerType {
-    fn type_info() -> MySqlTypeInfo {
-        <u8 as Type<MySql>>::type_info()
-    }
-
-    fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <u8 as Type<MySql>>::compatible(ty)
-    }
-}
-
 
 impl<'de> Deserialize<'de> for ServerType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

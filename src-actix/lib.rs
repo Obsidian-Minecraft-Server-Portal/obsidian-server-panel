@@ -1,4 +1,3 @@
-use crate::app_db::open_pool;
 use crate::server::server_data::ServerData;
 use actix_util::asset_endpoint::AssetsAppConfig;
 use actix_web::Responder;
@@ -20,6 +19,7 @@ mod app_db;
 mod authentication;
 mod broadcast;
 mod command_line_args;
+pub mod database;
 mod forge_endpoint;
 mod host_info;
 mod java;
@@ -64,18 +64,17 @@ pub async fn run() -> Result<()> {
     // Initialize settings path
     settings::initialize_settings_path();
 
-    // Initialize the global database URL
-    app_db::set_database_url(args.database_url.clone());
+    // Create shared database pool (stored globally)
+    let pool = database::init_pool().await?;
 
     tokio::spawn(async {
+        let pool = database::get_pool();
         let result: Result<()> = async {
-            let pool = open_pool().await?;
-            app_db::initialize_databases(&pool).await?;
-            ServerData::initialize_servers(&pool).await?;
+            app_db::initialize_databases(pool).await?;
+            ServerData::initialize_servers(pool).await?;
 
             // Only refresh Java version map if expired (older than 1 day)
-            let is_expired = java::is_version_map_expired(&pool).await?;
-            pool.close().await;
+            let is_expired = java::is_version_map_expired(pool).await?;
 
             if is_expired {
                 java::refresh_java_minecraft_version_map().await?;
@@ -95,9 +94,9 @@ pub async fn run() -> Result<()> {
 
     // Start the backup scheduler
     tokio::spawn(async {
+        let pool = database::get_pool();
         let result: Result<()> = async {
-            let pool = open_pool().await?;
-            let mut backup_scheduler = server::backups::BackupScheduler::new(pool);
+            let mut backup_scheduler = server::backups::BackupScheduler::new(pool.clone());
             backup_scheduler.start().await?;
 
             // Keep the scheduler running
@@ -119,6 +118,7 @@ pub async fn run() -> Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
+            .app_data(web::Data::new(pool.clone()))
             .app_data(web::JsonConfig::default().limit(4096).error_handler(|err, _req| {
                 let error = json!({ "error": format!("{}", err) });
                 actix_web::error::InternalError::from_response(err, HttpResponse::BadRequest().json(error)).into()

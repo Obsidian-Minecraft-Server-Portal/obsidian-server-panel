@@ -1,5 +1,4 @@
 use super::update_data::UpdateInfo;
-use crate::app_db;
 use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use crate::server::server_type::ServerType;
@@ -100,25 +99,26 @@ impl UpdateService {
         info!("Server jar updated successfully");
 
         // 7. Update database record
-        let pool = app_db::open_pool().await?;
+        let pool = crate::database::get_pool();
 
         match server.server_type {
             Some(ServerType::Vanilla) => {
                 // For vanilla, update minecraft_version
                 server.minecraft_version = Some(update_info.latest_version.clone());
-                sqlx::query(
+                sqlx::query(&*crate::database::sql(
                     r#"
                     UPDATE servers
                     SET minecraft_version = ?,
                         update_available = 0,
                         latest_version = NULL,
-                        updated_at = UNIX_TIMESTAMP()
+                        updated_at = ?
                     WHERE id = ?
                     "#
-                )
+                ))
                 .bind(&update_info.latest_version)
-                .bind(server.id as u32)
-                .execute(&pool)
+                .bind(chrono::Utc::now().timestamp())
+                .bind(server.id as i64)
+                .execute(pool)
                 .await?;
             }
             Some(ServerType::Fabric)
@@ -127,19 +127,20 @@ impl UpdateService {
             | Some(ServerType::Quilt) => {
                 // For loaders, update loader_version
                 server.loader_version = Some(update_info.latest_version.clone());
-                sqlx::query(
+                sqlx::query(&*crate::database::sql(
                     r#"
                     UPDATE servers
                     SET loader_version = ?,
                         update_available = 0,
                         latest_version = NULL,
-                        updated_at = UNIX_TIMESTAMP()
+                        updated_at = ?
                     WHERE id = ?
                     "#
-                )
+                ))
                 .bind(&update_info.latest_version)
-                .bind(server.id as u32)
-                .execute(&pool)
+                .bind(chrono::Utc::now().timestamp())
+                .bind(server.id as i64)
+                .execute(pool)
                 .await?;
             }
             _ => {}
@@ -147,8 +148,6 @@ impl UpdateService {
 
         server.update_available = false;
         server.latest_version = None;
-
-        pool.close().await;
 
         info!(
             "Server '{}' updated successfully to version {}",

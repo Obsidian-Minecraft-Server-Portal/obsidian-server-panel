@@ -8,9 +8,4 @@ pub struct CommandLineArgs {
 
 	#[arg(long, default_value = "false")]
 	pub forward_webpanel: bool,
-
-	/// MySQL connection string (e.g., mysql://user:password@host:port/database)
-	/// Can also be set via DATABASE_URL environment variable
-	#[arg(long, short = 'd', env = "DATABASE_URL")]
-	pub database_url: String,
 }

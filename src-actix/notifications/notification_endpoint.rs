@@ -1,4 +1,3 @@
-use crate::app_db::open_pool;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::notifications::notification_data::{NotificationCommand, NotificationData, NotificationMessage};
 use actix::{Actor, ActorContext, AsyncContext, Handler, Message as ActixMessage, StreamHandler, WrapFuture};
@@ -44,22 +43,18 @@ impl Actor for NotificationWebSocket {
         let addr = ctx.address();
         ctx.spawn(
             async move {
-                match open_pool().await {
-                    Ok(pool) => match NotificationData::get_for_user(user_id, &pool).await {
-                        Ok(notifications) => {
-                            let msg = NotificationMessage::InitialList { notifications };
-                            addr.do_send(SendMessage(msg));
-                        }
-                        Err(e) => {
-                            error!("Failed to fetch notifications for user {}: {}", user_id, e);
-                            let msg = NotificationMessage::Error {
-                                message: "Failed to load notifications".to_string(),
-                            };
-                            addr.do_send(SendMessage(msg));
-                        }
-                    },
+                let pool = crate::database::get_pool();
+                match NotificationData::get_for_user(user_id, pool).await {
+                    Ok(notifications) => {
+                        let msg = NotificationMessage::InitialList { notifications };
+                        addr.do_send(SendMessage(msg));
+                    }
                     Err(e) => {
-                        error!("Failed to open database pool: {}", e);
+                        error!("Failed to fetch notifications for user {}: {}", user_id, e);
+                        let msg = NotificationMessage::Error {
+                            message: "Failed to load notifications".to_string(),
+                        };
+                        addr.do_send(SendMessage(msg));
                     }
                 }
             }
@@ -147,23 +142,23 @@ async fn handle_notification_command(
     user_id: u64,
     addr: actix::Addr<NotificationWebSocket>,
 ) -> Result<()> {
-    let pool = open_pool().await?;
+    let pool = crate::database::get_pool();
 
     match command {
         NotificationCommand::MarkAsRead { id } => {
-            NotificationData::mark_as_read(&id, user_id, &pool).await?;
+            NotificationData::mark_as_read(&id, user_id, pool).await?;
             addr.do_send(SendMessage(NotificationMessage::MarkAsRead { id }));
         }
         NotificationCommand::MarkAllAsRead => {
-            NotificationData::mark_all_as_read(user_id, &pool).await?;
+            NotificationData::mark_all_as_read(user_id, pool).await?;
             addr.do_send(SendMessage(NotificationMessage::MarkAllAsRead));
         }
         NotificationCommand::DeleteNotification { id } => {
-            NotificationData::hide_for_user(&id, user_id, &pool).await?;
+            NotificationData::hide_for_user(&id, user_id, pool).await?;
             addr.do_send(SendMessage(NotificationMessage::DeleteNotification { id }));
         }
         NotificationCommand::DeleteAllNotifications => {
-            NotificationData::hide_all_for_user(user_id, &pool).await?;
+            NotificationData::hide_all_for_user(user_id, pool).await?;
             addr.do_send(SendMessage(NotificationMessage::DeleteAllNotifications));
         }
     }

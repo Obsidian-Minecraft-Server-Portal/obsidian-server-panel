@@ -1,17 +1,23 @@
+use crate::database::{Pool, sql};
 use anyhow::Result;
 use log::debug;
-use sqlx::{Executor, MySqlPool};
+use sqlx::Executor;
 use std::collections::HashMap;
 
-static CREATE_JAVA_VERSION_MAP_TABLE_SQL: &str = include_str!("../../resources/sql/java_version_map.sql");
+#[cfg(feature = "sqlite")]
+static CREATE_JAVA_VERSION_MAP_TABLE_SQL: &str = include_str!("../../resources/sql/sqlite/java_version_map.sql");
+#[cfg(feature = "mysql")]
+static CREATE_JAVA_VERSION_MAP_TABLE_SQL: &str = include_str!("../../resources/sql/mysql/java_version_map.sql");
+#[cfg(feature = "postgres")]
+static CREATE_JAVA_VERSION_MAP_TABLE_SQL: &str = include_str!("../../resources/sql/postgres/java_version_map.sql");
 
-pub async fn initialize(pool: &MySqlPool) -> Result<()> {
+pub async fn initialize(pool: &Pool) -> Result<()> {
     debug!("Initializing java version map database...");
     pool.execute(CREATE_JAVA_VERSION_MAP_TABLE_SQL).await?;
     Ok(())
 }
 
-pub async fn save_version_map(map: &HashMap<String, (String, String)>, pool: &MySqlPool) -> Result<()> {
+pub async fn save_version_map(map: &HashMap<String, (String, String)>, pool: &Pool) -> Result<()> {
     // Clear existing data
     sqlx::query("DELETE FROM java_version_map").execute(pool).await?;
 
@@ -19,7 +25,7 @@ pub async fn save_version_map(map: &HashMap<String, (String, String)>, pool: &My
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     for (java_version, (min_version, max_version)) in map {
         sqlx::query(
-            r#"INSERT INTO java_version_map (java_version, min_version, max_version, updated_at) VALUES (?, ?, ?, ?)"#
+            &*sql(r#"INSERT INTO java_version_map (java_version, min_version, max_version, updated_at) VALUES (?, ?, ?, ?)"#)
         )
         .bind(java_version)
         .bind(min_version)
@@ -32,7 +38,7 @@ pub async fn save_version_map(map: &HashMap<String, (String, String)>, pool: &My
     Ok(())
 }
 
-pub async fn load_version_map(pool: &MySqlPool) -> Result<HashMap<String, (String, String)>> {
+pub async fn load_version_map(pool: &Pool) -> Result<HashMap<String, (String, String)>> {
     let rows = sqlx::query_as::<_, (String, String, String)>(
         r#"SELECT java_version, min_version, max_version FROM java_version_map"#
     )
@@ -48,7 +54,7 @@ pub async fn load_version_map(pool: &MySqlPool) -> Result<HashMap<String, (Strin
 }
 
 /// Check if the Java version map is expired (older than 1 day) or empty
-pub async fn is_version_map_expired(pool: &MySqlPool) -> Result<bool> {
+pub async fn is_version_map_expired(pool: &Pool) -> Result<bool> {
     // Check if the table has any entries
     let count: (i64,) = sqlx::query_as(r#"SELECT COUNT(*) FROM java_version_map"#)
         .fetch_one(pool)

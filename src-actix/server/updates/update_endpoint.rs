@@ -1,6 +1,5 @@
 use super::{update_checker::UpdateChecker, update_service::UpdateService};
 use crate::actix_util::http_error::Result;
-use crate::app_db;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::server::server_data::ServerData;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
@@ -46,10 +45,10 @@ async fn check_updates(
     match UpdateChecker::check_for_updates(&server).await {
         Ok(Some(update_info)) => {
             // Update database with latest version info
-            let pool = app_db::open_pool().await?;
+            let pool = crate::database::get_pool();
             let now = chrono::Utc::now().timestamp();
 
-            sqlx::query(
+            sqlx::query(&*crate::database::sql(
                 r#"
                 UPDATE servers
                 SET update_available = 1,
@@ -57,14 +56,12 @@ async fn check_updates(
                     last_update_check = ?
                 WHERE id = ?
                 "#
-            )
+            ))
             .bind(&update_info.latest_version)
             .bind(now)
-            .bind(server_id as u32)
-            .execute(&pool)
+            .bind(server_id as i64)
+            .execute(pool)
             .await?;
-
-            pool.close().await;
 
             info!(
                 "Update available for server '{}': {} -> {}",
@@ -75,10 +72,10 @@ async fn check_updates(
         }
         Ok(None) => {
             // No update available, update last check timestamp
-            let pool = app_db::open_pool().await?;
+            let pool = crate::database::get_pool();
             let now = chrono::Utc::now().timestamp();
 
-            sqlx::query(
+            sqlx::query(&*crate::database::sql(
                 r#"
                 UPDATE servers
                 SET update_available = 0,
@@ -86,13 +83,11 @@ async fn check_updates(
                     last_update_check = ?
                 WHERE id = ?
                 "#
-            )
+            ))
             .bind(now)
-            .bind(server_id as u32)
-            .execute(&pool)
+            .bind(server_id as i64)
+            .execute(pool)
             .await?;
-
-            pool.close().await;
 
             info!(
                 "Server '{}' is up to date",
