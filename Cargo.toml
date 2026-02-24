@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/backups", "crates/installer/*", "crates/scheduler"]
+members = ["crates/backups", "crates/installer/lib", "crates/installer/app", "crates/scheduler", "crates/modrinth", "crates/curseforge"]
 
 [package]
 name = "obsidian_server_panel"
@@ -60,7 +60,7 @@ clap = { version = "4.5.42", features = ["error-context", "derive", "help", "sug
 rand = "0.9.1"
 obsidian-scheduler = { path="crates/scheduler", features = ["event-timers", "log", "callback-timers"] }
 obsidian-backups = { path = "crates/backups", features = ["serde", "logging", "zip", "async-stream"] }
-oim = { path = "crates/installer" }
+oim = { path = "crates/installer/lib" }
 easy-upnp = { version = "0.3.0" }
 
 [build-dependencies]
