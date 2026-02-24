@@ -659,7 +659,7 @@ export function ServerBackups()
                             onSelectionChange={(keys) => setCreateBackupType(Array.from(keys)[0] as string)}
                         >
                             <SelectItem key="0">Incremental Backup</SelectItem>
-                            {worldEditInstalled && <SelectItem key="1">World Only</SelectItem>}
+                            {worldEditInstalled ? <SelectItem key="1">World Only</SelectItem> : null}
                         </Select>
                         {!worldEditInstalled && (
                             <div className="text-sm text-warning-600 bg-warning-50 p-2 rounded">
@@ -740,7 +740,7 @@ export function ServerBackups()
                             onSelectionChange={(keys) => setScheduleForm({...scheduleForm, backupType: parseInt(Array.from(keys)[0] as string)})}
                         >
                             <SelectItem key="0">Incremental Backup</SelectItem>
-                            {worldEditInstalled && <SelectItem key="1">World Only</SelectItem>}
+                            {worldEditInstalled ? <SelectItem key="1">World Only</SelectItem> : null}
                         </Select>
 
                         {!worldEditInstalled && (
