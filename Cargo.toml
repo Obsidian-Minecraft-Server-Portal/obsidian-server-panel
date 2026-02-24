@@ -61,7 +61,7 @@ rand = "0.9.1"
 obsidian-scheduler = { path="crates/scheduler", features = ["event-timers", "log", "callback-timers"] }
 obsidian-backups = { path = "crates/backups", features = ["serde", "logging", "zip", "async-stream"] }
 oim = { path = "crates/installer/lib" }
-easy-upnp = { version = "0.3.0" }
+obsidian-upnp = { path = "crates/upnp" }
 modrinth = { path = "crates/modrinth" }
 curseforge = { path = "crates/curseforge" }
 obsidian_database = {path="crates/app_db"}

@@ -4,7 +4,7 @@ use crate::server::server_data::ServerData;
 use crate::server::server_status::ServerStatus;
 use anyhow::Result;
 use log::{debug, error, warn};
-use easy_upnp::{add_ports, PortMappingProtocol, UpnpConfig};
+use obsidian_upnp::{UpnpManager, PortMappingProtocol};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -50,20 +50,17 @@ impl ServerData {
                 let port = properties.server_port.unwrap_or(25565) as u16;
                 debug!("Opening port {} for server {}", port, self.id);
 
-                let config = UpnpConfig {
-                    address: None,
-                    port,
-                    protocol: PortMappingProtocol::TCP,
-                    duration: 0, // 0 means indefinite or default lease time
-                    comment: format!("Minecraft Server {}", self.id),
-                };
-
-                for result in add_ports(vec![config]) {
-                    if let Err(e) = result {
-                        error!("Failed to open UPnP port {} for server {}: {}", port, self.id, e);
-                    } else {
-                        debug!("Successfully opened UPnP port {} for server {}", port, self.id);
-                    }
+                if let Err(e) = UpnpManager::global()
+                    .add_port(
+                        port,
+                        format!("Minecraft Server {}", self.id),
+                        PortMappingProtocol::TCP,
+                    )
+                    .await
+                {
+                    error!("Failed to open UPnP port {} for server {}: {}", port, self.id, e);
+                } else {
+                    debug!("Successfully opened UPnP port {} for server {}", port, self.id);
                 }
             }
         }
@@ -218,6 +215,16 @@ impl ServerData {
         self.status = ServerStatus::Stopped;
         self.save().await?;
 
+        // Clean up UPnP port mapping if it was enabled
+        if self.upnp {
+            if let Ok(properties) = self.get_server_properties() {
+                let port = properties.server_port.unwrap_or(25565) as u16;
+                if let Err(e) = UpnpManager::global().remove_port(port).await {
+                    error!("Failed to remove UPnP port {} for server {}: {}", port, self.id, e);
+                }
+            }
+        }
+
         // Broadcast server status change
         broadcast::broadcast(BroadcastMessage::ServerUpdate {
             server: self.clone(),
@@ -239,6 +246,16 @@ impl ServerData {
         }
         self.status = ServerStatus::Crashed;
         self.save().await?;
+
+        // Clean up UPnP port mapping if it was enabled
+        if self.upnp {
+            if let Ok(properties) = self.get_server_properties() {
+                let port = properties.server_port.unwrap_or(25565) as u16;
+                if let Err(e) = UpnpManager::global().remove_port(port).await {
+                    error!("Failed to remove UPnP port {} for server {}: {}", port, self.id, e);
+                }
+            }
+        }
 
         // Broadcast server status change
         broadcast::broadcast(BroadcastMessage::ServerUpdate {
