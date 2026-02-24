@@ -27,6 +27,7 @@ mod notifications;
 mod server;
 mod settings;
 mod updater;
+mod platforms;
 
 pub static DEBUG: bool = cfg!(debug_assertions);
 static ICON: &[u8] = include_bytes!("../resources/logo/icon.ico");
@@ -134,7 +135,9 @@ pub async fn run() -> Result<()> {
                         .configure(server::configure)
                         .configure(settings::configure)
                         .configure(updater::configure)
-                        .configure(broadcast::updates_endpoint::configure),
+                        .configure(broadcast::updates_endpoint::configure)
+                        .configure(platforms::configure)
+                    ,
                 ),
             )
             .configure_frontend_routes()
