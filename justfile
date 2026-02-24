@@ -25,19 +25,19 @@ dev-frontend:
 
 # Build backend for a single database feature (debug)
 build-backend feature="sqlite":
-    cargo build --features {{feature}}
+    cargo build --features {{ feature }}
 
 # Build backend for a single database feature (release)
 build-backend-release feature="sqlite":
-    cargo build --release --features {{feature}}
+    cargo build --release --features {{ feature }}
 
 # Run clippy for a single database feature
 clippy feature="sqlite":
-    cargo clippy --features {{feature}}
+    cargo clippy --features {{ feature }}
 
 # Run tests for a single database feature
 test feature="sqlite":
-    cargo test --features {{feature}}
+    cargo test --features {{ feature }}
 
 # ─── Full Build ────────────────────────────────────────────
 
@@ -50,20 +50,19 @@ build-all: build-frontend (_build-and-package "sqlite") (_build-and-package "mys
 # Internal: build release binary for a feature and package it into a zip
 [private]
 _build-and-package feature:
-    cargo build --release --features {{feature}}
-    just _package {{feature}}
+    cargo build --release --features {{ feature }}
+    just _package {{ feature }}
 
 # Internal: copy binary + wwwroot into a zip archive
 [private]
 [windows]
 _package feature:
-    if (!(Test-Path "{{dist_dir}}")) { New-Item -ItemType Directory -Path "{{dist_dir}}" | Out-Null }
-    $staging = "{{dist_dir}}/_staging"; \
+    if (!(Test-Path "{{ dist_dir }}")) { New-Item -ItemType Directory -Path "{{ dist_dir }}" | Out-Null }
+    $staging = "{{ dist_dir }}/_staging"; \
     if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }; \
     New-Item -ItemType Directory -Path $staging | Out-Null; \
-    Copy-Item "target/release/{{bin_name}}.exe" $staging; \
-    if (Test-Path "target/wwwroot") { Copy-Item "target/wwwroot" $staging -Recurse }; \
-    $zip = "{{dist_dir}}/obsidian-server-{{os()}}-{{arch()}}-{{feature}}.zip"; \
+    Copy-Item "target/release/{{ bin_name }}.exe" $staging; \
+    $zip = "{{ dist_dir }}/obsidian-server-{{ os() }}-{{ arch() }}-{{ feature }}.zip"; \
     if (Test-Path $zip) { Remove-Item $zip -Force }; \
     Compress-Archive -Path "$staging/*" -DestinationPath $zip; \
     Remove-Item $staging -Recurse -Force; \
@@ -72,26 +71,25 @@ _package feature:
 [private]
 [unix]
 _package feature:
-    mkdir -p "{{dist_dir}}/_staging"
-    cp "target/release/{{bin_name}}" "{{dist_dir}}/_staging/"
-    if [ -d "target/wwwroot" ]; then cp -r "target/wwwroot" "{{dist_dir}}/_staging/"; fi
-    cd "{{dist_dir}}/_staging" && zip -r "../obsidian-server-{{os()}}-{{arch()}}-{{feature}}.zip" .
-    rm -rf "{{dist_dir}}/_staging"
-    @echo "Packaged: {{dist_dir}}/obsidian-server-{{os()}}-{{arch()}}-{{feature}}.zip"
+    mkdir -p "{{ dist_dir }}/_staging"
+    cp "target/release/{{ bin_name }}" "{{ dist_dir }}/_staging/"
+    cd "{{ dist_dir }}/_staging" && zip -r "../obsidian-server-{{ os() }}-{{ arch() }}-{{ feature }}.zip" .
+    rm -rf "{{ dist_dir }}/_staging"
+    @echo "Packaged: {{ dist_dir }}/obsidian-server-{{ os() }}-{{ arch() }}-{{ feature }}.zip"
 
 # ─── Development ───────────────────────────────────────────
 
 # Run the backend in debug mode (sqlite)
 run feature="sqlite":
-    cargo run --features {{feature}}
+    cargo run --features {{ feature }}
 
 # Run the backend in release mode (sqlite)
 run-release feature="sqlite":
-    cargo run --release --features {{feature}}
+    cargo run --release --features {{ feature }}
 
 # Watch for backend changes and rebuild (sqlite)
 watch feature="sqlite":
-    cargo watch -x "run --features {{feature}}"
+    cargo watch -x "run --features {{ feature }}"
 
 # ─── Quality ───────────────────────────────────────────────
 
