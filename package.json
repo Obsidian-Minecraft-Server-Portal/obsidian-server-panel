@@ -8,14 +8,9 @@
   "repository": "",
   "type": "module",
   "scripts": {
-    "build-api": "cargo build --release",
-    "build-api-wsl": "wsl bash -ic \"cargo build --release\"",
-    "run-api": "cargo run --bin obsidian_server_panel",
-    "dev": "vite",
-    "build-frontend": "tsc && vite build",
-    "watch": "cargo watch -x \"run --bin obsidian_server_panel\" -C dist -N --why -w ../src-actix/",
-    "build": "npm run \"build-frontend\" && npm run \"build-api\"",
-    "build-wsl": "npm run \"build-frontend\" && npm run \"build-api-wsl\""
+    "dev": "cargo run --release",
+    "build:frontend": "tsc && vite build",
+    "build": "npm run build:frontend && cargo build --release"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

@@ -1,0 +1,17 @@
+name: publish-ghcr.yml
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and push the image
+        run: |
+          docker login -u drew-chase -p ${{ secrets.GH_TOK }} ghcr.io
+          docker build --build-arg -t ghcr.io/Obsidian-Minecraft-Server-Portal/server:latest .
+          docker push ghcr.io/Obsidian-Minecraft-Server-Portal/server:latest
