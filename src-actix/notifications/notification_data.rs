@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use sqlx::mysql::MySqlRow;
-use sqlx::{Error, FromRow, Row};
+use crate::database::Row;
+use sqlx::{Error, FromRow, Row as _};
 use sqlx::types::chrono::{DateTime, Utc};
 
 /// Notification action types as bitflags matching the frontend enum
@@ -77,8 +77,8 @@ pub struct NotificationData {
     pub referenced_server: Option<String>,
 }
 
-impl<'a> FromRow<'a, MySqlRow> for NotificationData {
-    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
+impl<'a> FromRow<'a, Row> for NotificationData {
+    fn from_row(row: &'a Row) -> Result<Self, Error> {
         Ok(NotificationData {
             id: row.try_get("id")?,
             title: row.try_get("title")?,
@@ -100,13 +100,13 @@ pub struct UserNotification {
     pub is_hidden: bool,
 }
 
-impl<'a> FromRow<'a, MySqlRow> for UserNotification {
-    fn from_row(row: &'a MySqlRow) -> Result<Self, Error> {
+impl<'a> FromRow<'a, Row> for UserNotification {
+    fn from_row(row: &'a Row) -> Result<Self, Error> {
         Ok(UserNotification {
             user_id: row.try_get::<u32, _>("user_id")? as u64,
             notification_id: row.try_get("notification_id")?,
-            is_read: row.try_get::<i8, _>("is_read")? != 0,
-            is_hidden: row.try_get::<i8, _>("is_hidden")? != 0,
+            is_read: row.try_get::<i32, _>("is_read")? != 0,
+            is_hidden: row.try_get::<i32, _>("is_hidden")? != 0,
         })
     }
 }
