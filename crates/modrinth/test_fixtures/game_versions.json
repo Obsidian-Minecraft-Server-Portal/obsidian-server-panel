@@ -1,0 +1,26 @@
+[
+  {
+    "version": "1.21.4",
+    "version_type": "release",
+    "date": "2024-12-03T00:00:00Z",
+    "major": true
+  },
+  {
+    "version": "1.20.4",
+    "version_type": "release",
+    "date": "2023-12-07T00:00:00Z",
+    "major": true
+  },
+  {
+    "version": "1.20.1",
+    "version_type": "release",
+    "date": "2023-06-12T00:00:00Z",
+    "major": false
+  },
+  {
+    "version": "24w03a",
+    "version_type": "snapshot",
+    "date": "2024-01-18T00:00:00Z",
+    "major": false
+  }
+]

@@ -155,7 +155,7 @@ export async function checkModrinthUpdate(
 {
     try
     {
-        const response = await fetch(`https://api.modrinth.com/v2/project/${modrinthId}/version`);
+        const response = await fetch(`/api/platform/modrinth/project/${modrinthId}/versions`);
         if (!response.ok)
         {
             console.warn(`Failed to fetch Modrinth versions for ${modrinthId}: ${response.status}`);

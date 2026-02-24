@@ -12,7 +12,9 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/installer/app/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/installer/lib/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/installer/lib/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/modrinth/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/modrinth/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/modrinth/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/crates/scheduler/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/scheduler/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />

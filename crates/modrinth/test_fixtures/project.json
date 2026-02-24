@@ -1,0 +1,48 @@
+{
+  "id": "AANobbMI",
+  "slug": "sodium",
+  "title": "Sodium",
+  "description": "The fastest client-side rendering optimizations for Minecraft",
+  "body": "# Sodium\n\nSodium is a free and open-source rendering engine replacement for the Minecraft client.",
+  "categories": ["optimization"],
+  "client_side": "required",
+  "server_side": "unsupported",
+  "project_type": "mod",
+  "downloads": 50000000,
+  "icon_url": "https://cdn.modrinth.com/data/AANobbMI/icon.png",
+  "followers": 250000,
+  "license": {
+    "id": "LGPL-3.0-only",
+    "name": "GNU Lesser General Public License v3.0 only",
+    "url": "https://cdn.modrinth.com/licenses/lgpl-3.0.txt"
+  },
+  "versions": ["ver1", "ver2", "ver3"],
+  "game_versions": ["1.20.1", "1.20.2", "1.20.4"],
+  "loaders": ["fabric"],
+  "published": "2021-01-01T00:00:00Z",
+  "updated": "2024-06-15T12:00:00Z",
+  "source_url": "https://github.com/CaffeineMC/sodium-fabric",
+  "issues_url": "https://github.com/CaffeineMC/sodium-fabric/issues",
+  "wiki_url": null,
+  "discord_url": "https://caffeinemc.net/discord",
+  "donation_urls": [
+    {
+      "id": "github-sponsors",
+      "platform": "GitHub Sponsors",
+      "url": "https://github.com/sponsors/jellysquid3"
+    }
+  ],
+  "gallery": [
+    {
+      "url": "https://cdn.modrinth.com/data/AANobbMI/images/gallery.png",
+      "featured": true,
+      "title": "Performance comparison",
+      "description": "FPS comparison chart",
+      "created": "2024-01-15T00:00:00Z",
+      "ordering": 0
+    }
+  ],
+  "team": "team123",
+  "status": "approved",
+  "color": 12345
+}

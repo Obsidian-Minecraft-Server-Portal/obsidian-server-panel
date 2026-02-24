@@ -25,7 +25,7 @@ export async function searchModrinthModpacks(params: {
         facets.push(["project_type:modpack"]);
         searchParams.set("facets", JSON.stringify(facets));
 
-        const response = await fetch(`https://api.modrinth.com/v2/search?${searchParams}`);
+        const response = await fetch(`/api/platform/modrinth/search?${searchParams}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
@@ -50,7 +50,7 @@ export async function searchModrinthModpacks(params: {
 
 export async function fetchModrinthModpackDetails(projectId: string): Promise<ModpackDetails>
 {
-    const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}`);
+    const response = await fetch(`/api/platform/modrinth/project/${projectId}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
@@ -81,7 +81,7 @@ export async function fetchModrinthModpackDetails(projectId: string): Promise<Mo
 
 export async function fetchModrinthModpackVersions(projectId: string): Promise<ModpackVersion[]>
 {
-    const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`);
+    const response = await fetch(`/api/platform/modrinth/project/${projectId}/versions`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 

@@ -1,0 +1,53 @@
+{
+  "hits": [
+    {
+      "slug": "sodium",
+      "title": "Sodium",
+      "description": "The fastest client-side rendering optimizations for Minecraft",
+      "categories": ["optimization", "fabric"],
+      "client_side": "required",
+      "server_side": "unsupported",
+      "project_type": "mod",
+      "downloads": 50000000,
+      "icon_url": "https://cdn.modrinth.com/data/AANobbMI/icon.png",
+      "color": 12345,
+      "project_id": "AANobbMI",
+      "author": "jellysquid3",
+      "display_categories": ["optimization", "fabric"],
+      "versions": ["1.20.1", "1.20.2", "1.20.4"],
+      "follows": 250000,
+      "date_created": "2021-01-01T00:00:00Z",
+      "date_modified": "2024-06-15T12:00:00Z",
+      "latest_version": "mc1.20.4-0.5.8",
+      "license": "LGPL-3.0-only",
+      "gallery": [],
+      "featured_gallery": null
+    },
+    {
+      "slug": "lithium",
+      "title": "Lithium",
+      "description": "No-compromises game logic/server optimization mod",
+      "categories": ["optimization", "fabric"],
+      "client_side": "optional",
+      "server_side": "optional",
+      "project_type": "mod",
+      "downloads": 30000000,
+      "icon_url": "https://cdn.modrinth.com/data/gvQqBUqZ/icon.png",
+      "color": null,
+      "project_id": "gvQqBUqZ",
+      "author": "jellysquid3",
+      "display_categories": ["optimization", "fabric"],
+      "versions": ["1.20.1", "1.20.4"],
+      "follows": 150000,
+      "date_created": "2021-01-01T00:00:00Z",
+      "date_modified": "2024-06-10T12:00:00Z",
+      "latest_version": "mc1.20.4-0.12.1",
+      "license": "LGPL-3.0-only",
+      "gallery": [],
+      "featured_gallery": null
+    }
+  ],
+  "offset": 0,
+  "limit": 10,
+  "total_hits": 2
+}

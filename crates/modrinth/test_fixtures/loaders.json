@@ -1,0 +1,22 @@
+[
+  {
+    "icon": "<svg>...</svg>",
+    "name": "fabric",
+    "supported_project_types": ["mod", "modpack"]
+  },
+  {
+    "icon": "<svg>...</svg>",
+    "name": "forge",
+    "supported_project_types": ["mod", "modpack"]
+  },
+  {
+    "icon": "<svg>...</svg>",
+    "name": "neoforge",
+    "supported_project_types": ["mod", "modpack"]
+  },
+  {
+    "icon": "<svg>...</svg>",
+    "name": "quilt",
+    "supported_project_types": ["mod", "modpack"]
+  }
+]

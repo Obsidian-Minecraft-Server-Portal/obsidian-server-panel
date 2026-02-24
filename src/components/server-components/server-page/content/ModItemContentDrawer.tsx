@@ -58,7 +58,7 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
     // Details fetchers (scoped here for the Drawer)
     const fetchModrinthProject = useCallback(async (projectId: string): Promise<ModDetails> =>
     {
-        const response = await fetch(`https://api.modrinth.com/v2/project/${projectId}`);
+        const response = await fetch(`/api/platform/modrinth/project/${projectId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         return {

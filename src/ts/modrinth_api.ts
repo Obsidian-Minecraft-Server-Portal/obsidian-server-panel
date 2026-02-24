@@ -61,7 +61,7 @@ export default class Modrinth {
     private readonly base_url: string;
 
     constructor() {
-        this.base_url = "https://api.modrinth.com/v2";
+        this.base_url = "/api/platform/modrinth";
     }
 
     static getInstance(): Modrinth {
@@ -69,11 +69,8 @@ export default class Modrinth {
     }
 
     async categories(): Promise<ModrinthCategory[]> {
-        const response = await fetch(`${this.base_url}/tag/category`, {
+        const response = await fetch(`${this.base_url}/tags/categories`, {
             method: "GET",
-            headers: {
-                "User-Agent": "obsidian-server-panel/1.0.0"
-            }
         });
 
         if (!response.ok) {
@@ -84,11 +81,8 @@ export default class Modrinth {
     }
 
     async gameVersions(): Promise<ModrinthGameVersion[]> {
-        const response = await fetch(`${this.base_url}/tag/game_version`, {
+        const response = await fetch(`${this.base_url}/tags/game-versions`, {
             method: "GET",
-            headers: {
-                "User-Agent": "obsidian-server-panel/1.0.0"
-            }
         });
 
         if (!response.ok) {
@@ -99,11 +93,8 @@ export default class Modrinth {
     }
 
     async loaders(): Promise<ModrinthLoader[]> {
-        const response = await fetch(`${this.base_url}/tag/loader`, {
+        const response = await fetch(`${this.base_url}/tags/loaders`, {
             method: "GET",
-            headers: {
-                "User-Agent": "obsidian-server-panel/1.0.0"
-            }
         });
 
         if (!response.ok) {
@@ -114,7 +105,7 @@ export default class Modrinth {
     }
 
     async search(options: SearchOptions, abortSignal: AbortSignal): Promise<ModrinthSearchResult> {
-        const url = new URL(`${this.base_url}/search`);
+        const url = new URL(`${this.base_url}/search`, window.location.origin);
 
         if (options.query) {
             url.searchParams.append("query", options.query);
@@ -138,9 +129,6 @@ export default class Modrinth {
 
         const response = await fetch(url.toString(), {
             method: "GET",
-            headers: {
-                "User-Agent": "obsidian-server-panel/1.0.0"
-            },
             signal: abortSignal
         });
 

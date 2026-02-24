@@ -1,0 +1,71 @@
+[
+  {
+    "id": "ver1",
+    "project_id": "AANobbMI",
+    "author_id": "author1",
+    "name": "Sodium 0.5.8",
+    "version_number": "mc1.20.4-0.5.8",
+    "changelog": "## Changes\n- Fixed rendering issues\n- Performance improvements",
+    "dependencies": [
+      {
+        "version_id": null,
+        "project_id": "P7dR8mSH",
+        "file_name": null,
+        "dependency_type": "required"
+      }
+    ],
+    "game_versions": ["1.20.4"],
+    "version_type": "release",
+    "loaders": ["fabric"],
+    "featured": true,
+    "status": "listed",
+    "requested_status": null,
+    "date_published": "2024-06-15T12:00:00Z",
+    "downloads": 1000000,
+    "changelog_url": null,
+    "files": [
+      {
+        "hashes": {
+          "sha512": "abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123456789",
+          "sha1": "abc123def456abc123def456abc123456789ab"
+        },
+        "url": "https://cdn.modrinth.com/data/AANobbMI/versions/ver1/sodium-fabric-0.5.8.jar",
+        "filename": "sodium-fabric-0.5.8.jar",
+        "primary": true,
+        "size": 1234567,
+        "file_type": null
+      }
+    ]
+  },
+  {
+    "id": "ver2",
+    "project_id": "AANobbMI",
+    "author_id": "author1",
+    "name": "Sodium 0.5.7",
+    "version_number": "mc1.20.1-0.5.7",
+    "changelog": "## Changes\n- Bug fixes",
+    "dependencies": [],
+    "game_versions": ["1.20.1"],
+    "version_type": "release",
+    "loaders": ["fabric"],
+    "featured": false,
+    "status": "listed",
+    "requested_status": null,
+    "date_published": "2024-05-01T12:00:00Z",
+    "downloads": 500000,
+    "changelog_url": null,
+    "files": [
+      {
+        "hashes": {
+          "sha512": "def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def456abc123def123456789",
+          "sha1": "def456abc123def456abc123def123456789ab"
+        },
+        "url": "https://cdn.modrinth.com/data/AANobbMI/versions/ver2/sodium-fabric-0.5.7.jar",
+        "filename": "sodium-fabric-0.5.7.jar",
+        "primary": true,
+        "size": 1200000,
+        "file_type": null
+      }
+    ]
+  }
+]

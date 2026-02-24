@@ -1,0 +1,26 @@
+[
+  {
+    "icon": "<svg>...</svg>",
+    "name": "adventure",
+    "project_type": "mod",
+    "header": "categories"
+  },
+  {
+    "icon": "<svg>...</svg>",
+    "name": "optimization",
+    "project_type": "mod",
+    "header": "categories"
+  },
+  {
+    "icon": "<svg>...</svg>",
+    "name": "technology",
+    "project_type": "mod",
+    "header": "categories"
+  },
+  {
+    "icon": "<svg>...</svg>",
+    "name": "fabric",
+    "project_type": "mod",
+    "header": "loaders"
+  }
+]
