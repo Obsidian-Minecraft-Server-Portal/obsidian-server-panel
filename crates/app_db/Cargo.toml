@@ -11,6 +11,9 @@ sqlx = { version = "0.8.6", features = ["chrono", "json", "runtime-tokio", "deri
 
 
 
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
 [features]
 sqlite = ["sqlx/sqlite"]
 mysql = ["sqlx/mysql"]
