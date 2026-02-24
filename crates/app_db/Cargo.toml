@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 log = "0.4.29"
-anyhow = "1.0.95"
 thiserror = "2.0.11"
 sqlx = { version = "0.8.6", features = ["chrono", "json", "runtime-tokio", "derive", "time"] }
 
