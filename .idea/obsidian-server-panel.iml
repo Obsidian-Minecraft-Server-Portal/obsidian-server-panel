@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tools/publish_docker/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tools/update_version/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/app_db/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/backups/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/backups/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/backups/tests" isTestSource="true" />
@@ -20,6 +21,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/modrinth/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/crates/scheduler/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/scheduler/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/upnp/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

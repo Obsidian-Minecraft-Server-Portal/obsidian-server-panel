@@ -1,0 +1,12 @@
+[package]
+name = "obsidian-upnp"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Obsidian-Minecraft-Server-Portal/upnp.git"
+description = "A simple wrapper for UPNP"
+
+[dependencies]
+easy-upnp = "0.3.1"
+lazy_static = "1.5.0"
+log = "0.4.22"
+obsidian-scheduler = {path = "../scheduler"}
