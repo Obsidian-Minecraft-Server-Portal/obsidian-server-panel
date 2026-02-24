@@ -22,10 +22,10 @@ importers:
         version: 2.3.0(react@18.2.0)
       '@monaco-editor/react':
         specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.54.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 4.7.0(monaco-editor@0.55.1)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-stately/data':
-        specifier: ^3.14.1
-        version: 3.14.1(react@18.2.0)
+        specifier: ^3.15.1
+        version: 3.15.1(react@18.2.0)
       framer-motion:
         specifier: 12.19.2
         version: 12.19.2(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -33,8 +33,8 @@ importers:
         specifier: 3.7.1
         version: 3.7.1
       monaco-editor:
-        specifier: ^0.54.0
-        version: 0.54.0
+        specifier: ^0.55.1
+        version: 0.55.1
       react:
         specifier: 18.2.0
         version: 18.2.0
@@ -54,8 +54,8 @@ importers:
         specifier: ^16.1.0
         version: 16.1.0(react@18.2.0)
       recharts:
-        specifier: ^3.3.0
-        version: 3.3.0(@types/react@18.3.24)(react-dom@18.2.0(react@18.2.0))(react-is@19.1.0)(react@18.2.0)(redux@5.0.1)
+        specifier: ^3.7.0
+        version: 3.7.0(@types/react@18.3.24)(react-dom@18.2.0(react@18.2.0))(react-is@19.1.0)(react@18.2.0)(redux@5.0.1)
       rehype-raw:
         specifier: ^7.0.0
         version: 7.0.0
@@ -1362,8 +1362,8 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
-  '@react-stately/data@3.14.1':
-    resolution: {integrity: sha512-lDNc4gZ6kVZcrABeeQZPTTnP+1ykNylSvFzAC/Hq1fs8+s54xLRvoENWIyG+yK19N9TIGEoA0AOFG8PoAun43g==}
+  '@react-stately/data@3.15.1':
+    resolution: {integrity: sha512-lchubLxCWg1Yswpe9yRYJAjmzP0eTYZe+AQyFJQRIT6axRi9Gs92RIZ7zhwLXxI0vcWpnAWADB9kD4bsos7xww==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
@@ -1563,6 +1563,11 @@ packages:
 
   '@react-types/shared@3.32.1':
     resolution: {integrity: sha512-famxyD5emrGGpFuUlgOP6fVW2h/ZaF405G5KDi3zPHzyjAWys/8W6NAVJtNbkCkhedmvL0xOhvt8feGXyXaw5w==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+
+  '@react-types/shared@3.33.0':
+    resolution: {integrity: sha512-xuUpP6MyuPmJtzNOqF5pzFUIHH2YogyOQfUQHag54PRmWB7AbjuGWBUv0l1UDmz6+AbzAYGmDVAzcRDOu2PFpw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
@@ -1807,6 +1812,9 @@ packages:
 
   '@types/sizzle@2.3.9':
     resolution: {integrity: sha512-xzLEyKB50yqCUPUJkIsrVvoWNfFUbIZI+RspLWt8u+tIW/BetMBZtgV2LY/2o+tYH8dRvQ+eoPf3NdhQCcLE2w==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
@@ -2132,8 +2140,8 @@ packages:
   dlv@1.1.3:
     resolution: {integrity: sha512-+HlytyjlPKnIG8XuRG8WvmBP8xs8P71y+SKKS6ZXWoEgLuePxtDoUEiH7WkdePWrQ5JBpE6aoVqfZfJUQkjXwA==}
 
-  dompurify@3.1.7:
-    resolution: {integrity: sha512-VaTstWtsneJY8xzy7DekmYWEOZcmzIe3Qb3zPd4STve1OBTa+e+WmS1ITQec1fZYXI3HCsOZZiSMpG6oxoWMWQ==}
+  dompurify@3.2.7:
+    resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
 
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
@@ -2687,8 +2695,8 @@ packages:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
 
-  monaco-editor@0.54.0:
-    resolution: {integrity: sha512-hx45SEUoLatgWxHKCmlLJH81xBo0uXP4sRkESUpmDQevfi+e7K1VuiSprK6UpQ8u4zOcKNiH0pMvHvlMWA/4cw==}
+  monaco-editor@0.55.1:
+    resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
 
   motion-dom@12.23.6:
     resolution: {integrity: sha512-G2w6Nw7ZOVSzcQmsdLc0doMe64O/Sbuc2bVAbgMz6oP/6/pRStKRiVRV4bQfHp5AHYAKEGhEdVHTM+R3FDgi5w==}
@@ -2935,8 +2943,8 @@ packages:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
     engines: {node: '>= 14.18.0'}
 
-  recharts@3.3.0:
-    resolution: {integrity: sha512-Vi0qmTB0iz1+/Cz9o5B7irVyUjX2ynvEgImbgMt/3sKRREcUM07QiYjS1QpAVrkmVlXqy5gykq4nGWMz9AS4Rg==}
+  recharts@3.7.0:
+    resolution: {integrity: sha512-l2VCsy3XXeraxIID9fx23eCb6iCBsxUQDnE8tWm6DFdszVAO7WVY/ChAD9wVit01y6B2PMupYiMmQwhgPHc9Ew==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -4683,10 +4691,10 @@ snapshots:
     dependencies:
       state-local: 1.0.7
 
-  '@monaco-editor/react@4.7.0(monaco-editor@0.54.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+  '@monaco-editor/react@4.7.0(monaco-editor@0.55.1)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@monaco-editor/loader': 1.5.0
-      monaco-editor: 0.54.0
+      monaco-editor: 0.55.1
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
 
@@ -4908,7 +4916,7 @@ snapshots:
       '@react-stately/selection': 3.20.3(react@18.2.0)
       '@react-types/checkbox': 3.9.5(react@18.2.0)
       '@react-types/grid': 3.3.3(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -4939,7 +4947,7 @@ snapshots:
   '@react-aria/label@3.7.19(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -4947,7 +4955,7 @@ snapshots:
   '@react-aria/landmark@3.0.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -4958,7 +4966,7 @@ snapshots:
       '@react-aria/interactions': 3.25.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-types/link': 3.6.2(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -5065,7 +5073,7 @@ snapshots:
       '@react-aria/interactions': 3.25.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-stately/selection': 3.20.3(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -5089,7 +5097,7 @@ snapshots:
       '@react-aria/live-announcer': 3.4.3
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-types/button': 3.12.2(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -5175,7 +5183,7 @@ snapshots:
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-stately/toggle': 3.8.5(react@18.2.0)
       '@react-types/checkbox': 3.9.5(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -5185,7 +5193,7 @@ snapshots:
       '@react-aria/focus': 3.20.5(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-aria/i18n': 3.12.10(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-aria/utils': 3.29.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
@@ -5241,7 +5249,7 @@ snapshots:
 
   '@react-stately/collections@3.12.5(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
@@ -5258,9 +5266,9 @@ snapshots:
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
-  '@react-stately/data@3.14.1(react@18.2.0)':
+  '@react-stately/data@3.15.1(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.32.1(react@18.2.0)
+      '@react-types/shared': 3.33.0(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
@@ -5291,7 +5299,7 @@ snapshots:
       '@react-stately/collections': 3.12.5(react@18.2.0)
       '@react-stately/selection': 3.20.3(react@18.2.0)
       '@react-types/grid': 3.3.3(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
@@ -5343,7 +5351,7 @@ snapshots:
       '@react-stately/list': 3.12.3(react@18.2.0)
       '@react-stately/overlays': 3.6.17(react@18.2.0)
       '@react-types/select': 3.9.13(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
@@ -5351,7 +5359,7 @@ snapshots:
     dependencies:
       '@react-stately/collections': 3.12.5(react@18.2.0)
       '@react-stately/utils': 3.10.7(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       '@swc/helpers': 0.5.17
       react: 18.2.0
 
@@ -5470,7 +5478,7 @@ snapshots:
   '@react-types/dialog@3.5.19(react@18.2.0)':
     dependencies:
       '@react-types/overlays': 3.8.16(react@18.2.0)
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       react: 18.2.0
 
   '@react-types/form@3.7.13(react@18.2.0)':
@@ -5490,7 +5498,7 @@ snapshots:
 
   '@react-types/listbox@3.7.1(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       react: 18.2.0
 
   '@react-types/menu@3.10.2(react@18.2.0)':
@@ -5521,7 +5529,7 @@ snapshots:
 
   '@react-types/select@3.9.13(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       react: 18.2.0
 
   '@react-types/shared@3.30.0(react@18.2.0)':
@@ -5532,14 +5540,18 @@ snapshots:
     dependencies:
       react: 18.2.0
 
+  '@react-types/shared@3.33.0(react@18.2.0)':
+    dependencies:
+      react: 18.2.0
+
   '@react-types/slider@3.7.12(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       react: 18.2.0
 
   '@react-types/switch@3.5.12(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       react: 18.2.0
 
   '@react-types/table@3.13.1(react@18.2.0)':
@@ -5550,7 +5562,7 @@ snapshots:
 
   '@react-types/tabs@3.3.16(react@18.2.0)':
     dependencies:
-      '@react-types/shared': 3.30.0(react@18.2.0)
+      '@react-types/shared': 3.32.1(react@18.2.0)
       react: 18.2.0
 
   '@react-types/textfield@3.12.3(react@18.2.0)':
@@ -5739,6 +5751,9 @@ snapshots:
       csstype: 3.1.3
 
   '@types/sizzle@2.3.9': {}
+
+  '@types/trusted-types@2.0.7':
+    optional: true
 
   '@types/unist@2.0.11': {}
 
@@ -6056,7 +6071,9 @@ snapshots:
 
   dlv@1.1.3: {}
 
-  dompurify@3.1.7: {}
+  dompurify@3.2.7:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   eastasianwidth@0.2.0: {}
 
@@ -6865,9 +6882,9 @@ snapshots:
 
   minipass@7.1.2: {}
 
-  monaco-editor@0.54.0:
+  monaco-editor@0.55.1:
     dependencies:
-      dompurify: 3.1.7
+      dompurify: 3.2.7
       marked: 14.0.0
 
   motion-dom@12.23.6:
@@ -7112,7 +7129,7 @@ snapshots:
 
   readdirp@4.1.2: {}
 
-  recharts@3.3.0(@types/react@18.3.24)(react-dom@18.2.0(react@18.2.0))(react-is@19.1.0)(react@18.2.0)(redux@5.0.1):
+  recharts@3.7.0(@types/react@18.3.24)(react-dom@18.2.0(react@18.2.0))(react-is@19.1.0)(react@18.2.0)(redux@5.0.1):
     dependencies:
       '@reduxjs/toolkit': 2.8.2(react-redux@9.2.0(@types/react@18.3.24)(react@18.2.0)(redux@5.0.1))(react@18.2.0)
       clsx: 2.1.1
