@@ -8,7 +8,10 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/backups/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/backups/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/backups/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/cache/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/curseforge/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/curseforge/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/curseforge/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/crates/installer/app/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/installer/lib/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/installer/lib/src" isTestSource="false" />

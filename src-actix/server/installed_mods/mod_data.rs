@@ -286,50 +286,41 @@ impl ModData {
     }
 
     async fn find_curseforge_project_from_project_name(name: impl Into<String>) -> Result<Option<String>> {
-        let api_key = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
         let name = name.into();
-        let query = format!("https://api.curseforge.com/v1/mods/search?gameId=432&classId=6&sortOrder=desc&searchFilter={}&pageSize=50", name);
-        let client = reqwest::Client::new();
-        let request = client.get(&query).header("x-api-key", api_key).build()?;
-        let response = client.execute(request).await?;
-        if !response.status().is_success() {
-            return Ok(None);
-        }
-        let json: serde_json::Value = response.json().await?;
-        let data = json.get("data").and_then(|v| v.as_array());
-        if data.is_none() {
-            return Ok(None);
-        }
-        let data = data.unwrap();
+        let client = crate::platforms::curseforge::get_client();
+        let params = curseforge::SearchBuilder::new()
+            .query(&name)
+            .page_size(50)
+            .build();
+
+        let result = match client.search(&params).await {
+            Ok(r) => r,
+            Err(_) => return Ok(None),
+        };
 
         let mut best_match: Option<(String, f64)> = None;
         const MIN_THRESHOLD: f64 = 0.7; // Minimum similarity threshold
 
-        for item in data {
-            if let Some(project_name) = item.get("name").and_then(|v| v.as_str()) {
-                // Try exact match first
-                if project_name.to_lowercase() == name.to_lowercase()
-                    && let Some(project_id) = item.get("id").and_then(|v| v.as_u64()) {
-                        return Ok(Some(project_id.to_string()));
-                    }
+        for m in &result.data {
+            // Try exact match first
+            if m.name.to_lowercase() == name.to_lowercase() {
+                return Ok(Some(m.id.to_string()));
+            }
 
-                // Calculate fuzzy match score
-                let score = Self::calculate_fuzzy_score(&name, project_name);
-                if score >= MIN_THRESHOLD
-                    && let Some(project_id) = item.get("id").and_then(|v| v.as_u64())
-                        && (best_match.is_none() || score > best_match.as_ref().unwrap().1) {
-                            best_match = Some((project_id.to_string(), score));
-                        }
+            // Calculate fuzzy match score
+            let score = Self::calculate_fuzzy_score(&name, &m.name);
+            if score >= MIN_THRESHOLD
+                && (best_match.is_none() || score > best_match.as_ref().unwrap().1)
+            {
+                best_match = Some((m.id.to_string(), score));
+            }
 
-                // Also check slug for additional matching
-                if let Some(slug) = item.get("slug").and_then(|v| v.as_str()) {
-                    let slug_score = Self::calculate_fuzzy_score(&name, slug);
-                    if slug_score >= MIN_THRESHOLD
-                        && let Some(project_id) = item.get("id").and_then(|v| v.as_u64())
-                            && (best_match.is_none() || slug_score > best_match.as_ref().unwrap().1) {
-                                best_match = Some((project_id.to_string(), slug_score));
-                            }
-                }
+            // Also check slug for additional matching
+            let slug_score = Self::calculate_fuzzy_score(&name, &m.slug);
+            if slug_score >= MIN_THRESHOLD
+                && (best_match.is_none() || slug_score > best_match.as_ref().unwrap().1)
+            {
+                best_match = Some((m.id.to_string(), slug_score));
             }
         }
 

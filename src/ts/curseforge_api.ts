@@ -143,40 +143,29 @@ export type SearchOptions = {
 
 export default class CurseForge
 {
-    private readonly api_key: string;
     private readonly base_url: string;
 
-    constructor(api_key: string)
+    constructor()
     {
-        this.api_key = api_key;
-        this.base_url = "https://api.curseforge.com/v1";
-    }
-
-    static getWithDefaultAPI(): CurseForge
-    {
-        const key: string = `$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG`;
-        return new CurseForge(key);
+        this.base_url = "/api/platform/curseforge";
     }
 
     async categories(): Promise<Category[]>
     {
         return (await $.ajax({
-            "url": `${this.base_url}/categories?gameId=432`,
+            "url": `${this.base_url}/categories`,
             "method": "GET",
             "timeout": 0,
-            "headers": {
-                "x-api-key": this.api_key
-            }
         }) as CategoryResult).data;
     }
 
     async search(options: SearchOptions, abortSignal: AbortSignal): Promise<CurseforgeSearchResult>
     {
-        const url = new URL(`${this.base_url}/mods/search?gameId=432&classId=6&sortOrder=desc`);
+        const url = new URL(`${window.location.origin}${this.base_url}/search`);
         if (options.loader)
             url.searchParams.append(`modLoaderType`, options.loader);
         if (options.query)
-            url.searchParams.append("searchFilter", options.query);
+            url.searchParams.append("query", options.query);
         if (options.minecraftVersion)
             url.searchParams.append("gameVersion", options.minecraftVersion);
         if (options.limit)
@@ -191,9 +180,6 @@ export default class CurseForge
 
         return await fetch(url.toString(), {
             method: "GET",
-            headers: {
-                "x-api-key": this.api_key
-            },
             signal: abortSignal
         }).then(response =>
         {

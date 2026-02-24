@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/backups", "crates/installer/lib", "crates/installer/app", "crates/scheduler", "crates/modrinth", "crates/curseforge"]
+members = ["crates/backups", "crates/installer/lib", "crates/installer/app", "crates/scheduler", "crates/cache", "crates/modrinth", "crates/curseforge"]
 
 [package]
 name = "obsidian_server_panel"
@@ -63,6 +63,7 @@ obsidian-backups = { path = "crates/backups", features = ["serde", "logging", "z
 oim = { path = "crates/installer/lib" }
 easy-upnp = { version = "0.3.0" }
 modrinth = { path = "crates/modrinth" }
+curseforge = { path = "crates/curseforge" }
 
 [build-dependencies]
 include_dir = "0.7.4"

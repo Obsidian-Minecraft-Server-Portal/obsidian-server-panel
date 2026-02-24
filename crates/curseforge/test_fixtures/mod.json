@@ -1,0 +1,70 @@
+{
+  "data": {
+    "id": 394468,
+    "gameId": 432,
+    "name": "Sodium",
+    "slug": "sodium",
+    "links": {
+      "websiteUrl": "https://www.curseforge.com/minecraft/mc-mods/sodium",
+      "wikiUrl": null,
+      "issuesUrl": "https://github.com/CaffeineMC/sodium/issues",
+      "sourceUrl": "https://github.com/CaffeineMC/sodium"
+    },
+    "summary": "A modern rendering engine for Minecraft which greatly improves performance",
+    "status": 4,
+    "downloadCount": 52000000,
+    "isFeatured": true,
+    "primaryCategoryId": 423,
+    "categories": [
+      {
+        "id": 423,
+        "gameId": 432,
+        "name": "Performance",
+        "slug": "performance",
+        "url": "https://www.curseforge.com/minecraft/mc-mods/performance",
+        "iconUrl": "https://media.forgecdn.net/avatars/6/40/635351497437388438.png",
+        "dateModified": "2023-01-01T00:00:00.000Z",
+        "isClass": false,
+        "classId": 6,
+        "parentCategoryId": 0
+      }
+    ],
+    "classId": 6,
+    "authors": [
+      {
+        "id": 29229988,
+        "name": "jellysquid3_",
+        "url": "https://www.curseforge.com/members/jellysquid3_/projects",
+        "avatarUrl": null
+      }
+    ],
+    "logo": {
+      "id": 1,
+      "modId": 394468,
+      "title": "Sodium",
+      "description": null,
+      "thumbnailUrl": "https://media.forgecdn.net/avatars/thumbnails/394/468/256/256/637565272660498966.png",
+      "url": "https://media.forgecdn.net/avatars/394/468/637565272660498966.png"
+    },
+    "screenshots": [],
+    "mainFileId": 5000001,
+    "latestFiles": [],
+    "latestFilesIndexes": [
+      {
+        "gameVersion": "1.20.1",
+        "fileId": 5000001,
+        "filename": "sodium-fabric-0.5.3+mc1.20.1.jar",
+        "releaseType": 1,
+        "gameVersionTypeId": 73250,
+        "modLoader": 4
+      }
+    ],
+    "dateCreated": "2021-06-01T00:00:00.000Z",
+    "dateModified": "2024-01-15T12:00:00.000Z",
+    "dateReleased": "2024-01-10T10:00:00.000Z",
+    "allowModDistribution": true,
+    "gamePopularityRank": 5,
+    "isAvailable": true,
+    "thumbsUpCount": 25000
+  }
+}

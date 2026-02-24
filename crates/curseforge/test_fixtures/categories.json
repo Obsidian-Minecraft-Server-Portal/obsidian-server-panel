@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "id": 6,
+      "gameId": 432,
+      "name": "Mods",
+      "slug": "mc-mods",
+      "url": "https://www.curseforge.com/minecraft/mc-mods",
+      "iconUrl": "https://media.forgecdn.net/avatars/6/38/635351497271445935.png",
+      "dateModified": "2023-01-01T00:00:00.000Z",
+      "classId": null,
+      "parentCategoryId": null,
+      "displayIndex": 1,
+      "isClass": true
+    },
+    {
+      "id": 423,
+      "gameId": 432,
+      "name": "Performance",
+      "slug": "performance",
+      "url": "https://www.curseforge.com/minecraft/mc-mods/performance",
+      "iconUrl": "https://media.forgecdn.net/avatars/6/40/635351497437388438.png",
+      "dateModified": "2023-01-01T00:00:00.000Z",
+      "classId": 6,
+      "parentCategoryId": 6,
+      "displayIndex": 2,
+      "isClass": false
+    },
+    {
+      "id": 424,
+      "gameId": 432,
+      "name": "Map and Information",
+      "slug": "map-information",
+      "url": "https://www.curseforge.com/minecraft/mc-mods/map-information",
+      "iconUrl": "https://media.forgecdn.net/avatars/6/41/635351497500269474.png",
+      "dateModified": "2023-01-01T00:00:00.000Z",
+      "classId": 6,
+      "parentCategoryId": 6,
+      "displayIndex": 3,
+      "isClass": false
+    }
+  ]
+}

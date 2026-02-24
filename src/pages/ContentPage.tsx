@@ -81,15 +81,9 @@ export function ContentPage()
     {
         try
         {
-            const API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
-            const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}`, {
-                headers: {
-                    "x-api-key": API_KEY
-                }
-            });
+            const response = await fetch(`/api/platform/curseforge/mod/${projectId}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const result = await response.json();
-            const data = result.data;
+            const data = await response.json();
 
             return {
                 id: data.id.toString(),
@@ -474,16 +468,11 @@ export const fetchCurseForgeVersions = async (projectId: string) =>
 {
     try
     {
-        const API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
-        const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}/files`, {
-            headers: {
-                "x-api-key": API_KEY
-            }
-        });
+        const response = await fetch(`/api/platform/curseforge/mod/${projectId}/files`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
+        const files = await response.json();
 
-        return result.data.map((file: any) => ({
+        return files.map((file: any) => ({
             id: file.id.toString(),
             version_number: file.displayName,
             name: file.fileName,

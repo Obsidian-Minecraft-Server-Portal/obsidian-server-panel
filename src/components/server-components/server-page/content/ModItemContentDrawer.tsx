@@ -11,7 +11,7 @@ import {
     Link,
     Skeleton
 } from "@heroui/react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useMessage} from "../../../../providers/MessageProvider.tsx";
@@ -40,12 +40,6 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
     const [versionsLoading, setVersionsLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState("description");
     const [changelogPage, setChangelogPage] = useState(1);
-
-    const curseforgeApiKey = useMemo(() =>
-    {
-        // Prefer env variable, fall back to a placeholder
-        return (import.meta as any)?.env?.VITE_CURSEFORGE_API_KEY ?? "<CURSEFORGE_API_KEY>";
-    }, []);
 
     const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
     const formatDownloads = (count: number) =>
@@ -88,14 +82,9 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
 
     const fetchCurseForgeProject = useCallback(async (projectId: string): Promise<ModDetails> =>
     {
-        const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}`, {
-            headers: {
-                "x-api-key": curseforgeApiKey
-            }
-        });
+        const response = await fetch(`/api/platform/curseforge/mod/${projectId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        const data = result.data;
+        const data = await response.json();
         return {
             id: data.id.toString(),
             name: data.name,
@@ -116,7 +105,7 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
             authors: data.authors?.map((author: any) => ({name: author.name, url: author.url})),
             slug: data.slug
         } as ModDetails;
-    }, [curseforgeApiKey]);
+    }, []);
 
     const downloadModVersion = useCallback(async (version: ModVersion) =>
     {

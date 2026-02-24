@@ -2,7 +2,7 @@ use actix_web::HttpResponse;
 use serde_json::json;
 
 pub mod modrinth;
-mod curseforge;
+pub mod curseforge;
 
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
 	cfg.service(

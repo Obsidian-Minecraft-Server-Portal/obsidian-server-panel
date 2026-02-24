@@ -1,6 +1,5 @@
 import type {ModpackDetails, ModpackItemProps, ModpackVersion} from "../types/ModpackTypes.ts";
 
-const CURSEFORGE_API_KEY = "$2a$10$qD2UJdpHaeDaQyGGaGS0QeoDnKq2EC7sX6YSjOxYHtDZSQRg04BCG";
 
 // ============= MODRINTH =============
 
@@ -114,18 +113,14 @@ export async function searchCurseForgeModpacks(params: {
     try
     {
         const searchParams = new URLSearchParams();
-        searchParams.set("gameId", "432"); // Minecraft
-        searchParams.set("classId", "4471"); // Modpack class ID
-        if (params.query) searchParams.set("searchFilter", params.query);
+        if (params.query) searchParams.set("query", params.query);
         if (params.categoryId) searchParams.set("categoryId", params.categoryId.toString());
         if (params.gameVersion) searchParams.set("gameVersion", params.gameVersion);
         if (params.modLoaderType) searchParams.set("modLoaderType", params.modLoaderType.toString());
         searchParams.set("pageSize", (params.limit || 20).toString());
         searchParams.set("index", (params.offset || 0).toString());
 
-        const response = await fetch(`https://api.curseforge.com/v1/mods/search?${searchParams}`, {
-            headers: {"x-api-key": CURSEFORGE_API_KEY}
-        });
+        const response = await fetch(`/api/platform/curseforge/search/modpacks?${searchParams}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
 
@@ -150,12 +145,9 @@ export async function searchCurseForgeModpacks(params: {
 
 export async function fetchCurseForgeModpackDetails(projectId: string): Promise<ModpackDetails>
 {
-    const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}`, {
-        headers: {"x-api-key": CURSEFORGE_API_KEY}
-    });
+    const response = await fetch(`/api/platform/curseforge/mod/${projectId}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const result = await response.json();
-    const data = result.data;
+    const data = await response.json();
 
     return {
         id: data.id.toString(),
@@ -181,13 +173,11 @@ export async function fetchCurseForgeModpackDetails(projectId: string): Promise<
 
 export async function fetchCurseForgeModpackVersions(projectId: string): Promise<ModpackVersion[]>
 {
-    const response = await fetch(`https://api.curseforge.com/v1/mods/${projectId}/files`, {
-        headers: {"x-api-key": CURSEFORGE_API_KEY}
-    });
+    const response = await fetch(`/api/platform/curseforge/mod/${projectId}/files`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const result = await response.json();
+    const files = await response.json();
 
-    return result.data.map((file: any) => ({
+    return files.map((file: any) => ({
         id: file.id.toString(),
         version_number: file.displayName,
         name: file.fileName,

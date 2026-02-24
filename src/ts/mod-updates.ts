@@ -221,13 +221,7 @@ export async function checkCurseForgeUpdate(
 {
     try
     {
-        const response = await fetch(`https://api.curseforge.com/v1/mods/${curseforgeId}/files`, {
-            headers: {
-                "Accept": "application/json"
-                // Note: In production, you'll need a proper CurseForge API key
-                // 'x-api-key': 'YOUR_CURSEFORGE_API_KEY'
-            }
-        });
+        const response = await fetch(`/api/platform/curseforge/mod/${curseforgeId}/files`);
 
         if (!response.ok)
         {
@@ -235,8 +229,7 @@ export async function checkCurseForgeUpdate(
             return null;
         }
 
-        const data = await response.json();
-        const files: CurseForgeFile[] = data.data;
+        const files: CurseForgeFile[] = await response.json();
 
         // Filter files that are compatible with the server
         const compatibleLoaders = serverLoaderToCurseForgeLoader(serverLoaderType);

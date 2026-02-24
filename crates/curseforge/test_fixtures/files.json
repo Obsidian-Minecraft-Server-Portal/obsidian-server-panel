@@ -1,0 +1,85 @@
+{
+  "data": [
+    {
+      "id": 5000001,
+      "gameId": 432,
+      "modId": 394468,
+      "isAvailable": true,
+      "displayName": "sodium-fabric-0.5.3+mc1.20.1",
+      "fileName": "sodium-fabric-0.5.3+mc1.20.1.jar",
+      "releaseType": 1,
+      "fileStatus": 4,
+      "hashes": [
+        {
+          "value": "abc123def456",
+          "algo": 1
+        },
+        {
+          "value": "def789ghi012",
+          "algo": 2
+        }
+      ],
+      "fileDate": "2024-01-10T10:00:00.000Z",
+      "fileLength": 678912,
+      "downloadCount": 5000000,
+      "downloadUrl": "https://edge.forgecdn.net/files/5000/001/sodium-fabric-0.5.3+mc1.20.1.jar",
+      "gameVersions": [
+        "1.20.1",
+        "Fabric"
+      ],
+      "sortableGameVersions": [
+        {
+          "gameVersionName": "1.20.1",
+          "gameVersionPadded": "0000000001.0000000020.0000000001",
+          "gameVersion": "1.20.1",
+          "gameVersionReleaseDate": "2023-06-12T00:00:00.000Z",
+          "gameVersionTypeId": 73250
+        }
+      ],
+      "dependencies": [
+        {
+          "modId": 306612,
+          "relationType": 3
+        }
+      ],
+      "alternateFileId": null,
+      "isServerPack": false,
+      "fileFingerprint": 1234567890,
+      "modules": [
+        {
+          "name": "META-INF",
+          "fingerprint": 9876543210
+        },
+        {
+          "name": "net",
+          "fingerprint": 1122334455
+        }
+      ]
+    },
+    {
+      "id": 5000000,
+      "gameId": 432,
+      "modId": 394468,
+      "isAvailable": true,
+      "displayName": "sodium-fabric-0.5.2+mc1.20.1",
+      "fileName": "sodium-fabric-0.5.2+mc1.20.1.jar",
+      "releaseType": 1,
+      "fileStatus": 4,
+      "hashes": [],
+      "fileDate": "2023-12-01T10:00:00.000Z",
+      "fileLength": 650000,
+      "downloadCount": 3000000,
+      "downloadUrl": "https://edge.forgecdn.net/files/5000/000/sodium-fabric-0.5.2+mc1.20.1.jar",
+      "gameVersions": [
+        "1.20.1",
+        "Fabric"
+      ],
+      "sortableGameVersions": [],
+      "dependencies": [],
+      "alternateFileId": null,
+      "isServerPack": false,
+      "fileFingerprint": null,
+      "modules": []
+    }
+  ]
+}

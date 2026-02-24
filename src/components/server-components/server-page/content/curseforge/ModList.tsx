@@ -7,7 +7,7 @@ export function ModList(props: ModListProps)
 {
     const {searchQuery, minecraftVersion, loader, category, limit, offset} = props;
     const [mods, setMods] = useState<ModItemProps[]>([]);
-    const curseForge = useRef(CurseForge.getWithDefaultAPI());
+    const curseForge = useRef(new CurseForge());
     const abortSignal = useRef(new AbortController());
     const [isLoading, setIsLoading] = useState(false);
 
