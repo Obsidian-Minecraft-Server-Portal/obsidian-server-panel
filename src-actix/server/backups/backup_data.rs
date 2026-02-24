@@ -28,6 +28,16 @@ impl From<BackupType> for u8 {
     }
 }
 
+impl From<i16> for BackupType {
+    fn from(value: i16) -> Self {
+        match value {
+            0 => BackupType::Incremental,
+            1 => BackupType::WorldOnly,
+            _ => BackupType::Incremental,
+        }
+    }
+}
+
 /// Represents a backup item (from obsidian-backups)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Backup {
@@ -50,7 +60,7 @@ pub struct BackupSchedule {
     pub server_id: i64,
     pub interval_amount: i64,
     pub interval_unit: String, // "hours", "days", or "weeks"
-    #[sqlx(try_from = "u8")]
+    #[sqlx(try_from = "i16")]
     pub backup_type: BackupType,
     pub enabled: bool,
     pub retention_days: Option<i64>,

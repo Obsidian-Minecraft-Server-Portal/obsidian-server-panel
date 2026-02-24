@@ -97,7 +97,7 @@ impl UserData {
         T: Into<BitFlags<PermissionFlag>>,
     {
         let users =
-            sqlx::query_as::<_, UserData>(&*sql(r#"SELECT * FROM users WHERE permissions = ?"#)).bind(permissions.into().bits()).fetch_all(pool).await?;
+            sqlx::query_as::<_, UserData>(&*sql(r#"SELECT * FROM users WHERE permissions = ?"#)).bind(permissions.into().bits() as i32).fetch_all(pool).await?;
         Ok(users)
     }
 

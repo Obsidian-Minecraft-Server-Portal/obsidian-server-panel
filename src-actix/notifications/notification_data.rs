@@ -103,7 +103,7 @@ pub struct UserNotification {
 impl<'a> FromRow<'a, Row> for UserNotification {
     fn from_row(row: &'a Row) -> Result<Self, Error> {
         Ok(UserNotification {
-            user_id: row.try_get::<u32, _>("user_id")? as u64,
+            user_id: row.try_get::<i32, _>("user_id")? as u64,
             notification_id: row.try_get("notification_id")?,
             is_read: row.try_get::<i32, _>("is_read")? != 0,
             is_hidden: row.try_get::<i32, _>("is_hidden")? != 0,
