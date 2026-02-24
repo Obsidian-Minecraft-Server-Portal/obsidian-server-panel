@@ -52,7 +52,7 @@ A modern, feature-rich, and user-friendly web-based control panel for managing M
 -   **Backend:**
     -   **Language:** Rust
     -   **Framework:** Actix Web
-    -   **Database:** SQLite (via SQLx)
+    -   **Database:** SQLite, MySQL, or PostgreSQL (via SQLx)
     -   **Real-time Communication:** Server-Sent Events (SSE)
 -   **Frontend:**
     -   **Framework:** React (with TypeScript)
@@ -72,6 +72,7 @@ A modern, feature-rich, and user-friendly web-based control panel for managing M
 -   For building from source:
     -   [Rust toolchain](https://www.rust-lang.org/tools/install)
     -   [Node.js](https://nodejs.org/) (with pnpm enabled: `npm install -g pnpm`)
+    -   [just](https://github.com/casey/just) command runner (recommended)
 
 ### Installation (Linux)
 
@@ -92,6 +93,8 @@ You will be prompted to set the port for the web UI during installation.
 
 ### Building from Source
 
+This project uses [`just`](https://github.com/casey/just) as its command runner. Run `just --list` to see all available recipes.
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel.git
@@ -103,22 +106,29 @@ You will be prompted to set the port for the web UI during installation.
     pnpm install
     ```
 
-3.  **Build the frontend:**
+3.  **Build and package (frontend + backend):**
     ```bash
-    pnpm run build-frontend
+    just build              # SQLite (default)
+    just build mysql        # MySQL
+    just build postgres     # PostgreSQL
     ```
 
-4.  **Build the backend (API):**
+4.  **Or build components individually:**
     ```bash
-    pnpm run build-api
+    just build-frontend          # Frontend only
+    just build-backend           # Backend debug build (SQLite default)
+    just build-backend postgres  # Backend debug build (PostgreSQL)
     ```
 
 5.  **Run the application:**
     ```bash
-    pnpm run run-api
+    just run                # SQLite (default)
+    just run postgres       # PostgreSQL
     ```
 
 The server will be available at `http://localhost:8080` by default.
+
+For more details on development workflows, testing, and all available recipes, see the [Wiki](../../wiki).
 
 ## 📄 API Documentation
 
