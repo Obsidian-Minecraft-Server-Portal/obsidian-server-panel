@@ -1,0 +1,228 @@
+// Common components and theme definitions
+
+// Theme colors - Following Obsidian Style Guide
+export global Theme {
+    in-out property <color> bg-primary: #0f1319;        // Background
+    in-out property <color> bg-secondary: #17202e;      // Secondary background
+    in-out property <color> bg-tertiary: #1a1a1d;       // Tertiary background
+    in-out property <color> bg-hover: #252528;          // Hover state
+    in-out property <color> accent: #1bd96a;            // Primary green (style guide)
+    in-out property <color> accent-hover: #15b558;      // Darker green for hover
+    in-out property <color> accent-dark: rgb(10, 50, 38);      // Darker green for hover
+    in-out property <color> accent-fg: #000000;         // Text on accent (style guide)
+    in-out property <color> text-primary: #ffffff;      // Primary text
+    in-out property <color> text-secondary: #eaeaea;    // Secondary text (style guide)
+    in-out property <color> text-tertiary: #a0a0a0;     // Tertiary text
+    in-out property <color> border: #2a2a2d;            // Borders
+    in-out property <color> success: #1bd96a;           // Success (primary green)
+    in-out property <color> error: #ff4444;             // Error/danger
+    in-out property <color> warning: #ffaa00;           // Warning/attention
+}
+
+// Feature item component with pixel-style bullet
+export component FeatureItem inherits HorizontalLayout {
+    in property <string> text;
+    spacing: 8px;
+    height: 28px;
+
+    // Pixel-style bullet point
+    Rectangle {
+        width: 6px;
+        height: 6px;
+        background: Theme.accent;
+        border-radius: 0px;
+        y: (parent.height - self.height) / 2;
+    }
+
+    Text {
+        text: root.text;
+        color: Theme.text-secondary;
+        font-size: 14px;
+        font-weight: 600;
+        vertical-alignment: center;
+    }
+}
+
+// Custom button component - Style Guide compliant (no rounded corners)
+export component CustomButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> primary: false;
+    callback clicked <=> touch.clicked;
+
+    background: primary ? Theme.accent : Theme.bg-tertiary;
+    border-radius: 0px;  // Style guide: radius="none" - sharp corners
+    height: 42px;
+    min-width: 120px;
+
+    states [
+        hover when touch.has-hover && enabled: {
+            background: primary ? Theme.accent-hover : Theme.bg-hover;
+        }
+        disabled when !enabled: {
+            background: Theme.bg-secondary;
+            opacity: 0.5;
+        }
+    ]
+
+    touch := TouchArea {
+        enabled: parent.enabled;
+        mouse-cursor: MouseCursor.pointer;
+    }
+
+    Text {
+        text: root.text;
+        color: primary ? Theme.accent-fg : Theme.text-primary;
+        font-size: 14px;
+        font-weight: 700;  // Bold for better readability with pixel fonts
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component Checkbox inherits Rectangle {
+    in property <string> label;
+    in-out property <bool> checked: false;
+    callback toggled <=> touch.clicked;
+
+    background: checked ? Theme.accent-dark : transparent;
+    height: 32px;
+
+    HorizontalLayout {
+        spacing: 8px;
+        height: 24px;
+        x: 8px;
+
+        Rectangle {
+            width: 16px;
+            height: 16px;
+            background: checked ? transparent : Theme.bg-tertiary;
+            border-radius: 0px;
+            border-color: checked ? Theme.accent : Theme.border;
+            border-width: 2px;
+            y: 4px;
+
+            states [
+                hover when touch.has-hover: {
+                    background: checked ? Theme.accent-hover : Theme.bg-hover;
+                }
+            ]
+
+            if checked: Rectangle {
+                background: Theme.accent;
+                width: parent.width - 10px;
+                height: parent.height - 10px;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: Theme.text-secondary;
+            font-size: 14px;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+        }
+        mouse-cursor: MouseCursor.pointer;
+    }
+}
+
+// Title bar component
+export component TitleBar inherits Rectangle {
+    in property <image> app-icon;
+    callback minimize-clicked;
+    callback close-clicked;
+    callback drag-start(length, length);
+
+    background: Theme.accent;
+    height: 40px;
+
+    HorizontalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        // App icon and title
+        HorizontalLayout {
+            padding: 8px;
+            spacing: 8px;
+
+            if app-icon.width > 0: Image {
+                source: app-icon;
+                width: 24px;
+                height: 24px;
+            }
+
+            Text {
+                text: "Obsidian Installer";
+                color: Theme.accent-fg;
+                font-size: 13px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+
+        // Draggable area
+        drag-area := Rectangle {
+            TouchArea {
+                moved => {
+                    root.drag-start(self.mouse-x - self.pressed-x, self.mouse-y - self.pressed-y);
+                }
+            }
+        }
+
+        // Window controls
+        HorizontalLayout {
+            height: 80px;
+            width: 80px;
+            y: 0px;
+
+            // Minimize
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                background: min-touch.has-hover ? Theme.accent-hover : transparent;
+
+                min-touch := TouchArea {
+                    clicked => {
+                        root.minimize-clicked();
+                    }
+                }
+
+                Rectangle {
+                    width: 12px;
+                    height: 1px;
+                    background: Theme.accent-fg;
+                    y: parent.height / 2;
+                    x: (parent.width - self.width) / 2;
+                }
+            }
+
+            // Close
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                background: close-touch.has-hover ? Theme.error : transparent;
+
+                close-touch := TouchArea {
+                    clicked => {
+                        root.close-clicked();
+                    }
+                }
+
+                // X icon
+                Text {
+                    text: "X";
+                    color: Theme.accent-fg;
+                    font-size: 1rem;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-weight: 800;
+                }
+            }
+        }
+    }
+}

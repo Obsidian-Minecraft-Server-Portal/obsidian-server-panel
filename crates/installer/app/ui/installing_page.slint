@@ -1,0 +1,168 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "common.slint";
+
+// Installing page
+export component InstallingPage inherits Rectangle {
+    in property <string> status-text: "Preparing installation...";
+    in property <float> progress: 0.0;
+    in property <bool> has-error: false;
+    in property <string> error-message: "";
+
+    background: Theme.bg-primary;
+    width: 1280px;
+    height: 640px;
+
+    VerticalLayout {
+        padding: 40px;
+        spacing: 30px;
+        alignment: center;
+
+        Text {
+            text: "Installing Obsidian";
+            color: Theme.text-primary;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            horizontal-alignment: center;
+        }
+
+        // Progress animation
+        VerticalLayout {
+            spacing: 20px;
+            alignment: center;
+
+            // Loading indicator - Pixelated style (Minecraft aesthetic)
+            Rectangle {
+                width: 64px;
+                height: 64px;
+
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 0px;
+                    border-width: 4px;
+                    border-color: Theme.accent;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+
+                    // Simple pixel indicator (static for now - Slint rotation limitations)
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        background: Theme.accent;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        border-radius: 0px;
+                    }
+
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        background: Theme.accent;
+                        x: parent.width - self.width - 4px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 0px;
+                        opacity: 0.7;
+                    }
+
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        background: Theme.accent;
+                        x: (parent.width - self.width) / 2;
+                        y: parent.height - self.height - 4px;
+                        border-radius: 0px;
+                        opacity: 0.5;
+                    }
+
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        background: Theme.accent;
+                        x: 4px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 0px;
+                        opacity: 0.3;
+                    }
+                }
+            }
+
+            // Progress bar - Style guide compliant (sharp corners)
+            Rectangle {
+                height: 8px;
+                width: parent.width;
+                background: Theme.bg-secondary;
+                border-radius: 0px;  // No rounded corners
+
+                Rectangle {
+                    width: parent.width * progress;
+                    height: parent.height;
+                    background: Theme.accent;
+                    border-radius: 0px;  // No rounded corners
+
+                    animate width {
+                        duration: 300ms;
+                        easing: ease-out;
+                    }
+                }
+            }
+
+            // Status text
+            Text {
+                text: status-text;
+                color: Theme.text-secondary;
+                font-size: 14px;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: Math.round(progress * 100) + "%";
+                color: Theme.text-primary;
+                font-size: 18px;
+                font-weight: 600;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Error display section
+        if has-error: Rectangle {
+            background: Theme.error;
+            border-radius: 0px;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 10px;
+                alignment: start;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Text {
+                        text: "✕";
+                        color: #ffffff;
+                        font-size: 24px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "Installation Error";
+                        color: #ffffff;
+                        font-size: 18px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Text {
+                    text: error-message;
+                    color: #ffffff;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                    horizontal-alignment: left;
+                }
+            }
+        }
+    }
+}

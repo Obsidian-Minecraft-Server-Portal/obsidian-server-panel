@@ -1,0 +1,122 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme, CustomButton, FeatureItem } from "common.slint";
+
+// Welcome page
+export component WelcomePage inherits Rectangle {
+    callback next-clicked;
+
+    background: Theme.bg-primary;
+    width: 1280px;
+    height: 720px;
+
+    VerticalLayout {
+        padding: 40px;
+        spacing: 30px;
+        alignment: center;
+
+        // Logo area with animation
+        logo-container := Rectangle {
+            height: 180px;
+
+            states [
+                visible when root.visible: {
+                    opacity: 1;
+                    in {
+                        animate opacity {
+                            duration: 800ms;
+                            easing: ease-out;
+                        }
+                    }
+                }
+            ]
+
+            Image {
+                source: @image-url("../res/icon.ico");
+                width: 128px;
+                height: 128px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        // Welcome text - Gaming aesthetic with bold headers
+        VerticalLayout {
+            spacing: 16px;
+
+            Text {
+                text: "Welcome to Obsidian";
+                font-family: "Minecraft Seven v2";
+                color: Theme.text-primary;
+                font-size: 36px;
+                font-weight: 900;  // Extra bold for header
+                horizontal-alignment: center;
+                letter-spacing: 1px;  // Slight spacing for pixel font readability
+            }
+
+            Text {
+                text: "Minecraft Server Panel Installer";
+                color: Theme.accent;  // Primary green accent
+                font-size: 18px;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: "This wizard will guide you through the installation process";
+                color: Theme.text-tertiary;
+                font-size: 14px;
+                font-weight: 500;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Features - Pixel-style bullets
+        HorizontalLayout {
+            alignment: center;
+            VerticalLayout {
+                spacing: 12px;
+                alignment: LayoutAlignment.center;
+                width: 750px;
+                HorizontalLayout {
+                    width: 730px;
+                    FeatureItem {
+                        text: "Self-hosted Minecraft server management";
+                        width: 350px;
+                    }
+
+                    FeatureItem {
+                        width: 350px;
+                        text: "Support for Forge, Fabric, Quilt, and NeoForge";
+                    }
+                }
+
+                HorizontalLayout {
+                    width: 730px;
+                    FeatureItem {
+                        width: 350px;
+                        text: "Mod browser for Modrinth and CurseForge";
+                    }
+
+                    FeatureItem {
+                        width: 350px;
+                        text: "Local installation - your data stays on your computer";
+                    }
+                }
+            }
+        }
+
+        // Button
+        HorizontalLayout {
+            alignment: center;
+
+            CustomButton {
+                text: "Get Started";
+                primary: true;
+                min-width: 200px;
+                clicked => {
+                    root.next-clicked();
+                }
+            }
+        }
+    }
+}

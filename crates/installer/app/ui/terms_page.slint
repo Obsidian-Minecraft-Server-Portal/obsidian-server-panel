@@ -1,0 +1,111 @@
+import {
+    ScrollView,
+    VerticalBox,
+    HorizontalBox,
+} from "std-widgets.slint";
+import { Theme, CustomButton, Checkbox } from "common.slint";
+
+// Styled text segment for markdown rendering
+export struct TextSegment {
+    text: string,
+    font-size: float,
+    font-weight: int,
+    color: brush,
+    is-italic: bool,
+    is-code: bool,
+    is-link: bool,
+    margin-top: float,
+    margin-bottom: float,
+}
+
+// Terms of Service page
+export component TermsPage inherits Rectangle {
+    in property <[TextSegment]> tos-segments;
+    in-out property <bool> accepted: false;
+    callback back-clicked;
+    callback next-clicked;
+
+    background: Theme.bg-primary;
+
+    VerticalLayout {
+        padding: 40px;
+        spacing: 20px;
+
+        Text {
+            text: "Terms of Service";
+            color: Theme.text-primary;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        Text {
+            text: "Please read and accept the terms to continue";
+            color: Theme.text-secondary;
+            font-size: 14px;
+        }
+
+        // TOS content scroll area
+        ScrollView {
+            vertical-stretch: 1;  // Fill available vertical space
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 0px;
+
+                for segment in tos-segments: Rectangle {
+                    height: self.preferred-height;
+                    background: transparent;
+
+                    VerticalLayout {
+                        padding-top: segment.margin-top * 1px;
+                        padding-bottom: segment.margin-bottom * 1px;
+
+                        Text {
+                            text: segment.text;
+                            color: segment.is-link ? Theme.accent : segment.color;
+                            font-size: segment.font-size * 1px;
+                            font-weight: segment.font-weight;
+                            font-italic: segment.is-italic;
+                            wrap: word-wrap;
+                            horizontal-alignment: left;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Acceptance checkbox
+        HorizontalLayout {
+            spacing: 12px;
+            height: 32px;
+
+            Checkbox {
+                checked <=> accepted;
+                label: "I accept the Terms of Service";
+            }
+        }
+
+        // Navigation buttons
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+
+            CustomButton {
+                text: "Back";
+                clicked => {
+                    root.back-clicked();
+                }
+            }
+
+            CustomButton {
+                text: "Continue";
+                primary: true;
+                enabled: accepted;
+                clicked => {
+                    root.next-clicked();
+                }
+            }
+        }
+    }
+}

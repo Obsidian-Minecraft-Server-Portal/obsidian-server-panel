@@ -1,0 +1,46 @@
+[package]
+name = "obsidian-installer"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+oim = { path = "../lib/" }
+pretty_env_logger = { version = "0.5.0" }
+log = "0.4.28"
+tokio = { version = "1.48.0", features = ["full"] }
+slint = { version = "1.14.1", features = ["log", "serde", "backend-winit"] }
+anyhow = { version = "1.0.100" }
+image = "0.25.8"
+ttf-parser = "0.25.1"
+reqwest = {version = "0.12.24", features = []}
+pulldown-cmark = "0.12.2"
+clap = { version = "4.5.0", features = ["derive"] }
+raw-window-handle = "0.6.2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Com",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_Graphics_Dwm",
+] }
+winreg = "0.55.0"
+
+[build-dependencies]
+slint-build = { version = "1.14.1" }
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winresource = { version = "0.1.23" }
+
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Better optimization (slower compile)
+strip = true        # Strip symbols from binary
+panic = "abort"     # Remove panic unwinding code

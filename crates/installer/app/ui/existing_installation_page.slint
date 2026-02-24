@@ -1,0 +1,173 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme, CustomButton } from "common.slint";
+
+// Existing Installation page - shown when an installation is detected
+export component ExistingInstallationPage inherits Rectangle {
+    in property <string> installed-version: "";
+    in property <string> install-path: "";
+
+    callback repair-clicked();
+    callback uninstall-clicked();
+    callback cancel-clicked();
+
+    background: Theme.bg-primary;
+    width: 1280px;
+    height: 640px;
+
+    VerticalLayout {
+        padding: 60px;
+        spacing: 30px;
+        alignment: LayoutAlignment.center;
+
+        // Warning icon and title
+        VerticalLayout {
+            spacing: 20px;
+            alignment: center;
+
+            HorizontalLayout {
+                alignment: center;
+                spacing: 10px;
+                // Warning icon (pixelated style)
+            Rectangle {
+                    width: 64px;
+                    height: 64px;
+
+                    Rectangle {
+                        width: 48px;
+                        height: 48px;
+                        border-radius: 0px;
+                        border-width: 4px;
+                        border-color: Theme.warning;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+
+                        Text {
+                            text: "!";
+                            color: Theme.warning;
+                            font-size: 32px;
+                            font-weight: 900;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Installation Detected";
+                    color: Theme.text-primary;
+                    font-size: 32px;
+                    font-weight: 900;
+                    letter-spacing: 1px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Information section
+        Rectangle {
+            background: Theme.bg-secondary;
+            border-radius: 0px;
+
+            VerticalLayout {
+                padding: 30px;
+                spacing: 20px;
+
+                Text {
+                    text: "Obsidian Minecraft Server Panel is already installed on this system.";
+                    color: Theme.text-primary;
+                    font-size: 16px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+
+                // Installation details
+                VerticalLayout {
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: center;
+
+                        Text {
+                            text: "Version:";
+                            color: Theme.text-secondary;
+                            font-size: 14px;
+                            font-weight: 600;
+                        }
+
+                        Text {
+                            text: installed-version;
+                            color: Theme.text-primary;
+                            font-size: 14px;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: center;
+
+                        Text {
+                            text: "Location:";
+                            color: Theme.text-secondary;
+                            font-size: 14px;
+                            font-weight: 600;
+                        }
+
+                        Text {
+                            text: install-path;
+                            color: Theme.text-primary;
+                            font-size: 13px;
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+        // Action buttons
+        VerticalLayout {
+                spacing: 15px;
+                alignment: center;
+                width: 400px;
+
+                // Repair button
+            CustomButton {
+                    text: "Repair Installation";
+                    width: 400px;
+                    clicked => {
+                        repair-clicked();
+                    }
+                }
+
+                // Uninstall button
+            CustomButton {
+                    text: "Uninstall";
+                    width: 400px;
+                    clicked => {
+                        uninstall-clicked();
+                    }
+                }
+
+                // Cancel button
+            CustomButton {
+                    text: "Cancel";
+                    width: 400px;
+                    clicked => {
+                        cancel-clicked();
+                    }
+                }
+            }
+        }
+
+        // Help text
+        Text {
+            text: "Repair will reinstall the application files while preserving your configuration.\nUninstall will remove the application from your system.";
+            color: Theme.text-secondary;
+            font-size: 12px;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+}

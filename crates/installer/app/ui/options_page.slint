@@ -1,0 +1,100 @@
+import { CheckBox, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme, CustomButton } from "common.slint";
+
+// Options page
+export component OptionsPage inherits Rectangle {
+    in-out property <bool> install-as-service: true;
+    in-out property <bool> start-with-windows: false;
+    callback back-clicked;
+    callback install-clicked;
+
+    background: Theme.bg-primary;
+
+    VerticalLayout {
+        padding: 40px;
+        spacing: 20px;
+
+        Text {
+            text: "Installation Options";
+            color: Theme.text-primary;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        Text {
+            text: "Configure how Obsidian will run on your system";
+            color: Theme.text-secondary;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        Rectangle {
+            height: 100px;
+        }
+
+        // Options
+        VerticalLayout {
+            spacing: 24px;
+
+            // Service option
+            VerticalLayout {
+                spacing: 8px;
+
+                CheckBox {
+                    checked <=> install-as-service;
+                    text: "Install as Windows Service";
+                }
+
+                Text {
+                    text: "Allows Obsidian to run in the background even when you're not logged in";
+                    color: Theme.text-tertiary;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+            }
+
+            // Startup option
+            VerticalLayout {
+                spacing: 8px;
+
+                CheckBox {
+                    checked <=> start-with-windows;
+                    text: "Start with Windows";
+                }
+
+                Text {
+                    text: "Automatically start Obsidian when Windows starts";
+                    color: Theme.text-tertiary;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        Rectangle {
+            // Spacer
+        }
+
+        // Navigation buttons
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+
+            CustomButton {
+                text: "Back";
+                clicked => {
+                    root.back-clicked();
+                }
+            }
+
+            CustomButton {
+                text: "Install";
+                primary: true;
+                clicked => {
+                    root.install-clicked();
+                }
+            }
+        }
+    }
+}

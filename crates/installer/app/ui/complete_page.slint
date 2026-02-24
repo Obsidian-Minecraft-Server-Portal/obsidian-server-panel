@@ -1,0 +1,87 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme, CustomButton } from "common.slint";
+
+// Complete page
+export component CompletePage inherits Rectangle {
+    in property <bool> success: true;
+    in property <string> message: "Obsidian has been successfully installed!";
+    callback launch-clicked;
+    callback finish-clicked;
+
+    background: Theme.bg-primary;
+
+    VerticalLayout {
+        padding: 40px;
+        spacing: 30px;
+        alignment: center;
+
+        // Success icon with animation
+        success-icon := Rectangle {
+            height: 128px;
+            opacity: 0;
+
+            states [
+                visible when root.visible: {
+                    opacity: 1;
+                    in {
+                        animate opacity {
+                            duration: 600ms;
+                            delay: 200ms;
+                            easing: ease-out;
+                        }
+                    }
+                }
+            ]
+
+            Text {
+                text: success ? "✓" : "✕";
+                color: success ? Theme.success : Theme.error;
+                font-size: 96px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Text {
+            text: success ? "Installation Complete!" : "Installation Failed";
+            color: Theme.text-primary;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: message;
+            color: Theme.text-secondary;
+            font-size: 14px;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+
+        // Buttons
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: center;
+
+            if success: CustomButton {
+                text: "Launch Obsidian";
+                primary: true;
+                min-width: 150px;
+                clicked => {
+                    root.launch-clicked();
+                }
+            }
+
+            CustomButton {
+                text: "Finish";
+                primary: !success;
+                min-width: 150px;
+                clicked => {
+                    root.finish-clicked();
+                }
+            }
+        }
+    }
+}

@@ -5,6 +5,9 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tools/publish_docker/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tools/update_version/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/backups/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/backups/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/backups/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

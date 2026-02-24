@@ -1,0 +1,260 @@
+import { VerticalBox } from "std-widgets.slint";
+import { Theme, TitleBar } from "common.slint";
+import { WelcomePage } from "welcome_page.slint";
+import { TermsPage, TextSegment } from "terms_page.slint";
+import { LocationPage } from "location_page.slint";
+import { InstallingPage } from "installing_page.slint";
+import { CompletePage } from "complete_page.slint";
+import { ExistingInstallationPage } from "existing_installation_page.slint";
+
+// Import Minecraft fonts
+import "../res/fonts/Minecraft-Seven_v2.ttf";
+import "../res/fonts/Minecraft-Tenv2.ttf";
+
+// Page enumeration
+export enum Page {
+    Welcome,
+    ExistingInstallation,
+    TermsOfService,
+    Location,
+    Installing,
+    Complete
+}
+
+export component App inherits Window {
+    title: "Obsidian Installer";
+    // Minecraft fonts are embedded and registered at runtime (TTF format)
+    default-font-family: "Minecraft Seven v2";
+    background: Theme.bg-primary;
+    no-frame: true;
+
+    // Fixed window size - not resizable
+    min-width: 1280px;
+    max-width: 1280px;
+    min-height: 720px;
+    max-height: 720px;
+
+    // Public properties
+    in-out property <image> app-icon;
+    in-out property <Page> current-page: Page.Welcome;
+    in-out property <[TextSegment]> tos-segments;
+    in-out property <bool> tos-accepted: false;
+    in-out property <string> install-path: "C:\\Program Files\\Obsidian Minecraft Server Panel";
+    in-out property <bool> install-as-service: true;
+    in-out property <bool> start-with-windows: false;
+    in-out property <int> release-channel: 0; // 0 = Release, 1 = Beta, 2 = Alpha
+    in-out property <string> release-version: "";
+    in-out property <string> beta-version: "";
+    in-out property <string> alpha-version: "";
+    in-out property <bool> fetching-versions: false;
+    in-out property <string> install-status: "Preparing...";
+    in-out property <float> install-progress: 0.0;
+    in-out property <bool> install-has-error: false;
+    in-out property <string> install-error-message: "";
+    in-out property <bool> install-success: true;
+    in-out property <string> complete-message: "";
+    in-out property <string> existing-version: "";
+    in-out property <string> existing-install-path: "";
+
+    // Callbacks
+    callback request-exit-app;
+    callback minimize-window;
+    callback drag-window(length, length);
+    callback browse-folder;
+    callback fetch-channel-versions;
+    callback start-installation;
+    callback launch-app;
+    callback repair-installation;
+    callback uninstall-installation;
+    callback cancel-existing-installation;
+
+    VerticalLayout {
+        alignment: LayoutAlignment.stretch;
+        visible: true;
+        // Title bar
+        TitleBar {
+            app-icon: root.app-icon;
+            height: 40px;
+            minimize-clicked => {
+                root.minimize-window();
+            }
+            close-clicked => {
+                root.request-exit-app();
+            }
+            drag-start(x, y) => {
+                root.drag-window(x, y);
+            }
+        }
+
+        // Main content area with page transitions
+        VerticalBox {
+            alignment: LayoutAlignment.stretch;
+            spacing: 8px;
+
+            if current-page == Page.Welcome: WelcomePage {
+                next-clicked => {
+                    current-page = Page.TermsOfService;
+                }
+
+                states [
+                    visible when current-page == Page.Welcome: {
+                        opacity: 1;
+                        in {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                        out {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                    }
+                ]
+            }
+            if current-page == Page.ExistingInstallation: ExistingInstallationPage {
+                installed-version: root.existing-version;
+                install-path: root.existing-install-path;
+                repair-clicked => {
+                    root.repair-installation();
+                }
+                uninstall-clicked => {
+                    root.uninstall-installation();
+                }
+                cancel-clicked => {
+                    root.cancel-existing-installation();
+                }
+
+                states [
+                    visible when current-page == Page.ExistingInstallation: {
+                        opacity: 1;
+                        in {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                        out {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                    }
+                ]
+            }
+            if current-page == Page.TermsOfService: TermsPage {
+                tos-segments: root.tos-segments;
+                accepted <=> tos-accepted;
+                back-clicked => {
+                    current-page = Page.Welcome;
+                }
+                next-clicked => {
+                    current-page = Page.Location;
+                    root.fetch-channel-versions();
+                }
+
+                states [
+                    visible when current-page == Page.TermsOfService: {
+                        opacity: 1;
+                        in {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                        out {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                    }
+                ]
+            }
+
+            if current-page == Page.Location: LocationPage {
+                install-path <=> root.install-path;
+                install-as-service <=> root.install-as-service;
+                start-with-windows <=> root.start-with-windows;
+                release-channel <=> root.release-channel;
+                release-version: root.release-version;
+                beta-version: root.beta-version;
+                alpha-version: root.alpha-version;
+                fetching-versions: root.fetching-versions;
+                back-clicked => {
+                    current-page = Page.TermsOfService;
+                }
+                install-clicked => {
+                    current-page = Page.Installing;
+                    root.start-installation();
+                }
+                browse-clicked => {
+                    root.browse-folder();
+                }
+
+                states [
+                    visible when current-page == Page.Location: {
+                        opacity: 1;
+                        in {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                        out {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                    }
+                ]
+            }
+
+            if current-page == Page.Installing: InstallingPage {
+                status-text: install-status;
+                progress: install-progress;
+                has-error: install-has-error;
+                error-message: install-error-message;
+
+                states [
+                    visible when current-page == Page.Installing: {
+                        opacity: 1;
+                        in {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                    }
+                ]
+            }
+
+            if current-page == Page.Complete: CompletePage {
+                success: install-success;
+                message: complete-message;
+                launch-clicked => {
+                    root.launch-app();
+                }
+                finish-clicked => {
+                    root.request-exit-app();
+                }
+
+                states [
+                    visible when current-page == Page.Complete: {
+                        opacity: 1;
+                        in {
+                            animate opacity {
+                                duration: 300ms;
+                                easing: ease-in-out;
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

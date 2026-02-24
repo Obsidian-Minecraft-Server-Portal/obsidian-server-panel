@@ -1,0 +1,203 @@
+import { LineEdit,  ComboBox, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme, CustomButton, Checkbox } from "common.slint";
+
+// Location and options selection page
+export component LocationPage inherits Rectangle {
+    in-out property <string> install-path: "C:\\Program Files\\Obsidian";
+    in-out property <bool> install-as-service: true;
+    in-out property <bool> start-with-windows: false;
+    in-out property <int> release-channel: 0; // 0 = Release, 1 = Beta, 2 = Alpha
+    in property <string> release-version: "";
+    in property <string> beta-version: "";
+    in property <string> alpha-version: "";
+    in property <bool> fetching-versions: false;
+    callback back-clicked;
+    callback install-clicked;
+    callback browse-clicked;
+
+    // Build the channel labels with version info
+    property <string> release-label: release-version != "" ? "Release (Stable) - v" + release-version : "Release (Stable) - Not available";
+    property <string> beta-label: beta-version != "" ? "Beta - v" + beta-version : "Beta - Not available";
+    property <string> alpha-label: alpha-version != "" ? "Alpha (All Pre-releases) - v" + alpha-version : "Alpha (All Pre-releases) - Not available";
+
+    property <bool> has-release: release-version != "";
+    property <bool> has-beta: beta-version != "";
+    property <bool> has-alpha: alpha-version != "";
+
+    background: Theme.bg-primary;
+
+    VerticalLayout {
+        padding: 40px;
+        spacing: 16px;
+
+        // Header
+        Text {
+            text: "Installation Setup";
+            color: Theme.text-primary;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        Text {
+            text: "Configure your Obsidian installation";
+            color: Theme.text-secondary;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        Rectangle { height: 20px; }
+
+        // Path input section
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "Installation Path";
+                color: Theme.text-primary;
+                font-size: 15px;
+                font-weight: 700;
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+                height: 42px;
+
+                LineEdit {
+                    text <=> install-path;
+                    placeholder-text: "Enter installation path...";
+                    font-size: 13px;
+                    vertical-stretch: 0;
+                }
+
+                CustomButton {
+                    text: "Browse...";
+                    min-width: 100px;
+                    clicked => {
+                        root.browse-clicked();
+                    }
+                }
+            }
+
+            Text {
+                text: "Space required: ~500 MB";
+                color: Theme.text-tertiary;
+                font-size: 11px;
+            }
+        }
+
+        Rectangle { height: 24px; }
+
+        // Release Channel section
+        VerticalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "Release Channel";
+                color: Theme.text-primary;
+                font-size: 15px;
+                font-weight: 700;
+            }
+
+            channel-combo := ComboBox {
+                model: [release-label, beta-label, alpha-label];
+                current-index <=> release-channel;
+                enabled: !fetching-versions;
+            }
+
+            Text {
+                text: fetching-versions ? "Fetching available versions..." :
+                      release-channel == 0 && !has-release ? "Release channel not available - select another channel" :
+                      release-channel == 1 && !has-beta ? "Beta channel not available - select another channel" :
+                      release-channel == 2 && !has-alpha ? "Alpha channel not available - select another channel" :
+                      release-channel == 0 ? "Stable releases only - recommended for production use" :
+                      release-channel == 1 ? "Beta releases and release candidates - may contain bugs" :
+                      "All pre-release versions including alpha - for testing only";
+                color: fetching-versions ? Theme.text-secondary :
+                       (release-channel == 0 && !has-release) || (release-channel == 1 && !has-beta) || (release-channel == 2 && !has-alpha) ? Theme.error :
+                       Theme.text-tertiary;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+        }
+
+        Rectangle { height: 24px; }
+
+        // Installation options section
+        VerticalLayout {
+            Text {
+                text: "Installation Options";
+                color: Theme.text-primary;
+                font-size: 15px;
+                font-weight: 700;
+            }
+
+            // Service option
+            VerticalLayout {
+                spacing: 6px;
+
+                Checkbox {
+                    checked <=> install-as-service;
+                    label: "Install as Windows Service";
+                }
+
+                Text {
+                    text: "Allows Obsidian to run in the background even when you're not logged in";
+                    color: Theme.text-tertiary;
+                    font-size: 11px;
+                    wrap: word-wrap;
+                }
+            }
+
+            Rectangle { height: 12px; }
+
+            // Startup option
+            VerticalLayout {
+                spacing: 6px;
+
+                Checkbox {
+                    checked <=> start-with-windows;
+                    label: "Start with Windows";
+                }
+
+                Text {
+                    text: "Automatically start Obsidian when Windows starts";
+                    color: Theme.text-tertiary;
+                    font-size: 11px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        // Spacer to push buttons to bottom
+        Rectangle {
+            vertical-stretch: 1;
+        }
+
+        // Navigation buttons
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+            height: 42px;
+
+            CustomButton {
+                text: "Back";
+                clicked => {
+                    root.back-clicked();
+                }
+            }
+
+            CustomButton {
+                text: "Install";
+                primary: true;
+                enabled: install-path != "" && !fetching-versions &&
+                         ((release-channel == 0 && has-release) ||
+                          (release-channel == 1 && has-beta) ||
+                          (release-channel == 2 && has-alpha));
+                clicked => {
+                    root.install-clicked();
+                }
+            }
+        }
+    }
+}

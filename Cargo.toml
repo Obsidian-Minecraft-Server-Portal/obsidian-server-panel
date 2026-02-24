@@ -1,14 +1,12 @@
 [workspace]
-members = [
-    "tools/update_version",
-    "tools/publish_docker",
-]
+resolver = "3"
+members = ["crates/backups", "crates/installer/*", "crates/scheduler"]
 
 [package]
 name = "obsidian_server_panel"
 version = "0.0.1-alpha"
 edition = "2024"
-authors = ["Drew Chase (Work) <dcmanproductions@gmail.com>"]
+authors = ["Drew Chase"]
 build = "src-actix/build.rs"
 
 [[bin]]
@@ -60,10 +58,9 @@ base64 = "0.22.1"
 notify = { version = "8.1.0", features = ["default", "serde"] }
 clap = { version = "4.5.42", features = ["error-context", "derive", "help", "suggestions", "color", "usage", "wrap_help", "unicode", "string", "env"] }
 rand = "0.9.1"
-obsidian-scheduler = { version = "0.1.0", features = ["event-timers", "log", "callback-timers"] }
-obsidian-backups = { path = "../obsidian-backup-system", features = ["serde", "logging", "zip", "async-stream"] }
-#obsidian-backups = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-backup-system.git", features = ["serde", "logging", "zip", "async-stream"] }
-oim = { git = "https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-installation-manager.git" }
+obsidian-scheduler = { path="crates/scheduler", features = ["event-timers", "log", "callback-timers"] }
+obsidian-backups = { path = "crates/backups", features = ["serde", "logging", "zip", "async-stream"] }
+oim = { path = "crates/installer" }
 easy-upnp = { version = "0.3.0" }
 
 [build-dependencies]
