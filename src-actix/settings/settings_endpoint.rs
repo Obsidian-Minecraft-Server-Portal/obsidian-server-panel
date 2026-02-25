@@ -333,6 +333,9 @@ pub async fn update_settings(req: HttpRequest, body: web::Json<Settings>) -> Res
         })));
     }
 
+    // Validate that the java_directory doesn't contain path traversal sequences
+    crate::actix_util::path_sanitize::reject_path_traversal(&new_settings.storage.java_directory)?;
+
     // Load old settings to check for directory changes
     let old_settings = load_settings().ok();
 
