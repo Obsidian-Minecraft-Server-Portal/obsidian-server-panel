@@ -359,7 +359,8 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
     };
 
     let log_directory = server.get_directory_path().join("logs");
-    let log_file_path = log_directory.join(log_file);
+    let log_file = log_file.replace('\\', "/");
+    let log_file_path = crate::actix_util::path_sanitize::ensure_path_within(&log_directory, &log_file)?;
 
     if !log_file_path.exists() {
         return Ok(HttpResponse::NotFound().json(json!({
