@@ -7,9 +7,10 @@ use crate::database::{Pool, Row, sql};
 use crate::ICON;
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
-use serde_hash::HashIds;
+use serde_hash::{serde_hash};
 use sqlx::{FromRow, Row as _, Error};
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
 /// Get the servers directory from settings, with fallback to default
 fn get_servers_directory() -> PathBuf {
@@ -28,10 +29,12 @@ fn get_temp_directory() -> PathBuf {
         PathBuf::from("./meta/temp")
     }
 }
-#[derive(HashIds, Debug, Clone)]
+
+#[serde_hash]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServerData {
     /// Unique identifier for the server
-    #[hash]
+    #[serde(hash)]
     pub id: u64,
     /// Name of the server, e.g. 'My Minecraft Server'
     pub name: String,
@@ -72,7 +75,7 @@ pub struct ServerData {
     /// Loader version e.g. '0.14.0', '1.20.1-44.1.23', or 'custom'
     pub loader_version: Option<String>,
     /// ID of the user who owns this server
-    #[hash]
+    #[serde(hash)]
     pub owner_id: u64,
     /// Timestamp of when the server was created (seconds since epoch)
     pub created_at: u64,
