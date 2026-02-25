@@ -24,7 +24,7 @@ impl Actor for UpdatesWebSocket {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        debug!("Updates WebSocket started for user {}", self.user_id);
+        debug!("Updates WebSocket started");
 
         // Subscribe to the broadcast channel
         let mut receiver = broadcast::subscribe();
@@ -44,7 +44,7 @@ impl Actor for UpdatesWebSocket {
                         }
                     }
                     Err(e) => {
-                        error!("Failed to fetch notifications for user {}: {}", user_id, e);
+                        error!("Failed to fetch initial notifications: {}", e);
                     }
                 }
             }
@@ -69,11 +69,11 @@ impl Actor for UpdatesWebSocket {
                             }
                         }
                         Err(RecvError::Lagged(skipped)) => {
-                            warn!("WebSocket for user {} lagged behind and skipped {} messages", user_id, skipped);
+                            warn!("WebSocket lagged behind and skipped {} messages", skipped);
                             // Continue receiving
                         }
                         Err(RecvError::Closed) => {
-                            debug!("Broadcast channel closed, stopping WebSocket for user {}", user_id);
+                            debug!("Broadcast channel closed, stopping WebSocket");
                             addr.do_send(StopWebSocket);
                             break;
                         }
@@ -85,7 +85,7 @@ impl Actor for UpdatesWebSocket {
     }
 
     fn stopped(&mut self, _: &mut Self::Context) {
-        debug!("Updates WebSocket stopped for user {}", self.user_id);
+        debug!("Updates WebSocket stopped");
     }
 }
 
@@ -141,7 +141,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWebSocket 
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Pong(_)) => {}
             Ok(ws::Message::Close(reason)) => {
-                debug!("WebSocket close requested for user {}: {:?}", self.user_id, reason);
+                debug!("WebSocket close requested: {:?}", reason);
                 ctx.stop();
             }
             _ => {}

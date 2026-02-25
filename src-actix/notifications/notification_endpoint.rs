@@ -28,7 +28,7 @@ impl Actor for NotificationWebSocket {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        debug!("Notification WebSocket started for user {}", self.user_id);
+        debug!("Notification WebSocket started");
         let user_id = self.user_id;
         let addr = ctx.address();
 
@@ -50,7 +50,7 @@ impl Actor for NotificationWebSocket {
                         addr.do_send(SendMessage(msg));
                     }
                     Err(e) => {
-                        error!("Failed to fetch notifications for user {}: {}", user_id, e);
+                        error!("Failed to fetch initial notifications: {}", e);
                         let msg = NotificationMessage::Error {
                             message: "Failed to load notifications".to_string(),
                         };
@@ -63,7 +63,7 @@ impl Actor for NotificationWebSocket {
     }
 
     fn stopped(&mut self, _: &mut Self::Context) {
-        debug!("Notification WebSocket stopped for user {}", self.user_id);
+        debug!("Notification WebSocket stopped");
         let user_id = self.user_id;
 
         // Unregister this connection (we can't easily remove the specific address, so we'll clean up later)
@@ -128,7 +128,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for NotificationWebSo
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Pong(_)) => {}
             Ok(ws::Message::Close(reason)) => {
-                debug!("WebSocket close requested for user {}: {:?}", self.user_id, reason);
+                debug!("WebSocket close requested: {:?}", reason);
                 ctx.stop();
             }
             _ => {}
