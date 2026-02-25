@@ -85,6 +85,13 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((p
     );
 });
 
+function secureRandom(max: number): number
+{
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return array[0] % max;
+}
+
 function generateRandomPassword(options: PasswordGenerationOptions = defaultPasswordGenerationOptions): string
 {
     const {
@@ -105,45 +112,48 @@ function generateRandomPassword(options: PasswordGenerationOptions = defaultPass
     if (includeNumbers) characterPool += numberChars;
     if (includeSpecialChars) characterPool += specialChars;
 
-    let password = "";
+    const length = secureRandom(maxLength - minLength + 1) + minLength;
+    const chars: string[] = [];
     let hasUpper = false;
     let hasNumber = false;
     let hasSpecial = false;
 
-    const length = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
-
     for (let i = 0; i < length; i++)
     {
-        const randomIndex = Math.floor(Math.random() * characterPool.length);
+        const randomIndex = secureRandom(characterPool.length);
         const char = characterPool[randomIndex];
-        password += char;
+        chars.push(char);
 
         if (includeUppercase && uppercaseChars.includes(char)) hasUpper = true;
         if (includeNumbers && numberChars.includes(char)) hasNumber = true;
         if (includeSpecialChars && specialChars.includes(char)) hasSpecial = true;
     }
 
-    // If the generated password doesn't have an uppercase letter, insert one
+    // Ensure required character types are present
     if (includeUppercase && !hasUpper)
     {
-        const randomIndex = Math.floor(Math.random() * length);
-        password = password.slice(0, randomIndex) + uppercaseChars[Math.floor(Math.random() * uppercaseChars.length)] + password.slice(randomIndex + 1);
+        const pos = secureRandom(chars.length);
+        chars[pos] = uppercaseChars[secureRandom(uppercaseChars.length)];
     }
-    // If the generated password doesn't have a number, insert one
     if (includeNumbers && !hasNumber)
     {
-        const randomIndex = Math.floor(Math.random() * length);
-        password = password.slice(0, randomIndex) + numberChars[Math.floor(Math.random() * numberChars.length)] + password.slice(randomIndex + 1);
+        const pos = secureRandom(chars.length);
+        chars[pos] = numberChars[secureRandom(numberChars.length)];
     }
-    // If the generated password doesn't have a special character, insert one
     if (includeSpecialChars && !hasSpecial)
     {
-        const randomIndex = Math.floor(Math.random() * length);
-        password = password.slice(0, randomIndex) + specialChars[Math.floor(Math.random() * specialChars.length)] + password.slice(randomIndex + 1);
+        const pos = secureRandom(chars.length);
+        chars[pos] = specialChars[secureRandom(specialChars.length)];
     }
-    // Shuffle the password to ensure randomness
-    password = password.split("").sort(() => Math.random() - 0.5).join("");
-    return password;
+
+    // Fisher-Yates shuffle with cryptographically secure randomness
+    for (let i = chars.length - 1; i > 0; i--)
+    {
+        const j = secureRandom(i + 1);
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+
+    return chars.join("");
 }
 
 PasswordInput.displayName = "PasswordInput";
