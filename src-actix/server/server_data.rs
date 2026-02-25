@@ -5,7 +5,7 @@ use crate::server::server_status::ServerStatus::Idle;
 use crate::server::server_type::ServerType;
 use crate::database::{Pool, Row, sql};
 use crate::ICON;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use serde_hash::{serde_hash};
 use sqlx::{FromRow, Row as _, Error};
@@ -241,6 +241,9 @@ impl ServerData {
         self.auto_restart = server_data.auto_restart;
         self.backup_enabled = server_data.backup_enabled;
         self.backup_cron = server_data.backup_cron.clone();
+        if server_data.backup_retention > 1000 {
+            return Err(anyhow!("backup_retention cannot exceed 1000"));
+        }
         self.backup_retention = server_data.backup_retention;
         self.description = server_data.description.clone();
         self.minecraft_version = server_data.minecraft_version.clone();
