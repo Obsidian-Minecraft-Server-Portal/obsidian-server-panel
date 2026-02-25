@@ -6,6 +6,9 @@ on:
       - 'v*.*.*'
       - 'v*.*.*-*'
 
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     name: Build Windows (${{ matrix.arch }})
