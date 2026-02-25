@@ -1,3 +1,4 @@
+use crate::actix_util::path_sanitize::sanitize_path_component;
 use crate::java::java_data::{JavaVersionData, Manifest, OSVersions, RuntimeVersion, OS};
 use anyhow::{anyhow, Result};
 use futures::stream;
@@ -9,6 +10,32 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::{fs::File, io::Write, sync::Arc};
+
+/// Allowed domains for Mojang/Minecraft Java runtime downloads.
+const ALLOWED_JAVA_DOMAINS: &[&str] = &[
+    "piston-meta.mojang.com",
+    "piston-data.mojang.com",
+    "launcher.mojang.com",
+    "launchermeta.mojang.com",
+    "libraries.minecraft.net",
+];
+
+/// Validate that a URL uses HTTPS and points to an allowed Mojang domain.
+fn validate_mojang_url(url: &str) -> Result<()> {
+    let parsed = reqwest::Url::parse(url)
+        .map_err(|e| anyhow!("Invalid URL '{}': {}", url, e))?;
+
+    if parsed.scheme() != "https" {
+        return Err(anyhow!("Only HTTPS URLs are allowed, got: {}", url));
+    }
+
+    let host = parsed.host_str().ok_or_else(|| anyhow!("URL has no host: {}", url))?;
+    if !ALLOWED_JAVA_DOMAINS.contains(&host) {
+        return Err(anyhow!("URL domain '{}' is not in the allowed list", host));
+    }
+
+    Ok(())
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct JavaVersion {
@@ -111,7 +138,9 @@ impl JavaVersion {
             let _ = std::fs::create_dir_all(&java_dir);
         }
 
-        java_dir.join(format!("{}-{}", self.runtime, self.version))
+        let runtime = sanitize_path_component(&self.runtime.to_string());
+        let version = sanitize_path_component(&self.version);
+        java_dir.join(format!("{}-{}", runtime, version))
     }
 
     fn get_executable(&mut self) -> PathBuf {
@@ -140,6 +169,7 @@ impl JavaVersion {
         let now = std::time::Instant::now();
         warn!("Installing Java {}, this may take some time!", self.version);
         let url = &self.manifest.url;
+        validate_mojang_url(url)?;
         let client = Client::new();
         let response = client.get(url).send().await?;
         let json = response.json::<Value>().await?;
@@ -187,6 +217,8 @@ impl JavaVersion {
 
     pub fn uninstall(&self) -> Result<()> {
         let path = self.get_installation_directory();
+        // Validate the path doesn't contain traversal sequences before deleting
+        crate::actix_util::path_sanitize::reject_path_traversal(&path)?;
         if path.exists() {
             std::fs::remove_dir_all(path)?;
         }
@@ -205,6 +237,7 @@ impl JavaVersion {
         let url = raw.get("url").ok_or_else(|| anyhow!("No url found"))?;
         let url = url.as_str().ok_or_else(|| anyhow!("Url not a string"))?;
 
+        validate_mojang_url(url)?;
         let path = self.get_installation_directory().join(key);
         let response = client.get(url).send().await?;
 
@@ -229,6 +262,7 @@ impl JavaVersion {
     }
 
     pub async fn get_installation_files(&self) -> Result<Vec<String>> {
+        validate_mojang_url(&self.manifest.url)?;
         let response = reqwest::get(&self.manifest.url).await?;
         let json = response.json::<Value>().await?;
         let files = json.get("files").ok_or_else(|| anyhow!("No files found"))?;
