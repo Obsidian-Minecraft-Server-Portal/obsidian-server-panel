@@ -197,7 +197,7 @@ export default function DiscoverPage()
                 }));
             } catch (error)
             {
-                console.error(`Failed to fetch ${selectedPlatform} modpacks:`, error);
+                console.error("Failed to fetch modpacks for platform:", selectedPlatform, error);
                 setPlatformData(prev => ({
                     ...prev,
                     [selectedPlatform]: {
