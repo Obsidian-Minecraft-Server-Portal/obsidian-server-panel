@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/backups", "crates/installer/lib", "crates/installer/app", "crates/scheduler", "crates/cache", "crates/modrinth", "crates/curseforge", "crates/app_db", "crates/upnp"]
+members = ["crates/backups", "crates/installer/lib", "crates/installer/app", "crates/scheduler", "crates/cache", "crates/modrinth", "crates/curseforge", "crates/app_db", "crates/upnp", "crates/fabric_loader", "crates/forge_loader", "crates/neoforge_loader"]
 
 [package]
 name = "obsidian_server_panel"
@@ -65,6 +65,9 @@ obsidian-upnp = { path = "crates/upnp" }
 modrinth = { path = "crates/modrinth" }
 curseforge = { path = "crates/curseforge" }
 obsidian_database = {path="crates/app_db"}
+fabric-loader = { path = "crates/fabric_loader", features = ["logging"] }
+forge-loader = { path = "crates/forge_loader", features = ["logging"] }
+neoforge-loader = { path = "crates/neoforge_loader", features = ["logging"] }
 
 [build-dependencies]
 include_dir = "0.7.4"

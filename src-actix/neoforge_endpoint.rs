@@ -3,8 +3,8 @@ use actix_web::{get, HttpResponse, Responder};
 use serde_json::json;
 
 #[get("/versions")]
-pub async fn get_forge_versions() -> Result<impl Responder> {
-    let client = forge_loader::ForgeClient::new();
+pub async fn get_neoforge_versions() -> Result<impl Responder> {
+    let client = neoforge_loader::NeoForgeClient::new();
     let versions = client
         .get_versions()
         .await
@@ -14,8 +14,8 @@ pub async fn get_forge_versions() -> Result<impl Responder> {
 
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(
-        actix_web::web::scope("/forge")
-            .service(get_forge_versions)
+        actix_web::web::scope("/neoforge")
+            .service(get_neoforge_versions)
             .default_service(actix_web::web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),

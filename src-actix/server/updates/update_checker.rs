@@ -106,7 +106,7 @@ impl UpdateChecker {
 
     /// Check for Fabric loader updates
     async fn check_fabric_update(server: &ServerData) -> Result<Option<UpdateInfo>> {
-        let client = Client::new();
+        let client = fabric_loader::FabricClient::new();
         let current_version = server
             .loader_version
             .as_ref()
@@ -116,73 +116,36 @@ impl UpdateChecker {
             .as_ref()
             .ok_or(anyhow!("No minecraft version set"))?;
 
-        debug!(
-            "Checking fabric update for MC {} with loader {}",
-            minecraft_version, current_version
-        );
-
-        // Fetch available loader versions for this MC version
-        let url = format!(
-            "https://meta.fabricmc.net/v2/versions/loader/{}",
-            minecraft_version
-        );
-        let response = client.get(&url).send().await?;
-        let loaders: Vec<Value> = response.json().await?;
-
-        if loaders.is_empty() {
-            return Ok(None);
+        match client
+            .check_for_update(minecraft_version, current_version)
+            .await
+        {
+            Ok(Some(update)) => {
+                info!(
+                    "Update available for server '{}' Fabric: {} -> {}",
+                    server.name, current_version, update.latest_loader_version
+                );
+                Ok(Some(UpdateInfo::new(
+                    current_version.clone(),
+                    update.latest_loader_version,
+                    update.download_url,
+                    Some(update.changelog_url),
+                )))
+            }
+            Ok(None) => {
+                info!(
+                    "Server '{}' Fabric loader is up to date ({})",
+                    server.name, current_version
+                );
+                Ok(None)
+            }
+            Err(e) => Err(anyhow!("Fabric update check failed: {}", e)),
         }
-
-        // Get the latest stable loader
-        let latest = &loaders[0];
-        let latest_version = latest["loader"]["version"]
-            .as_str()
-            .ok_or(anyhow!("Failed to parse loader version"))?
-            .to_string();
-
-        if current_version == &latest_version {
-            info!(
-                "Server '{}' Fabric loader is up to date ({})",
-                server.name, current_version
-            );
-            return Ok(None);
-        }
-
-        // Get stable installer version
-        let installer_response = client
-            .get("https://meta.fabricmc.net/v2/versions/installer")
-            .send()
-            .await?;
-        let installers: Vec<Value> = installer_response.json().await?;
-        let stable_installer = installers
-            .iter()
-            .find(|i| i["stable"].as_bool() == Some(true))
-            .ok_or(anyhow!("No stable installer found"))?;
-        let installer_version = stable_installer["version"]
-            .as_str()
-            .ok_or(anyhow!("Failed to parse installer version"))?;
-
-        let download_url = format!(
-            "https://meta.fabricmc.net/v2/versions/loader/{}/{}/{}/server/jar",
-            minecraft_version, latest_version, installer_version
-        );
-
-        info!(
-            "Update available for server '{}' Fabric: {} -> {}",
-            server.name, current_version, latest_version
-        );
-
-        Ok(Some(UpdateInfo::new(
-            current_version.clone(),
-            latest_version,
-            download_url,
-            Some("https://fabricmc.net/versions/".to_string()),
-        )))
     }
 
     /// Check for Forge loader updates
     async fn check_forge_update(server: &ServerData) -> Result<Option<UpdateInfo>> {
-        let client = Client::new();
+        let client = forge_loader::ForgeClient::new();
         let current_version = server
             .loader_version
             .as_ref()
@@ -192,57 +155,36 @@ impl UpdateChecker {
             .as_ref()
             .ok_or(anyhow!("No minecraft version set"))?;
 
-        debug!(
-            "Checking forge update for MC {} with loader {}",
-            minecraft_version, current_version
-        );
-
-        // Fetch promotions file
-        let response = client
-            .get("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json")
-            .send()
-            .await?;
-        let promotions: Value = response.json().await?;
-
-        // Look for recommended version for this MC version
-        let promo_key = format!("{}-recommended", minecraft_version);
-        let latest_forge = promotions["promos"][&promo_key]
-            .as_str()
-            .or_else(|| promotions["promos"][format!("{}-latest", minecraft_version)].as_str())
-            .ok_or(anyhow!("No Forge version found for MC {}", minecraft_version))?;
-
-        // Forge versions are in format "47.2.0" (for MC 1.20.1)
-        let latest_version = format!("{}-{}", minecraft_version, latest_forge);
-
-        if current_version == &latest_version {
-            info!(
-                "Server '{}' Forge is up to date ({})",
-                server.name, current_version
-            );
-            return Ok(None);
+        match client
+            .check_for_update(minecraft_version, current_version)
+            .await
+        {
+            Ok(Some(update)) => {
+                info!(
+                    "Update available for server '{}' Forge: {} -> {}",
+                    server.name, current_version, update.latest_version
+                );
+                Ok(Some(UpdateInfo::new(
+                    current_version.clone(),
+                    update.latest_version,
+                    update.download_url,
+                    Some(update.changelog_url),
+                )))
+            }
+            Ok(None) => {
+                info!(
+                    "Server '{}' Forge is up to date ({})",
+                    server.name, current_version
+                );
+                Ok(None)
+            }
+            Err(e) => Err(anyhow!("Forge update check failed: {}", e)),
         }
-
-        let download_url = format!(
-            "https://maven.minecraftforge.net/net/minecraftforge/forge/{}/forge-{}-installer.jar",
-            latest_version, latest_version
-        );
-
-        info!(
-            "Update available for server '{}' Forge: {} -> {}",
-            server.name, current_version, latest_version
-        );
-
-        Ok(Some(UpdateInfo::new(
-            current_version.clone(),
-            latest_version,
-            download_url,
-            Some("https://files.minecraftforge.net/".to_string()),
-        )))
     }
 
     /// Check for NeoForge loader updates
     async fn check_neoforge_update(server: &ServerData) -> Result<Option<UpdateInfo>> {
-        let client = Client::new();
+        let client = neoforge_loader::NeoForgeClient::new();
         let current_version = server
             .loader_version
             .as_ref()
@@ -252,56 +194,31 @@ impl UpdateChecker {
             .as_ref()
             .ok_or(anyhow!("No minecraft version set"))?;
 
-        debug!(
-            "Checking neoforge update for MC {} with loader {}",
-            minecraft_version, current_version
-        );
-
-        // Fetch available versions from NeoForge Maven
-        let response = client
-            .get("https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge")
-            .send()
-            .await?;
-        let versions: Value = response.json().await?;
-
-        let version_list = versions["versions"]
-            .as_array()
-            .ok_or(anyhow!("Failed to parse versions"))?;
-
-        if version_list.is_empty() {
-            return Ok(None);
+        match client
+            .check_for_update(minecraft_version, current_version)
+            .await
+        {
+            Ok(Some(update)) => {
+                info!(
+                    "Update available for server '{}' NeoForge: {} -> {}",
+                    server.name, current_version, update.latest_version
+                );
+                Ok(Some(UpdateInfo::new(
+                    current_version.clone(),
+                    update.latest_version,
+                    update.download_url,
+                    Some(update.changelog_url),
+                )))
+            }
+            Ok(None) => {
+                info!(
+                    "Server '{}' NeoForge is up to date ({})",
+                    server.name, current_version
+                );
+                Ok(None)
+            }
+            Err(e) => Err(anyhow!("NeoForge update check failed: {}", e)),
         }
-
-        // Get the latest version (versions are usually sorted, latest first)
-        let latest_version = version_list[0]
-            .as_str()
-            .ok_or(anyhow!("Failed to parse latest version"))?
-            .to_string();
-
-        if current_version == &latest_version {
-            info!(
-                "Server '{}' NeoForge is up to date ({})",
-                server.name, current_version
-            );
-            return Ok(None);
-        }
-
-        let download_url = format!(
-            "https://maven.neoforged.net/releases/net/neoforged/neoforge/{}/neoforge-{}-installer.jar",
-            latest_version, latest_version
-        );
-
-        info!(
-            "Update available for server '{}' NeoForge: {} -> {}",
-            server.name, current_version, latest_version
-        );
-
-        Ok(Some(UpdateInfo::new(
-            current_version.clone(),
-            latest_version,
-            download_url,
-            Some("https://neoforged.net/".to_string()),
-        )))
     }
 
     /// Check for Quilt loader updates

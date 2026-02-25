@@ -1,0 +1,24 @@
+[package]
+name = "forge-loader"
+version = "0.1.0"
+edition = "2024"
+description = "A Rust client library for the Forge mod loader: version fetching, installer download, and server installation"
+
+[dependencies]
+cache = { path = "../cache" }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "2.0"
+tokio = { version = "1", features = ["sync", "time", "fs", "io-util"] }
+tokio-interactive = { version = "0.2.0" }
+futures = "0.3"
+log = { version = "0.4", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[features]
+default = []
+logging = ["dep:log"]

@@ -19,7 +19,9 @@ mod authentication;
 mod broadcast;
 mod command_line_args;
 pub mod database;
+mod fabric_endpoint;
 mod forge_endpoint;
+mod neoforge_endpoint;
 mod host_info;
 mod java;
 mod notifications;
@@ -128,7 +130,9 @@ pub async fn run() -> Result<()> {
                         .wrap(authentication::AuthenticationMiddleware)
                         .configure(actions::configure)
                         .configure(java::configure)
+                        .configure(fabric_endpoint::configure)
                         .configure(forge_endpoint::configure)
+                        .configure(neoforge_endpoint::configure)
                         .configure(server::configure)
                         .configure(settings::configure)
                         .configure(updater::configure)
