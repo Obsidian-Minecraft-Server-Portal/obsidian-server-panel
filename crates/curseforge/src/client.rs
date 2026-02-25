@@ -101,6 +101,11 @@ impl CurseForgeClient {
 
     /// Performs a GET request and deserializes the response.
     async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
+        if !url.starts_with("https://") {
+            return Err(CurseForgeError::Other(anyhow::anyhow!(
+                "Only HTTPS URLs are allowed"
+            )));
+        }
         let response = self.http.get(url).send().await?;
         let status = response.status();
 
