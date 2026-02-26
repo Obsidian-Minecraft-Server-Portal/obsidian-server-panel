@@ -288,6 +288,33 @@ impl ServerData {
         ServerProperties::load(properties_path)
     }
 
+    /// Convert this `ServerData` to a `minecraft_server::ServerConfig` for use
+    /// with the standalone server management crate.
+    pub fn to_server_config(&self) -> minecraft_server::ServerConfig {
+        let server_type = match &self.server_type {
+            Some(ServerType::Vanilla) => minecraft_server::ServerType::Vanilla,
+            Some(ServerType::Forge) => minecraft_server::ServerType::Forge,
+            Some(ServerType::Fabric) => minecraft_server::ServerType::Fabric,
+            Some(ServerType::NeoForge) => minecraft_server::ServerType::NeoForge,
+            Some(ServerType::Quilt) => minecraft_server::ServerType::Quilt,
+            Some(ServerType::Custom) | None => minecraft_server::ServerType::Custom,
+        };
+
+        minecraft_server::ServerConfig {
+            name: self.name.clone(),
+            directory: self.get_directory_path(),
+            java_executable: self.java_executable.clone(),
+            java_args: self.java_args.clone(),
+            max_memory_gb: self.max_memory,
+            min_memory_gb: self.min_memory,
+            minecraft_args: self.minecraft_args.clone(),
+            server_jar: self.server_jar.clone(),
+            minecraft_version: self.minecraft_version.clone().unwrap_or_default(),
+            server_type,
+            loader_version: self.loader_version.clone(),
+        }
+    }
+
     fn generate_directory_name(name: &str) -> String {
         let dir_name = regex::Regex::new(r"[^a-zA-Z0-9_\-]").unwrap().replace_all(name, "_").to_string().to_lowercase();
         let mut path = get_servers_directory().join(&dir_name);
