@@ -112,6 +112,28 @@ check-frontend:
 # Run all checks (frontend types + clippy for all backends)
 check-all: check-frontend clippy-all
 
+# ─── Docker ───────────────────────────────────────────────
+
+# Build and start the Docker Compose stack (MySQL + Obsidian)
+compose:
+    docker compose -f composer.yml up --build
+
+# Build and start in detached mode
+compose-detach:
+    docker compose -f composer.yml up --build -d
+
+# Stop the Docker Compose stack
+compose-down:
+    docker compose -f composer.yml down
+
+# Stop and remove all volumes (destroys data)
+compose-purge:
+    docker compose -f composer.yml down -v
+
+# Build the Docker image for a specific database backend
+docker-build feature="sqlite":
+    docker build --build-arg DB_FEATURE={{ feature }} -t obsidian-server-panel:{{ feature }} .
+
 # ─── Cleanup ───────────────────────────────────────────────
 
 # Remove all build artifacts

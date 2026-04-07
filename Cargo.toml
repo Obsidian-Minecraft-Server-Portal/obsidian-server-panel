@@ -8,6 +8,7 @@ version = "0.0.1-alpha"
 edition = "2024"
 authors = ["Drew Chase"]
 build = "src-actix/build.rs"
+rust-version = "1.92.0"
 
 [[bin]]
 name = "obsidian_server_panel"

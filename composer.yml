@@ -1,0 +1,59 @@
+# Obsidian Server Panel with MySQL
+# ─────────────────────────────────────────────────────────────
+# Quick start:
+#   docker compose -f composer.yml up --build
+#
+# Web panel: http://localhost:3698
+#
+# IMPORTANT: Change passwords before deploying to production!
+# ─────────────────────────────────────────────────────────────
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: obsidian-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: obsidian_root_pass
+      MYSQL_DATABASE: obsidian
+      MYSQL_USER: obsidian
+      MYSQL_PASSWORD: obsidian_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - obsidian-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pobsidian_root_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  obsidian:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DB_FEATURE: mysql
+    container_name: obsidian-server-panel
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_CONNECTION_STRING: "mysql://obsidian:obsidian_pass@mysql:3306/obsidian"
+      RUST_LOG: info
+    ports:
+      - "3698:80"
+    volumes:
+      - obsidian_meta:/app/meta
+    networks:
+      - obsidian-net
+
+volumes:
+  mysql_data:
+  obsidian_meta:
+
+networks:
+  obsidian-net:
+    driver: bridge

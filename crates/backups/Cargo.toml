@@ -6,7 +6,7 @@ description = "A Git-based backup library for Rust applications. Originally desi
 authors = ["Drew Chase"]
 license = "MIT"
 repository = "https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-backup-system.git"
-readme = "README.MD"
+readme = "README.md"
 keywords = ["obsidian", "backup", "backups"]
 categories = ["command-line-utilities", "development-tools", "compression", "filesystem"]
 
