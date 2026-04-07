@@ -130,6 +130,22 @@ compose-down:
 compose-purge:
     docker compose -f composer.yml down -v
 
+# View logs from all containers
+compose-logs:
+    docker compose -f composer.yml logs -f
+
+# View logs from the obsidian container only
+compose-logs-obsidian:
+    docker compose -f composer.yml logs -f obsidian
+
+# Open a shell in the running obsidian container
+compose-shell:
+    docker compose -f composer.yml exec obsidian /bin/sh
+
+# Open the MySQL CLI in the running MySQL container
+compose-mysql:
+    docker compose -f composer.yml exec mysql mysql -u obsidian -pobsidian_pass obsidian
+
 # Build the Docker image for a specific database backend
 docker-build feature="sqlite":
     docker build --build-arg DB_FEATURE={{ feature }} -t obsidian-server-panel:{{ feature }} .

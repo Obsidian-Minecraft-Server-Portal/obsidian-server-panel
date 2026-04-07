@@ -18,6 +18,8 @@ services:
       MYSQL_DATABASE: obsidian
       MYSQL_USER: obsidian
       MYSQL_PASSWORD: obsidian_pass
+    ports:
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -42,7 +44,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_CONNECTION_STRING: "mysql://obsidian:obsidian_pass@mysql:3306/obsidian"
-      RUST_LOG: info
+      RUST_LOG: debug
     ports:
       - "3698:80"
     volumes:
