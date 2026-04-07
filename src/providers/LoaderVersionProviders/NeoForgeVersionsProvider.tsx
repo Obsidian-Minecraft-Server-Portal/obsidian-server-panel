@@ -1,6 +1,7 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {addToast} from "@heroui/react";
 import {NeoForgeVersionList, getNeoForgeVersions} from "../../ts/neoforge-versions.ts";
+import {useAuthentication} from "../AuthenticationProvider.tsx";
 
 interface NeoForgeVersionsContextType
 {
@@ -13,6 +14,7 @@ const NeoForgeVersionsContext = createContext<NeoForgeVersionsContextType | unde
 
 export function NeoForgeVersionsProvider({children}: { children: ReactNode })
 {
+    const {isAuthenticated} = useAuthentication();
     const [neoforgeVersions, setNeoForgeVersions] = useState<NeoForgeVersionList | null>(null);
 
     const refreshNeoForgeVersions = useCallback(async () =>
@@ -22,6 +24,8 @@ export function NeoForgeVersionsProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
+        if (!isAuthenticated) return;
+
         refreshNeoForgeVersions()
             .then(() => console.log("Loaded neoforge versions successfully."))
             .catch(error =>
@@ -34,7 +38,7 @@ export function NeoForgeVersionsProvider({children}: { children: ReactNode })
                     color: "danger"
                 });
             });
-    }, []);
+    }, [isAuthenticated]);
 
     const getFromMinecraftVersion = useCallback((minecraftVersion: string): string[] =>
     {

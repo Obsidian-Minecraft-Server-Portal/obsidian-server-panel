@@ -1,6 +1,7 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {addToast} from "@heroui/react";
 import {FabricVersionList, getFabricVersions} from "../../ts/fabric-versions.ts";
+import {useAuthentication} from "../AuthenticationProvider.tsx";
 
 interface FabricVersionsContextType
 {
@@ -12,6 +13,7 @@ const FabricVersionsContext = createContext<FabricVersionsContextType | undefine
 
 export function FabricVersionsProvider({children}: { children: ReactNode })
 {
+    const {isAuthenticated} = useAuthentication();
     const [fabricVersions, setFabricVersions] = useState<FabricVersionList | null>(null);
 
     const refreshFabricVersions = useCallback(async () =>
@@ -21,6 +23,8 @@ export function FabricVersionsProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
+        if (!isAuthenticated) return;
+
         refreshFabricVersions()
             .then(() => console.log("Loaded fabric versions successfully."))
             .catch(error =>
@@ -33,7 +37,7 @@ export function FabricVersionsProvider({children}: { children: ReactNode })
                     color: "danger"
                 });
             });
-    }, []);
+    }, [isAuthenticated]);
 
     return (
         <FabricVersionsContext.Provider value={{fabricVersions, refreshFabricVersions}}>

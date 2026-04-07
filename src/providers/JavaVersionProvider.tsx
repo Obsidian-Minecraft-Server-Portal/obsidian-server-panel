@@ -1,6 +1,7 @@
 import $ from "jquery";
 import {createContext, ReactNode, useContext, useEffect, useState} from "react";
 import {getJavaVersions, getRuntimeFiles as getFiles, installRuntime, JavaRuntime, JavaVersion, JavaVersionMap, uninstallRuntime} from "../ts/java-versions.ts";
+import {useAuthentication} from "./AuthenticationProvider.tsx";
 
 interface JavaVersionContextType
 {
@@ -22,6 +23,7 @@ const JavaVersionContext = createContext<JavaVersionContextType | undefined>(und
 
 export function JavaVersionProvider({children}: { children: ReactNode })
 {
+    const {isAuthenticated} = useAuthentication();
     const [javaVersions, setJavaVersions] = useState<JavaVersion[]>([]);
     const [versionMap, setVersionMap] = useState<JavaVersionMap>({} as JavaVersionMap);
 
@@ -64,9 +66,10 @@ export function JavaVersionProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
+        if (!isAuthenticated) return;
         refreshJavaVersions().catch(console.error);
         $.get("/api/java/version-map").then((map: JavaVersionMap) => setVersionMap(map)).catch(console.error);
-    }, []);
+    }, [isAuthenticated]);
 
     return (
         <JavaVersionContext.Provider value={{refreshJavaVersions, javaVersions, installVersion, uninstallVersion, getRuntimeFiles, versionMap}}>

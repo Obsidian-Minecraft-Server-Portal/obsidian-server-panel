@@ -1,4 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
+import {useAuthentication} from "./AuthenticationProvider.tsx";
 
 export interface ActionData
 {
@@ -29,6 +30,7 @@ const PersistentActionContext = createContext<PersistentActionContextType | unde
 
 export function PersistentActionProvider({children}: { children: ReactNode })
 {
+    const {isAuthenticated} = useAuthentication();
     const [actions, setActions] = useState<ActionData[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -124,6 +126,8 @@ export function PersistentActionProvider({children}: { children: ReactNode })
     // Fetch actions on mount and listen for WebSocket updates
     useEffect(() =>
     {
+        if (!isAuthenticated) return;
+
         // Fetch actions once on mount
         fetchActions();
 
@@ -143,7 +147,7 @@ export function PersistentActionProvider({children}: { children: ReactNode })
             window.removeEventListener('action-update', handleActionUpdate);
             window.removeEventListener('action-complete', handleActionComplete);
         };
-    }, [fetchActions]);
+    }, [fetchActions, isAuthenticated]);
 
     const value = {
         actions,

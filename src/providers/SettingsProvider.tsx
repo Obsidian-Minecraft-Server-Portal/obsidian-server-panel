@@ -1,6 +1,7 @@
 import $ from "jquery";
 import {createContext, ReactNode, useContext, useEffect, useState} from "react";
 import {Settings, ValidationResult, SettingsUpdateResponse} from "../types/SettingsTypes.ts";
+import {useAuthentication} from "./AuthenticationProvider.tsx";
 
 interface SettingsContextType {
     settings: Settings | null;
@@ -14,6 +15,7 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({children}: { children: ReactNode }) {
+    const {isAuthenticated} = useAuthentication();
     const [settings, setSettings] = useState<Settings | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -73,8 +75,9 @@ export function SettingsProvider({children}: { children: ReactNode }) {
     };
 
     useEffect(() => {
+        if (!isAuthenticated) return;
         refreshSettings().catch(console.error);
-    }, []);
+    }, [isAuthenticated]);
 
     return (
         <SettingsContext.Provider value={{
