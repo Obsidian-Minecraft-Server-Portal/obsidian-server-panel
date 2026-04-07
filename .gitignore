@@ -137,3 +137,5 @@ Cargo.lock
 .idea/workspace.xml
 .idea/copilot.*.xml
 .idea/claudeCodeTabState.xml
+
+nul
