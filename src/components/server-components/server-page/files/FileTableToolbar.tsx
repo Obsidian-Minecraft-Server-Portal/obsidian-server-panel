@@ -22,22 +22,22 @@ export function FileTableToolbar({
     isLoading
 }: FileTableToolbarProps) {
     return (
-        <ButtonGroup radius={"none"} variant={"flat"}>
+        <ButtonGroup>
             <Tooltip content={"New File"}>
-                <Button radius={"none"} isIconOnly className={"text-xl"} onPress={onCreateFile}>
+                <Button isIconOnly className={"text-xl rounded-none rounded-none"} onPress={onCreateFile}>
                     <Icon icon={"pixelarticons:file-plus"}/>
                 </Button>
             </Tooltip>
             <Tooltip content={"New Directory"}>
-                <Button radius={"none"} isIconOnly className={"text-xl"} onPress={onCreateDirectory}>
+                <Button isIconOnly className={"text-xl rounded-none"} onPress={onCreateDirectory}>
                     <Icon icon={"pixelarticons:folder-plus"}/>
                 </Button>
             </Tooltip>
             <Tooltip content={"Upload Folder"}>
                 <Button
-                    radius={"none"}
+
                     isIconOnly
-                    className={"text-xl"}
+                    className={"text-xl rounded-none"}
                     onPress={onUploadFolder}
                 >
                     <Icon icon={"pixelarticons:cloud-upload"}/>
@@ -45,20 +45,20 @@ export function FileTableToolbar({
             </Tooltip>
             <Tooltip content={"Toggle File Editor"}>
                 <Button
-                    radius={"none"}
+
                     isIconOnly
-                    className={"text-xl"}
+                    className={"text-xl rounded-none"}
                     onPress={onToggleEditor}
-                    color={isEditingFile ? "primary" : "default"}
+                    variant={isEditingFile ? "primary" : "secondary"}
                 >
                     <Icon icon={"pixelarticons:notes"}/>
                 </Button>
             </Tooltip>
             <Tooltip content={"Refresh Files"}>
                 <Button
-                    radius={"none"}
+
                     isIconOnly
-                    className={"text-xl"}
+                    className={"text-xl rounded-none"}
                     isDisabled={isLoading}
                     onPress={onRefresh}
                 >

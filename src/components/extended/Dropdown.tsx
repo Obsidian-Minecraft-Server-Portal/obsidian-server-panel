@@ -2,17 +2,18 @@ import {cn, Dropdown as OriginalDropdown, DropdownMenu as OriginalDropdownMenu, 
 
 export function Dropdown(props: DropdownProps)
 {
+    const {className, ...rest} = props;
     return (
-        <OriginalDropdown {...props} radius={"none"}>
+        <OriginalDropdown {...rest} className={cn("rounded-none", className)}>
         </OriginalDropdown>
     );
 }
 
-export function DropdownMenu(props: DropdownMenuProps)
+export function DropdownMenu(props: DropdownMenuProps<object>)
 {
-    const {itemClasses, ...rest} = props;
+    const {className, ...rest} = props;
     return (
-        <OriginalDropdownMenu {...rest} itemClasses={{...itemClasses, base: cn("rounded-none font-minecraft-body", itemClasses?.base)}}>
+        <OriginalDropdownMenu {...rest} className={cn("rounded-none font-minecraft-body", className)}>
         </OriginalDropdownMenu>
     );
 }

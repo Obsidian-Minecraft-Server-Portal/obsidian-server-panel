@@ -1,8 +1,9 @@
-import {addToast, Button, Form, Input} from "@heroui/react";
+import {toast, Button, Form} from "@heroui/react";
+import {Input} from "../components/extended/Input.tsx";
 import Checkbox from "../components/extended/Checkbox.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import {useHostInfo} from "../providers/HostInfoProvider.tsx";
 import Signup from "./Signup.tsx";
 import {PasswordInput} from "../components/extended/PasswordInput.tsx";
@@ -54,11 +55,7 @@ export default function Login()
                               await login(username, password, rememberMe, 500);
                           } catch (error: any)
                           {
-                              addToast({
-                                  title: "Login Failed",
-                                  description: error.message || "An error occurred during login.",
-                                  color: "danger"
-                              });
+                              toast("Login Failed", {description: error.message || "An error occurred during login.", variant: "danger"});
                           }
                       }}
                 >
@@ -74,8 +71,7 @@ export default function Login()
                             name={"username"}
                             label={"Username"}
                             placeholder={"Enter your username"}
-                            radius={"none"}
-                            className={"font-minecraft-body"}
+                            className={"font-minecraft-body rounded-none"}
                             isRequired
                             autoComplete={"username webauthn"}
                             endContent={<Icon icon={"pixelarticons:users"} className={"mr-2"}/>}
@@ -94,7 +90,6 @@ export default function Login()
                             name={"password"}
                             label={"Password"}
                             placeholder={"*********"}
-                            radius={"none"}
                             className={"font-minecraft-body"}
                             isRequired
                             autoComplete={"current-password webauthn"}
@@ -120,11 +115,11 @@ export default function Login()
                         transition={{duration: 0.2, delay: 0.5}}
                     >
                         <Button
-                            radius={"none"}
-                            className={"font-minecraft-body mt-4 w-full"}
-                            color={"primary"}
+
+                            className={"font-minecraft-body mt-4 w-full rounded-none"}
+                            variant={"primary"}
                             type={"submit"}
-                            isLoading={isLoggingIn}
+                            isPending={isLoggingIn}
                         >
                             Login
                         </Button>

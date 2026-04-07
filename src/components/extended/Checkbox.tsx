@@ -1,4 +1,4 @@
-import {forwardRef, InputHTMLAttributes, ReactNode, useImperativeHandle, useRef, useState} from "react";
+import {InputHTMLAttributes, ReactNode, useImperativeHandle, useRef, useState} from "react";
 import {Button, cn} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 
@@ -13,11 +13,13 @@ type CheckboxProps = {
     defaultChecked?: boolean;
     isRequired?: boolean;
     isInvalid?: boolean;
+    ref?: React.Ref<HTMLInputElement>;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "checked" | "onChange" | "value">;
 
-const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
+export default function Checkbox(props: CheckboxProps)
 {
     const {
+        ref,
         label,
         checked,
         onChange,
@@ -111,10 +113,8 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
 
             <Button
                 isIconOnly
-                size={"sm"}
-                className={"font-minecraft-body select-none"}
-                radius={"none"}
-                color={checkedValue ? "primary" : "default"}
+                className={"rounded-none font-minecraft-body select-none"}
+                variant={checkedValue ? "primary" : "secondary"}
                 onPress={handleClick}
             >
                 {checkedValue ? <Icon icon={"pixelarticons:check"} width={16}/> : ""}
@@ -122,8 +122,4 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>((props, ref) =>
             <span className={"select-none"}>{label}{props.isRequired ? <span className={"text-danger"}>*</span> : ""}</span>
         </div>
     );
-});
-
-Checkbox.displayName = "Checkbox";
-
-export default Checkbox;
+}

@@ -1,5 +1,6 @@
-import {AnimatePresence, motion} from "framer-motion";
-import {addToast, Button, Form, Input, Link} from "@heroui/react";
+import {AnimatePresence, motion} from "motion/react";
+import {toast, Button, Form, Link} from "@heroui/react";
+import {Input} from "../components/extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import Checkbox from "../components/extended/Checkbox.tsx";
 import {useState} from "react";
@@ -105,11 +106,7 @@ export default function Signup()
                               setTimeout(() => setUnloading(false), 1000);
                           } catch (error: any)
                           {
-                              addToast({
-                                  title: "Registration Failed",
-                                  description: error.message || "An error occurred during registration.",
-                                  color: "danger"
-                              });
+                              toast("Registration Failed", {description: error.message || "An error occurred during registration.", variant: "danger"});
                           }
                       }}
                 >
@@ -125,8 +122,7 @@ export default function Signup()
                             name={"username"}
                             label={"Username"}
                             placeholder={"Choose a username"}
-                            radius={"none"}
-                            className={"font-minecraft-body"}
+                            className={"font-minecraft-body rounded-none"}
                             isRequired
                             autoComplete={"off"}
                             endContent={<Icon icon={"pixelarticons:users"} className={"mr-2"}/>}
@@ -154,7 +150,6 @@ export default function Signup()
                             name={"password"}
                             label={"Password"}
                             placeholder={"Choose a strong password"}
-                            radius={"none"}
                             className={"font-minecraft-body"}
                             isRequired
                             autoComplete={"new-password"}
@@ -166,10 +161,7 @@ export default function Signup()
                             {
                                 setPassword(password);
                                 setConfirmPassword(password);
-                                addToast({
-                                    title: "Password Generated",
-                                    description: "A secure password has been generated and filled in."
-                                });
+                                toast("Password Generated", {description: "A secure password has been generated and filled in.", variant: "default"});
                             }}
                             errorMessage={passwordErrors.length > 0 ? (
                                 <ul className={"list-disc list-inside"}>
@@ -192,7 +184,6 @@ export default function Signup()
                             name={"confirmPassword"}
                             label={"Confirm Password"}
                             placeholder={"Re-enter your password"}
-                            radius={"none"}
                             className={"font-minecraft-body"}
                             isRequired
                             autoComplete={"new-password"}
@@ -225,20 +216,20 @@ export default function Signup()
                             checked={termsAccepted}
                             onChange={setTermsAccepted}
                         />
-                        <Tooltip content={"Read the Terms of Service"} placement={"top"}>
-                            <Button
-                                as={Link}
+                        <Tooltip content={"Read the Terms of Service"}>
+                            <Link
                                 href={"https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/blob/main/terms-of-service.md"}
                                 target={"_blank"}
-                                isIconOnly
-                                radius={"none"}
-                                size={"sm"}
-                                className={"text-medium"}
-                                variant={"ghost"}
-                                tabIndex={-1}
                             >
-                                <Icon icon={"pixelarticons:open"}/>
-                            </Button>
+                                <Button
+                                    isIconOnly
+                                    className={"text-medium rounded-none"}
+                                    variant={"outline"}
+                                    excludeFromTabOrder
+                                >
+                                    <Icon icon={"pixelarticons:open"}/>
+                                </Button>
+                            </Link>
                         </Tooltip>
                     </motion.div>
 
@@ -250,11 +241,11 @@ export default function Signup()
                         transition={{duration: 0.2, delay: 0.6}}
                     >
                         <Button
-                            radius={"none"}
-                            className={"font-minecraft-body mt-4 w-full"}
-                            color={"primary"}
+
+                            className={"font-minecraft-body mt-4 w-full rounded-none"}
+                            variant={"primary"}
                             type={"submit"}
-                            isLoading={unloading}
+                            isPending={unloading}
                             isDisabled={!isFormValid || unloading}
                         >
                             Register

@@ -1,8 +1,8 @@
-import {ButtonGroup, Divider, Image, Link, Skeleton} from "@heroui/react";
+import {ButtonGroup, Separator, Link, Skeleton} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Button} from "../extended/Button.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
-import {motion} from "framer-motion";
+import {motion} from "motion/react";
 import {useState} from "react";
 import type {ModpackItemProps} from "../../types/ModpackTypes.ts";
 import {ModpackItemContentDrawer} from "./ModpackItemContentDrawer.tsx";
@@ -81,7 +81,7 @@ export function ModpackItem(props: ModpackItemProps)
                 packId={packId}
                 platform={platform}
                 isOpen={openDrawer}
-                onClose={() => setOpenDrawer(false)}
+                onOpenChange={(open) => !open && setOpenDrawer(false)}
             />
             <motion.div
                 key={packId}
@@ -97,12 +97,12 @@ export function ModpackItem(props: ModpackItemProps)
                 <div
                     className={"absolute top-0 left-0 w-full h-full z-20 cursor-pointer"}
                 />
-                <Image
+                <img
                     src={iconUrl ?? "/favicon.ico"}
                     width={96}
                     height={96}
                     className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-24 min-h-24"}
-                    radius={"none"}
+                    loading="lazy"
                 />
                 <div className={"flex flex-col gap-2 grow"}>
                     <div className={"flex flex-row gap-2 items-center"}>
@@ -119,7 +119,7 @@ export function ModpackItem(props: ModpackItemProps)
                         {categories.slice(0, 6).map((category, index) => (
                             <>
                                 <span key={index} className={"text-sm"}>{category}</span>
-                                <Divider orientation={"vertical"}/>
+                                <Separator orientation={"vertical"}/>
                             </>
                         ))}
                     </div>
@@ -141,7 +141,7 @@ export function ModpackItem(props: ModpackItemProps)
                     <ButtonGroup className={"gap-2 z-30"}>
                         <Tooltip content={`View ${name} details`}>
                             <Button
-                                variant={"solid"}
+                                variant={"primary"}
                                 style={{backgroundColor: getPlatformColor()}}
                                 className={platform === "modrinth" ? "!text-background" : ""}
                             >
@@ -149,30 +149,29 @@ export function ModpackItem(props: ModpackItemProps)
                             </Button>
                         </Tooltip>
                         <Tooltip content={`Open on ${getPlatformName()}`}>
-                            <Button
-                                as={Link}
-                                href={getExternalUrl()}
-                                target={"_blank"}
-                                isIconOnly
-                                variant={"ghost"}
-                                style={{
-                                    borderColor: getPlatformColor(),
-                                    color: getPlatformColor()
-                                }}
-                                className={"data-[hover]:!bg-opacity-100"}
-                                onMouseEnter={(e: any) =>
-                                {
-                                    e.currentTarget.style.backgroundColor = getPlatformColor();
-                                    e.currentTarget.style.color = platform === "modrinth" ? "#000" : "#fff";
-                                }}
-                                onMouseLeave={(e: any) =>
-                                {
-                                    e.currentTarget.style.backgroundColor = "transparent";
-                                    e.currentTarget.style.color = getPlatformColor();
-                                }}
-                            >
-                                <Icon icon={"pixelarticons:open"}/>
-                            </Button>
+                            <Link href={getExternalUrl()} target={"_blank"}>
+                                <Button
+                                    isIconOnly
+                                    variant={"outline"}
+                                    style={{
+                                        borderColor: getPlatformColor(),
+                                        color: getPlatformColor()
+                                    }}
+                                    className={"data-[hover]:!bg-opacity-100"}
+                                    onMouseEnter={(e: any) =>
+                                    {
+                                        e.currentTarget.style.backgroundColor = getPlatformColor();
+                                        e.currentTarget.style.color = platform === "modrinth" ? "#000" : "#fff";
+                                    }}
+                                    onMouseLeave={(e: any) =>
+                                    {
+                                        e.currentTarget.style.backgroundColor = "transparent";
+                                        e.currentTarget.style.color = getPlatformColor();
+                                    }}
+                                >
+                                    <Icon icon={"pixelarticons:open"}/>
+                                </Button>
+                            </Link>
                         </Tooltip>
                     </ButtonGroup>
                 </div>

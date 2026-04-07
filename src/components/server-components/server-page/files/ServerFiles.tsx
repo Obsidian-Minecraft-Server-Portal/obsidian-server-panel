@@ -1,4 +1,5 @@
-import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, cn, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Input} from "../../../extended/Input.tsx";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import React, {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
@@ -11,7 +12,7 @@ import {FileTableBreadcrumbs} from "./FileTableBreadcrumbs.tsx";
 import {ErrorBoundary} from "../../../ErrorBoundry.tsx";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {ServerFileEditor, ServerFileEditorRef} from "./ServerFileEditor.tsx";
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import {FileTableToolbar} from "./FileTableToolbar.tsx";
 import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
@@ -871,31 +872,21 @@ export function ServerFiles()
                     )}
                 <ErrorBoundary>
                     <Table
-                        id={"server-files-table"}
-                        removeWrapper
-                        radius={"none"}
-                        className={cn("font-minecraft-body overflow-y-auto")}
-                        fullWidth
-                        color={"primary"}
-                        aria-label={"Server Files"}
-                        selectionMode={"multiple"}
-                        selectionBehavior={"replace"}
-                        showSelectionCheckboxes={false}
-                        isHeaderSticky
-                        classNames={{
-                            tr: "!rounded-none",
-                            th: "backdrop-blur-md bg-default-50/50 !rounded-none"
-                        }}
-                        selectedKeys={selectedEntries.map(entry => entry.filename)}
-                        onSelectionChange={handleSelectionChange}
-                        isKeyboardNavigationDisabled={true}
-                        onKeyDown={handleKeyDown}
+                        {...{
+                            id: "server-files-table",
+                            className: cn("font-minecraft-body overflow-y-auto"),
+                            "aria-label": "Server Files",
+                            selectionMode: "multiple",
+                            selectedKeys: selectedEntries.map(entry => entry.filename),
+                            onSelectionChange: handleSelectionChange,
+                            onKeyDown: handleKeyDown,
+                        } as any}
                     >
                         <TableHeader>
                             <TableColumn>Name</TableColumn>
                             <TableColumn hidden={isEditingFile && selectedEntries.length === 1}>Type</TableColumn>
                             <TableColumn hidden={isEditingFile && selectedEntries.length === 1}>Size</TableColumn>
-                            <TableColumn width={48} hideHeader hidden={isEditingFile && selectedEntries.length === 1}>Action</TableColumn>
+                            <TableColumn width={48} hidden={isEditingFile && selectedEntries.length === 1}>Action</TableColumn>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? Array.from({length: 5}, (_, i) => (
@@ -977,8 +968,8 @@ export function ServerFiles()
                                                                     {
                                                                         if (e.key === "Enter") await renameSelectedEntry(e.currentTarget.value);
                                                                     }}
-                                                                    radius={"none"}
-                                                                    className={"font-minecraft-body"}
+
+                                                                    className={"font-minecraft-body rounded-none"}
                                                                 />
                                                             ) : isNewItem ? (
                                                                 <Input
@@ -990,8 +981,8 @@ export function ServerFiles()
                                                                     {
                                                                         if (e.key === "Enter") await completeEntryCreation(e.currentTarget.value);
                                                                     }}
-                                                                    radius={"none"}
-                                                                    className={"font-minecraft-body"}
+
+                                                                    className={"font-minecraft-body rounded-none"}
                                                                 />
                                                             ) : (
                                                                 <>
@@ -1007,13 +998,11 @@ export function ServerFiles()
                                                                             {isExternallyModified && (
                                                                                 <Tooltip content="File has been modified externally">
                                                                                     <Button
-                                                                                        size="sm"
                                                                                         isIconOnly
-                                                                                        radius="none"
-                                                                                        variant="flat"
-                                                                                        color="warning"
+
+                                                                                        variant="secondary"
                                                                                         onPress={handleRefreshFileContents}
-                                                                                        className="min-w-6 h-6"
+                                                                                        className="min-w-6 h-6 rounded-none"
                                                                                     >
                                                                                         <Icon icon="pixelarticons:alert" className="text-sm"/>
                                                                                     </Button>
@@ -1021,26 +1010,23 @@ export function ServerFiles()
                                                                             )}
                                                                             <Tooltip content="Refresh file contents">
                                                                                 <Button
-                                                                                    size="sm"
                                                                                     isIconOnly
-                                                                                    radius="none"
-                                                                                    variant="flat"
+
+                                                                                    variant="secondary"
                                                                                     onPress={handleRefreshFileContents}
-                                                                                    className="min-w-6 h-6"
+                                                                                    className="min-w-6 h-6 rounded-none"
                                                                                 >
                                                                                     <Icon icon="pixelarticons:reload" className="text-sm"/>
                                                                                 </Button>
                                                                             </Tooltip>
                                                                             <Tooltip content="Save file (Ctrl+S)">
                                                                                 <Button
-                                                                                    size="sm"
                                                                                     isIconOnly
-                                                                                    radius="none"
-                                                                                    variant="flat"
-                                                                                    color={needsToSave ? "primary" : "default"}
+
+                                                                                    variant={needsToSave ? "primary" : "secondary"}
                                                                                     isDisabled={!needsToSave}
                                                                                     onPress={saveContent}
-                                                                                    className="min-w-6 h-6"
+                                                                                    className="min-w-6 h-6 rounded-none"
                                                                                 >
                                                                                     <Icon icon="pixelarticons:save" className="text-sm"/>
                                                                                 </Button>
@@ -1059,8 +1045,8 @@ export function ServerFiles()
                                                         <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
                                                             <Button
                                                                 isIconOnly
-                                                                radius={"none"}
-                                                                variant={"light"}
+                                                                className="rounded-none"
+                                                                variant={"ghost"}
                                                                 onPress={e =>
                                                                 {
                                                                     let position = $(e.target).offset();
@@ -1108,7 +1094,7 @@ export function ServerFiles()
                     selectedEntries={selectedEntries}
                     selectedFileContents={selectedFileContents}
                     browserWidth={browserWidth}
-                    containerRef={containerRef}
+                    containerRef={containerRef as any}
                     isDragging={isDragging}
                     needsToSave={needsToSave}
                     onContentChange={handleContentChange}

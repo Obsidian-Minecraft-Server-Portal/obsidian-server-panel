@@ -1,4 +1,4 @@
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Button, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {ReactNode, useEffect} from "react";
 
@@ -59,22 +59,12 @@ export default function MessageModal(props: MessageProperties)
     return (
         <Modal
             isOpen={isOpen}
-            onClose={() => onClose(responseType === MessageResponseType.Close ? null : false)}
-            scrollBehavior={"inside"}
-            backdrop={"blur"}
-            radius={"none"}
-            closeButton={<Icon icon={"pixelarticons:close-box"} width={24}/>}
-            classNames={{
-                closeButton: "rounded-none",
-                backdrop: severity === "danger" ? "bg-danger/10" : ""
-            }}
+            onOpenChange={(open) => !open && onClose(responseType === MessageResponseType.Close ? null : false)}
             data-severity={severity}
-            isDismissable={false}
         >
-            <ModalContent>
-                {() => (
-                    <>
-                        <ModalHeader className={"flex flex-row items-center gap-2 text-2xl"}>
+            <ModalDialog>
+                <>
+                    <ModalHeader>
                             <span className={"text-3xl h-[30px]"}>{typeof icon === "string" ? <Icon icon={icon}/> : icon == null ? <MessageIcon severity={severity}/> : icon}</span>
                             <span
                                 className={"data-[severity=danger]:text-danger data-[severity=warning]:text-warning data-[severity=info]:text-blue-500 data-[severity=success]:text-success"}
@@ -90,24 +80,23 @@ export default function MessageModal(props: MessageProperties)
                             {({
                                 [MessageResponseType.YesNo]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"} autoFocus>Yes</Button>
-                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"}>No</Button>
+                                        <Button className="rounded-none" onPress={() => onClose(true)} variant={severity === "danger" ? "danger" : "primary"} autoFocus>Yes</Button>
+                                        <Button className="rounded-none" onPress={() => onClose(false)} variant={"outline"}>No</Button>
                                     </>
                                 ),
                                 [MessageResponseType.OkayCancel]: (
                                     <>
-                                        <Button radius={"none"} onPress={() => onClose(true)} color={severity === "danger" ? "danger" : "primary"} autoFocus>Okay</Button>
-                                        <Button radius={"none"} onPress={() => onClose(false)} variant={"ghost"}>Cancel</Button>
+                                        <Button className="rounded-none" onPress={() => onClose(true)} variant={severity === "danger" ? "danger" : "primary"} autoFocus>Okay</Button>
+                                        <Button className="rounded-none" onPress={() => onClose(false)} variant={"outline"}>Cancel</Button>
                                     </>
                                 ),
                                 [MessageResponseType.Close]: (
-                                    <Button radius={"none"} onPress={() => onClose(true)} autoFocus>Close</Button>
+                                    <Button className="rounded-none" onPress={() => onClose(true)} autoFocus>Close</Button>
                                 )
                             })[responseType]}
-                        </ModalFooter>
-                    </>
-                )}
-            </ModalContent>
+                    </ModalFooter>
+                </>
+            </ModalDialog>
         </Modal>
     );
 }

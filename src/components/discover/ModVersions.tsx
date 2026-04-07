@@ -1,6 +1,8 @@
 import {useEffect, useState} from "react";
-import {Chip, Input, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Chip, ListBoxItem, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Input} from "../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
+// @ts-ignore - module may not exist in v3
 import {useInfiniteScroll} from "@heroui/use-infinite-scroll";
 import {useAsyncList} from "@react-stately/data";
 import {ModVersion, ServerInfo} from "../../types/ModTypes";
@@ -16,13 +18,13 @@ interface ModVersionsProps
     onDownloadVersion: (version: ModVersion) => Promise<void>;
 }
 
-export function ModVersions({modVersions, versionsLoading, server, serverId, onDownloadVersion}: ModVersionsProps)
+export function ModVersions({modVersions, server, serverId, onDownloadVersion}: ModVersionsProps)
 {
     const [versionFilter, setVersionFilter] = useState("");
     const [gameVersionFilter, setGameVersionFilter] = useState("");
     const [loaderFilter, setLoaderFilter] = useState("");
     const [typeFilter, setTypeFilter] = useState("");
-    const [hasMoreVersions, setHasMoreVersions] = useState(false);
+    const [_hasMoreVersions, setHasMoreVersions] = useState(false);
     const [_isInstallingVersion, setIsInstallingVersion] = useState(false);
     const [_installedVersion, setInstalledVersion] = useState<ModVersion|undefined>(undefined);
 
@@ -94,10 +96,7 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
         }
     });
 
-    const [loaderRef, scrollerRef] = useInfiniteScroll({
-        hasMore: hasMoreVersions,
-        onLoadMore: versionsList.loadMore
-    });
+    
 
     // Reload versions list when filters change
     useEffect(() =>
@@ -158,60 +157,44 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                     placeholder="Search versions..."
                     value={versionFilter}
                     onValueChange={setVersionFilter}
-                    className="max-w-xs"
-                    radius="none"
+                    className="max-w-xs rounded-none"
                     startContent={<Icon icon="pixelarticons:search"/>}
                 />
                 <Select
                     placeholder="Game Version"
-                    selectedKeys={gameVersionFilter ? [gameVersionFilter] : []}
-                    onSelectionChange={(keys) => setGameVersionFilter([...keys][0] as string || "")}
+                    selectedKey={gameVersionFilter || undefined}
+                    onSelectionChange={(keys: any) => setGameVersionFilter([...keys][0] as string || "")}
                     className="max-w-xs"
                 >
                     {Array.from(new Set(modVersions.flatMap(v => v.game_versions))).map(version => (
-                        <SelectItem key={version} textValue={version}>{version}</SelectItem>
+                        <ListBoxItem key={version} textValue={version}>{version}</ListBoxItem>
                     ))}
                 </Select>
                 <Select
                     placeholder="Loader"
-                    selectedKeys={loaderFilter ? [loaderFilter] : []}
-                    onSelectionChange={(keys) => setLoaderFilter([...keys][0] as string || "")}
+                    selectedKey={loaderFilter || undefined}
+                    onSelectionChange={(keys: any) => setLoaderFilter([...keys][0] as string || "")}
                     className="max-w-xs"
                 >
                     {Array.from(new Set(modVersions.flatMap(v => v.loaders))).map(loader => (
-                        <SelectItem key={loader} textValue={loader}>{loader}</SelectItem>
+                        <ListBoxItem key={loader} textValue={loader}>{loader}</ListBoxItem>
                     ))}
                 </Select>
                 <Select
                     placeholder="Release Type"
-                    selectedKeys={typeFilter ? [typeFilter] : []}
-                    onSelectionChange={(keys) => setTypeFilter([...keys][0] as string || "")}
+                    selectedKey={typeFilter || undefined}
+                    onSelectionChange={(keys: any) => setTypeFilter([...keys][0] as string || "")}
                     className="max-w-xs"
                 >
-                    <SelectItem key="release" textValue="release">Release</SelectItem>
-                    <SelectItem key="beta" textValue="beta">Beta</SelectItem>
-                    <SelectItem key="alpha" textValue="alpha">Alpha</SelectItem>
+                    <ListBoxItem key="release" textValue="release">Release</ListBoxItem>
+                    <ListBoxItem key="beta" textValue="beta">Beta</ListBoxItem>
+                    <ListBoxItem key="alpha" textValue="alpha">Alpha</ListBoxItem>
                 </Select>
             </div>
 
             {/* Versions Table */}
             <Table
-                radius="none"
-                isHeaderSticky
-                removeWrapper
-                className="min-h-[400px] h-full"
-                baseRef={scrollerRef}
-                bottomContent={
-                    hasMoreVersions ? (
-                        <div className="flex w-full justify-center">
-                            <Spinner ref={loaderRef} color="primary"/>
-                        </div>
-                    ) : null
-                }
-                classNames={{
-                    base: "overflow-scroll",
-                    table: "min-h-[400px]"
-                }}
+                className="min-h-[400px] h-full rounded-none overflow-scroll"
             >
                 <TableHeader>
                     <TableColumn>Name</TableColumn>
@@ -222,18 +205,15 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                     <TableColumn>Actions</TableColumn>
                 </TableHeader>
                 <TableBody
-                    isLoading={versionsLoading}
                     items={versionsList.items as ModVersion[]}
-                    loadingContent={<Spinner color="primary"/>}
                 >
                     {(version: ModVersion) => (
                         <TableRow key={version.id}>
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <Chip
-                                        size="sm"
                                         color={getVersionTypeColor(version.version_type) as any}
-                                        variant="flat"
+                                        variant="soft"
                                         className="min-w-8 text-xs font-bold"
                                     >
                                         {getVersionTypeIcon(version.version_type)}
@@ -247,17 +227,17 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                             <TableCell>
                                 <div className="flex flex-wrap gap-1">
                                     {version.game_versions.slice(0, 3).map(v => (
-                                        <Chip key={v} size="sm" variant="flat">{v}</Chip>
+                                        <Chip key={v} size="sm" variant="soft">{v}</Chip>
                                     ))}
                                     {version.game_versions.length > 3 && (
-                                        <Chip size="sm" variant="flat">+{version.game_versions.length - 3}</Chip>
+                                        <Chip size="sm" variant="soft">+{version.game_versions.length - 3}</Chip>
                                     )}
                                 </div>
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-wrap gap-1">
                                     {version.loaders.map(loader => (
-                                        <Chip key={loader} size="sm" variant="flat">
+                                        <Chip key={loader} size="sm" variant="soft">
                                             {loader}
                                         </Chip>
                                     ))}
@@ -267,8 +247,7 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                             <TableCell>{formatDownloads(version.downloads)}</TableCell>
                             <TableCell>
                                 <Button
-                                    size="sm"
-                                    color="primary"
+                                    variant={"outline"}
                                     onPress={async () =>
                                     {
                                         setIsInstallingVersion(true)
@@ -276,10 +255,8 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                                         setInstalledVersion(version)
                                         setIsInstallingVersion(false)
                                     }}
-                                    startContent={<Icon icon="pixelarticons:download"/>}
-                                    variant={"ghost"}
                                 >
-                                    Download
+                                    <Icon icon="pixelarticons:download"/> Download
                                 </Button>
                             </TableCell>
                         </TableRow>

@@ -1,4 +1,4 @@
-import {Autocomplete, AutocompleteItem} from "@heroui/react";
+import {Autocomplete, ListBoxItem} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {useForgeVersions} from "../../../providers/LoaderVersionProviders/ForgeVersionsProvider.tsx";
 
@@ -50,33 +50,19 @@ export function ForgeVersionSelector(props: ForgeVersionSelectorProps)
 
     return (
         <Autocomplete
-            label={`Forge Version`}
-            radius={"none"}
-            className={"font-minecraft-body"}
-            classNames={{
-                base: "capitalize",
-                popoverContent: "rounded-none border-primary border-1"
-            }}
-            size={"sm"}
+            className={"font-minecraft-body rounded-none"}
             selectedKey={selectedVersion}
             onSelectionChange={value => setSelectedVersion(value as string)}
-            showScrollIndicators
             isDisabled={props.isDisabled}
-            listboxProps={{
-                emptyContent: `No Forge versions available for ${minecraftVersion}`,
-                itemClasses: {
-                    base: "rounded-none font-minecraft-body"
-                }
-            }}
         >
             {versions.map((version) => (
-                <AutocompleteItem
+                <ListBoxItem
                     key={version}
                     className={"font-minecraft-body"}
                     textValue={version}
                 >
                     {version}
-                </AutocompleteItem>
+                </ListBoxItem>
             ))}
         </Autocomplete>
     );

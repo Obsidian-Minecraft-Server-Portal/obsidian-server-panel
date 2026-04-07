@@ -1,5 +1,5 @@
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
-import {Button, Progress, Select, SelectItem, SelectSection} from "@heroui/react";
+import {Button, ProgressBar, Select, ListBoxItem, ListBoxSection} from "@heroui/react";
 import {useCallback, useEffect, useState} from "react";
 import {getJavaRuntimeForMinecraftVersion, JavaRuntime, JavaVersion} from "../../ts/java-versions.ts";
 import {Tooltip} from "../extended/Tooltip.tsx";
@@ -22,8 +22,8 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
     const [selectedVersion, setSelectedVersion] = useState<JavaVersion | undefined>(undefined);
     const [installationProgress, setInstallationProgress] = useState(0);
     const [isInstalling, setIsInstalling] = useState(false);
-    const [message, setMessage] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
+    const [_message, setMessage] = useState("");
+    const [_errorMessage, setErrorMessage] = useState("");
 
     useEffect(() =>
     {
@@ -129,21 +129,13 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
     return (
         <div className={"flex flex-col gap-1"}>
             <div className={"flex flex-row gap-2"}>
+                <label className="font-minecraft-body">Java</label>
                 <Select
-                    label={"Java"}
                     placeholder={"Select Java Version"}
-                    radius={"none"}
-                    size={"sm"}
-                    className={"font-minecraft-body"}
-                    classNames={{listbox: "font-minecraft-body"}}
-                    listboxProps={{itemClasses: {base: "rounded-none"}}}
-                    disallowEmptySelection
-                    selectedKeys={selectedVersion ? [selectedVersion.runtime] : []}
+                    className={"font-minecraft-body rounded-none"}
+                    selectedKey={selectedVersion ? selectedVersion.runtime : undefined}
                     isDisabled={props.isDisabled}
-                    description={message}
-                    errorMessage={errorMessage}
-                    isInvalid={!!errorMessage}
-                    onSelectionChange={keys =>
+                    onSelectionChange={(keys: any) =>
                     {
                         const key = [...keys][0];
                         const selected = javaVersions.find(v => v.runtime == key);
@@ -158,48 +150,45 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                         }
                     }}
                 >
-                    <SelectSection title={"Installed"}>
+                    <ListBoxSection aria-label="Installed">
                         {
                             javaVersions
                                 .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
                                 .filter(v => v.installed && v.executable != undefined && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
                                 .map((v) => (
-                                    <SelectItem
+                                    <ListBoxItem
                                         key={v.runtime}
                                         textValue={`${v.version} (Installed)`}
                                     >
                                         {v.version} ({v.executable})
-                                    </SelectItem>
+                                    </ListBoxItem>
                                 ))
                         }
-                    </SelectSection>
-                    <SelectSection title={"Available"}>
+                    </ListBoxSection>
+                    <ListBoxSection aria-label="Available">
                         {
                             javaVersions
                                 .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
                                 .filter(v => !v.installed && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
                                 .map((v) => (
-                                    <SelectItem
+                                    <ListBoxItem
                                         key={v.runtime}
                                         textValue={v.version}
-                                        description={v.runtime}
                                     >
                                         {v.version} <span className={"italic opacity-50"}>({versionMap[v.runtime].min} - {versionMap[v.runtime].max})</span>
-                                    </SelectItem>
+                                    </ListBoxItem>
                                 ))
                         }
-                    </SelectSection>
+                    </ListBoxSection>
                 </Select>
 
                 {selectedVersion != undefined && !selectedVersion.installed ?
                     <Tooltip content={"Install this Java version"}>
                         <Button
                             isIconOnly
-                            radius={"none"}
-                            size={"lg"}
-                            variant={"ghost"}
-                            color={"primary"}
-                            disabled={isInstalling}
+                            className="rounded-none"
+                            variant={"outline"}
+                            isDisabled={isInstalling}
                             onPress={async () =>
                             {
                                 const response = await open({
@@ -218,10 +207,8 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                         <Tooltip content={"Uninstall this Java version"}>
                             <Button
                                 isIconOnly
-                                radius={"none"}
-                                size={"lg"}
-                                color={"danger"}
-                                variant={"ghost"}
+                                className="rounded-none"
+                                variant={"danger"}
                                 onPress={async () =>
                                 {
                                     const response = await open({
@@ -240,8 +227,7 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
 
             </div>
             {isInstalling &&
-                <Progress
-                    size={"sm"}
+                <ProgressBar
                     minValue={0}
                     maxValue={1}
                     value={installationProgress}

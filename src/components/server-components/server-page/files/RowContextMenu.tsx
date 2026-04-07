@@ -1,4 +1,4 @@
-import {Listbox, ListboxItem, ListboxSection} from "@heroui/react";
+import {ListBox, ListBoxItem, ListBoxSection} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
 import {useCallback, useEffect, useRef, useState} from "react";
@@ -94,24 +94,24 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
         setPosition({x: newX - 50, y: newY - 340});
     }, [x, y, isOpen, onClose]);
     return (
-        <Listbox
-            id={"server-files-context-menu"}
-            ref={menuRef}
-            className={"absolute z-50 w-64 bg-background/50 backdrop-blur-sm border border-primary/50 shadow-lg data-[open=true]:opacity-100 data-[open=false]:opacity-0 transition-opacity duration-200 data-[open=false]:pointer-events-none font-minecraft-body"}
-            style={{top: position.y, left: position.x}}
-            itemClasses={{base: "rounded-none font-minecraft-body"}}
-            data-open={isOpen}
-            onSelectionChange={() => onClose()}
-            tabIndex={1}
+        <ListBox
+            {...{
+                id: "server-files-context-menu",
+                ref: menuRef,
+                className: "absolute z-50 w-64 bg-background/50 backdrop-blur-sm border border-primary/50 shadow-lg data-[open=true]:opacity-100 data-[open=false]:opacity-0 transition-opacity duration-200 data-[open=false]:pointer-events-none font-minecraft-body rounded-none",
+                style: {top: position.y, left: position.x},
+                "data-open": isOpen,
+                onSelectionChange: () => onClose(),
+            } as any}
         >
-            <ListboxSection title={Array.isArray(entry) ? `${entry.length} Items Selected` : entry?.filename ?? ""} itemClasses={{base: "rounded-none font-minecraft-body"}}>
+            <ListBoxSection aria-label={Array.isArray(entry) ? `${entry.length} Items Selected` : entry?.filename ?? ""}>
                 {!Array.isArray(entry) && entry ? (() =>
                 {
                     let singleItemOptions = [];
                     if (!entry?.is_dir && isTextFile(entry?.path))
                     {
                         singleItemOptions.push(
-                            <ListboxItem key={"edit"} endContent={<Icon icon={"pixelarticons:edit-box"}/>} onPress={() => onEdit(entry)}>Edit</ListboxItem>
+                            <ListBoxItem key={"edit"} onPress={() => onEdit(entry)}><span className="flex justify-between w-full">Edit <Icon icon={"pixelarticons:edit-box"}/></span></ListBoxItem>
                         );
                     }
 
@@ -120,38 +120,38 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
                     {
                         const archiveBaseName = getArchiveBaseName(entry.filename);
                         singleItemOptions.push(
-                            <ListboxItem key={"extract-here"} endContent={<Icon icon={"pixelarticons:extract"}/>} onPress={() => {
+                            <ListBoxItem key={"extract-here"} onPress={() => {
                                 onExtract(entry);
                                 onClose();
-                            }}>Extract Here</ListboxItem>
+                            }}><span className="flex justify-between w-full">Extract Here <Icon icon={"pixelarticons:extract"}/></span></ListBoxItem>
                         );
                         singleItemOptions.push(
-                            <ListboxItem key={"extract-to-folder"} endContent={<Icon icon={"pixelarticons:folder-open"}/>} onPress={() => {
+                            <ListBoxItem key={"extract-to-folder"} onPress={() => {
                                 onExtract(entry, archiveBaseName);
                                 onClose();
-                            }}>Extract to {archiveBaseName}</ListboxItem>
+                            }}><span className="flex justify-between w-full">Extract to {archiveBaseName} <Icon icon={"pixelarticons:folder-open"}/></span></ListBoxItem>
                         );
                     }
 
                     return (
                         <>
                             {...singleItemOptions}
-                            <ListboxItem key={"rename"} endContent={<Icon icon={"pixelarticons:unlink"}/>} onPress={() =>
+                            <ListBoxItem key={"rename"} onPress={() =>
                             {
                                 onRename(entry);
                                 onClose();
-                            }}>Rename</ListboxItem>
+                            }}><span className="flex justify-between w-full">Rename <Icon icon={"pixelarticons:unlink"}/></span></ListBoxItem>
                         </>
                     );
                 })() : null}
-                <ListboxItem key={"archive"} endContent={<Icon icon={"pixelarticons:archive"}/>} onPress={() => onArchive(Array.isArray(entry) ? entry : [entry] as FilesystemEntry[])}>Archive</ListboxItem>
-                <ListboxItem key={"download"} endContent={<Icon icon={"pixelarticons:flatten"}/>} onPress={downloadSelectedEntries}>Download</ListboxItem>
-                <ListboxItem key={"add-to-ignore"} endContent={<Icon icon={"pixelarticons:eye-closed"}/>} onPress={() => {
+                <ListBoxItem key={"archive"} onPress={() => onArchive(Array.isArray(entry) ? entry : [entry] as FilesystemEntry[])}><span className="flex justify-between w-full">Archive <Icon icon={"pixelarticons:archive"}/></span></ListBoxItem>
+                <ListBoxItem key={"download"} onPress={downloadSelectedEntries}><span className="flex justify-between w-full">Download <Icon icon={"pixelarticons:flatten"}/></span></ListBoxItem>
+                <ListBoxItem key={"add-to-ignore"} onPress={() => {
                     onAddToIgnore(Array.isArray(entry) ? entry : [entry] as FilesystemEntry[]);
                     onClose();
-                }}>Add to .obakignore</ListboxItem>
-                <ListboxItem key={"delete"} color={"danger"} className={"text-danger"} endContent={<Icon icon={"pixelarticons:trash"}/>} onPress={deleteSelectedEntries}>Delete</ListboxItem>
-            </ListboxSection>
-        </Listbox>
+                }}><span className="flex justify-between w-full">Add to .obakignore <Icon icon={"pixelarticons:eye-closed"}/></span></ListBoxItem>
+                <ListBoxItem key={"delete"} className={"text-danger"} onPress={deleteSelectedEntries}><Icon icon={"pixelarticons:trash"}/> Delete</ListBoxItem>
+            </ListBoxSection>
+        </ListBox>
     );
 }

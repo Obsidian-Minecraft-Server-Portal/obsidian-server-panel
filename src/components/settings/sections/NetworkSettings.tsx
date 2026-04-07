@@ -1,4 +1,4 @@
-import {Checkbox, Divider, Card, CardBody} from "@heroui/react";
+import {Checkbox, Separator, Card, CardContent} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {NetworkSettings as NetworkSettingsType} from "../../../types/SettingsTypes.ts";
 
@@ -17,16 +17,12 @@ export function NetworkSettings({settings, onChange}: NetworkSettingsProps) {
                 </p>
             </div>
 
-            <Divider/>
+            <Separator/>
 
             <div className="flex flex-col gap-4">
                 <Checkbox
                     isSelected={settings.auto_port_forward}
-                    onValueChange={(checked) => onChange({...settings, auto_port_forward: checked})}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        wrapper: "rounded-none"
-                    }}
+                    onChange={(checked: any) => onChange({...settings, auto_port_forward: checked})}
                 >
                     <div className="flex flex-col">
                         <span>Automatic Port Forwarding</span>
@@ -38,11 +34,7 @@ export function NetworkSettings({settings, onChange}: NetworkSettingsProps) {
 
                 <Checkbox
                     isSelected={settings.upnp_enabled}
-                    onValueChange={(checked) => onChange({...settings, upnp_enabled: checked})}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        wrapper: "rounded-none"
-                    }}
+                    onChange={(checked: any) => onChange({...settings, upnp_enabled: checked})}
                 >
                     <div className="flex flex-col">
                         <span>Enable UPnP</span>
@@ -54,7 +46,7 @@ export function NetworkSettings({settings, onChange}: NetworkSettingsProps) {
             </div>
 
             <Card className="bg-primary/5 border-primary/20">
-                <CardBody className="p-4">
+                <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                         <Icon icon="pixelarticons:info-box" className="text-primary text-xl flex-shrink-0"/>
                         <div className="flex flex-col gap-2 text-sm font-minecraft-body">
@@ -69,7 +61,7 @@ export function NetworkSettings({settings, onChange}: NetworkSettingsProps) {
                             </p>
                         </div>
                     </div>
-                </CardBody>
+                </CardContent>
             </Card>
         </div>
     );

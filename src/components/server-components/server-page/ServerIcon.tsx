@@ -1,4 +1,4 @@
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useState} from "react";
 import {ImageCropModal} from "./options/ImageCropModal.tsx";
@@ -43,11 +43,7 @@ export function ServerIcon(props: ServerIconProperties)
                 setIsEditing(true);
             } else
             {
-                addToast({
-                    title: "Error",
-                    description: "Please select a single image file.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Please select a single image file.", variant: "danger"});
             }
         });
 

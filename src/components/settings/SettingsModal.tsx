@@ -1,8 +1,8 @@
 import {useEffect, useState} from "react";
-import {Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tabs, Tab, addToast} from "@heroui/react";
+import {Modal, ModalDialog, ModalHeader, ModalBody, ModalFooter, Tabs, Tab, TabList, toast} from "@heroui/react";
 import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
-import {motion} from "framer-motion";
+import {motion} from "motion/react";
 import {useSettings} from "../../providers/SettingsProvider.tsx";
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
 import {Settings} from "../../types/SettingsTypes.ts";
@@ -65,17 +65,9 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
                 description += ". " + response.migration_info.join(". ");
             }
 
-            addToast({
-                title: "Settings Saved",
-                description: description,
-                color: "success"
-            });
+            toast("Settings Saved", {description: description, variant: "success"});
         } catch (error: any) {
-            addToast({
-                title: "Save Failed",
-                description: error.message || "Failed to save settings",
-                color: "danger"
-            });
+            toast("Save Failed", {description: error.message || "Failed to save settings", variant: "danger"});
         } finally {
             setSaving(false);
         }
@@ -118,20 +110,14 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
         return (
             <Modal
                 isOpen={isOpen}
-                onClose={handleClose}
-                size="5xl"
-                scrollBehavior="inside"
-                backdrop="blur"
-                radius="none"
-                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{closeButton: "rounded-none"}}
+                onOpenChange={(open) => !open && handleClose()}
             >
-                <ModalContent>
-                    <ModalBody className="flex items-center justify-center h-96">
+                <ModalDialog>
+                    <ModalBody>
                         <Icon icon="pixelarticons:reload" className="text-4xl animate-spin"/>
                         <p className="text-xl font-minecraft-body">Loading settings...</p>
                     </ModalBody>
-                </ModalContent>
+                </ModalDialog>
             </Modal>
         );
     }
@@ -140,22 +126,17 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
         return (
             <Modal
                 isOpen={isOpen}
-                onClose={onClose}
-                size="5xl"
-                backdrop="blur"
-                radius="none"
-                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{closeButton: "rounded-none"}}
+                onOpenChange={(open) => !open && onClose()}
             >
-                <ModalContent>
-                    <ModalBody className="flex items-center justify-center h-96">
+                <ModalDialog>
+                    <ModalBody>
                         <Icon icon="pixelarticons:close" className="text-4xl text-danger"/>
                         <p className="text-xl font-minecraft-body text-danger">
                             {error || "Failed to load settings"}
                         </p>
                         <Button onPress={() => refreshSettings()}>Retry</Button>
                     </ModalBody>
-                </ModalContent>
+                </ModalDialog>
             </Modal>
         );
     }
@@ -163,24 +144,17 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
     return (
         <Modal
             isOpen={isOpen}
-            onClose={handleClose}
-            size="5xl"
-            scrollBehavior="inside"
-            backdrop="blur"
-            radius="none"
-            closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-            classNames={{closeButton: "rounded-none"}}
-            isDismissable={!saving}
+            onOpenChange={(open) => !open && handleClose()}
         >
-            <ModalContent>
-                <ModalHeader className="flex flex-row items-center gap-2 text-2xl font-minecraft-header">
+            <ModalDialog>
+                <ModalHeader>
                     <Icon icon="pixelarticons:sliders" className="text-3xl text-primary"/>
                     <span>Settings</span>
                     {hasChanges && (
                         <span className="text-sm text-warning ml-auto font-minecraft-body">Unsaved changes</span>
                     )}
                 </ModalHeader>
-                <ModalBody className="p-0">
+                <ModalBody>
                     <motion.div
                         initial={{opacity: 0}}
                         animate={{opacity: 1}}
@@ -192,62 +166,42 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
                             <Tabs
                                 selectedKey={selectedTab}
                                 onSelectionChange={(key) => setSelectedTab(key as string)}
-                                color="primary"
-                                isVertical
-                                variant={"light"}
-                                radius={"none"}
-                                classNames={{
-                                    base: "w-full",
-                                    tabList: "w-full p-2 gap-1",
-                                    tab: "w-full justify-start h-12 rounded-none",
-                                    tabContent: "font-minecraft-body"
-                                }}
+                                orientation="vertical"
+                                variant={"primary"}
+                                className="rounded-none w-full"
                             >
-                                <Tab
-                                    key="general"
-                                    title={
+                                <TabList className="w-full p-2 gap-1">
+                                    <Tab id="general" className="w-full justify-start h-12 rounded-none font-minecraft-body">
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:sliders"/>
                                             <span>General</span>
                                         </div>
-                                    }
-                                />
-                                <Tab
-                                    key="network"
-                                    title={
+                                    </Tab>
+                                    <Tab id="network" className="w-full justify-start h-12 rounded-none font-minecraft-body">
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:modem"/>
                                             <span>Network</span>
                                         </div>
-                                    }
-                                />
-                                <Tab
-                                    key="storage"
-                                    title={
+                                    </Tab>
+                                    <Tab id="storage" className="w-full justify-start h-12 rounded-none font-minecraft-body">
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:folder"/>
                                             <span>Storage</span>
                                         </div>
-                                    }
-                                />
-                                <Tab
-                                    key="java"
-                                    title={
+                                    </Tab>
+                                    <Tab id="java" className="w-full justify-start h-12 rounded-none font-minecraft-body">
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:book"/>
                                             <span>Java</span>
                                         </div>
-                                    }
-                                />
-                                <Tab
-                                    key="users"
-                                    title={
+                                    </Tab>
+                                    <Tab id="users" className="w-full justify-start h-12 rounded-none font-minecraft-body">
                                         <div className="flex items-center gap-2">
                                             <Icon icon="pixelarticons:users"/>
                                             <span>Users</span>
                                         </div>
-                                    }
-                                />
+                                    </Tab>
+                                </TabList>
                             </Tabs>
                         </div>
 
@@ -298,16 +252,15 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
                         Cancel
                     </Button>
                     <Button
-                        color="primary"
+                        variant="primary"
                         onPress={handleSave}
-                        isLoading={saving}
+                        isPending={saving}
                         isDisabled={!hasChanges}
-                        startContent={!saving ? <Icon icon="pixelarticons:save"/> : null}
                     >
-                        Save Settings
+                        {!saving ? <Icon icon="pixelarticons:save"/> : null} Save Settings
                     </Button>
                 </ModalFooter>
-            </ModalContent>
+            </ModalDialog>
         </Modal>
     );
 }

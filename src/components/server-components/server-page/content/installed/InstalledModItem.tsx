@@ -1,4 +1,4 @@
-import {Button, Divider, Image, Link} from "@heroui/react";
+import {Button, Separator, Link} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {InstalledMod, useServer} from "../../../../../providers/ServerProvider.tsx";
 import React, {useState, useEffect} from "react";
@@ -164,13 +164,13 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
 
     return (
         <div className={"flex flex-row gap-2 bg-default-200/50 w-full h-[150px] p-4 font-minecraft-body"}>
-            <Image
+            <img
                 src={iconUrl}
                 width={128}
                 height={128}
                 className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-32 min-h-32"}
-                radius={"none"}
-                fallbackSrc="/favicon.ico"
+                loading="lazy"
+                onError={(e) => { (e.target as HTMLImageElement).src = "/favicon.ico"; }}
             />
             <div className={"flex flex-col gap-2 grow"}>
                 <div className={"flex flex-row gap-2 items-center"}>
@@ -179,10 +179,9 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
                             <Tooltip content={`Update to version ${modrinthUpdateInfo.version} on Modrinth`}>
                                 <Button
                                     onPress={() => handleUpdateMod("modrinth")}
-                                    radius={"none"}
                                     variant={"ghost"}
                                     isIconOnly
-                                    isLoading={isUpdating === "modrinth"}
+                                    isPending={isUpdating === "modrinth"}
                                     isDisabled={isUpdating !== null}
                                     className={
                                         "border-[#1bd96a] text-[#1bd96a] data-[hover]:!bg-[#1bd96a] data-[hover]:!text-background"
@@ -196,10 +195,9 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
                             <Tooltip content={`Update to version ${curseforgeUpdateInfo.version} on CurseForge`}>
                                 <Button
                                     onPress={() => handleUpdateMod("curseforge")}
-                                    radius={"none"}
                                     variant={"ghost"}
                                     isIconOnly
-                                    isLoading={isUpdating === "curseforge"}
+                                    isPending={isUpdating === "curseforge"}
                                     isDisabled={isUpdating !== null}
                                     className={
                                         "border-[#f16436] text-[#f16436] data-[hover]:!bg-[#f16436] data-[hover]:!text-foreground"
@@ -212,11 +210,11 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
                         {isCheckingUpdates && (
                             <Tooltip content="Checking for updates...">
                                 <Button
-                                    radius={"none"}
+
                                     variant={"ghost"}
                                     isIconOnly
-                                    isLoading={true}
-                                    className={"border-default-300 text-default-300"}
+                                    isPending={true}
+                                    className={"border-default-300 text-default-300 rounded-none"}
                                 >
                                     <Icon icon={"pixelarticons:reload"}/>
                                 </Button>
@@ -229,11 +227,11 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
                 <p className={"text-default-700 h-full"}>{description}</p>
                 <div className={"flex flex-row gap-2 text-default-500 items-center"}>
                     <span className={"text-sm"}>Version: {version}</span>
-                    <Divider orientation={"vertical"}/>
+                    <Separator orientation={"vertical"}/>
                     <span className={"text-sm"}>File: {filename}</span>
                     {(modrinthUpdateInfo || curseforgeUpdateInfo) && (
                         <>
-                            <Divider orientation={"vertical"}/>
+                            <Separator orientation={"vertical"}/>
                             <span className={"text-sm text-warning"}>Update available</span>
                         </>
                     )}
@@ -242,44 +240,39 @@ export function InstalledModItem(props: InstalledModItemProps): React.JSX.Elemen
             <div className={"flex flex-row gap-2 items-start shrink-0"}>
                 {modrinth_id && (
                     <Tooltip content={"Show Modrinth Page"}>
-                        <Button
-                            as={Link}
-                            href={`/app/discover/mods/modrinth/${modrinth_id}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`}
-                            isIconOnly
-                            radius={"none"}
-                            variant={"ghost"}
-                            target={"_self"}
-                            className={
-                                "border-[#1bd96a] text-[#1bd96a] data-[hover]:!bg-[#1bd96a] data-[hover]:!text-background"
-                            }
-                        >
-                            <Icon icon={"simple-icons:modrinth"}/>
-                        </Button>
+                        <Link href={`/app/discover/mods/modrinth/${modrinth_id}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`} target={"_self"}>
+                            <Button
+                                isIconOnly
+                                variant={"ghost"}
+                                className={
+                                    "border-[#1bd96a] text-[#1bd96a] data-[hover]:!bg-[#1bd96a] data-[hover]:!text-background"
+                                }
+                            >
+                                <Icon icon={"simple-icons:modrinth"}/>
+                            </Button>
+                        </Link>
                     </Tooltip>
                 )}
                 {curseforge_id && (
                     <Tooltip content={"Show CurseForge Page"}>
-                        <Button
-                            as={Link}
-                            href={`/app/discover/mods/curseforge/${curseforge_id}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`}
-                            target={"_self"}
-                            radius={"none"}
-                            variant={"ghost"}
-                            className={
-                                "border-[#f16436] text-[#f16436] data-[hover]:!bg-[#f16436] data-[hover]:!text-foreground"
-                            }
-                            isIconOnly
-                        >
-                            <Icon icon={"simple-icons:curseforge"}/>
-                        </Button>
+                        <Link href={`/app/discover/mods/curseforge/${curseforge_id}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`} target={"_self"}>
+                            <Button
+                                variant={"ghost"}
+                                className={
+                                    "border-[#f16436] text-[#f16436] data-[hover]:!bg-[#f16436] data-[hover]:!text-foreground"
+                                }
+                                isIconOnly
+                            >
+                                <Icon icon={"simple-icons:curseforge"}/>
+                            </Button>
+                        </Link>
                     </Tooltip>
                 )}
                 <Tooltip content={"Delete Mod"}>
                     <Button
                         onPress={handleRemoveMod}
-                        radius={"none"}
                         variant={"ghost"}
-                        className={"border-danger text-danger data-[hover]:!bg-danger data-[hover]:!text-white"}
+                        className={"border-danger text-danger data-[hover]:!bg-danger data-[hover]:!text-white rounded-none"}
                         isIconOnly
                         isDisabled={isUpdating !== null}
                     >

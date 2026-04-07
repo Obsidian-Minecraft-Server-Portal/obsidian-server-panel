@@ -1,8 +1,9 @@
 import {useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {useEffect, useState, useRef} from "react";
-import {Button, Input, Tab, Tabs} from "@heroui/react";
+import {Button, Tab, TabList, Tabs} from "@heroui/react";
+import {Input} from "../components/extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
-import {motion, AnimatePresence} from "framer-motion";
+import {motion, AnimatePresence} from "motion/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {ModpackFilters} from "../components/discover/ModpackFilters.tsx";
 import {ModpackItem, ModpackItemSkeleton} from "../components/discover/ModpackItem.tsx";
@@ -261,55 +262,41 @@ export default function DiscoverPage()
             <div className={"flex flex-row gap-4 items-center justify-between z-20"}>
                 <Input
                     label={"Search Modpacks"}
-                    radius={"none"}
-                    className={"font-minecraft-body"}
+                    className={"font-minecraft-body rounded-none"}
                     placeholder={"Ex: All the Mods, FTB, RLCraft, etc."}
                     autoComplete={"off"}
                     autoCorrect={"off"}
                     startContent={<Icon icon={"pixelarticons:search"}/>}
-                    size={"sm"}
                     value={search}
                     onValueChange={setSearch}
                     endContent={
                         <Tooltip content={"Submit!"}>
-                            <Button isIconOnly radius={"none"} variant={"light"}>
+                            <Button isIconOnly variant={"ghost"} className="rounded-none">
                                 <Icon icon={"pixelarticons:arrow-right"}/>
                             </Button>
                         </Tooltip>
                     }
                 />
                 <Tabs
-                    size={"lg"}
-                    radius={"none"}
-                    classNames={{
-                        cursor: getPlatformColor(selectedPlatform),
-                        tabContent: "w-[20px]"
-                    }}
+                    className="rounded-none"
                     selectedKey={selectedPlatform}
                     onSelectionChange={value => setSelectedPlatform(value as ModpackPlatform)}
                 >
-                    <Tab
-                        key={"modrinth"}
-                        title={
+                    <TabList className={`${getPlatformColor(selectedPlatform)} [&>*]:w-[20px]`}>
+                        <Tab id={"modrinth"}>
                             <Tooltip content={"Modrinth"}>
                                 <Icon
                                     icon={getPlatformIcon("modrinth").value}
                                     className={selectedPlatform === "modrinth" ? "text-black" : ""}
                                 />
                             </Tooltip>
-                        }
-                    />
-                    <Tab
-                        key={"curseforge"}
-                        title={
+                        </Tab>
+                        <Tab id={"curseforge"}>
                             <Tooltip content={"CurseForge"}>
                                 <Icon icon={getPlatformIcon("curseforge").value}/>
                             </Tooltip>
-                        }
-                    />
-                    <Tab
-                        key={"atlauncher"}
-                        title={
+                        </Tab>
+                        <Tab id={"atlauncher"}>
                             <Tooltip content={"ATLauncher"}>
                                 <img
                                     src={getPlatformIcon("atlauncher").value}
@@ -317,16 +304,13 @@ export default function DiscoverPage()
                                     className="w-5 h-5"
                                 />
                             </Tooltip>
-                        }
-                    />
-                    <Tab
-                        key={"technic"}
-                        title={
+                        </Tab>
+                        <Tab id={"technic"}>
                             <Tooltip content={"Technic"}>
                                 <Icon icon={getPlatformIcon("technic").value}/>
                             </Tooltip>
-                        }
-                    />
+                        </Tab>
+                    </TabList>
                 </Tabs>
             </div>
 

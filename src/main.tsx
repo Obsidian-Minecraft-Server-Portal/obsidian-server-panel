@@ -1,12 +1,12 @@
 import React from "react";
-import {BrowserRouter, Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {BrowserRouter, Route, Routes, useLocation} from "react-router-dom";
 import ReactDOM from "react-dom/client";
 import $ from "jquery";
-import {AnimatePresence} from "framer-motion";
+import {AnimatePresence} from "motion/react";
 
 import "./css/index.css";
 import {ThemeProvider} from "./providers/ThemeProvider.tsx";
-import {HeroUIProvider, ToastProvider} from "@heroui/react";
+import {Toast} from "@heroui/react";
 import {AuthenticationProvider} from "./providers/AuthenticationProvider.tsx";
 import {HostInfoProvider} from "./providers/HostInfoProvider.tsx";
 import Footer from "./components/Footer.tsx";
@@ -58,23 +58,11 @@ ReactDOM.createRoot($("#root")[0]!).render(
 
 export function MainContentRenderer()
 {
-    const navigate = useNavigate();
     const location = useLocation();
 
     return (
-        <HeroUIProvider navigate={navigate}>
-            <ToastProvider
-                placement={"bottom-right"}
-                toastProps={{
-                    radius: "none",
-                    shouldShowTimeoutProgress: true,
-                    timeout: 3000, // 3 second timeout for toasts,
-                    classNames: {
-                        title: "font-minecraft-header",
-                        base: "font-minecraft-body"
-                    }
-                }}
-            />
+        <>
+            <Toast.Provider placement="bottom end" />
             <AnimatePresence mode="wait" initial={false}>
                 <main className={"w-full flex flex-col"}>
                     <Navigation/>
@@ -92,6 +80,6 @@ export function MainContentRenderer()
                     <Footer/>
                 </main>
             </AnimatePresence>
-        </HeroUIProvider>
+        </>
     );
 }

@@ -1,21 +1,13 @@
-import {forwardRef} from "react";
-import {Autocomplete as OGAutocomplete, AutocompleteProps, cn} from "@heroui/react";
+import {ComboBox as OGComboBox, ComboBoxProps, cn} from "@heroui/react";
 
-export const Autocomplete = forwardRef<HTMLInputElement, Omit<AutocompleteProps, "radius">>((props, ref) =>
+export function ComboBox(props: ComboBoxProps<object>)
 {
-    return <OGAutocomplete
-        radius={"none"}
-        listboxProps={{
-            itemClasses: {
-                base: "font-minecraft-body rounded-none",
-                ...props.listboxProps?.itemClasses
-            },
-            ...props.listboxProps
-        }}
-        className={cn("font-minecraft-body", props.className)}
-        {...props}
+    const {ref, className, children, ...rest} = props;
+    return <OGComboBox
+        className={cn("rounded-none font-minecraft-body", className)}
+        {...rest}
         ref={ref}
     >
-        {props.children}
-    </OGAutocomplete>;
-});
+        {children}
+    </OGComboBox>;
+}

@@ -1,4 +1,5 @@
-import {Input, Divider} from "@heroui/react";
+import {Separator} from "@heroui/react";
+import {Input} from "../../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import {StorageSettings as StorageSettingsType} from "../../../types/SettingsTypes.ts";
 
@@ -17,7 +18,7 @@ export function StorageSettings({settings, onChange}: StorageSettingsProps) {
                 </p>
             </div>
 
-            <Divider/>
+            <Separator/>
 
             <div className="flex flex-col gap-4">
                 <Input
@@ -26,12 +27,8 @@ export function StorageSettings({settings, onChange}: StorageSettingsProps) {
                     description="Where server instances are stored"
                     value={settings.servers_directory}
                     onValueChange={(value) => onChange({...settings, servers_directory: value})}
-                    radius="none"
+                    className="rounded-none"
                     startContent={<Icon icon="pixelarticons:server"/>}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        input: "font-minecraft-body font-mono text-sm"
-                    }}
                 />
 
                 <Input
@@ -40,12 +37,8 @@ export function StorageSettings({settings, onChange}: StorageSettingsProps) {
                     description="Where Java runtimes are installed"
                     value={settings.java_directory}
                     onValueChange={(value) => onChange({...settings, java_directory: value})}
-                    radius="none"
+                    className="rounded-none"
                     startContent={<Icon icon="pixelarticons:book"/>}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        input: "font-minecraft-body font-mono text-sm"
-                    }}
                 />
 
                 <Input
@@ -54,12 +47,8 @@ export function StorageSettings({settings, onChange}: StorageSettingsProps) {
                     description="Where server backups are stored"
                     value={settings.backups_directory}
                     onValueChange={(value) => onChange({...settings, backups_directory: value})}
-                    radius="none"
+                    className="rounded-none"
                     startContent={<Icon icon="pixelarticons:backup"/>}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        input: "font-minecraft-body font-mono text-sm"
-                    }}
                 />
 
                 <Input
@@ -68,12 +57,8 @@ export function StorageSettings({settings, onChange}: StorageSettingsProps) {
                     description="Where temporary files are stored"
                     value={settings.temp_directory}
                     onValueChange={(value) => onChange({...settings, temp_directory: value})}
-                    radius="none"
+                    className="rounded-none"
                     startContent={<Icon icon="pixelarticons:folder"/>}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        input: "font-minecraft-body font-mono text-sm"
-                    }}
                 />
             </div>
 

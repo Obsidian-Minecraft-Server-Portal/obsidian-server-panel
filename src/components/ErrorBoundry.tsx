@@ -41,12 +41,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <h2 className={"text-2xl"}>An unexpected error has occurred!</h2>
                     <Button
                         onPress={() => this.setState({hasError: false})}
-                        className={"font-minecraft-body"}
-                        radius={"none"}
-                        startContent={<Icon className={"text-xl"} icon={"pixelarticons:repeat"}/>}
-                        color={"primary"}
+                        className={"font-minecraft-body rounded-none"}
+                        variant={"primary"}
                     >
-                        Try again
+                        <Icon className={"text-xl"} icon={"pixelarticons:repeat"}/> Try again
                     </Button>
                 </div>
             );

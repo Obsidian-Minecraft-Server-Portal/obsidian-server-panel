@@ -1,6 +1,7 @@
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useState} from "react";
-import {Button, Input} from "@heroui/react";
+import {Button} from "@heroui/react";
+import {Input} from "../../../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 
@@ -27,13 +28,13 @@ export function CommandInput()
         <div className={"absolute bottom-8 left-8 right-8 font-minecraft-body"}>
             <Input
                 placeholder={"Send a command..."}
-                radius={"none"}
+                className="rounded-none"
                 value={value}
                 onValueChange={setValue}
                 startContent={<Icon icon={"mdi:console"}/>}
                 endContent={
                     <Tooltip content={"Send Command"}>
-                        <Button isIconOnly variant={"light"} size={"sm"} radius={"none"} onPress={handleCommandSubmit}><Icon icon={"mdi:send"}/></Button>
+                        <Button isIconOnly variant={"ghost"} size={"sm"} className="rounded-none" onPress={handleCommandSubmit}><Icon icon={"mdi:send"}/></Button>
                     </Tooltip>
                 }
                 onKeyUp={async (e) =>

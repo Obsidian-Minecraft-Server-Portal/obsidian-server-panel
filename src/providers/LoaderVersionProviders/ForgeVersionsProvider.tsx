@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import {ForgeVersionList, getForgeVersions} from "../../ts/forge-versions.ts";
 import {useAuthentication} from "../AuthenticationProvider.tsx";
 
@@ -31,11 +31,7 @@ export function ForgeVersionsProvider({children}: { children: ReactNode })
             {
                 console.error("Failed to load forge versions:", error);
                 setForgeVersions(null); // Reset to null on error
-                addToast({
-                    title: "Error",
-                    description: "Failed to load forge versions. Please try again later.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to load forge versions. Please try again later.", variant: "danger"});
             });
     }, [isAuthenticated]);
 

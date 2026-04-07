@@ -1,4 +1,5 @@
-import {Input, Checkbox, Divider} from "@heroui/react";
+import {Checkbox, Separator} from "@heroui/react";
+import {Input} from "../../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import {GeneralSettings as GeneralSettingsType} from "../../../types/SettingsTypes.ts";
 
@@ -17,7 +18,7 @@ export function GeneralSettings({settings, onChange}: GeneralSettingsProps) {
                 </p>
             </div>
 
-            <Divider/>
+            <Separator/>
 
             <div className="flex flex-col gap-4">
                 <Input
@@ -31,21 +32,13 @@ export function GeneralSettings({settings, onChange}: GeneralSettingsProps) {
                     }}
                     min={1024}
                     max={65535}
-                    radius="none"
+                    className="rounded-none"
                     startContent={<Icon icon="pixelarticons:server"/>}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        input: "font-minecraft-body"
-                    }}
                 />
 
                 <Checkbox
                     isSelected={settings.auto_start}
-                    onValueChange={(checked) => onChange({...settings, auto_start: checked})}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        wrapper: "rounded-none"
-                    }}
+                    onChange={(checked: any) => onChange({...settings, auto_start: checked})}
                 >
                     <div className="flex flex-col">
                         <span>Auto-start application</span>

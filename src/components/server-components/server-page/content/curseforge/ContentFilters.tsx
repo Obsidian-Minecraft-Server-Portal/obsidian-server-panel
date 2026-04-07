@@ -17,12 +17,12 @@ export function ContentFilters(props: ContentFiltersProps)
         <>
             <GameVersionSelector
                 selectedKeys={selectedGameVersions}
-                onSelectionChange={keys => onGameVersionChange([...keys] as string[])}
+                onSelectionChange={(keys: any) => onGameVersionChange([...keys] as string[])}
                 selectionMode={"single"}
             />
             <LoaderSelector
                 selectedKeys={selectedLoaders}
-                onSelectionChange={keys => onLoaderChange([...keys] as string[])}
+                onSelectionChange={(keys: any) => onLoaderChange([...keys] as string[])}
                 selectionMode={"single"}
             />
         </>

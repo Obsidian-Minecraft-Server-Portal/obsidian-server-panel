@@ -1,7 +1,8 @@
-import {Button, Input, InputProps} from "@heroui/react";
+import {Button} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
-import {forwardRef, RefObject, useEffect, useState} from "react";
+import {RefObject, useEffect, useState} from "react";
 import {Tooltip} from "./Tooltip.tsx";
+import {Input, type InputProps} from "./Input.tsx";
 
 const defaultPasswordGenerationOptions: PasswordGenerationOptions = {
     minLength: 10,
@@ -27,9 +28,10 @@ type PasswordInputProps = {
     onPasswordGeneration?: (password: string) => void;
 } & Omit<InputProps, "type" | "endContent">;
 
-export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((props, ref) =>
+export function PasswordInput(props: PasswordInputProps)
 {
     const {
+        ref,
         onPasswordVisibilityChange,
         allowPasswordGeneration,
         onPasswordGeneration,
@@ -46,24 +48,22 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((p
 
     return (
         <Input
-            radius={"none"}
+            className={"rounded-none font-minecraft-body"}
             type={showPassword ? "text" : "password"}
-            className={"font-minecraft-body"}
             endContent={
                 <div className={"flex flex-row gap-1"}>
-                    <Tooltip content={"Toggle Password Visibility"} placement={"top"}>
-                        <Button isIconOnly size={"sm"} tabIndex={-1} variant={"light"} radius={"none"} onPress={() => setShowPassword(prev => !prev)}>
+                    <Tooltip content={"Toggle Password Visibility"}>
+                        <Button isIconOnly size={"sm"} excludeFromTabOrder variant={"ghost"} className={"rounded-none"} onPress={() => setShowPassword(prev => !prev)}>
                             <Icon icon={showPassword ? "pixelarticons:eye-closed" : "pixelarticons:eye"} width={16}/>
                         </Button>
                     </Tooltip>
                     {allowPasswordGeneration &&
-                        <Tooltip content={"Generate a Secure Password"} placement={"top"}>
+                        <Tooltip content={"Generate a Secure Password"}>
                             <Button
                                 isIconOnly
-                                size={"sm"}
-                                variant={"solid"}
-                                radius={"none"}
-                                tabIndex={-1}
+                                variant={"primary"}
+                                className={"rounded-none"}
+                                excludeFromTabOrder
                                 onPress={() =>
                                 {
                                     const generatedPassword = generateRandomPassword(passwordGenerationOptions);
@@ -83,7 +83,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>((p
             {...rest}
         />
     );
-});
+}
 
 function secureRandom(max: number): number
 {
@@ -155,5 +155,3 @@ function generateRandomPassword(options: PasswordGenerationOptions = defaultPass
 
     return chars.join("");
 }
-
-PasswordInput.displayName = "PasswordInput";

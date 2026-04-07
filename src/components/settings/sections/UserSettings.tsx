@@ -2,14 +2,13 @@ import {useEffect, useState} from "react";
 import {
     Button as HeroButton,
     Card,
-    CardBody,
+    CardContent,
     Chip,
-    Divider,
+    Separator,
     Dropdown,
     DropdownItem,
     DropdownMenu,
     DropdownTrigger,
-    Input,
     Spinner,
     Table,
     TableBody,
@@ -17,8 +16,9 @@ import {
     TableColumn,
     TableHeader,
     TableRow,
-    useDisclosure
+    useOverlayState
 } from "@heroui/react";
+import {Input} from "../../extended/Input.tsx";
 import {Button} from "../../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import $ from "jquery";
@@ -41,8 +41,8 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
     const [permissions, setPermissions] = useState<PermissionFlag[]>([]);
 
     // Modal states
-    const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
-    const {isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose} = useDisclosure();
+    const {isOpen: isCreateOpen, open: openCreate, close: closeCreate} = useOverlayState();
+    const {isOpen: isEditOpen, open: openEdit, close: closeEdit} = useOverlayState();
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
 
     useEffect(() => {
@@ -121,7 +121,7 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
 
     const handleEditUser = (user: UserData) => {
         setSelectedUser(user);
-        onEditOpen();
+        openEdit();
     };
 
     const formatDate = (dateString: string) => {
@@ -142,7 +142,7 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                 </p>
             </div>
 
-            <Divider/>
+            <Separator/>
 
             {/* Actions Bar */}
             <div className="flex flex-row justify-between items-center gap-4">
@@ -150,48 +150,38 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                     placeholder="Search users..."
                     value={searchQuery}
                     onValueChange={setSearchQuery}
-                    radius="none"
                     startContent={<Icon icon="pixelarticons:search"/>}
-                    classNames={{
-                        input: "font-minecraft-body"
-                    }}
-                    className="max-w-md"
+                    className="max-w-md rounded-none"
                 />
                 <Button
-                    color="primary"
-                    onPress={onCreateOpen}
-                    startContent={<Icon icon="pixelarticons:user-plus"/>}
+                    variant="primary"
+                    onPress={openCreate}
                 >
-                    Create User
+                    <Icon icon="pixelarticons:user-plus"/> Create User
                 </Button>
             </div>
 
             {/* Users Table */}
             {loading ? (
                 <Card className="bg-default/5">
-                    <CardBody className="p-8 flex items-center justify-center">
+                    <CardContent className="p-8 flex items-center justify-center">
                         <Spinner size="lg"/>
                         <p className="mt-4 font-minecraft-body">Loading users...</p>
-                    </CardBody>
+                    </CardContent>
                 </Card>
             ) : filteredUsers.length === 0 ? (
                 <Card className="bg-default/5">
-                    <CardBody className="p-8 text-center">
+                    <CardContent className="p-8 text-center">
                         <Icon icon="pixelarticons:users" className="text-4xl mx-auto mb-2 opacity-50"/>
                         <p className="font-minecraft-body opacity-50">
                             {searchQuery ? "No users found matching your search" : "No users found"}
                         </p>
-                    </CardBody>
+                    </CardContent>
                 </Card>
             ) : (
                 <Table
                     aria-label="Users table"
-                    radius="none"
-                    classNames={{
-                        wrapper: "rounded-none",
-                        th: "font-minecraft-body bg-default-100",
-                        td: "font-minecraft-body"
-                    }}
+                    className="rounded-none"
                 >
                     <TableHeader>
                         <TableColumn>USERNAME</TableColumn>
@@ -208,7 +198,7 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                                         <Icon icon="pixelarticons:user" className="text-lg"/>
                                         <span className="font-semibold">{user.username}</span>
                                         {user.id === currentUser?.id && (
-                                            <Chip size="sm" color="primary" variant="flat">You</Chip>
+                                            <Chip size="sm" color="accent" variant="soft">You</Chip>
                                         )}
                                     </div>
                                 </TableCell>
@@ -218,18 +208,17 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                                             user.permissions.slice(0, 3).map((perm: any) => (
                                                 <Chip
                                                     key={perm.id}
-                                                    size="sm"
-                                                    variant="flat"
-                                                    color={perm.name === "Admin" ? "primary" : "default"}
+                                                    variant="soft"
+                                                    color={perm.name === "Admin" ? "accent" : "default"}
                                                 >
                                                     {perm.name}
                                                 </Chip>
                                             ))
                                         ) : (
-                                            <Chip size="sm" variant="flat">None</Chip>
+                                            <Chip size="sm" variant="soft">None</Chip>
                                         )}
                                         {user.permissions && user.permissions.length > 3 && (
-                                            <Chip size="sm" variant="flat">
+                                            <Chip size="sm" variant="soft">
                                                 +{user.permissions.length - 3}
                                             </Chip>
                                         )}
@@ -238,21 +227,19 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                                 <TableCell>{formatDate(user.join_date)}</TableCell>
                                 <TableCell>
                                     <Chip
-                                        size="sm"
                                         color={user.is_active ? "success" : "danger"}
-                                        variant="flat"
+                                        variant="soft"
                                     >
                                         {user.is_active ? "Active" : "Disabled"}
                                     </Chip>
                                 </TableCell>
                                 <TableCell>
-                                    <Dropdown radius="none">
+                                    <Dropdown className="rounded-none">
                                         <DropdownTrigger>
                                             <HeroButton
                                                 isIconOnly
-                                                variant="light"
-                                                size="sm"
-                                                radius="none"
+                                                variant="ghost"
+                                            className="rounded-none"
                                             >
                                                 <Icon icon="pixelarticons:more-horizontal"/>
                                             </HeroButton>
@@ -263,20 +250,17 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                                         >
                                             <DropdownItem
                                                 key="edit"
-                                                startContent={<Icon icon="pixelarticons:edit"/>}
                                                 onPress={() => handleEditUser(user)}
                                             >
-                                                Edit User
+                                                <Icon icon="pixelarticons:edit"/> Edit User
                                             </DropdownItem>
                                             <DropdownItem
                                                 key="delete"
                                                 className="text-danger"
-                                                color="danger"
-                                                startContent={<Icon icon="pixelarticons:trash"/>}
                                                 onPress={() => handleDeleteUser(user)}
                                                 isDisabled={user.id === currentUser?.id}
                                             >
-                                                Delete User
+                                                <Icon icon="pixelarticons:trash"/> Delete User
                                             </DropdownItem>
                                         </DropdownMenu>
                                     </Dropdown>
@@ -290,7 +274,7 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
             {/* Modals */}
             <CreateUserModal
                 isOpen={isCreateOpen}
-                onClose={onCreateClose}
+                onClose={closeCreate}
                 permissions={permissions}
                 onUserCreated={loadUsers}
                 onShowMessage={onShowMessageSync}
@@ -299,7 +283,7 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
             {selectedUser && (
                 <EditUserModal
                     isOpen={isEditOpen}
-                    onClose={onEditClose}
+                    onClose={closeEdit}
                     user={selectedUser}
                     permissions={permissions}
                     onUserUpdated={loadUsers}

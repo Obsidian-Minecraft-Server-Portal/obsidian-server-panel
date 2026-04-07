@@ -1,9 +1,9 @@
 import {Themes, useTheme} from "../providers/ThemeProvider.tsx";
 import {Select} from "./extended/Select.tsx";
-import {SelectItem, SelectProps} from "@heroui/react";
+import {ListBoxItem, SelectProps} from "@heroui/react";
 import {forwardRef} from "react";
 
-export const AccessibilityThemeSwitch = forwardRef<HTMLSelectElement, Omit<SelectProps, "radius" | "children">>((props, ref) =>
+export const AccessibilityThemeSwitch = forwardRef<HTMLDivElement, Omit<SelectProps<object>, "children">>((props, ref) =>
 {
     const {theme, setTheme} = useTheme();
 
@@ -17,9 +17,9 @@ export const AccessibilityThemeSwitch = forwardRef<HTMLSelectElement, Omit<Selec
     return (
         <Select
             ref={ref}
-            label={props.label ?? "Accessibility Theme"}
-            selectedKeys={props.selectedKeys ?? (theme ? [theme] : [])}
-            onSelectionChange={(keys) =>
+            placeholder={props.placeholder ?? "Accessibility Theme"}
+            selectedKey={(props as any).selectedKey ?? (theme ? [theme] : [])}
+            onSelectionChange={(keys: any) =>
             {
                 const selectedTheme = Array.from(keys)[0] as string;
                 setTheme(selectedTheme as Themes);
@@ -28,9 +28,9 @@ export const AccessibilityThemeSwitch = forwardRef<HTMLSelectElement, Omit<Selec
             {...props}
         >
             {themes.map((themeOption) => (
-                <SelectItem key={themeOption.value} textValue={themeOption.value} description={themeOption.value}>
+                <ListBoxItem key={themeOption.value} textValue={themeOption.value}>
                     {themeOption.label}
-                </SelectItem>
+                </ListBoxItem>
             ))}
         </Select>
     );

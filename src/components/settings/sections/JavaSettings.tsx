@@ -1,4 +1,5 @@
-import {Divider, Select, SelectItem, Card, CardBody, Progress, Chip} from "@heroui/react";
+import {Separator, ListBoxItem, Card, CardContent, ProgressBar, Chip} from "@heroui/react";
+import {Select} from "../../extended/Select.tsx";
 import {Button} from "../../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {JavaSettings as JavaSettingsType} from "../../../types/SettingsTypes.ts";
@@ -103,51 +104,46 @@ export function JavaSettings({settings, onChange, onShowMessage}: JavaSettingsPr
                 </p>
             </div>
 
-            <Divider/>
+            <Separator/>
 
             {/* Default Java Version */}
             <div className="flex flex-col gap-2">
+                {/* @ts-ignore - v3 migration */}
                 <Select
-                    label="Default Java Version"
                     description="Java version used by default when creating new servers"
                     placeholder="None (auto-select based on Minecraft version)"
-                    selectedKeys={settings.default_runtime ? [settings.default_runtime] : []}
-                    onSelectionChange={(keys) => {
+                    selectedKey={settings.default_runtime || undefined}
+                    onSelectionChange={(keys: any) => {
                         const selected = Array.from(keys)[0] as string | undefined;
                         onChange({...settings, default_runtime: selected || null});
                     }}
-                    radius="none"
-                    startContent={<Icon icon="pixelarticons:book"/>}
-                    classNames={{
-                        label: "font-minecraft-body",
-                        value: "font-minecraft-body"
-                    }}
+                    className="rounded-none"
                 >
                     {installedVersions.map((version) => (
-                        <SelectItem key={version.runtime} className="font-minecraft-body">
+                        <ListBoxItem key={version.runtime} className="font-minecraft-body">
                             {version.runtime} ({version.version})
-                        </SelectItem>
+                        </ListBoxItem>
                     ))}
                 </Select>
             </div>
 
-            <Divider/>
+            <Separator/>
 
             {/* Installed Versions */}
             <div>
                 <h3 className="text-lg font-minecraft-header mb-3">Installed Java Versions</h3>
                 {installedVersions.length === 0 ? (
                     <Card className="bg-default/5">
-                        <CardBody className="p-4 text-center">
+                        <CardContent className="p-4 text-center">
                             <Icon icon="pixelarticons:info-box" className="text-2xl mx-auto mb-2 opacity-50"/>
                             <p className="text-sm font-minecraft-body opacity-50">No Java versions installed</p>
-                        </CardBody>
+                        </CardContent>
                     </Card>
                 ) : (
                     <div className="flex flex-col gap-2">
                         {installedVersions.map((version) => (
                             <Card key={version.runtime} className="bg-default/5">
-                                <CardBody className="p-4">
+                                <CardContent className="p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <Icon icon="pixelarticons:book" className="text-xl text-primary"/>
@@ -155,7 +151,7 @@ export function JavaSettings({settings, onChange, onShowMessage}: JavaSettingsPr
                                                 <div className="font-minecraft-body font-semibold">
                                                     {version.runtime}
                                                     {settings.default_runtime === version.runtime && (
-                                                        <Chip size="sm" color="primary" variant="flat" className="ml-2">Default</Chip>
+                                                        <Chip size="sm" color="accent" variant="soft" className="ml-2">Default</Chip>
                                                     )}
                                                 </div>
                                                 <div className="text-xs text-default-500 font-minecraft-body">
@@ -164,40 +160,37 @@ export function JavaSettings({settings, onChange, onShowMessage}: JavaSettingsPr
                                             </div>
                                         </div>
                                         <Button
-                                            size="sm"
-                                            variant="light"
-                                            color="danger"
+                                            variant="danger"
                                             onPress={() => handleUninstall(version.runtime)}
-                                            isLoading={uninstallingVersion === version.runtime}
-                                            startContent={!uninstallingVersion ? <Icon icon="pixelarticons:trash"/> : null}
+                                            isPending={uninstallingVersion === version.runtime}
                                         >
-                                            Uninstall
+                                            {!uninstallingVersion ? <Icon icon="pixelarticons:trash"/> : null} Uninstall
                                         </Button>
                                     </div>
-                                </CardBody>
+                                </CardContent>
                             </Card>
                         ))}
                     </div>
                 )}
             </div>
 
-            <Divider/>
+            <Separator/>
 
             {/* Available Versions */}
             <div>
                 <h3 className="text-lg font-minecraft-header mb-3">Available Java Versions</h3>
                 {availableVersions.length === 0 ? (
                     <Card className="bg-success/5 border-success/20">
-                        <CardBody className="p-4 text-center">
+                        <CardContent className="p-4 text-center">
                             <Icon icon="pixelarticons:check" className="text-2xl mx-auto mb-2 text-success"/>
                             <p className="text-sm font-minecraft-body">All available Java versions are installed</p>
-                        </CardBody>
+                        </CardContent>
                     </Card>
                 ) : (
                     <div className="flex flex-col gap-2">
                         {availableVersions.map((version) => (
                             <Card key={version.runtime} className="bg-default/5">
-                                <CardBody className="p-4">
+                                <CardContent className="p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <Icon icon="pixelarticons:download" className="text-xl"/>
@@ -210,27 +203,23 @@ export function JavaSettings({settings, onChange, onShowMessage}: JavaSettingsPr
                                         </div>
                                         {installingVersion === version.runtime ? (
                                             <div className="w-48">
-                                                <Progress
+                                                <ProgressBar
                                                     value={installProgress}
-                                                    color="primary"
-                                                    size="sm"
-                                                    showValueLabel
+                                                    color="accent"
+                                                    valueLabel={""}
                                                     className="w-full"
                                                 />
                                             </div>
                                         ) : (
                                             <Button
-                                                size="sm"
-                                                variant="flat"
-                                                color="primary"
+                                                variant="secondary"
                                                 onPress={() => handleInstall(version.runtime)}
-                                                startContent={<Icon icon="pixelarticons:download"/>}
                                             >
-                                                Install
+                                                <Icon icon="pixelarticons:download"/> Install
                                             </Button>
                                         )}
                                     </div>
-                                </CardBody>
+                                </CardContent>
                             </Card>
                         ))}
                     </div>

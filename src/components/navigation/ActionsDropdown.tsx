@@ -1,4 +1,4 @@
-import {Badge, Chip, PopoverContent, PopoverTrigger, Progress, ScrollShadow, Tab, Tabs, Accordion, AccordionItem} from "@heroui/react";
+import {Badge, Chip, PopoverContent, PopoverTrigger, ProgressBar, ScrollShadow, Tab, TabList, Tabs, Accordion, AccordionItem} from "@heroui/react";
 import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Popover} from "../extended/Popover.tsx";
@@ -88,7 +88,7 @@ export function ActionsDropdown()
         switch (status)
         {
             case "in_progress":
-                return "primary";
+                return "accent";
             case "completed":
                 return "success";
             case "failed":
@@ -218,12 +218,10 @@ export function ActionsDropdown()
                 <Tooltip content={activeActions.length > 0 ? `${activeActions.length} active tasks` : "Actions Panel"}>
                     <div className={"max-w-fit"}>
                         <PopoverTrigger>
-                            <Button isIconOnly variant={"light"}>
+                            <Button isIconOnly variant={"ghost"}>
                                 <Badge
-                                    content={activeActions.length > 9 ? "9+" : activeActions.length}
-                                    color={"primary"}
-                                    showOutline={false}
-                                    size={"sm"}
+                                    content={activeActions.length > 9 ? "9+" : String(activeActions.length)}
+                                    color={"accent"}
                                     className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none data-[show=false]:hidden"}
                                     data-show={activeActions.length > 0}
                                 >
@@ -237,7 +235,7 @@ export function ActionsDropdown()
                     <div className={"flex flex-row justify-between w-full px-2 pt-2"}>
                         <div className={"text-xl font-minecraft-header"}>
                             Actions
-                            <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden ml-2"} data-show={actions.length > 0}>
+                            <Chip size={"sm"} className={"text-xs font-minecraft-body data-[show=false]:hidden ml-2 rounded-full"} data-show={actions.length > 0}>
                                 {actions.length}
                             </Chip>
                         </div>
@@ -245,8 +243,7 @@ export function ActionsDropdown()
                             <Tooltip content={"Clear completed tasks"}>
                                 <Button
                                     isIconOnly
-                                    variant={"light"}
-                                    size={"lg"}
+                                    variant={"ghost"}
                                     onPress={handleClearCompleted}
                                     isDisabled={completedActions.length === 0 && failedActions.length === 0}
                                 >
@@ -257,56 +254,44 @@ export function ActionsDropdown()
                     </div>
 
                     <Tabs
-                        variant={"underlined"}
-                        color={"primary"}
-                        classNames={{tab: "w-24", tabContent: "w-full flex flex-row justify-between items-center"}}
+                        variant={"primary"}
                         onSelectionChange={key => setSelectedTab(key as string)}
                         selectedKey={selectedTab}
                     >
-                        <Tab
-                            key={"active"}
-                            title={
-                                <>
+                        <TabList>
+                            <Tab id={"active"} className="w-24">
+                                <span className="w-full flex flex-row justify-between items-center">
                                     <span className={"pl-2 mr-auto"}>Active</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={activeActions.length > 0}>
+                                    <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={activeActions.length > 0}>
                                         {activeActions.length}
                                     </Chip>
-                                </>
-                            }
-                        />
-                        <Tab
-                            key={"completed"}
-                            title={
-                                <>
+                                </span>
+                            </Tab>
+                            <Tab id={"completed"} className="w-24">
+                                <span className="w-full flex flex-row justify-between items-center">
                                     <span className={"pl-2 mr-auto"}>Done</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={completedActions.length > 0}>
+                                    <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={completedActions.length > 0}>
                                         {completedActions.length}
                                     </Chip>
-                                </>
-                            }
-                        />
-                        <Tab
-                            key={"failed"}
-                            title={
-                                <>
+                                </span>
+                            </Tab>
+                            <Tab id={"failed"} className="w-24">
+                                <span className="w-full flex flex-row justify-between items-center">
                                     <span className={"pl-2 mr-auto"}>Failed</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={failedActions.length > 0}>
+                                    <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={failedActions.length > 0}>
                                         {failedActions.length}
                                     </Chip>
-                                </>
-                            }
-                        />
-                        <Tab
-                            key={"all"}
-                            title={
-                                <>
+                                </span>
+                            </Tab>
+                            <Tab id={"all"} className="w-24">
+                                <span className="w-full flex flex-row justify-between items-center">
                                     <span className={"pl-2 mr-auto"}>All</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={actions.length > 0}>
+                                    <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={actions.length > 0}>
                                         {actions.length}
                                     </Chip>
-                                </>
-                            }
-                        />
+                                </span>
+                            </Tab>
+                        </TabList>
                     </Tabs>
 
                     {error && (
@@ -343,15 +328,14 @@ export function ActionsDropdown()
                                                     <span className={"font-bold text-sm"}>{getActionLabel(action.action_type)}</span>
                                                     <span className={"text-xs opacity-70"}>{getActionDescription(action)}</span>
                                                 </div>
-                                                <Chip size={"sm"} color={getStatusColor(action.status)} variant={"flat"}>
+                                                <Chip size={"sm"} color={getStatusColor(action.status)} variant={"soft"}>
                                                     {action.status.replace("_", " ")}
                                                 </Chip>
                                             </div>
                                             {(action.status === "completed" || action.status === "failed") && (
                                                 <Button
                                                     isIconOnly
-                                                    size={"sm"}
-                                                    variant={"light"}
+                                                    variant={"ghost"}
                                                     onPress={() => handleDeleteAction(action.tracker_id)}
                                                 >
                                                     <Icon icon={"pixelarticons:close"}/>
@@ -361,11 +345,10 @@ export function ActionsDropdown()
 
                                         {action.status === "in_progress" && (
                                             <div className={"w-full"}>
-                                                <Progress
+                                                <ProgressBar
                                                     value={action.progress}
-                                                    color={"primary"}
-                                                    size={"sm"}
-                                                    showValueLabel
+                                                    color={"accent"}
+                                                    valueLabel={`${action.progress}%`}
                                                     className={"w-full"}
                                                 />
                                             </div>
@@ -374,25 +357,17 @@ export function ActionsDropdown()
                                         {formattedDetails && (
                                             <div className={"w-full"}>
                                                 <Accordion
-                                                    variant={"light"}
+                                                    variant={"default"}
                                                     className={"p-0"}
-                                                    itemClasses={{
-                                                        base: "px-0 py-1",
-                                                        title: "text-xs font-medium",
-                                                        trigger: "px-2 py-1 h-8 rounded-sm bg-default/10 hover:bg-default/20",
-                                                        content: "pt-2 pb-0 text-xs"
-                                                    }}
                                                 >
                                                     <AccordionItem
                                                         key="details"
                                                         aria-label="Action Details"
-                                                        title={
-                                                            <div className={"flex flex-row items-center gap-1"}>
-                                                                <Icon icon={"pixelarticons:chevron-right"} className={"text-xs"}/>
-                                                                <span>Details</span>
-                                                            </div>
-                                                        }
                                                     >
+                                                        <div className={"flex flex-row items-center gap-1 text-xs font-medium"}>
+                                                            <Icon icon={"pixelarticons:chevron-right"} className={"text-xs"}/>
+                                                            <span>Details</span>
+                                                        </div>
                                                         <div className={"bg-default/5 p-3 rounded-md"}>
                                                             {Object.entries(formattedDetails).map(([key, value]) => (
                                                                 <div key={key} className={"flex flex-col gap-1 mb-2 last:mb-0"}>

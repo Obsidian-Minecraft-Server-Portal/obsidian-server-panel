@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import {FabricVersionList, getFabricVersions} from "../../ts/fabric-versions.ts";
 import {useAuthentication} from "../AuthenticationProvider.tsx";
 
@@ -31,11 +31,7 @@ export function FabricVersionsProvider({children}: { children: ReactNode })
             {
                 console.error("Failed to load fabric versions:", error);
                 setFabricVersions(null); // Reset to null on error
-                addToast({
-                    title: "Error",
-                    description: "Failed to load fabric versions. Please try again later.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to load fabric versions. Please try again later.", variant: "danger"});
             });
     }, [isAuthenticated]);
 

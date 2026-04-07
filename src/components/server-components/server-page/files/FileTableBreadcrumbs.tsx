@@ -1,4 +1,4 @@
-import {BreadcrumbItem, Breadcrumbs} from "@heroui/react";
+import {BreadcrumbsItem, Breadcrumbs} from "@heroui/react";
 
 type FileTableBreadcrumbsProperties = {
     onNavigate: (path: string) => void;
@@ -10,8 +10,8 @@ export function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperties)
     const {paths, onNavigate} = props;
 
     return (
-        <Breadcrumbs variant={"solid"} radius={"none"}>
-            <BreadcrumbItem
+        <Breadcrumbs className="rounded-none">
+            <BreadcrumbsItem
                 key="root"
                 onPress={() =>
                 {
@@ -19,12 +19,12 @@ export function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperties)
                 }}
             >
                 Root
-            </BreadcrumbItem>
+            </BreadcrumbsItem>
             {(!paths.length || paths.every(p => p.trim() === "")) ? (
                 <></>
             ) : (
                 paths.filter(i => i.trim() !== "").map((path, index) => (
-                    <BreadcrumbItem
+                    <BreadcrumbsItem
                         key={path}
                         onPress={() =>
                         {
@@ -36,7 +36,7 @@ export function FileTableBreadcrumbs(props: FileTableBreadcrumbsProperties)
                         }}
                     >
                         {path === "" || path === "/" ? "Root" : path}
-                    </BreadcrumbItem>
+                    </BreadcrumbsItem>
                 ))
             )}
         </Breadcrumbs>

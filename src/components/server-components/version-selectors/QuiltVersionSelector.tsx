@@ -1,4 +1,4 @@
-import {addToast, Autocomplete, AutocompleteItem} from "@heroui/react";
+import {toast, Autocomplete, ListBoxItem} from "@heroui/react";
 import {useEffect, useState} from "react";
 import {useQuiltVersions} from "../../../providers/LoaderVersionProviders/QuiltVersionsProvider.tsx";
 import {getQuiltServerUrl} from "../../../ts/quilt-versions.ts";
@@ -47,11 +47,7 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
         let installer: string | undefined = quiltVersions?.installer?.find(i => i.stable)?.version;
         if (!installer)
         {
-            addToast({
-                title: "Error",
-                description: "No stable Quilt installer version found.",
-                color: "danger"
-            });
+            toast("Error", {description: "No stable Quilt installer version found.", variant: "danger"});
             return;
         }
         if (!selectedVersion || !minecraftVersion) return;
@@ -70,33 +66,19 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
 
     return (
         <Autocomplete
-            label={`Quilt Version`}
-            radius={"none"}
-            className={"font-minecraft-body"}
-            classNames={{
-                base: "capitalize",
-                popoverContent: "rounded-none border-primary border-1"
-            }}
-            size={"sm"}
+            className={"font-minecraft-body rounded-none"}
             selectedKey={selectedVersion}
             onSelectionChange={value => setSelectedVersion(value as string)}
-            showScrollIndicators
-            listboxProps={{
-                emptyContent: `No Quilt versions available for Minecraft versions below 1.14`,
-                itemClasses: {
-                    base: "rounded-none font-minecraft-body"
-                }
-            }}
             isDisabled={props.isDisabled}
         >
             {versions.map((version) => (
-                <AutocompleteItem
+                <ListBoxItem
                     key={version}
                     className={"font-minecraft-body"}
                     textValue={version}
                 >
                     {version}
-                </AutocompleteItem>
+                </ListBoxItem>
             ))}
         </Autocomplete>
     );

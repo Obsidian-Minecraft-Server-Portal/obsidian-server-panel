@@ -17,13 +17,13 @@ export default function ErrorPage(props: ErrorProps)
                     {props.message ?? "The page you're looking for doesn't exist or has been moved."}
                 </p>
                 <div className="flex gap-4">
-                    <Button radius={"none"} color={"primary"} as={Link} href={"/app"} className="font-minecraft-body" startContent={<Icon icon={"pixel:home-solid"}/>}>
-                        Go Home
-                    </Button>
+                    <Link href={"/app"}><Button variant={"primary"} className="font-minecraft-body rounded-none">
+                        <Icon icon={"pixel:home-solid"}/> Go Home
+                    </Button></Link>
 
-                    <Button radius={"none"} as={Link} href={"https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/issues/new"} target={"_blank"} className="font-minecraft-body" startContent={<Icon icon={"pixelarticons:debug"}/>}>
-                        Report Issue
-                    </Button>
+                    <Link href={"https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel/issues/new"} target={"_blank"}><Button className="font-minecraft-body rounded-none">
+                        <Icon icon={"pixelarticons:debug"}/> Report Issue
+                    </Button></Link>
                 </div>
             </div>
         </>

@@ -1,6 +1,6 @@
 import {cn} from "@heroui/react";
 import {Editor} from "@monaco-editor/react";
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import {forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
 import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";

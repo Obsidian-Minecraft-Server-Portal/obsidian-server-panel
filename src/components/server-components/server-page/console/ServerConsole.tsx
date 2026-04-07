@@ -1,5 +1,5 @@
 import {LogView} from "./LogView.tsx";
-import {Autocomplete, AutocompleteItem, Button} from "@heroui/react";
+import {ComboBox, ListBoxItem, Button} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
@@ -138,10 +138,10 @@ export default function ServerConsole()
         <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative"}>
             <div className={"flex flex-row justify-between"}>
                 <h1 className={"text-4xl mb-4"}>Console</h1>
-                <Autocomplete
-                    placeholder={"Search logs..."}
-                    className={"w-1/3 font-minecraft-body"}
-                    radius={"none"}
+                <div className="flex flex-row gap-1 items-center w-1/3">
+                <ComboBox
+                    aria-label="Search logs"
+                    className={"font-minecraft-body rounded-none flex-1"}
                     selectedKey={selectedLogFile}
                     onSelectionChange={async (value) =>
                     {
@@ -163,41 +163,30 @@ export default function ServerConsole()
                             setLog(["Failed to fetch log. Please try again."]);
                         }
                     }}
-                    classNames={{
-                        popoverContent: "rounded-none border-primary border-1"
-                    }}
-                    endContent={
-                        selectedLogFile !== "live-log" && (
-                            <Tooltip content={"Download Log"}>
-                                <Button isIconOnly variant={"light"} size={"sm"} radius={"none"} onPress={downloadSelectedLogFile}>
-                                    <Icon icon={"pixelarticons:flatten"}/>
-                                </Button>
-                            </Tooltip>
-                        )
-                    }
-                    listboxProps={{
-                        itemClasses: {
-                            base: "rounded-none font-minecraft-body"
-                        }
-                    }}
                 >
                     {logFiles.map((file) => (
-                        <AutocompleteItem key={file} textValue={file === "live-log" ? "Live Log" : file}>
+                        <ListBoxItem key={file} textValue={file === "live-log" ? "Live Log" : file}>
                             {file === "live-log" ? "Live Log" : file}
-                        </AutocompleteItem>
+                        </ListBoxItem>
                     ))}
-                </Autocomplete>
+                </ComboBox>
+                {selectedLogFile !== "live-log" && (
+                    <Tooltip content={"Download Log"}>
+                        <Button isIconOnly variant={"ghost"} size={"sm"} onPress={downloadSelectedLogFile} className="rounded-none">
+                            <Icon icon={"pixelarticons:flatten"}/>
+                        </Button>
+                    </Tooltip>
+                )}
+                </div>
             </div>
             <LogView ref={logViewRef} log={log}/>
             <Tooltip content={"Scroll to bottom"}>
                 <Button
                     isIconOnly
-                    size={"sm"}
-                    radius={"none"}
-                    className={`absolute data-[running=true]:bottom-24 bottom-8 right-8 text-xl ${!isAutoscrollEnabled ? "opacity-100" : "opacity-50"}`}
+                    className={`absolute data-[running=true]:bottom-24 bottom-8 right-8 text-xl ${!isAutoscrollEnabled ? "opacity-100" : "opacity-50"} rounded-none`}
                     onPress={scrollToBottom}
                     data-running={isRunning}
-                    color={!isAutoscrollEnabled ? "primary" : "default"}
+                    variant={!isAutoscrollEnabled ? "primary" : "secondary"}
                 >
                     <Icon icon={"pixelarticons:arrow-down"}/>
                 </Button>

@@ -1,4 +1,5 @@
-import {Button, Input, Tab, Tabs} from "@heroui/react";
+import {Button, Tab, TabList, Tabs} from "@heroui/react";
+import {Input} from "../../../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {useEffect, useState} from "react";
@@ -88,47 +89,43 @@ export function ServerContent()
             <div className={"flex flex-row gap-4 items-center justify-between z-20"}>
                 <Input
                     label={"Search"}
-                    radius={"none"}
-                    className={"font-minecraft-body"}
+                    className={"font-minecraft-body rounded-none"}
                     placeholder={"Ex: AE2, Applied Energistics 2, Ender IO, etc."}
                     autoComplete={"off"}
                     autoCorrect={"off"}
                     startContent={<Icon icon={"pixelarticons:search"}/>}
-                    size={"sm"}
                     value={search}
                     onValueChange={setSearch}
                     endContent={
                         <Tooltip content={"Submit!"}>
-                            <Button isIconOnly radius={"none"} variant={"light"}>
+                            <Button isIconOnly variant={"ghost"} className="rounded-none">
                                 <Icon icon={"pixelarticons:arrow-right"}/>
                             </Button>
                         </Tooltip>
                     }
                 />
                 <Tabs
-                    size={"lg"}
-                    radius={"none"}
-                    classNames={{
-                        cursor: selectedPlatform === "modrinth" ? "!bg-[#1bd96a]" : selectedPlatform === "curseforge" ? "!bg-[#f16436]" : ""
-                    }}
+                    className="rounded-none"
                     selectedKey={selectedPlatform}
                     onSelectionChange={value => setSelectedPlatform(value as string)}
                 >
-                    <Tab key={"installed"} title={
-                        <Tooltip content={"Installed Mods"}>
-                            <Icon icon={"pixelarticons:download"}/>
-                        </Tooltip>
-                    }/>
-                    <Tab key={"modrinth"} title={
-                        <Tooltip content={"Modrinth"}>
-                            <Icon icon={"simple-icons:modrinth"} className={selectedPlatform === "modrinth" ? "text-black" : ""}/>
-                        </Tooltip>
-                    }/>
-                    <Tab key={"curseforge"} title={
-                        <Tooltip content={"CurseForge"}>
-                            <Icon icon={"simple-icons:curseforge"}/>
-                        </Tooltip>
-                    }/>
+                    <TabList className={selectedPlatform === "modrinth" ? "!bg-[#1bd96a]" : selectedPlatform === "curseforge" ? "!bg-[#f16436]" : ""}>
+                        <Tab id={"installed"}>
+                            <Tooltip content={"Installed Mods"}>
+                                <Icon icon={"pixelarticons:download"}/>
+                            </Tooltip>
+                        </Tab>
+                        <Tab id={"modrinth"}>
+                            <Tooltip content={"Modrinth"}>
+                                <Icon icon={"simple-icons:modrinth"} className={selectedPlatform === "modrinth" ? "text-black" : ""}/>
+                            </Tooltip>
+                        </Tab>
+                        <Tab id={"curseforge"}>
+                            <Tooltip content={"CurseForge"}>
+                                <Icon icon={"simple-icons:curseforge"}/>
+                            </Tooltip>
+                        </Tab>
+                    </TabList>
                 </Tabs>
             </div>
 

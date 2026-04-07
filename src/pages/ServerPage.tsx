@@ -2,11 +2,11 @@ import {useParams, useSearchParams} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {ServerHeader} from "../components/server-components/server-page/ServerHeader.tsx";
-import {Tab, Tabs} from "@heroui/react";
+import {Tab, TabList, TabPanel, Tabs} from "@heroui/react";
 import ServerConsole from "../components/server-components/server-page/console/ServerConsole.tsx";
 import {ServerFiles} from "../components/server-components/server-page/files/ServerFiles.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import {ServerOptions} from "../components/server-components/server-page/options/ServerOptions.tsx";
 import {ServerBackups} from "../components/server-components/server-page/backups/ServerBackups.tsx";
 import {ServerContent} from "../components/server-components/server-page/content/ServerContent.tsx";
@@ -83,12 +83,19 @@ export default function ServerPage()
                     exit={{opacity: 0, y: -20}}
                     transition={{duration: 0.3, ease: "easeInOut"}}
                 >
-                    <Tabs className={"mt-4 font-minecraft-body"} radius={"none"} color={"primary"} onSelectionChange={value => setSelectedTab(value as string)} selectedKey={selectedTab}>
-                        <Tab key={"console"} title={"Console"}><ErrorBoundary><ServerConsole/></ErrorBoundary></Tab>
-                        <Tab key={"content"} title={"Content"}><ErrorBoundary><ServerContent/></ErrorBoundary></Tab>
-                        <Tab key={"files"} title={"Files"}><ErrorBoundary><ServerFiles/></ErrorBoundary></Tab>
-                        <Tab key={"backups"} title={"Backups"}><ErrorBoundary><ServerBackups/></ErrorBoundary></Tab>
-                        <Tab key={"options"} title={"Options"}><ErrorBoundary><ServerOptions/></ErrorBoundary></Tab>
+                    <Tabs className={"mt-4 font-minecraft-body rounded-none"} onSelectionChange={value => setSelectedTab(value as string)} selectedKey={selectedTab}>
+                        <TabList>
+                            <Tab id={"console"}>Console</Tab>
+                            <Tab id={"content"}>Content</Tab>
+                            <Tab id={"files"}>Files</Tab>
+                            <Tab id={"backups"}>Backups</Tab>
+                            <Tab id={"options"}>Options</Tab>
+                        </TabList>
+                        <TabPanel id={"console"}><ErrorBoundary><ServerConsole/></ErrorBoundary></TabPanel>
+                        <TabPanel id={"content"}><ErrorBoundary><ServerContent/></ErrorBoundary></TabPanel>
+                        <TabPanel id={"files"}><ErrorBoundary><ServerFiles/></ErrorBoundary></TabPanel>
+                        <TabPanel id={"backups"}><ErrorBoundary><ServerBackups/></ErrorBoundary></TabPanel>
+                        <TabPanel id={"options"}><ErrorBoundary><ServerOptions/></ErrorBoundary></TabPanel>
                     </Tabs>
                 </motion.div>
             </div>

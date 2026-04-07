@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Button, Card, CardBody} from "@heroui/react";
+import {Button, Card, CardContent} from "@heroui/react";
 import {Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis} from "recharts";
 import {Tooltip} from "./extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
@@ -408,8 +408,8 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
     };
 
     return (
-        <Card className={`${sizeClasses.card} shadow-none transition-all duration-200`} radius={"none"}>
-            <CardBody className={`${sizeClasses.padding} relative overflow-hidden`}>
+        <Card className={`${sizeClasses.card} shadow-none transition-all duration-200 rounded-none`}>
+            <CardContent className={`${sizeClasses.padding} relative overflow-hidden`}>
                 {/* Progress Bar Overlay - Full Width and Height */}
                 {!isHistoryView && (
                     <div className="absolute inset-0 pointer-events-none">
@@ -429,10 +429,9 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                     <Tooltip content={`${isHistoryView ? "Show Current Value" : "Show History Graph"}`}>
                         <Button
                             isIconOnly
-                            variant="light"
-                            className={`absolute right-0 top-0 z-10 aspect-square shrink-0`}
+                            variant="ghost"
+                            className={`absolute right-0 top-0 z-10 aspect-square shrink-0 rounded-none`}
                             onPress={() => setIsHistoryView(!isHistoryView)}
-                            radius="none"
                         >
                             {isHistoryView ? (
                                 <Icon icon={"pixelarticons:reply-all"} className={sizeClasses.buttonIcon}/>
@@ -550,7 +549,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                         )}
                     </div>
                 )}
-            </CardBody>
+            </CardContent>
         </Card>
     );
 }

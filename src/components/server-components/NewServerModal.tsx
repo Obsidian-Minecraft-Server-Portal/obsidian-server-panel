@@ -1,4 +1,5 @@
-import {addToast, CircularProgress, DropdownItem, DropdownTrigger, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
+import {toast, ProgressCircle, DropdownItem, DropdownTrigger, Link, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader, Tab, TabList, Tabs} from "@heroui/react";
+import {Input} from "../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";
@@ -81,11 +82,7 @@ export default function NewServerModal(props: NewServerProperties)
 
             if (!serverId)
             {
-                addToast({
-                    title: "Error",
-                    description: "Failed to create server. Please try again.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to create server. Please try again.", variant: "danger"});
                 setIsCreatingServer(false);
                 setCreationStatusText("Create");
                 return;
@@ -96,11 +93,7 @@ export default function NewServerModal(props: NewServerProperties)
                 if (!loaderUrl && selectedLoader !== "vanilla")
                 {
                     console.error("Loader URL is not defined for selected loader:", selectedLoader);
-                    addToast({
-                        title: "Error",
-                        description: `Loader URL is not defined for selected loader: ${selectedLoader}. Please select a valid loader version.`,
-                        color: "danger"
-                    });
+                    toast("Error", {description: `Loader URL is not defined for selected loader: ${selectedLoader}. Please select a valid loader version.`, variant: "danger"});
                     setIsCreatingServer(false);
                     setCreationStatusText("Create");
                     return;
@@ -128,11 +121,7 @@ export default function NewServerModal(props: NewServerProperties)
                 } catch (error)
                 {
                     console.error("Error uploading server jar:", error);
-                    addToast({
-                        title: "Error",
-                        description: "Failed to upload server jar. Please check the URL or try again.",
-                        color: "danger"
-                    });
+                    toast("Error", {description: "Failed to upload server jar. Please check the URL or try again.", variant: "danger"});
                     setIsCreatingServer(false);
                     setCreationStatusText("Create");
                     return;
@@ -141,11 +130,7 @@ export default function NewServerModal(props: NewServerProperties)
             {
                 if (!customJarFile)
                 {
-                    addToast({
-                        title: "Error",
-                        description: "Please upload a custom jar file.",
-                        color: "danger"
-                    });
+                    toast("Error", {description: "Please upload a custom jar file.", variant: "danger"});
                     return;
                 }
                 const onProgress = (bytes: number) =>
@@ -165,11 +150,7 @@ export default function NewServerModal(props: NewServerProperties)
                 } catch (error)
                 {
                     console.error("Error uploading custom jar file:", error);
-                    addToast({
-                        title: "Error",
-                        description: "Failed to upload custom jar file. Please try again.",
-                        color: "danger"
-                    });
+                    toast("Error", {description: "Failed to upload custom jar file. Please try again.", variant: "danger"});
                     setIsCreatingServer(false);
                     setCreationStatusText("Create");
                     return;
@@ -184,11 +165,7 @@ export default function NewServerModal(props: NewServerProperties)
             } catch (error)
             {
                 console.error("Error updating server RAM:", error);
-                addToast({
-                    title: "Error",
-                    description: "Failed to update server RAM. Please try again.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to update server RAM. Please try again.", variant: "danger"});
                 setIsCreatingServer(false);
                 setCreationStatusText("Create");
                 return;
@@ -201,11 +178,7 @@ export default function NewServerModal(props: NewServerProperties)
         {
             console.error("Error creating server:", error);
 
-            addToast({
-                title: "Error",
-                description: "Failed to create server. Please try again.",
-                color: "danger"
-            });
+            toast("Error", {description: "Failed to create server. Please try again.", variant: "danger"});
             setIsCreatingServer(false);
             setCreationStatusText("Create");
         }
@@ -226,27 +199,16 @@ export default function NewServerModal(props: NewServerProperties)
     return (
         <Modal
             isOpen={props.isOpen}
-            onClose={props.onClose}
-            backdrop={"blur"}
-            radius={"none"}
-            closeButton={<Icon icon={"pixelarticons:close-box"} width={24}/>}
-            classNames={{closeButton: "rounded-none"}}
-            size={"3xl"}
-            scrollBehavior={"inside"}
-            isDismissable={!isCreatingServer}
-            hideCloseButton={isCreatingServer}
+            onOpenChange={(open) => !open && props.onClose()}
         >
-            <ModalContent>
-                {onClose => (
-                    <ErrorBoundary>
-                        <ModalHeader className={"font-minecraft-header font-normal"}>Create New Server</ModalHeader>
-                        <ModalBody className={"flex flex-col gap-4"}>
+            <ModalDialog>
+                <ErrorBoundary>
+                        <ModalHeader>Create New Server</ModalHeader>
+                        <ModalBody>
                             <p className={"font-minecraft-body"}>Configure your server</p>
                             <Input
                                 label={"Server Name"}
-                                className={"font-minecraft-body"}
-                                radius={"none"}
-                                size={"sm"}
+                                className={"font-minecraft-body rounded-none"}
                                 endContent={<Icon icon={""}/>}
                                 value={name}
                                 onValueChange={setName}
@@ -254,23 +216,20 @@ export default function NewServerModal(props: NewServerProperties)
                             />
                             <div className={"mx-auto flex flex-row"}>
                                 <Tabs
-                                    radius={"none"}
-                                    className={"font-minecraft-body"}
-                                    fullWidth
-                                    variant={"solid"}
-                                    color={"primary"}
-                                    classNames={{
-                                        tab: "flex flex-col items-center justify-center h-24 w-28"
-                                    }}
+
+                                    className={"font-minecraft-body rounded-none w-full"}
+                                    variant={"primary"}
                                     isDisabled={isCreatingServer}
                                     selectedKey={selectedLoader}
                                     onSelectionChange={key => setSelectedLoader(key as LoaderType)}
                                 >
-                                    <Tab key={"vanilla"} title={<><Icon icon={"heroicons:cube-transparent-16-solid"} width={32}/><p>Vanilla</p></>}/>
-                                    <Tab key={"fabric"} title={<div className={"relative"}><Icon icon={"file-icons:fabric"} width={32}/><p>Fabric</p></div>}/>
-                                    <Tab key={"forge"} title={<><Icon icon={"simple-icons:curseforge"} width={32}/><p>Forge</p></>}/>
-                                    <Tab key={"bukkit"} title={<div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"pixelarticons:paint-bucket"} width={32}/><p>Bukkit</p></div>}/>
-                                    <Tab key={"spigot"} title={<div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"simple-icons:spigotmc"} width={32}/><p>Spigot</p></div>}/>
+                                    <TabList>
+                                        <Tab id={"vanilla"} className="flex flex-col items-center justify-center h-24 w-28"><><Icon icon={"heroicons:cube-transparent-16-solid"} width={32}/><p>Vanilla</p></></Tab>
+                                        <Tab id={"fabric"} className="flex flex-col items-center justify-center h-24 w-28"><div className={"relative"}><Icon icon={"file-icons:fabric"} width={32}/><p>Fabric</p></div></Tab>
+                                        <Tab id={"forge"} className="flex flex-col items-center justify-center h-24 w-28"><><Icon icon={"simple-icons:curseforge"} width={32}/><p>Forge</p></></Tab>
+                                        <Tab id={"bukkit"} className="flex flex-col items-center justify-center h-24 w-28"><div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"pixelarticons:paint-bucket"} width={32}/><p>Bukkit</p></div></Tab>
+                                        <Tab id={"spigot"} className="flex flex-col items-center justify-center h-24 w-28"><div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"simple-icons:spigotmc"} width={32}/><p>Spigot</p></div></Tab>
+                                    </TabList>
                                 </Tabs>
                                 <Dropdown>
                                     <DropdownTrigger>
@@ -279,9 +238,9 @@ export default function NewServerModal(props: NewServerProperties)
                                         </Button>
                                     </DropdownTrigger>
                                     <DropdownMenu>
-                                        <DropdownItem key={"quilt"} startContent={<Quilt size={18}/>} onPress={() => setSelectedLoader("quilt")}>Quilt</DropdownItem>
-                                        <DropdownItem key={"neoforge"} startContent={<NeoForge size={18}/>} onPress={() => setSelectedLoader("neoforge")}>NeoForge</DropdownItem>
-                                        <DropdownItem key={"custom_jar"} startContent={<Icon icon={"pixelarticons:cloud-upload"} width={18}/>} onPress={() => setSelectedLoader("custom")}>Custom Jar</DropdownItem>
+                                        <DropdownItem key={"quilt"} onPress={() => setSelectedLoader("quilt")}><Quilt size={18}/> Quilt</DropdownItem>
+                                        <DropdownItem key={"neoforge"} onPress={() => setSelectedLoader("neoforge")}><NeoForge size={18}/> NeoForge</DropdownItem>
+                                        <DropdownItem key={"custom_jar"} onPress={() => setSelectedLoader("custom")}><Icon icon={"pixelarticons:cloud-upload"} width={18}/> Custom Jar</DropdownItem>
                                     </DropdownMenu>
                                 </Dropdown>
                             </div>
@@ -319,26 +278,21 @@ export default function NewServerModal(props: NewServerProperties)
                             )}
                         </ModalBody>
                         <ModalFooter>
-                            <Button onPress={submit} variant={"ghost"} color={"primary"} isDisabled={!isValidForm || isCreatingServer}>
+                            <Button onPress={submit} variant={"outline"} isDisabled={!isValidForm || isCreatingServer}>
                                 {isCreatingServer &&
-                                    <CircularProgress
+                                    <ProgressCircle
                                         minValue={0}
                                         maxValue={1}
                                         value={creationProgress}
-                                        color={"primary"}
-                                        size={"sm"}
-                                        classNames={{
-                                            svg: "h-6 w-6"
-                                        }}
+                                        className="h-6 w-6"
                                     />
                                 }
                                 {creationStatusText}
                             </Button>
-                            <Button onPress={onClose} variant={"light"} color={"danger"} isLoading={isCreatingServer}>Cancel</Button>
+                            <Button onPress={props.onClose} variant={"danger"} isPending={isCreatingServer}>Cancel</Button>
                         </ModalFooter>
-                    </ErrorBoundary>
-                )}
-            </ModalContent>
+                </ErrorBoundary>
+            </ModalDialog>
         </Modal>
     );
 }
@@ -360,7 +314,7 @@ function LoaderSelector(props: LoaderSelectorProps)
         onChange,
         isDisabled
     } = props;
-    if (!version) return <p className={"text-danger font-minecraft-body text-tiny italic underline"}>Please select a Minecraft version first.</p>;
+    if (!version) return <p className={"text-danger font-minecraft-body text-xs italic underline"}>Please select a Minecraft version first.</p>;
     switch (selectedLoader)
     {
         case "fabric":

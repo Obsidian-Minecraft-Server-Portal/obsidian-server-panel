@@ -2,7 +2,7 @@ import {useParams, useSearchParams} from "react-router-dom";
 import ErrorPage from "./ErrorPage.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
 import {useCallback, useEffect, useState} from "react";
-import {Button, Card, CardHeader, Chip, Image, Link, Skeleton, Tab, Tabs} from "@heroui/react";
+import {Button, Card, CardHeader, Chip, Link, Skeleton, Tab, TabList, TabPanel, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {useMessage} from "../providers/MessageProvider.tsx";
@@ -310,30 +310,29 @@ export function ContentPage()
         <ErrorBoundary>
             <div className="p-8 w-full mx-auto font-minecraft-body">
                 {/* Header */}
-                <Card className="mb-6" radius="none">
+                <Card className="mb-6 rounded-none">
                     <CardHeader className="flex gap-6 p-6">
-                        <Image
+                        <img
                             src={modDetails.icon_url || "/favicon.ico"}
                             alt={modDetails.name}
                             width={128}
                             height={128}
                             className="rounded-lg flex-shrink-0"
-                            radius="sm"
+                            loading="lazy"
                         />
                         <div className="flex-1 space-y-3">
                             <div className="flex items-center gap-3">
                                 <h1 className="text-3xl font-minecraft-header font-bold">{modDetails.name}</h1>
                                 <Chip
                                     color={platform === "modrinth" ? "success" : "warning"}
-                                    variant="flat"
+                                    variant="soft"
                                     className="text-xs"
                                 >
                                     {platform === "modrinth" ? "Modrinth" : "CurseForge"}
                                 </Chip>
                                 <div className="flex gap-2 ml-auto">
                                     {/* Back to Search Button */}
-                                    <Button
-                                        as={Link}
+                                    <Link
                                         href={(() =>
                                         {
                                             const backUrl = searchParams.get("back");
@@ -344,32 +343,34 @@ export function ContentPage()
                                             // Default back to server content tab if no back URL
                                             return server?.id ? `/app/servers/${server.id}?tab=content` : "/app";
                                         })()}
-                                        radius="none"
-                                        isIconOnly
                                     >
-                                        <Icon icon="pixelarticons:arrow-left"/>
-                                    </Button>
+                                        <Button
+                                            className="rounded-none"
+                                            isIconOnly
+                                        >
+                                            <Icon icon="pixelarticons:arrow-left"/>
+                                        </Button>
+                                    </Link>
 
                                     {/* Open on Platform Button */}
-                                    <Button
-                                        as={Link}
+                                    <Link
                                         href={platform === "modrinth"
                                             ? `https://modrinth.com/mod/${modId}`
                                             : `https://www.curseforge.com/minecraft/mc-mods/${modDetails.slug || modId}`
                                         }
                                         target="_blank"
-                                        radius="none"
-                                        variant="solid"
-                                        color={platform === "modrinth" ? "success" : "warning"}
-                                        endContent={<Icon icon="pixelarticons:external-link"/>}
-                                        className={
-                                            platform === "modrinth"
-                                                ? "text-black bg-[#1bd96a]"
-                                                : "text-white bg-[#f16436]"
-                                        }
                                     >
-                                        Open on {platform === "modrinth" ? "Modrinth" : "CurseForge"}
-                                    </Button>
+                                        <Button
+                                            variant="primary"
+                                            className={
+                                                platform === "modrinth"
+                                                    ? "text-black bg-[#1bd96a] rounded-none"
+                                                    : "text-white bg-[#f16436] rounded-none"
+                                            }
+                                        >
+                                            Open on {platform === "modrinth" ? "Modrinth" : "CurseForge"} <Icon icon="pixelarticons:external-link"/>
+                                        </Button>
+                                    </Link>
                                 </div>
                             </div>
                             <p className="text-default-600 text-lg">{modDetails.description}</p>
@@ -393,7 +394,7 @@ export function ContentPage()
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {modDetails.categories.slice(0, 6).map(category => (
-                                    <Chip key={category} size="sm" variant="flat" color="primary">
+                                    <Chip key={category} size="sm" variant="soft" color="accent">
                                         {category}
                                     </Chip>
                                 ))}
@@ -406,22 +407,25 @@ export function ContentPage()
                 <Tabs
                     selectedKey={selectedTab}
                     onSelectionChange={(key) => setSelectedTab(key as string)}
-                    className="w-full"
-                    radius="none"
-                >
-                    <Tab key="description" title="Description">
-                        <ModDescription modDetails={modDetails}/>
-                    </Tab>
+                    className="w-full rounded-none"
 
-                    <Tab key="changelog" title="Changelog">
+                >
+                    <TabList>
+                        <Tab id="description">Description</Tab>
+                        <Tab id="changelog">Changelog</Tab>
+                        <Tab id="versions">Versions</Tab>
+                    </TabList>
+                    <TabPanel id="description">
+                        <ModDescription modDetails={modDetails}/>
+                    </TabPanel>
+                    <TabPanel id="changelog">
                         <ModChangelog
                             changelog={changelog}
                             changelogPage={changelogPage}
                             onLoadMore={() => setChangelogPage(prev => prev + 1)}
                         />
-                    </Tab>
-
-                    <Tab key="versions" title="Versions">
+                    </TabPanel>
+                    <TabPanel id="versions">
                         <ModVersions
                             modVersions={modVersions}
                             versionsLoading={versionsLoading}
@@ -429,7 +433,7 @@ export function ContentPage()
                             serverId={server?.id || undefined}
                             onDownloadVersion={downloadModVersion}
                         />
-                    </Tab>
+                    </TabPanel>
                 </Tabs>
             </div>
         </ErrorBoundary>

@@ -1,5 +1,5 @@
 import {extensionFileTypeMap, getFileType} from "./file-type-match.ts";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 
 /**
  * Represents a filesystem entry (file or directory)
@@ -101,11 +101,7 @@ export class FileSystem
             return tmp;
         } catch (error: Error | any)
         {
-            addToast({
-                title: "Failed to get Directory",
-                description: error.message || error.toString() || "Unknown error occurred while trying to get the directory.",
-                color: "danger"
-            });
+            toast("Failed to get Directory", {description: error.message || error.toString() || "Unknown error occurred while trying to get the directory.", variant: "danger"});
             console.error("Error fetching filesystem data:", error);
             throw error;
         }

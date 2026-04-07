@@ -1,10 +1,10 @@
-import {ButtonGroup, cn, Divider, Image, Link, Skeleton} from "@heroui/react";
+import {ButtonGroup, cn, Separator, Link, Skeleton} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useLocation, useNavigate} from "react-router-dom";
 import {Button} from "../../../extended/Button.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
-import {motion} from "framer-motion";
+import {motion} from "motion/react";
 import {useCallback, useState} from "react";
 import type {ModVersion} from "../../../../types/ModTypes.ts";
 import {fetchCurseForgeVersions, fetchModrinthVersions} from "../../../../pages/ContentPage.tsx";
@@ -85,7 +85,7 @@ export function ModItem(props: ModItemProps)
 
     return (
         <>
-            <ModItemContentDrawer modId={modId} platform={platform} isOpen={openDrawer} onClose={()=>setOpenDrawer(false)} />
+            <ModItemContentDrawer modId={modId} platform={platform} isOpen={openDrawer} onOpenChange={(open) => !open && setOpenDrawer(false)} />
             <motion.div
                 key={modId}
                 className={"flex flex-row gap-2 bg-default-200/50 w-full h-[136px] p-4 font-minecraft-body relative"}
@@ -102,7 +102,7 @@ export function ModItem(props: ModItemProps)
                 <div
                     className={"absolute top-0 left-0 w-full h-full z-20 cursor-pointer"}
                 />
-                <Image src={iconUrl ?? "/favicon.ico"} width={96} height={96} className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-24 min-h-24"} radius={"none"}/>
+                <img src={iconUrl ?? "/favicon.ico"} width={96} height={96} className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-24 min-h-24"} loading="lazy"/>
                 <div className={"flex flex-col gap-2 grow"}>
                     <div className={"flex flex-row gap-2 items-center"}>
                         <p className={"text-2xl font-minecraft-header data-[platform=modrinth]:text-[#1bd96a] data-[platform=curseforge]:text-[#f16436]"} data-platform={platform}>{name}</p>
@@ -113,7 +113,7 @@ export function ModItem(props: ModItemProps)
                         {categories.slice(0, 6).map((category, index) => (
                             <>
                                 <span key={index} className={"text-sm"}>{category}</span>
-                                <Divider orientation={"vertical"}/>
+                                <Separator orientation={"vertical"}/>
                             </>
                         ))}
                     </div>
@@ -124,9 +124,8 @@ export function ModItem(props: ModItemProps)
                     <ButtonGroup className={"gap-2 z-30"}>
                         <Tooltip content={<p>Install <span className={"text-primary"}>{name} {latestVersion?.version_number}</span></p>}>
                             <Button
-                                variant={"solid"}
+                                variant={"primary"}
                                 onMouseEnter={() => findLatestVersion()}
-
                                 className={
                                     cn(
                                         "data-[platform=curseforge]:bg-[#f16436]",
@@ -139,12 +138,12 @@ export function ModItem(props: ModItemProps)
                             </Button>
                         </Tooltip>
                         <Tooltip content={`Open on ${platform === "modrinth" ? "Modrinth" : "CurseForge"}`}>
-                            <Button
-                                as={Link}
+                            <Link
                                 href={platform === "modrinth" ? `https://modrinth.com/mod/${modId}` : `https://www.curseforge.com/minecraft/mc-mods/${slug}`}
                                 target={"_blank"}
+                            ><Button
                                 isIconOnly
-                                variant={"ghost"}
+                                variant={"outline"}
                                 className={
                                     cn(
                                         "data-[platform=curseforge]:border-[#f16436] data-[platform=curseforge]:text-[#f16436] data-[platform=curseforge]:data-[hover]:!bg-[#f16436] data-[platform=curseforge]:data-[hover]:!text-foreground",
@@ -154,7 +153,7 @@ export function ModItem(props: ModItemProps)
                                 data-platform={platform}
                             >
                                 <Icon icon={"pixelarticons:open"}/>
-                            </Button>
+                            </Button></Link>
                         </Tooltip>
                     </ButtonGroup>
                 </div>

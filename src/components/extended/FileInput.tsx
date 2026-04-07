@@ -1,6 +1,7 @@
-import {forwardRef, InputHTMLAttributes, useCallback, useState, DragEvent} from "react";
-import {Button, Input} from "@heroui/react";
+import {InputHTMLAttributes, useCallback, useState, DragEvent} from "react";
+import {Button} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
+import {Input} from "./Input.tsx";
 
 type FileInputProps = {
     label?: string;
@@ -10,7 +11,7 @@ type FileInputProps = {
     size?: "sm" | "md" | "lg";
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
 
-export const FileInput = forwardRef<HTMLInputElement, FileInputProps>((props) =>
+export function FileInput(props: FileInputProps)
 {
     const [file, setFile] = useState(null as File | File[] | null);
     const [isDragging, setIsDragging] = useState(false);
@@ -19,7 +20,7 @@ export const FileInput = forwardRef<HTMLInputElement, FileInputProps>((props) =>
         description,
         placeholder = `Accepts ${props.accept || "any file"}`,
         onChange,
-        size = "md"
+        size: _size = "md"
     } = props;
 
     const handleUploadClick = () =>
@@ -87,18 +88,14 @@ export const FileInput = forwardRef<HTMLInputElement, FileInputProps>((props) =>
                 placeholder={placeholder}
                 description={description}
                 value={file ? (Array.isArray(file) ? file.map(f => f.name).join(", ") : file.name) : ""}
-                radius={"none"}
-                size={size}
+                className={"rounded-none"}
                 isReadOnly
                 isDisabled
-                classNames={{
-                    base: "data-[disabled]:opacity-100"
-                }}
             />
-            <Button isIconOnly size={"md"} radius={"none"} onPress={handleUploadClick}><Icon icon={"pixelarticons:cloud-upload"}/></Button>
+            <Button isIconOnly size={"md"} className={"rounded-none"} onPress={handleUploadClick}><Icon icon={"pixelarticons:cloud-upload"}/></Button>
             {file && (
-                <Button isIconOnly size={"md"} radius={"none"} onPress={handleRemoveClick}><Icon icon={"pixelarticons:close"}/></Button>
+                <Button isIconOnly size={"md"} className={"rounded-none"} onPress={handleRemoveClick}><Icon icon={"pixelarticons:close"}/></Button>
             )}
         </div>
     );
-});
+}

@@ -5,7 +5,8 @@ import {
     DrawerProps,
     Tabs,
     Tab,
-    Image,
+    TabList,
+    TabPanel,
     Chip,
     Button,
     Link,
@@ -226,17 +227,10 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
 
     return (
         <Drawer
-            placement={"bottom"}
-            size={"full"}
-            radius={"none"}
-            scrollBehavior={"inside"}
-            backdrop={"blur"}
-            hideCloseButton={true}
             {...rest}
         >
-            <DrawerContent className="p-4 font-minecraft-body">
-                {onClose => (
-                    <>
+            <DrawerContent>
+                <>
                         {loading ? (
                             <div className="flex items-center gap-3 w-full">
                                 <Skeleton className="w-10 h-10 rounded-md"/>
@@ -245,44 +239,39 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                             </div>
                         ) : (
                             <div className="flex items-center gap-3 w-full">
-                                <Image
+                                <img
                                     src={modpackDetails?.icon_url || "/favicon.ico"}
                                     alt={modpackDetails?.name ?? "Modpack"}
                                     width={40}
                                     height={40}
-                                    radius="sm"
-                                    className="rounded-md"
+                                    className="rounded-sm"
                                 />
                                 <span className="text-xl font-bold">{modpackDetails?.name ?? "Modpack"}</span>
                                 <Chip
                                     style={{backgroundColor: getPlatformColor()}}
                                     className={platform === "modrinth" ? "text-black" : "text-white"}
-                                    variant="flat"
-                                    size="sm"
+                                    variant="soft"
                                 >
                                     {getPlatformName()}
                                 </Chip>
                                 <div className="ml-auto flex items-center gap-2">
                                     {modpackDetails && (
-                                        <Button
-                                            as={Link}
-                                            href={getExternalUrl()}
-                                            target="_blank"
-                                            radius="none"
-                                            variant="solid"
-                                            style={{backgroundColor: getPlatformColor()}}
-                                            className={platform === "modrinth" ? "text-black" : "text-white"}
-                                            endContent={<Icon icon="pixelarticons:external-link"/>}
-                                        >
-                                            Open on {getPlatformName()}
-                                        </Button>
+                                        <Link href={getExternalUrl()} target="_blank">
+                                            <Button
+                                                variant="primary"
+                                                style={{backgroundColor: getPlatformColor()}}
+                                                className={platform === "modrinth" ? "text-black rounded-none" : "text-white rounded-none"}
+                                            >
+                                                Open on {getPlatformName()} <Icon icon="pixelarticons:external-link"/>
+                                            </Button>
+                                        </Link>
                                     )}
 
                                     <Button
                                         isIconOnly
-                                        radius="none"
-                                        variant="solid"
-                                        onPress={onClose}
+                                        className="rounded-none"
+                                        variant="primary"
+                                        onPress={() => rest.onOpenChange?.(false)}
                                     >
                                         <Icon icon="pixelarticons:close"/>
                                     </Button>
@@ -332,7 +321,7 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {modpackDetails.categories.slice(0, 6).map(category => (
-                                            <Chip key={category} size="sm" variant="flat" color="primary">
+                                            <Chip key={category} size="sm" variant="soft" color="accent">
                                                 {category}
                                             </Chip>
                                         ))}
@@ -342,20 +331,25 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                 <Tabs
                                     selectedKey={selectedTab}
                                     onSelectionChange={(key) => setSelectedTab(key as string)}
-                                    className="w-full"
-                                    radius="none"
+                                    className="w-full rounded-none"
+
                                 >
-                                    <Tab key="description" title="Description">
+                                    <TabList>
+                                        <Tab id="description">Description</Tab>
+                                        <Tab id="changelog">Changelog</Tab>
+                                        <Tab id="versions">Versions</Tab>
+                                    </TabList>
+                                    <TabPanel id="description">
                                         <ModDescription modDetails={modpackDetails as any}/>
-                                    </Tab>
-                                    <Tab key="changelog" title="Changelog">
+                                    </TabPanel>
+                                    <TabPanel id="changelog">
                                         <ModChangelog
                                             changelog={changelog}
                                             changelogPage={1}
                                             onLoadMore={() => {}}
                                         />
-                                    </Tab>
-                                    <Tab key="versions" title="Versions">
+                                    </TabPanel>
+                                    <TabPanel id="versions">
                                         <div className="p-4">
                                             {versionsLoading ? (
                                                 <div className="space-y-2">
@@ -379,7 +373,6 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                                                 </div>
                                                             </div>
                                                             <Chip
-                                                                size="sm"
                                                                 color={
                                                                     version.version_type === "release"
                                                                         ? "success"
@@ -395,17 +388,16 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                                 </div>
                                             )}
                                         </div>
-                                    </Tab>
+                                    </TabPanel>
                                 </Tabs>
                             </div>
                         )}
-                    </>
-                )}
+                </>
             </DrawerContent>
 
-            <DrawerFooter className="font-minecraft-body">
+            <DrawerFooter>
                 <div className="ml-auto">
-                    <Button onPress={rest.onClose} radius="none" variant="flat">
+                    <Button onPress={() => rest.onOpenChange?.(false)} className="rounded-none" variant="secondary">
                         Close
                     </Button>
                 </div>

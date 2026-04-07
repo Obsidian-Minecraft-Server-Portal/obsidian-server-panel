@@ -1,8 +1,8 @@
 import {forwardRef} from "react";
-import {Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui/react";
+import {ListBox, ListBoxItem, ListBoxProps, ScrollShadow} from "@heroui/react";
 
 
-export const CategorySelectorSelector = forwardRef<HTMLDivElement, Omit<ListboxProps, "children">>((props, ref) =>
+export const CategorySelectorSelector = forwardRef<HTMLDivElement, Omit<ListBoxProps<object>, "children">>((props, ref) =>
 {
     return (
         <div className={"flex flex-col gap-2"}>
@@ -10,34 +10,31 @@ export const CategorySelectorSelector = forwardRef<HTMLDivElement, Omit<ListboxP
             <ScrollShadow
                 className={"max-h-[200px]"}
             >
-                <Listbox
+                <ListBox
                     ref={ref}
                     selectionMode={"multiple"}
-                    itemClasses={{
-                        base: "rounded-none font-minecraft-body"
-                    }}
                     {...props}
                 >
-                    <ListboxItem key={"Adventure"}>Adventure</ListboxItem>
-                    <ListboxItem key={"Cursed"}>Cursed</ListboxItem>
-                    <ListboxItem key={"Decoration"}>Decoration</ListboxItem>
-                    <ListboxItem key={"Economy"}>Economy</ListboxItem>
-                    <ListboxItem key={"Equipment"}>Equipment</ListboxItem>
-                    <ListboxItem key={"Food"}>Food</ListboxItem>
-                    <ListboxItem key={"Game Mechanics"}>Game Mechanics</ListboxItem>
-                    <ListboxItem key={"Library"}>Library</ListboxItem>
-                    <ListboxItem key={"Magic"}>Magic</ListboxItem>
-                    <ListboxItem key={"Management"}>Management</ListboxItem>
-                    <ListboxItem key={"Minigame"}>Minigame</ListboxItem>
-                    <ListboxItem key={"Mobs"}>Mobs</ListboxItem>
-                    <ListboxItem key={"Optimization"}>Optimization</ListboxItem>
-                    <ListboxItem key={"Social"}>Social</ListboxItem>
-                    <ListboxItem key={"Storage"}>Storage</ListboxItem>
-                    <ListboxItem key={"Technology"}>Technology</ListboxItem>
-                    <ListboxItem key={"Transportation"}>Transportation</ListboxItem>
-                    <ListboxItem key={"utility"}>utility</ListboxItem>
-                    <ListboxItem key={"World Generation"}>World Generation</ListboxItem>
-                </Listbox>
+                    <ListBoxItem key={"Adventure"}>Adventure</ListBoxItem>
+                    <ListBoxItem key={"Cursed"}>Cursed</ListBoxItem>
+                    <ListBoxItem key={"Decoration"}>Decoration</ListBoxItem>
+                    <ListBoxItem key={"Economy"}>Economy</ListBoxItem>
+                    <ListBoxItem key={"Equipment"}>Equipment</ListBoxItem>
+                    <ListBoxItem key={"Food"}>Food</ListBoxItem>
+                    <ListBoxItem key={"Game Mechanics"}>Game Mechanics</ListBoxItem>
+                    <ListBoxItem key={"Library"}>Library</ListBoxItem>
+                    <ListBoxItem key={"Magic"}>Magic</ListBoxItem>
+                    <ListBoxItem key={"Management"}>Management</ListBoxItem>
+                    <ListBoxItem key={"Minigame"}>Minigame</ListBoxItem>
+                    <ListBoxItem key={"Mobs"}>Mobs</ListBoxItem>
+                    <ListBoxItem key={"Optimization"}>Optimization</ListBoxItem>
+                    <ListBoxItem key={"Social"}>Social</ListBoxItem>
+                    <ListBoxItem key={"Storage"}>Storage</ListBoxItem>
+                    <ListBoxItem key={"Technology"}>Technology</ListBoxItem>
+                    <ListBoxItem key={"Transportation"}>Transportation</ListBoxItem>
+                    <ListBoxItem key={"utility"}>utility</ListBoxItem>
+                    <ListBoxItem key={"World Generation"}>World Generation</ListBoxItem>
+                </ListBox>
             </ScrollShadow>
         </div>
     );

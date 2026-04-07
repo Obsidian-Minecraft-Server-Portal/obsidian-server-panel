@@ -1,7 +1,8 @@
 import {useState} from "react";
-import {Button, Card, CardBody, Checkbox, CheckboxGroup, Code, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Button, Card, CardContent, Checkbox, CheckboxGroup, Separator, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader} from "@heroui/react";
+import {Input} from "../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
-import {motion} from "framer-motion";
+import {motion} from "motion/react";
 import $ from "jquery";
 import {CreateUserRequest, PermissionFlag} from "../../types/UserTypes.ts";
 import {MessageOptions, MessageResponseType} from "../MessageModal.tsx";
@@ -81,16 +82,15 @@ export default function CreateUserModal({
                         <p>
                             User "{response.username}" created successfully. A random password has been generated and the user will be required to change it on first login.
                         </p>
-                        <Code
-                            radius={"none"}
+                        <code
                             onClick={() =>
                             {
                                 navigator.clipboard.writeText(response.password);
                             }}
-                            className={"cursor-pointer"}
+                            className={"bg-default-100 px-1 rounded-sm cursor-pointer"}
                         >
                             {response.password}
-                        </Code>
+                        </code>
                     </>
                 ),
                 responseType: MessageResponseType.Close,
@@ -132,21 +132,11 @@ export default function CreateUserModal({
     return (
         <Modal
             isOpen={isOpen}
-            onClose={handleClose}
-            size="2xl"
-            scrollBehavior="inside"
-            backdrop="blur"
-            radius="none"
-            closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-            classNames={{
-                closeButton: "rounded-none"
-            }}
-            isDismissable={!loading}
+            onOpenChange={(open) => !open && handleClose()}
         >
-            <ModalContent>
-                {() => (
-                    <>
-                        <ModalHeader className="flex flex-row items-center gap-2 text-2xl font-minecraft-body">
+            <ModalDialog>
+                <>
+                        <ModalHeader>
                             <Icon icon="pixelarticons:user-plus" className="text-3xl text-primary"/>
                             <span>Create New User</span>
                         </ModalHeader>
@@ -164,21 +154,17 @@ export default function CreateUserModal({
                                         placeholder="Enter username"
                                         value={username}
                                         onValueChange={setUsername}
-                                        radius="none"
+                                        className="rounded-none"
                                         isInvalid={!!errors.username}
                                         errorMessage={errors.username}
                                         startContent={<Icon icon="pixelarticons:user"/>}
-                                        classNames={{
-                                            label: "font-minecraft-body",
-                                            input: "font-minecraft-body"
-                                        }}
                                     />
                                     <p className="text-xs text-default-500 font-minecraft-body">
                                         A random password will be generated. The user will be required to change it on first login.
                                     </p>
                                 </div>
 
-                                <Divider/>
+                                <Separator/>
 
                                 {/* Permissions Selection */}
                                 <div className="flex flex-col gap-3">
@@ -186,33 +172,27 @@ export default function CreateUserModal({
 
                                     {isAdminSelected && (
                                         <Card className="bg-warning-50 border-warning-200">
-                                            <CardBody className="p-3">
+                                            <CardContent className="p-3">
                                                 <div className="flex items-center gap-2">
                                                     <Icon icon="pixelarticons:warning-box" className="text-warning"/>
                                                     <span className="text-sm font-minecraft-body text-warning-700">
                                                         Admin permission grants access to all features. Other permissions will be ignored.
                                                     </span>
                                                 </div>
-                                            </CardBody>
+                                            </CardContent>
                                         </Card>
                                     )}
 
                                     <CheckboxGroup
                                         value={selectedPermissions}
-                                        onValueChange={setSelectedPermissions}
-                                        classNames={{
-                                            wrapper: "gap-2"
-                                        }}
+                                        onChange={setSelectedPermissions}
+                                        className="gap-2"
                                     >
                                         {permissions.map((permission) => (
                                             <Checkbox
                                                 key={permission.id}
                                                 value={permission.id.toString()}
-                                                classNames={{
-                                                    label: "font-minecraft-body",
-                                                    wrapper: "rounded-none"
-                                                }}
-                                                className={permission.name === "Admin" ? "text-primary font-semibold" : ""}
+                                                className={permission.name === "Admin" ? "text-primary font-semibold font-minecraft-body" : "font-minecraft-body"}
                                             >
                                                 <div className="flex flex-col">
                                                     <span>{permission.name}</span>
@@ -228,25 +208,23 @@ export default function CreateUserModal({
                         </ModalBody>
                         <ModalFooter>
                             <Button
-                                radius="none"
+                                className="rounded-none"
                                 onPress={handleClose}
                                 isDisabled={loading}
                             >
                                 Cancel
                             </Button>
                             <Button
-                                color="primary"
-                                radius="none"
+                                variant="primary"
+                                className="rounded-none"
                                 onPress={handleSubmit}
-                                isLoading={loading}
-                                startContent={!loading ? <Icon icon="pixelarticons:user-plus"/> : null}
+                                isPending={loading}
                             >
-                                Create User
+                                {!loading ? <Icon icon="pixelarticons:user-plus"/> : null} Create User
                             </Button>
                         </ModalFooter>
-                    </>
-                )}
-            </ModalContent>
+                </>
+            </ModalDialog>
         </Modal>
     );
 }

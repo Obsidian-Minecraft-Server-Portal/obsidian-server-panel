@@ -1,7 +1,8 @@
 import {useEffect, useState} from "react";
-import {Button, Card, CardBody, CheckboxGroup, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Button, Card, CardContent, CheckboxGroup, Separator, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader} from "@heroui/react";
+import {Input} from "../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
-import {motion} from "framer-motion";
+import {motion} from "motion/react";
 import $ from "jquery";
 import {PermissionFlag, UpdateUserRequest, UserData} from "../../types/UserTypes.ts";
 import {MessageOptions, MessageResponseType} from "../MessageModal.tsx";
@@ -122,21 +123,11 @@ export default function EditUserModal({
     return (
         <Modal
             isOpen={isOpen}
-            onClose={handleClose}
-            size="2xl"
-            scrollBehavior="inside"
-            backdrop="blur"
-            radius="none"
-            closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-            classNames={{
-                closeButton: "rounded-none"
-            }}
-            isDismissable={!loading}
+            onOpenChange={(open) => !open && handleClose()}
         >
-            <ModalContent>
-                {() => (
-                    <>
-                        <ModalHeader className="flex flex-row items-center gap-2 text-2xl font-minecraft-body">
+            <ModalDialog>
+                <>
+                        <ModalHeader>
                             <Icon icon="pixelarticons:edit" className="text-3xl text-primary"/>
                             <span>Edit User: {user.username}</span>
                         </ModalHeader>
@@ -149,7 +140,7 @@ export default function EditUserModal({
                             >
                                 {/* User Info */}
                                 <Card className="bg-default-50">
-                                    <CardBody className="p-3">
+                                    <CardContent className="p-3">
                                         <div className="flex flex-col gap-2 text-sm font-minecraft-body">
                                             <div className="flex justify-between">
                                                 <span className="text-default-600">User ID:</span>
@@ -164,7 +155,7 @@ export default function EditUserModal({
                                                 <span>{new Date(user.last_online).toLocaleDateString()}</span>
                                             </div>
                                         </div>
-                                    </CardBody>
+                                    </CardContent>
                                 </Card>
 
                                 {/* Username Input */}
@@ -173,14 +164,10 @@ export default function EditUserModal({
                                     placeholder="Enter username"
                                     value={username}
                                     onValueChange={setUsername}
-                                    radius="none"
+                                    className="rounded-none"
                                     isInvalid={!!errors.username}
                                     errorMessage={errors.username}
                                     startContent={<Icon icon="pixelarticons:user"/>}
-                                    classNames={{
-                                        label: "font-minecraft-body",
-                                        input: "font-minecraft-body"
-                                    }}
                                 />
 
                                 {/* User Status */}
@@ -194,13 +181,12 @@ export default function EditUserModal({
                                         }
                                         checked={isActive}
                                         onChange={setIsActive}
-                                        color={"primary"}
                                         fullWidth={true}
                                         labelPlacement={"left"}
                                     />
                                 </div>
 
-                                <Divider/>
+                                <Separator/>
 
                                 {/* Permissions Selection */}
                                 <div className="flex flex-col gap-3">
@@ -208,23 +194,21 @@ export default function EditUserModal({
 
                                     {isAdminSelected && (
                                         <Card className="bg-warning-50 border-warning-200">
-                                            <CardBody className="p-3">
+                                            <CardContent className="p-3">
                                                 <div className="flex items-center gap-2">
                                                     <Icon icon="pixelarticons:warning-box" className="text-warning"/>
                                                     <span className="text-sm font-minecraft-body text-warning-700">
                                                         Admin permission grants access to all features. Other permissions will be ignored.
                                                     </span>
                                                 </div>
-                                            </CardBody>
+                                            </CardContent>
                                         </Card>
                                     )}
 
                                     <CheckboxGroup
                                         value={selectedPermissions}
-                                        onValueChange={setSelectedPermissions}
-                                        classNames={{
-                                            wrapper: "gap-2"
-                                        }}
+                                        onChange={setSelectedPermissions}
+                                        className="gap-2"
                                     >
                                         {permissions.map((permission) => (
                                             <Checkbox
@@ -248,16 +232,16 @@ export default function EditUserModal({
 
                                 {user.needs_password_change && (
                                     <>
-                                        <Divider/>
+                                        <Separator/>
                                         <Card className="bg-warning-50 border-warning-200">
-                                            <CardBody className="p-3">
+                                            <CardContent className="p-3">
                                                 <div className="flex items-center gap-2">
                                                     <Icon icon="pixelarticons:key" className="text-warning"/>
                                                     <span className="text-sm font-minecraft-body text-warning-700">
                                                         This user is required to change their password on next login.
                                                     </span>
                                                 </div>
-                                            </CardBody>
+                                            </CardContent>
                                         </Card>
                                     </>
                                 )}
@@ -265,26 +249,24 @@ export default function EditUserModal({
                         </ModalBody>
                         <ModalFooter>
                             <Button
-                                radius="none"
+                                className="rounded-none"
                                 onPress={handleClose}
                                 isDisabled={loading}
                             >
                                 Cancel
                             </Button>
                             <Button
-                                color="primary"
-                                radius="none"
+                                variant="primary"
+                                className="rounded-none"
                                 onPress={handleSubmit}
-                                isLoading={loading}
+                                isPending={loading}
                                 isDisabled={!hasChanges}
-                                startContent={!loading ? <Icon icon="pixelarticons:save"/> : null}
                             >
-                                Save Changes
+                                {!loading ? <Icon icon="pixelarticons:save"/> : null} Save Changes
                             </Button>
                         </ModalFooter>
-                    </>
-                )}
-            </ModalContent>
+                </>
+            </ModalDialog>
         </Modal>
     );
 }

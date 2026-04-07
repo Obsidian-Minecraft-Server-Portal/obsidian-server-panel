@@ -1,7 +1,7 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import $ from "jquery";
 import {useLocation, useNavigate} from "react-router-dom";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import ChangePasswordModal from "../components/authentication/ChangePasswordModal.tsx";
 
 export type UserData = {
@@ -166,11 +166,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
                 if (!user.is_active)
                 {
                     console.log("User is not active, logging out");
-                    addToast({
-                        title: "Error",
-                        description: "Your account is not active. Please contact an administrator.",
-                        color: "danger"
-                    });
+                    toast("Error", {description: "Your account is not active. Please contact an administrator.", variant: "danger"});
                     logout();
                     setIsAuthenticated(false);
                     return;

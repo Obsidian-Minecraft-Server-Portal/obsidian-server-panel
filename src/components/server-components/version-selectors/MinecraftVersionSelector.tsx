@@ -1,4 +1,4 @@
-import {Autocomplete, AutocompleteItem, Button} from "@heroui/react";
+import {Autocomplete, ListBoxItem, Button} from "@heroui/react";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
@@ -49,41 +49,28 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
     return (
         <div className={"flex flex-row gap-2 items-center"}>
             <Autocomplete
-                label={`Minecraft Version`}
-                radius={"none"}
-                className={"font-minecraft-body"}
-                classNames={{
-                    base: "capitalize",
-                    popoverContent: "rounded-none border-primary border-1"
-                }}
-                size={"sm"}
+                className={"font-minecraft-body rounded-none"}
                 selectedKey={selectedVersion}
                 onSelectionChange={value => setSelectedVersion(value as string)}
-                showScrollIndicators
                 isDisabled={isDisabled}
-                listboxProps={{
-                    itemClasses: {
-                        base: "rounded-none font-minecraft-body"
-                    }
-                }}
             >
                 {versions.map((version) => (
-                    <AutocompleteItem
+                    <ListBoxItem
                         key={version}
                         className={"font-minecraft-body"}
                         textValue={version}
                     >
                         {version}
-                    </AutocompleteItem>
+                    </ListBoxItem>
                 ))}
             </Autocomplete>
             <Tooltip content={"Show snapshots"}>
-                <Button isIconOnly radius={"none"} size={"lg"} color={showSnapshots ? "primary" : "default"} onPress={() => setShowSnapshots(prev => !prev)} isDisabled={props.isDisabled}>
+                <Button isIconOnly size={"lg"} variant={showSnapshots ? "primary" : "secondary"} onPress={() => setShowSnapshots(prev => !prev)} isDisabled={props.isDisabled} className="rounded-none">
                     <Icon icon={"pixelarticons:bug"}/>
                 </Button>
             </Tooltip>
             <Tooltip content={"Show Older Versions"}>
-                <Button isIconOnly radius={"none"} size={"lg"} color={showOlderVersions ? "primary" : "default"} onPress={() => setShowOlderVersions(prev => !prev)} isDisabled={props.isDisabled}>
+                <Button isIconOnly size={"lg"} variant={showOlderVersions ? "primary" : "secondary"} onPress={() => setShowOlderVersions(prev => !prev)} isDisabled={props.isDisabled} className="rounded-none">
                     <Icon icon={"pixelarticons:archive"}/>
                 </Button>
             </Tooltip>

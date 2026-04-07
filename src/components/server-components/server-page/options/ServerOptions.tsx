@@ -1,5 +1,6 @@
 import "../../../../ts/string-ext.ts";
-import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea, Chip, addToast} from "@heroui/react";
+import {Separator, ListBoxItem, Switch, Tab, TabList, Tabs, TextArea, Chip, toast} from "@heroui/react";
+import {Input} from "../../../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";
@@ -256,66 +257,38 @@ export function ServerOptions()
         try {
             const info = await checkUpdates();
             if (info.update_available) {
-                addToast({
-                    title: "Update Available",
-                    description: `Version ${info.latest_version} is available!`,
-                    color: "success"
-                });
+                toast("Update Available", {description: `Version ${info.latest_version} is available!`, variant: "success"});
             } else {
-                addToast({
-                    title: "Up to Date",
-                    description: info.message || "Server is running the latest version",
-                    color: "success"
-                });
+                toast("Up to Date", {description: info.message || "Server is running the latest version", variant: "success"});
             }
         } catch (error) {
-            addToast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to check for updates",
-                color: "danger"
-            });
+            toast("Error", {description: error instanceof Error ? error.message : "Failed to check for updates", variant: "danger"});
         }
-    }, [server, checkUpdates, addToast]);
+    }, [server, checkUpdates]);
 
     // Handler for applying updates
     const handleApplyUpdate = useCallback(async () => {
         if (!server || !updateInfo?.update_available) return;
         try {
             const result = await applyServerUpdate();
-            addToast({
-                title: "Update Applied",
-                description: `Server updated to version ${result.new_version}`,
-                color: "success"
-            });
+            toast("Update Applied", {description: `Server updated to version ${result.new_version}`, variant: "success"});
             await loadServer(server.id);
         } catch (error) {
-            addToast({
-                title: "Update Failed",
-                description: error instanceof Error ? error.message : "Failed to apply update",
-                color: "danger"
-            });
+            toast("Update Failed", {description: error instanceof Error ? error.message : "Failed to apply update", variant: "danger"});
         }
-    }, [server, updateInfo, applyServerUpdate, addToast, loadServer]);
+    }, [server, updateInfo, applyServerUpdate, loadServer]);
 
     // Handler for rolling back
     const handleRollback = useCallback(async () => {
         if (!server) return;
         try {
             await rollbackServerUpdate();
-            addToast({
-                title: "Rollback Complete",
-                description: "Server has been rolled back to the previous version",
-                color: "success"
-            });
+            toast("Rollback Complete", {description: "Server has been rolled back to the previous version", variant: "success"});
             await loadServer(server.id);
         } catch (error) {
-            addToast({
-                title: "Rollback Failed",
-                description: error instanceof Error ? error.message : "Failed to rollback",
-                color: "danger"
-            });
+            toast("Rollback Failed", {description: error instanceof Error ? error.message : "Failed to rollback", variant: "danger"});
         }
-    }, [server, rollbackServerUpdate, addToast, loadServer]);
+    }, [server, rollbackServerUpdate, loadServer]);
 
     // Load server data when the component mounts or server changes
     useEffect(() =>
@@ -368,16 +341,15 @@ export function ServerOptions()
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-minecraft-header">Server Configuration</h2>
                 <Button
-                    color="primary"
-                    isLoading={isSaving || isUploadingLoader}
+                    variant="primary"
+                    isPending={isSaving || isUploadingLoader}
                     isDisabled={!hasChanges()}
                     onPress={handleSave}
-                    startContent={<Icon icon="pixelarticons:save"/>}
                     className={"absolute right-10 -translate-y-[70px] z-10"}
                     // className={"data-[has-changes=true]:fixed data-[has-changes=false]:absolute data-[has-changes=false]:right-8 data-[has-changes=true]:right-16 z-10"}
                     data-has-changes={hasChanges()}
                 >
-                    {isUploadingLoader ? "Uploading Server..." : "Save Changes"}
+                    <Icon icon="pixelarticons:save"/> {isUploadingLoader ? "Uploading Server..." : "Save Changes"}
                 </Button>
             </div>
 
@@ -388,26 +360,22 @@ export function ServerOptions()
                     <ServerIcon id={server.id} isChangeEnabled={true} size={"sm"}/>
                     <Input
                         label="Server Name"
-                        radius="none"
-                        className="font-minecraft-body"
+                        className="font-minecraft-body rounded-none"
                         value={name}
                         onValueChange={setName}
                         startContent={<Icon icon="pixelarticons:device-game-console"/>}
                     />
                 </div>
 
-                <Textarea
-                    label="Description"
-                    radius="none"
-                    className="font-minecraft-body"
+                <TextArea
+                    className="font-minecraft-body rounded-none"
                     placeholder="Optional server description..."
                     value={description}
-                    onValueChange={setDescription}
-                    startContent={<Icon icon="pixelarticons:note"/>}
+                    onChange={(e) => setDescription(e.target.value)}
                 />
             </section>
 
-            <Divider/>
+            <Separator/>
 
             {/* Server Files */}
             <section className="flex flex-col gap-4">
@@ -416,9 +384,8 @@ export function ServerOptions()
                     <Tooltip content="Refresh file list">
                         <Button
                             isIconOnly
-                            size="sm"
-                            variant="light"
-                            isLoading={isLoading}
+                            variant="ghost"
+                            isPending={isLoading}
                             onPress={loadAvailableFiles}
                         >
                             <Icon icon="pixelarticons:reload"/>
@@ -426,39 +393,27 @@ export function ServerOptions()
                     </Tooltip>
                 </div>
 
+                {/* @ts-ignore - v3 migration */}
                 <Select
-                    label="Server JAR File"
-                    disallowEmptySelection
                     className="font-minecraft-body"
-                    selectedKeys={serverJar ? [serverJar] : []}
-                    onSelectionChange={(keys) =>
+                    selectedKey={serverJar || undefined}
+                    onSelectionChange={(keys: any) =>
                     {
                         const selected = Array.from(keys)[0] as string;
                         setServerJar(selected || "");
                     }}
-                    startContent={<Icon icon="pixelarticons:file"/>}
                     placeholder="Select a server file..."
                     isLoading={isLoading}
-                    classNames={{
-                        base: "capitalize",
-                        popoverContent: "rounded-none border-primary border-1"
-                    }}
-
-                    listboxProps={{
-                        itemClasses: {
-                            base: "rounded-none font-minecraft-body"
-                        }
-                    }}
                 >
                     {availableFiles.map((file) => (
-                        <SelectItem key={file}>
+                        <ListBoxItem key={file}>
                             {file}
-                        </SelectItem>
+                        </ListBoxItem>
                     ))}
                 </Select>
             </section>
 
-            <Divider/>
+            <Separator/>
 
             {/* Loader Configuration */}
             <section className="space-y-4">
@@ -472,14 +427,9 @@ export function ServerOptions()
 
                 <div className="mx-auto">
                     <Tabs
-                        radius="none"
-                        className="font-minecraft-body"
-                        fullWidth
-                        variant="solid"
-                        color="primary"
-                        classNames={{
-                            tab: "flex flex-col items-center justify-center h-24 w-28"
-                        }}
+
+                        className="font-minecraft-body rounded-none w-full"
+                        variant="primary"
                         isDisabled={isSaving || isUploadingLoader}
                         selectedKey={loaderType.toLowerCase()}
                         onSelectionChange={async (key) =>
@@ -494,60 +444,44 @@ export function ServerOptions()
                             }
                         }}
                     >
-                        <Tab
-                            key="vanilla"
-                            title={
+                        <TabList>
+                            <Tab id="vanilla" className="flex flex-col items-center justify-center h-24 w-28">
                                 <>
                                     <Icon icon="heroicons:cube-transparent-16-solid" width={32}/>
                                     <p>Vanilla</p>
                                 </>
-                            }
-                        />
-                        <Tab
-                            key="fabric"
-                            title={
+                            </Tab>
+                            <Tab id="fabric" className="flex flex-col items-center justify-center h-24 w-28">
                                 <div className="relative">
                                     <Icon icon="file-icons:fabric" width={32}/>
                                     <p>Fabric</p>
                                 </div>
-                            }
-                        />
-                        <Tab
-                            key="forge"
-                            title={
+                            </Tab>
+                            <Tab id="forge" className="flex flex-col items-center justify-center h-24 w-28">
                                 <>
                                     <Icon icon="simple-icons:curseforge" width={32}/>
                                     <p>Forge</p>
                                 </>
-                            }
-                        />
-                        <Tab
-                            key="quilt"
-                            title={
+                            </Tab>
+                            <Tab id="quilt" className="flex flex-col items-center justify-center h-24 w-28">
                                 <div className="flex justify-center items-center flex-col gap-2">
                                     <Quilt size={32}/>
                                     <p>Quilt</p>
                                 </div>
-                            }
-                        />
-                        <Tab
-                            key="neoforge"
-                            title={
+                            </Tab>
+                            <Tab id="neoforge" className="flex flex-col items-center justify-center h-24 w-28">
                                 <div className="flex justify-center items-center flex-col gap-2">
                                     <NeoForge size={32}/>
                                     <p>NeoForge</p>
                                 </div>
-                            }
-                        />
-                        <Tab
-                            key="custom"
-                            title={
+                            </Tab>
+                            <Tab id="custom" className="flex flex-col items-center justify-center h-24 w-28">
                                 <div className="flex justify-center items-center flex-col gap-2">
                                     <Icon icon="pixelarticons:cloud-upload" width={32}/>
                                     <p>Custom</p>
                                 </div>
-                            }
-                        />
+                            </Tab>
+                        </TabList>
                     </Tabs>
                 </div>
 
@@ -593,7 +527,7 @@ export function ServerOptions()
                 )}
             </section>
 
-            <Divider/>
+            <Separator/>
 
             {/* Java Configuration */}
             <section className="flex flex-col gap-4">
@@ -610,8 +544,7 @@ export function ServerOptions()
 
                 <Input
                     label="Additional Java Arguments"
-                    radius="none"
-                    className="font-minecraft-body"
+                    className="font-minecraft-body rounded-none"
                     placeholder="-XX:+UseG1GC -XX:+ParallelRefProcEnabled..."
                     value={javaArgs}
                     onValueChange={setJavaArgs}
@@ -627,8 +560,7 @@ export function ServerOptions()
 
                 <Input
                     label="Minimum Memory (GB)"
-                    radius="none"
-                    className="font-minecraft-body"
+                    className="font-minecraft-body rounded-none"
                     type="number"
                     min={1}
                     max={maxMemory}
@@ -639,7 +571,7 @@ export function ServerOptions()
                 />
             </section>
 
-            <Divider/>
+            <Separator/>
 
             {/* Server Arguments */}
             <section className="flex flex-col gap-4">
@@ -647,8 +579,7 @@ export function ServerOptions()
 
                 <Input
                     label="Minecraft Server Arguments"
-                    radius="none"
-                    className="font-minecraft-body"
+                    className="font-minecraft-body rounded-none"
                     placeholder="--nogui --port 25565..."
                     value={minecraftArgs}
                     onValueChange={setMinecraftArgs}
@@ -657,7 +588,7 @@ export function ServerOptions()
                 />
             </section>
 
-            <Divider/>
+            <Separator/>
 
             {/* Server Updates */}
             <section className="flex flex-col gap-4">
@@ -670,11 +601,10 @@ export function ServerOptions()
                         </p>
                         <Button
                             onPress={handleCheckUpdates}
-                            isLoading={checkingUpdates}
+                            isPending={checkingUpdates}
                             isDisabled={!server || isSaving}
-                            startContent={!checkingUpdates && <Icon icon="pixelarticons:reload"/>}
                         >
-                            Check for Updates
+                            {!checkingUpdates && <Icon icon="pixelarticons:reload"/>} Check for Updates
                         </Button>
                     </div>
 
@@ -686,17 +616,17 @@ export function ServerOptions()
                             </div>
                             <div className="flex items-center gap-2 text-sm font-minecraft-body">
                                 <span>Current:</span>
-                                <Chip size="sm" variant="flat" radius="none">{updateInfo.current_version}</Chip>
+                                <Chip size="sm" variant="soft" className="rounded-none">{updateInfo.current_version}</Chip>
                                 <Icon icon="pixelarticons:arrow-right" width={16}/>
                                 <span>Latest:</span>
-                                <Chip size="sm" color="success" variant="flat" radius="none">{updateInfo.latest_version}</Chip>
+                                <Chip size="sm" color="success" variant="soft">{updateInfo.latest_version}</Chip>
                             </div>
                             {updateInfo.changelog_url && (
                                 <a
                                     href={updateInfo.changelog_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-sm text-primary hover:underline flex items-center gap-1 font-minecraft-body"
+                                    className="text-sm text-primary hover:underline flex items-center gap-1 font-minecraft-body rounded-none"
                                 >
                                     <Icon icon="pixelarticons:external-link" width={14}/>
                                     View Changelog
@@ -704,13 +634,13 @@ export function ServerOptions()
                             )}
                             <div className="flex gap-2 pt-2">
                                 <Button
-                                    color="success"
+                                    variant="primary"
                                     onPress={handleApplyUpdate}
-                                    isLoading={applyingUpdate}
+                                    isPending={applyingUpdate}
                                     isDisabled={!server || isSaving || server.status !== "idle"}
-                                    startContent={!applyingUpdate && <Icon icon="pixelarticons:download"/>}
+                                    className="bg-success text-success-foreground"
                                 >
-                                    Apply Update
+                                    {!applyingUpdate && <Icon icon="pixelarticons:download"/>} Apply Update
                                 </Button>
                                 {server && server.status !== "idle" && (
                                     <p className="text-xs text-warning flex items-center gap-1 font-minecraft-body">
@@ -724,14 +654,12 @@ export function ServerOptions()
 
                     <div className="flex items-center gap-2">
                         <Button
-                            size="sm"
-                            variant="flat"
+                            variant="secondary"
                             onPress={handleRollback}
-                            isLoading={rollingBackUpdate}
+                            isPending={rollingBackUpdate}
                             isDisabled={!server || isSaving}
-                            startContent={!rollingBackUpdate && <Icon icon="pixelarticons:undo"/>}
                         >
-                            Rollback to Previous Version
+                            {!rollingBackUpdate && <Icon icon="pixelarticons:undo"/>} Rollback to Previous Version
                         </Button>
                         <Tooltip content="Restore the previous server JAR from backup">
                             <Icon icon="pixelarticons:info" width={16} className="text-default-400"/>
@@ -740,7 +668,7 @@ export function ServerOptions()
                 </div>
             </section>
 
-            <Divider/>
+            <Separator/>
 
             {/* Server Features */}
             <section className="flex flex-col gap-4">
@@ -749,10 +677,7 @@ export function ServerOptions()
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Switch
                         isSelected={upnpEnabled}
-                        onValueChange={setUpnpEnabled}
-                        classNames={{
-                            label: "font-minecraft-body"
-                        }}
+                        onChange={setUpnpEnabled}
                     >
                         <div className="flex items-center gap-2">
                             <Icon icon="pixelarticons:wifi"/>
@@ -762,10 +687,7 @@ export function ServerOptions()
 
                     <Switch
                         isSelected={autoStart}
-                        onValueChange={setAutoStart}
-                        classNames={{
-                            label: "font-minecraft-body"
-                        }}
+                        onChange={setAutoStart}
                     >
                         <div className="flex items-center gap-2">
                             <Icon icon="pixelarticons:power"/>
@@ -775,10 +697,7 @@ export function ServerOptions()
 
                     <Switch
                         isSelected={autoRestart}
-                        onValueChange={setAutoRestart}
-                        classNames={{
-                            label: "font-minecraft-body"
-                        }}
+                        onChange={setAutoRestart}
                     >
                         <div className="flex items-center gap-2">
                             <Icon icon="pixelarticons:reload"/>
@@ -814,7 +733,7 @@ function LoaderSelector(props: LoaderSelectorProps)
     if (!minecraftVersion)
     {
         return (
-            <p className="text-danger font-minecraft-body text-tiny italic underline">
+            <p className="text-danger font-minecraft-body text-xs italic underline">
                 Please select a Minecraft version first.
             </p>
         );

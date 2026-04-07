@@ -5,7 +5,8 @@ import {
     DrawerProps,
     Tabs,
     Tab,
-    Image,
+    TabList,
+    TabPanel,
     Chip,
     Button,
     Link,
@@ -273,22 +274,10 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
 
     return (
         <Drawer
-            placement={"bottom"}
-            size={"full"}
-            radius={"none"}
-            scrollBehavior={"inside"}
-            backdrop={"blur"}
-            hideCloseButton={true}
-            onMouseDown={(e) =>
-            {
-                e.stopPropagation();
-                console.log("Mouse Down", e);
-            }}
             {...rest}
         >
-            <DrawerContent className="p-4 font-minecraft-body">
-                {onClose => (
-                    <>
+            <DrawerContent>
+                <>
                         {loading ? (
                             <div className="flex items-center gap-3 w-full">
                                 <Skeleton className="w-10 h-10 rounded-md"/>
@@ -297,51 +286,48 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
                             </div>
                         ) : (
                             <div className="flex items-center gap-3 w-full">
-                                <Image
+                                <img
                                     src={modDetails?.icon_url || "/favicon.ico"}
                                     alt={modDetails?.name ?? "Mod"}
                                     width={40}
                                     height={40}
-                                    radius="sm"
-                                    className="rounded-md"
+                                    className="rounded-sm"
                                 />
                                 <span className="text-xl font-bold">{modDetails?.name ?? "Mod"}</span>
                                 <Chip
                                     color={platform === "modrinth" ? "success" : "warning"}
-                                    variant="flat"
-                                    size="sm"
+                                    variant="soft"
                                 >
                                     {platform === "modrinth" ? "Modrinth" : "CurseForge"}
                                 </Chip>
                                 <div className="ml-auto flex items-center gap-2">
                                     {modDetails && (
-                                        <Button
-                                            as={Link}
+                                        <Link
                                             href={
                                                 platform === "modrinth"
                                                     ? `https://modrinth.com/mod/${modDetails.slug ?? modId}`
                                                     : `https://www.curseforge.com/minecraft/mc-mods/${modDetails.slug ?? modId}`
                                             }
                                             target="_blank"
-                                            radius="none"
-                                            variant="solid"
-                                            color={platform === "modrinth" ? "success" : "warning"}
-                                            endContent={<Icon icon="pixelarticons:external-link"/>}
-                                            className={
-                                                platform === "modrinth"
-                                                    ? "text-black bg-[#1bd96a]"
-                                                    : "text-white bg-[#f16436]"
-                                            }
                                         >
-                                            Open on {platform === "modrinth" ? "Modrinth" : "CurseForge"}
-                                        </Button>
+                                            <Button
+                                                variant="primary"
+                                                className={
+                                                    platform === "modrinth"
+                                                        ? "text-black bg-[#1bd96a] rounded-none"
+                                                        : "text-white bg-[#f16436] rounded-none"
+                                                }
+                                            >
+                                                Open on {platform === "modrinth" ? "Modrinth" : "CurseForge"} <Icon icon="pixelarticons:external-link"/>
+                                            </Button>
+                                        </Link>
                                     )}
 
                                     <Button
                                         isIconOnly
-                                        radius="none"
-                                        variant="solid"
-                                        onPress={onClose}
+                                        className="rounded-none"
+                                        variant="primary"
+                                        onPress={() => rest.onOpenChange?.(false)}
                                     >
                                         <Icon icon="pixelarticons:close"/>
                                     </Button>
@@ -388,7 +374,7 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {modDetails.categories.slice(0, 6).map(category => (
-                                            <Chip key={category} size="sm" variant="flat" color="primary">
+                                            <Chip key={category} size="sm" variant="soft" color="accent">
                                                 {category}
                                             </Chip>
                                         ))}
@@ -398,20 +384,25 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
                                 <Tabs
                                     selectedKey={selectedTab}
                                     onSelectionChange={(key) => setSelectedTab(key as string)}
-                                    className="w-full"
-                                    radius="none"
+                                    className="w-full rounded-none"
+
                                 >
-                                    <Tab key="description" title="Description">
+                                    <TabList>
+                                        <Tab id="description">Description</Tab>
+                                        <Tab id="changelog">Changelog</Tab>
+                                        <Tab id="versions">Versions</Tab>
+                                    </TabList>
+                                    <TabPanel id="description">
                                         <ModDescription modDetails={modDetails}/>
-                                    </Tab>
-                                    <Tab key="changelog" title="Changelog">
+                                    </TabPanel>
+                                    <TabPanel id="changelog">
                                         <ModChangelog
                                             changelog={changelog}
                                             changelogPage={changelogPage}
                                             onLoadMore={() => setChangelogPage(prev => prev + 1)}
                                         />
-                                    </Tab>
-                                    <Tab key="versions" title="Versions">
+                                    </TabPanel>
+                                    <TabPanel id="versions">
                                         <ModVersions
                                             modVersions={modVersions}
                                             versionsLoading={versionsLoading}
@@ -419,17 +410,16 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
                                             serverId={server?.id || undefined}
                                             onDownloadVersion={downloadModVersion}
                                         />
-                                    </Tab>
+                                    </TabPanel>
                                 </Tabs>
                             </div>
                         )}
-                    </>
-                )}
+                </>
             </DrawerContent>
 
-            <DrawerFooter className="font-minecraft-body">
+            <DrawerFooter>
                 <div className="ml-auto">
-                    <Button onPress={rest.onClose} radius="none" variant="flat">
+                    <Button onPress={() => rest.onOpenChange?.(false)} className="rounded-none" variant="secondary">
                         Close
                     </Button>
                 </div>

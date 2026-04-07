@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Textarea, useDisclosure} from "@heroui/react";
+import {Card, CardContent, Chip, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader, ListBoxItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, TextArea, useOverlayState} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Button} from "../../../extended/Button.tsx";
 import {Select} from "../../../extended/Select.tsx";
@@ -55,10 +55,10 @@ export function ServerBackups()
     const [downloading, setDownloading] = useState<string | null>(null);
 
     // Modal states
-    const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
-    const {isOpen: isScheduleOpen, onOpen: onScheduleOpen, onClose: onScheduleClose} = useDisclosure();
-    const {isOpen: isRestoreOpen, onOpen: onRestoreOpen, onClose: onRestoreClose} = useDisclosure();
-    const {isOpen: isIgnoreOpen, onOpen: onIgnoreOpen, onClose: onIgnoreClose} = useDisclosure();
+    const {isOpen: isCreateOpen, open: openCreate, close: closeCreate} = useOverlayState();
+    const {isOpen: isScheduleOpen, open: openSchedule, close: closeSchedule} = useOverlayState();
+    const {isOpen: isRestoreOpen, open: openRestore, close: closeRestore} = useOverlayState();
+    const {isOpen: isIgnoreOpen, open: openIgnore, close: closeIgnore} = useOverlayState();
 
     const [createDescription, setCreateDescription] = useState("");
     const [createBackupType, setCreateBackupType] = useState("0");
@@ -182,7 +182,7 @@ export function ServerBackups()
 
             if (response.ok)
             {
-                onIgnoreClose();
+                closeIgnore();
             } else
             {
                 console.error("Failed to save ignore list");
@@ -215,7 +215,7 @@ export function ServerBackups()
             if (response.ok)
             {
                 await loadBackups();
-                onCreateClose();
+                closeCreate();
                 setCreateDescription("");
                 setCreateBackupType("0");
             } else
@@ -273,7 +273,7 @@ export function ServerBackups()
 
             if (response.ok)
             {
-                onRestoreClose();
+                closeRestore();
                 setRestoreBackupId(null);
             } else
             {
@@ -310,7 +310,7 @@ export function ServerBackups()
             if (response.ok)
             {
                 await loadSettings();
-                onScheduleClose();
+                closeSchedule();
             } else
             {
                 const error = await response.json();
@@ -395,13 +395,13 @@ export function ServerBackups()
     const openRestoreConfirmation = (backupId: string) =>
     {
         setRestoreBackupId(backupId);
-        onRestoreOpen();
+        openRestore();
     };
 
     const openIgnoreModal = () =>
     {
         loadIgnoreList();
-        onIgnoreOpen();
+        openIgnore();
     };
 
     const addIgnoreEntry = () =>
@@ -475,7 +475,7 @@ export function ServerBackups()
                     <p className="text-default-500">
                         {backups.length} backup{backups.length !== 1 ? "s" : ""} available
                         {activeSchedules.length > 0 && (
-                            <Chip size="sm" color="success" variant="flat" className="ml-2">
+                            <Chip size="sm" color="success" variant="soft" className="ml-2">
                                 {activeSchedules.length} Active Schedule{activeSchedules.length !== 1 ? "s" : ""}
                             </Chip>
                         )}
@@ -483,26 +483,23 @@ export function ServerBackups()
                 </div>
                 <div className="flex gap-2">
                     <Button
-                        variant="flat"
+                        variant="secondary"
                         onPress={openIgnoreModal}
-                        startContent={<Icon icon="pixelarticons:eye-closed"/>}
                     >
-                        Ignored Files
+                        <Icon icon="pixelarticons:eye-closed"/> Ignored Files
                     </Button>
                     <Button
-                        variant="flat"
-                        onPress={onScheduleOpen}
-                        startContent={<Icon icon="pixelarticons:calendar"/>}
+                        variant="secondary"
+                        onPress={openSchedule}
                     >
-                        Schedule
+                        <Icon icon="pixelarticons:calendar"/> Schedule
                     </Button>
                     <Button
-                        color="primary"
-                        onPress={onCreateOpen}
-                        isLoading={creating}
-                        startContent={<Icon icon="pixelarticons:plus"/>}
+                        variant="primary"
+                        onPress={openCreate}
+                        isPending={creating}
                     >
-                        Create Backup
+                        <Icon icon="pixelarticons:plus"/> Create Backup
                     </Button>
                 </div>
             </div>
@@ -510,7 +507,7 @@ export function ServerBackups()
             {/* Active Schedules */}
             {activeSchedules.length > 0 && (
                 <Card>
-                    <CardBody>
+                    <CardContent>
                         <h3 className="text-lg mb-2">Active Schedules</h3>
                         <div className="flex flex-col gap-2">
                             {activeSchedules.map(schedule => {
@@ -530,9 +527,7 @@ export function ServerBackups()
                                             </div>
                                         </div>
                                         <Button
-                                            size="sm"
-                                            color="danger"
-                                            variant="flat"
+                                            variant="danger-soft"
                                             isIconOnly
                                             onPress={() => deleteSchedule(schedule.id)}
                                         >
@@ -542,20 +537,16 @@ export function ServerBackups()
                                 );
                             })}
                         </div>
-                    </CardBody>
+                    </CardContent>
                 </Card>
             )}
 
             {/* Backups Table */}
             <Card className="flex-1">
-                <CardBody className="p-0">
+                <CardContent className="p-0">
                     <Table
                         aria-label="Server backups table"
-                        isHeaderSticky
-                        classNames={{
-                            wrapper: "max-h-[400px]"
-                        }}
-                        removeWrapper
+                        className="max-h-[400px]"
                     >
                         <TableHeader>
                             <TableColumn>Commit ID</TableColumn>
@@ -566,7 +557,6 @@ export function ServerBackups()
                             <TableColumn>Actions</TableColumn>
                         </TableHeader>
                         <TableBody
-                            emptyContent="No backups found"
                             items={backups}
                         >
                             {(backup) => (
@@ -578,7 +568,7 @@ export function ServerBackups()
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Chip size="sm" variant="flat">
+                                        <Chip size="sm" variant="soft">
                                             {getBackupTypeName(backup.backup_type)}
                                         </Chip>
                                     </TableCell>
@@ -597,36 +587,31 @@ export function ServerBackups()
                                         <div className="flex gap-1">
                                             <Tooltip content={downloading === backup.id ? "Preparing download..." : "Download this backup"}>
                                                 <Button
-                                                    size="sm"
-                                                    color="primary"
-                                                    variant="flat"
+                                                    variant="secondary"
                                                     isIconOnly
                                                     onPress={() => downloadBackup(backup.id)}
-                                                    isLoading={downloading === backup.id}
+                                                    isPending={downloading === backup.id}
                                                 >
                                                     <Icon icon="pixelarticons:download"/>
                                                 </Button>
                                             </Tooltip>
                                             <Tooltip content="Restore this backup">
                                                 <Button
-                                                    size="sm"
-                                                    color="warning"
-                                                    variant="flat"
+                                                    variant="secondary"
                                                     isIconOnly
                                                     onPress={() => openRestoreConfirmation(backup.id)}
-                                                    isLoading={restoring === backup.id}
+                                                    isPending={restoring === backup.id}
+                                                    className="text-warning"
                                                 >
                                                     <Icon icon="pixelarticons:reply-all"/>
                                                 </Button>
                                             </Tooltip>
                                             <Tooltip content="Delete this backup">
                                                 <Button
-                                                    size="sm"
-                                                    color="danger"
-                                                    variant="flat"
+                                                    variant="danger-soft"
                                                     isIconOnly
                                                     onPress={() => deleteBackup(backup.id)}
-                                                    isLoading={deleting === backup.id}
+                                                    isPending={deleting === backup.id}
                                                 >
                                                     <Icon icon="pixelarticons:trash"/>
                                                 </Button>
@@ -637,70 +622,61 @@ export function ServerBackups()
                             )}
                         </TableBody>
                     </Table>
-                </CardBody>
+                </CardContent>
             </Card>
 
             {/* Create Backup Modal */}
             <Modal
                 isOpen={isCreateOpen}
-                onClose={onCreateClose}
-                scrollBehavior="inside"
-                backdrop="blur"
-                radius="none"
-                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{closeButton: "rounded-none"}}
+                onOpenChange={(open) => !open && closeCreate()}
             >
-                <ModalContent>
+                <ModalDialog>
                     <ModalHeader>Create New Backup</ModalHeader>
                     <ModalBody>
+                        <label className="font-minecraft-body">Backup Type</label>
                         <Select
-                            label="Backup Type"
-                            selectedKeys={[createBackupType]}
-                            onSelectionChange={(keys) => setCreateBackupType(Array.from(keys)[0] as string)}
+                            selectedKey={createBackupType}
+                            onSelectionChange={(keys: any) => setCreateBackupType(Array.from(keys)[0] as string)}
                         >
-                            <SelectItem key="0">Incremental Backup</SelectItem>
-                            {worldEditInstalled ? <SelectItem key="1">World Only</SelectItem> : null}
+                            <ListBoxItem key="0">Incremental Backup</ListBoxItem>
+                            {worldEditInstalled ? <ListBoxItem key="1">World Only</ListBoxItem> : null}
                         </Select>
                         {!worldEditInstalled && (
                             <div className="text-sm text-warning-600 bg-warning-50 p-2 rounded">
                                 World-Only backups require WorldEdit to be installed on the server.
                             </div>
                         )}
-                        <Textarea
-                            label="Description (Optional)"
+                        <label className="font-minecraft-body">Description (Optional)</label>
+                        <TextArea
                             placeholder="Enter a description for this backup..."
                             value={createDescription}
-                            onValueChange={setCreateDescription}
-                            maxRows={3}
-                            radius="none"
+                            onChange={(e) => setCreateDescription(e.target.value)}
+                            className="rounded-none"
                         />
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onCreateClose}>
+                        <Button variant="secondary" onPress={closeCreate}>
                             Cancel
                         </Button>
                         <Button
-                            color="primary"
+                            variant="primary"
                             onPress={createBackup}
-                            isLoading={creating}
+                            isPending={creating}
                         >
                             Create Backup
                         </Button>
                     </ModalFooter>
-                </ModalContent>
+                </ModalDialog>
             </Modal>
 
             {/* Schedule Modal */}
             <Modal
                 isOpen={isScheduleOpen}
-                onClose={onScheduleClose}
-                size="lg"
-                backdrop="blur"
-                radius="none"
+                onOpenChange={(open) => !open && closeSchedule()}
             >
-                <ModalContent>
+                <ModalDialog>
                     <ModalHeader>Create Backup Schedule</ModalHeader>
-                    <ModalBody className="gap-4">
+                    <ModalBody>
                         <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
                             <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
                             <div>
@@ -723,24 +699,24 @@ export function ServerBackups()
                                 className="w-1/3"
                             />
                             <Select
-                                label="Unit"
-                                selectedKeys={[scheduleForm.intervalUnit]}
-                                onSelectionChange={(keys) => setScheduleForm({...scheduleForm, intervalUnit: Array.from(keys)[0] as any})}
+                                placeholder="Unit"
+                                selectedKey={scheduleForm.intervalUnit}
+                                onSelectionChange={(keys: any) => setScheduleForm({...scheduleForm, intervalUnit: Array.from(keys)[0] as any})}
                                 className="w-2/3"
                             >
-                                <SelectItem key="hours">Hours</SelectItem>
-                                <SelectItem key="days">Days</SelectItem>
-                                <SelectItem key="weeks">Weeks</SelectItem>
+                                <ListBoxItem key="hours">Hours</ListBoxItem>
+                                <ListBoxItem key="days">Days</ListBoxItem>
+                                <ListBoxItem key="weeks">Weeks</ListBoxItem>
                             </Select>
                         </div>
 
+                        <label className="font-minecraft-body">Backup Type</label>
                         <Select
-                            label="Backup Type"
-                            selectedKeys={[scheduleForm.backupType.toString()]}
-                            onSelectionChange={(keys) => setScheduleForm({...scheduleForm, backupType: parseInt(Array.from(keys)[0] as string)})}
+                            selectedKey={scheduleForm.backupType.toString()}
+                            onSelectionChange={(keys: any) => setScheduleForm({...scheduleForm, backupType: parseInt(Array.from(keys)[0] as string)})}
                         >
-                            <SelectItem key="0">Incremental Backup</SelectItem>
-                            {worldEditInstalled ? <SelectItem key="1">World Only</SelectItem> : null}
+                            <ListBoxItem key="0">Incremental Backup</ListBoxItem>
+                            {worldEditInstalled ? <ListBoxItem key="1">World Only</ListBoxItem> : null}
                         </Select>
 
                         {!worldEditInstalled && (
@@ -766,29 +742,25 @@ export function ServerBackups()
                         />
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onScheduleClose}>
+                        <Button variant="secondary" onPress={closeSchedule}>
                             Cancel
                         </Button>
                         <Button
-                            color="primary"
+                            variant="primary"
                             onPress={createSchedule}
                         >
                             Create Schedule
                         </Button>
                     </ModalFooter>
-                </ModalContent>
+                </ModalDialog>
             </Modal>
 
             {/* Manage Ignored Files Modal */}
             <Modal
                 isOpen={isIgnoreOpen}
-                onClose={onIgnoreClose}
-                size="2xl"
-                backdrop="blur"
-                radius="none"
-                scrollBehavior="inside"
+                onOpenChange={(open) => !open && closeIgnore()}
             >
-                <ModalContent>
+                <ModalDialog>
                     <ModalHeader>Manage Ignored Files</ModalHeader>
                     <ModalBody>
                         <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg border border-warning-200 mb-4">
@@ -816,19 +788,15 @@ export function ServerBackups()
                                             value={entry.pattern}
                                             onValueChange={(v) => updateIgnoreEntry(index, "pattern", v)}
                                             className="flex-1"
-                                            size="sm"
                                         />
                                         <Input
                                             placeholder="Comment (optional)"
                                             value={entry.comment || ""}
                                             onValueChange={(v) => updateIgnoreEntry(index, "comment", v)}
                                             className="flex-1"
-                                            size="sm"
                                         />
                                         <Button
-                                            size="sm"
-                                            color="danger"
-                                            variant="flat"
+                                            variant="danger-soft"
                                             isIconOnly
                                             onPress={() => removeIgnoreEntry(index)}
                                         >
@@ -838,12 +806,11 @@ export function ServerBackups()
                                 ))}
 
                                 <Button
-                                    variant="flat"
+                                    variant="secondary"
                                     onPress={addIgnoreEntry}
-                                    startContent={<Icon icon="pixelarticons:plus"/>}
                                     className="mt-2"
                                 >
-                                    Add Pattern
+                                    <Icon icon="pixelarticons:plus"/> Add Pattern
                                 </Button>
 
                                 <div className="mt-4 p-3 bg-default-100 rounded-lg">
@@ -859,31 +826,26 @@ export function ServerBackups()
                         )}
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onIgnoreClose}>
+                        <Button variant="secondary" onPress={closeIgnore}>
                             Cancel
                         </Button>
                         <Button
-                            color="primary"
+                            variant="primary"
                             onPress={saveIgnoreList}
-                            isLoading={savingIgnore}
+                            isPending={savingIgnore}
                         >
                             Save
                         </Button>
                     </ModalFooter>
-                </ModalContent>
+                </ModalDialog>
             </Modal>
 
             {/* Restore Confirmation Modal */}
             <Modal
                 isOpen={isRestoreOpen}
-                onClose={onRestoreClose}
-                radius="none"
-                backdrop="blur"
-                scrollBehavior="inside"
-                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{closeButton: "rounded-none"}}
+                onOpenChange={(open) => !open && closeRestore()}
             >
-                <ModalContent>
+                <ModalDialog>
                     <ModalHeader>Restore Backup</ModalHeader>
                     <ModalBody>
                         <div className="flex flex-col gap-4">
@@ -907,18 +869,19 @@ export function ServerBackups()
                         </div>
                     </ModalBody>
                     <ModalFooter>
-                        <Button variant="flat" onPress={onRestoreClose}>
+                        <Button variant="secondary" onPress={closeRestore}>
                             Cancel
                         </Button>
                         <Button
-                            color="warning"
+                            variant="primary"
                             onPress={restoreBackup}
-                            isLoading={restoring === restoreBackupId}
+                            isPending={restoring === restoreBackupId}
+                            className="bg-warning text-warning-foreground"
                         >
                             Restore Backup
                         </Button>
                     </ModalFooter>
-                </ModalContent>
+                </ModalDialog>
             </Modal>
         </div>
     );

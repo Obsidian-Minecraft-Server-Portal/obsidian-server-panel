@@ -1,4 +1,5 @@
-import {Input, Slider} from "@heroui/react";
+import {Slider, cn} from "@heroui/react";
+
 import {useEffect, useState} from "react";
 import {useHostInfo} from "../../providers/HostInfoProvider.tsx";
 import "../../ts/math-ext.ts";
@@ -89,49 +90,16 @@ export default function RamSlider(props: RamSliderProps)
                     })()}
                 </div>
 
+                <label className="font-minecraft-body text-nowrap">Configured RAM (GB)</label>
                 <Slider
                     minValue={2}
                     maxValue={maxRam}
                     defaultValue={4}
                     step={1}
-                    label={"Configured RAM (GB)"}
-                    className={"font-minecraft-body text-nowrap relative z-20"}
-                    showTooltip
                     value={value}
                     onChange={value => onValueChange(value as number)}
-                    tooltipValueFormatOptions={{}}
-                    color={message === "" ? "primary" : isInvalid ? "danger" : "warning"}
+                    className={cn("font-minecraft-body text-nowrap relative z-20", message === "" ? "" : isInvalid ? "text-danger" : "text-warning")}
                     isDisabled={props.isDisabled}
-                    marks={[
-                        {
-                            value: 2,
-                            label: "2 GB"
-                        },
-                        {
-                            value: maxRam,
-                            label: `${maxRam} GB`
-                        },
-                        // Add marks for warning and danger thresholds
-                        ...(maxRam > 16 ? [{
-                            value: 16,
-                            label: "Warning"
-                        }] : []),
-                        ...(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)) > 2 ? [{
-                            value: Math.floor(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3))),
-                            label: "Danger"
-                        }] : [])
-                    ]}
-                    renderValue={() =>
-                        <Input
-                            radius={"none"}
-                            className={"w-16"}
-                            size={"sm"}
-                            value={value.toString()}
-                            onChange={e => onValueChange(Math.clamp(+e.target.value, 2, maxRam))}
-                            maxLength={3}
-                            type={"number"}
-                        />
-                    }
                 />
             </div>
             {message && <p className={"data-[invalid=true]:text-danger text-warning font-minecraft-body italic"} data-invalid={isInvalid}>{message}</p>}

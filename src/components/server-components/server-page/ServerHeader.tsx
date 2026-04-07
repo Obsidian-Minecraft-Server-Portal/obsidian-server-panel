@@ -1,10 +1,10 @@
-import {Button, cn, Divider} from "@heroui/react";
+import {Button, cn, Separator} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
 import {useEffect, useState} from "react";
 import {useMessage} from "../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../MessageModal.tsx";
-import {motion} from "framer-motion";
+import {motion} from "motion/react";
 import {ServerIcon} from "./ServerIcon.tsx";
 import ReactMarkdown from "react-markdown";
 import $ from "jquery";
@@ -137,7 +137,7 @@ export function ServerHeader(props: ServerHeaderProps)
                         <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}><span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"streamline:controller-1-remix"} className={"text-xl"}/>  Minecraft</span> <span className={"text-primary"}>{minecraft_version}</span></p>
                         {server_type.toLowerCase() !== "vanilla" && (
                             <>
-                                <Divider orientation={"vertical"}/>
+                                <Separator orientation={"vertical"}/>
 
                                 <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
                                     <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:flatten"} className={"text-xl"}/> {server_type}</span>
@@ -146,7 +146,7 @@ export function ServerHeader(props: ServerHeaderProps)
                             </>
                         )}
 
-                        <Divider orientation={"vertical"}/>
+                        <Separator orientation={"vertical"}/>
                         <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}>
                             <span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"pixelarticons:zap"} className={"text-xl"}/>  <span>Status</span> </span>
                             <span
@@ -167,7 +167,7 @@ export function ServerHeader(props: ServerHeaderProps)
                         </p>
                         {isServerRunning() && ping &&
                             <>
-                                <Divider orientation={"vertical"}/>
+                                <Separator orientation={"vertical"}/>
                                 <Tooltip
                                     content={
                                         <div className={"flex flex-col gap-2"}>
@@ -198,19 +198,19 @@ export function ServerHeader(props: ServerHeaderProps)
                 {
                     // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
                     (status.toLowerCase() === "idle" || status.toLowerCase() === "stopped" || status.toLowerCase() === "error" || status.toLowerCase() === "crashed") ? (
-                        <Button radius={"none"} color={"primary"} variant={"solid"} isLoading={isServerStarting} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={async () =>
+                        <Button variant={"primary"} isPending={isServerStarting} onPress={async () =>
                         {
                             setIsServerStarting(true);
                             await startServer(id);
                             setIsServerStarting(false);
-                        }}>Start</Button>
+                        }}><Icon icon={"pixelarticons:play"} className={"text-xl rounded-none"}/> Start</Button>
                     ) : status.toLowerCase() === "running" ? (
                         <>
-                            <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
-                            <Button radius={"none"} variant={"solid"} startContent={<Icon icon={"pixelarticons:repeat"} className={"text-xl"}/>} onPress={() => restartServer(id)}>Restart</Button>
+                            <Button variant={"danger"} onPress={() => stopServer(id)}><Icon icon={"pixelarticons:checkbox-on"} className={"text-xl rounded-none"}/> Stop</Button>
+                            <Button variant={"primary"} onPress={() => restartServer(id)}><Icon icon={"pixelarticons:repeat"} className={"text-xl rounded-none"}/> Restart</Button>
                         </>
                     ) : status === "stopping" ? (
-                        <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"tabler:cancel"} className={"text-xl"}/>} onPress={async () =>
+                        <Button variant={"danger"} onPress={async () =>
                         {
                             const response = await open({
                                 title: "Kill Server",
@@ -219,7 +219,7 @@ export function ServerHeader(props: ServerHeaderProps)
                                 responseType: MessageResponseType.YesNo
                             });
                             if (response) await killServer();
-                        }}>Kill</Button>
+                        }}><Icon icon={"tabler:cancel"} className={"text-xl rounded-none"}/> Kill</Button>
                     ) : null}
 
             </motion.div>

@@ -1,5 +1,5 @@
 import {createRef, useEffect, useState} from "react";
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Button, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader} from "@heroui/react";
 import Cropper, {ReactCropperElement, ReactCropperProps} from "react-cropper";
 import "../../../../css/cropper.min.css";
 
@@ -44,47 +44,39 @@ export function ImageCropModal(props: ImageCropModalProps)
     const {isOpen, onClose, alt, className, style, ...rest} = props;
 
     return (
-        <Modal isOpen={isOpen} onClose={() => onClose(null)} size={"2xl"} radius={"none"} className={"font-minecraft-body"} backdrop={"blur"}>
-            <ModalContent>
-                {onClose => (
-                    <>
-                        <ModalHeader>Crop Image</ModalHeader>
-                        <ModalBody>
-                            <Cropper
-                                ref={cropperRef}
-                                src={image}
-                                style={{height: 400, width: "100%"}}
-                                initialAspectRatio={1}
-                                aspectRatio={1}
-                                minCropBoxHeight={128}
-                                minCropBoxWidth={128}
-                                responsive={true}
-                                draggable={true}
-                                enable={true}
-                                dragMode={"move"}
-                                checkOrientation={false} // https://github.com/fengyuanchen/cropperjs/issues/671
-                                guides={true}
-                                {...rest}
-                            />
-                        </ModalBody>
-                        <ModalFooter>
-                            <Button radius={"none"} onPress={getCropData}>Save</Button>
-                            <Button
-                                onPress={() =>
-                                {
-                                    props.onClose(null);
-                                    onClose();
-                                }}
-                                color="danger"
-                                variant="light"
-                                radius={"none"}
-                            >
-                                Cancel
-                            </Button>
-                        </ModalFooter>
-                    </>
-                )}
-            </ModalContent>
+        <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose(null)}>
+            <ModalDialog>
+                <>
+                    <ModalHeader>Crop Image</ModalHeader>
+                    <ModalBody>
+                        <Cropper
+                            ref={cropperRef}
+                            src={image}
+                            style={{height: 400, width: "100%"}}
+                            initialAspectRatio={1}
+                            aspectRatio={1}
+                            minCropBoxHeight={128}
+                            minCropBoxWidth={128}
+                            responsive={true}
+                            draggable={true}
+                            enable={true}
+                            dragMode={"move"}
+                            checkOrientation={false} // https://github.com/fengyuanchen/cropperjs/issues/671
+                            guides={true}
+                            {...rest}
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button onPress={getCropData}>Save</Button>
+                        <Button
+                            onPress={() => props.onClose(null)}
+                            variant="danger"
+                        >
+                            Cancel
+                        </Button>
+                    </ModalFooter>
+                </>
+            </ModalDialog>
         </Modal>
     );
 }

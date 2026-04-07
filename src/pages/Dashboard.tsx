@@ -1,8 +1,8 @@
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import {ResourceGraph} from "../components/ResourceGraph.tsx";
 import ServerList from "../components/server-components/ServerList.tsx";
 import {useEffect, useState} from "react";
-import {Tab, Tabs} from "@heroui/react";
+import {Tab, TabList, Tabs} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {useSearchParams} from "react-router-dom";
@@ -37,20 +37,18 @@ export default function Dashboard()
             >
                 <div className={"flex flex-col mt-4"}>
                     <Tabs
-                        radius={"none"}
-                        color={"primary"}
+
                         onSelectionChange={value => setGraphSize(value as "sm" | "md" | "lg" | "fullWidth")}
                         selectedKey={graphSize}
-                        className={"flex flex-row gap-2 items-center justify-end translate-y-[35px] z-20 data-[size=fullWidth]:translate-y-[10px] transition-transform duration-200 max-w-fit ml-auto"}
-                        classNames={{
-                            tabList: "bg-content1"
-                        }}
+                        className={"flex flex-row gap-2 items-center justify-end translate-y-[35px] z-20 data-[size=fullWidth]:translate-y-[10px] transition-transform duration-200 max-w-fit ml-auto rounded-none"}
                         data-size={graphSize}
                     >
-                        <Tab key={"sm"} title={<Tooltip content={"Compact View"}><Icon icon={"pixelarticons:device-phone"}/></Tooltip>}/>
-                        <Tab key={"md"} title={<Tooltip content={"Normal View"}><Icon icon={"pixelarticons:device-tablet"}/></Tooltip>}/>
-                        <Tab key={"lg"} title={<Tooltip content={"Large View"}><Icon icon={"pixelarticons:device-tv"}/></Tooltip>}/>
-                        <Tab key={"fullWidth"} title={<Tooltip content={"Full Width View"}><Icon icon={"pixelarticons:device-tv-smart"}/></Tooltip>}/>
+                        <TabList className="bg-content1">
+                            <Tab id={"sm"}><Tooltip content={"Compact View"}><Icon icon={"pixelarticons:device-phone"}/></Tooltip></Tab>
+                            <Tab id={"md"}><Tooltip content={"Normal View"}><Icon icon={"pixelarticons:device-tablet"}/></Tooltip></Tab>
+                            <Tab id={"lg"}><Tooltip content={"Large View"}><Icon icon={"pixelarticons:device-tv"}/></Tooltip></Tab>
+                            <Tab id={"fullWidth"}><Tooltip content={"Full Width View"}><Icon icon={"pixelarticons:device-tv-smart"}/></Tooltip></Tab>
+                        </TabList>
                     </Tabs>
                     <motion.div
                         className={"flex data-[size=fullWidth]:flex-col flex-row gap-2 items-center justify-center mt-4"}

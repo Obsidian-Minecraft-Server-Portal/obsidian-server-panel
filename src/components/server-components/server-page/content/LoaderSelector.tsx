@@ -1,8 +1,8 @@
 import {forwardRef} from "react";
-import {Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui/react";
+import {ListBox, ListBoxItem, ListBoxProps, ScrollShadow} from "@heroui/react";
 
 
-export const LoaderSelector = forwardRef<HTMLDivElement, Omit<ListboxProps, "children">>((props, ref) =>
+export const LoaderSelector = forwardRef<HTMLDivElement, Omit<ListBoxProps<object>, "children">>((props, ref) =>
 {
 
 
@@ -12,28 +12,25 @@ export const LoaderSelector = forwardRef<HTMLDivElement, Omit<ListboxProps, "chi
             <ScrollShadow
                 className={"max-h-[200px]"}
             >
-                <Listbox
+                <ListBox
                     ref={ref}
                     selectionMode={"multiple"}
-                    itemClasses={{
-                        base: "rounded-none font-minecraft-body"
-                    }}
                     {...props}
                 >
-                    <ListboxItem key={"Fabric"}>Fabric</ListboxItem>
-                    <ListboxItem key={"Forge"}>Forge</ListboxItem>
-                    <ListboxItem key={"NeoForge"}>NeoForge</ListboxItem>
-                    <ListboxItem key={"Quilt"}>Quilt</ListboxItem>
-                    <ListboxItem key={"Babric"}>Babric</ListboxItem>
-                    <ListboxItem key={"BTA (Babric)"}>BTA (Babric)</ListboxItem>
-                    <ListboxItem key={"Java Agent"}>Java Agent</ListboxItem>
-                    <ListboxItem key={"Legacy Fabric"}>Legacy Fabric</ListboxItem>
-                    <ListboxItem key={"LiteLoader"}>LiteLoader</ListboxItem>
-                    <ListboxItem key={"Risugami's ModLoader"}>Risugami's ModLoader</ListboxItem>
-                    <ListboxItem key={"NilLoader"}>NilLoader</ListboxItem>
-                    <ListboxItem key={"Ornithe"}>Ornithe</ListboxItem>
-                    <ListboxItem key={"Rift"}>Rift</ListboxItem>
-                </Listbox>
+                    <ListBoxItem key={"Fabric"}>Fabric</ListBoxItem>
+                    <ListBoxItem key={"Forge"}>Forge</ListBoxItem>
+                    <ListBoxItem key={"NeoForge"}>NeoForge</ListBoxItem>
+                    <ListBoxItem key={"Quilt"}>Quilt</ListBoxItem>
+                    <ListBoxItem key={"Babric"}>Babric</ListBoxItem>
+                    <ListBoxItem key={"BTA (Babric)"}>BTA (Babric)</ListBoxItem>
+                    <ListBoxItem key={"Java Agent"}>Java Agent</ListBoxItem>
+                    <ListBoxItem key={"Legacy Fabric"}>Legacy Fabric</ListBoxItem>
+                    <ListBoxItem key={"LiteLoader"}>LiteLoader</ListBoxItem>
+                    <ListBoxItem key={"Risugami's ModLoader"}>Risugami's ModLoader</ListBoxItem>
+                    <ListBoxItem key={"NilLoader"}>NilLoader</ListBoxItem>
+                    <ListBoxItem key={"Ornithe"}>Ornithe</ListBoxItem>
+                    <ListBoxItem key={"Rift"}>Rift</ListBoxItem>
+                </ListBox>
             </ScrollShadow>
         </div>
     );

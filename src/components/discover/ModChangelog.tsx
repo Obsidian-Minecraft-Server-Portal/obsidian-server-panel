@@ -1,4 +1,4 @@
-import { Button, Card, CardBody, Chip } from "@heroui/react";
+import { Button, Card, CardContent, Chip } from "@heroui/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -47,17 +47,16 @@ export function ModChangelog({ changelog, changelogPage, onLoadMore }: ModChange
     const filteredChangelog = changelog.slice(0, changelogPage * CHANGELOG_PER_PAGE);
 
     return (
-        <Card radius="none">
-            <CardBody className="p-6 min-h-[calc(100dvh_-_440px)]">
+        <Card>
+            <CardContent className="p-6 min-h-[calc(100dvh_-_440px)] rounded-none">
                 {changelog.length > 0 ? (
                     <div className="space-y-6">
                         {filteredChangelog.map((entry, index) => (
                             <div key={index} className="border-l-4 border-primary pl-4">
                                 <div className="flex items-center gap-3 mb-2">
                                     <Chip
-                                        size="sm"
                                         color={getVersionTypeColor(entry.version_type) as any}
-                                        variant="flat"
+                                        variant="soft"
                                     >
                                         {getVersionTypeIcon(entry.version_type)} {entry.version}
                                     </Chip>
@@ -78,10 +77,9 @@ export function ModChangelog({ changelog, changelogPage, onLoadMore }: ModChange
                         {changelog.length > changelogPage * CHANGELOG_PER_PAGE && (
                             <div className="flex justify-center">
                                 <Button
-                                    variant="ghost"
-                                    color="primary"
+                                    variant="outline"
                                     onPress={onLoadMore}
-                                    radius="none"
+                                className="rounded-none"
                                 >
                                     Load more
                                 </Button>
@@ -91,7 +89,7 @@ export function ModChangelog({ changelog, changelogPage, onLoadMore }: ModChange
                 ) : (
                     <p className="text-default-500">No changelog available</p>
                 )}
-            </CardBody>
+            </CardContent>
         </Card>
     );
 }

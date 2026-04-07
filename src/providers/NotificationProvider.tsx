@@ -1,7 +1,7 @@
 import "../ts/time-ext.ts";
 import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {Popover} from "../components/extended/Popover.tsx";
-import {Badge, Chip, PopoverContent, PopoverTrigger, ScrollShadow, Tab, Tabs} from "@heroui/react";
+import {Badge, Chip, PopoverContent, PopoverTrigger, ScrollShadow, Tab, TabList, Tabs} from "@heroui/react";
 import {Button} from "../components/extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
@@ -340,8 +340,8 @@ export function NotificationDropdown()
                 <Tooltip content={unreadNotifications.length > 0 ? `You have ${unreadNotifications.length} unread notifications` : "Notifications Area"}>
                     <div className={"max-w-fit"}>
                         <PopoverTrigger>
-                            <Button isIconOnly variant={"light"}>
-                                <Badge content={unreadNotifications.length > 9 ? "9+" : unreadNotifications.length} color={"primary"} showOutline={false} size={"sm"} className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none data-[show=false]:hidden"} data-show={unreadNotifications.length > 0}>
+                            <Button isIconOnly variant={"ghost"}>
+                                <Badge content={unreadNotifications.length > 9 ? "9+" : String(unreadNotifications.length)} color={"accent"} size={"sm"} className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none data-[show=false]:hidden"} data-show={unreadNotifications.length > 0}>
                                     <Icon icon={"pixelarticons:notification"}/>
                                 </Badge>
                             </Button>
@@ -350,25 +350,25 @@ export function NotificationDropdown()
                 </Tooltip>
                 <PopoverContent className={"font-minecraft-body w-[32rem] max-h-[70dvh] h-[48rem] p-2 flex flex-col items-start justify-start"}>
                     <div className={"flex flex-row justify-between w-full px-2 pt-2"}>
-                        <div className={"text-xl font-minecraft-header"}>Notifications <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></div>
+                        <div className={"text-xl font-minecraft-header"}>Notifications <Chip size={"sm"} className={"text-xs font-minecraft-body data-[show=false]:hidden rounded-full"} data-show={notifications.length > 0}>{notifications.length}</Chip></div>
                         <div className={"flex flex-row"}>
                             <Tooltip content={"Mark all as read"}>
-                                <Button isIconOnly variant={"light"} size={"lg"} onPress={markAllAsRead}><Icon icon={"pixelarticons:radio-on"}/></Button>
+                                <Button isIconOnly variant={"ghost"} size={"lg"} onPress={markAllAsRead}><Icon icon={"pixelarticons:radio-on"}/></Button>
                             </Tooltip>
                             <Tooltip content={"Configure Notification Settings"}>
-                                <Button isIconOnly variant={"light"} size={"lg"}><Icon icon={"pixelarticons:sliders-2"}/></Button>
+                                <Button isIconOnly variant={"ghost"} size={"lg"}><Icon icon={"pixelarticons:sliders-2"}/></Button>
                             </Tooltip>
                         </div>
                     </div>
                     <Tabs
-                        variant={"underlined"}
-                        color={"primary"}
-                        classNames={{tab: "w-32", tabContent: "w-full flex flex-row justify-between items-center"}}
+                        variant={"primary"}
                         onSelectionChange={key => setSelectedTab(key as string)}
                     >
-                        <Tab key={"all"} title={<><span className={"pl-2 mr-auto"}>All</span> <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></>}/>
-                        <Tab key={"unread"} title={<><span className={"pl-2 mr-auto"}>Unread</span> <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={unreadNotifications.length > 0}>{unreadNotifications.length}</Chip></>}/>
-                        <Tab key={"action"} title={<><span className={"pl-2 mr-auto"}>Actions</span> <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={actionNotifications.length > 0}>{actionNotifications.length}</Chip></>}/>
+                        <TabList>
+                            <Tab id={"all"} className="w-32"><span className="w-full flex flex-row justify-between items-center"><span className={"pl-2 mr-auto"}>All</span> <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={notifications.length > 0}>{notifications.length}</Chip></span></Tab>
+                            <Tab id={"unread"} className="w-32"><span className="w-full flex flex-row justify-between items-center"><span className={"pl-2 mr-auto"}>Unread</span> <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={unreadNotifications.length > 0}>{unreadNotifications.length}</Chip></span></Tab>
+                            <Tab id={"action"} className="w-32"><span className="w-full flex flex-row justify-between items-center"><span className={"pl-2 mr-auto"}>Actions</span> <Chip size={"sm"} className={"text-xs data-[show=false]:hidden rounded-full"} data-show={actionNotifications.length > 0}>{actionNotifications.length}</Chip></span></Tab>
+                        </TabList>
                     </Tabs>
 
                     {filteredNotifications.length == 0 ? (
@@ -387,8 +387,7 @@ export function NotificationDropdown()
                                                 <Tooltip content={"Mark as read"}>
                                                     <Button
                                                         isIconOnly
-                                                        size={"sm"}
-                                                        variant={"light"}
+                                                        variant={"ghost"}
                                                         onPress={() => markAsRead(notification.id)}
                                                     >
                                                         <Icon icon={"pixelarticons:check"} />
@@ -398,8 +397,7 @@ export function NotificationDropdown()
                                             <Tooltip content={"Dismiss"}>
                                                 <Button
                                                     isIconOnly
-                                                    size={"sm"}
-                                                    variant={"light"}
+                                                    variant={"ghost"}
                                                     onPress={() => deleteNotification(notification.id)}
                                                 >
                                                     <Icon icon={"pixelarticons:close"} />
@@ -407,30 +405,30 @@ export function NotificationDropdown()
                                             </Tooltip>
                                         </div>
                                     </div>
-                                    <p className={"text-tiny opacity-50"}>{notification.timestamp.formatAsRelativeString()}</p>
+                                    <p className={"text-xs opacity-50"}>{notification.timestamp.formatAsRelativeString()}</p>
                                     <div className={"text-sm opacity-80"}>{notification.message}</div>
                                     {notification.action !== NotificationActionType.NONE && (
                                         <div className={"flex flex-row gap-2 mt-2"}>
                                             {(notification.action & NotificationActionType.ACCEPT_DECLINE) !== 0 && (
                                                 <>
-                                                    <Button size={"sm"} color={"primary"}>Accept</Button>
-                                                    <Button size={"sm"} color={"danger"}>Decline</Button>
+                                                    <Button size={"sm"} variant={"primary"}>Accept</Button>
+                                                    <Button size={"sm"} variant={"danger"}>Decline</Button>
                                                 </>
                                             )}
                                             {(notification.action & NotificationActionType.START_SERVER) !== 0 && (
-                                                <Button size={"sm"} color={"primary"}>Start Server</Button>
+                                                <Button size={"sm"} variant={"primary"}>Start Server</Button>
                                             )}
                                             {(notification.action & NotificationActionType.STOP_SERVER) !== 0 && (
-                                                <Button size={"sm"} color={"danger"}>Stop Server</Button>
+                                                <Button size={"sm"} variant={"danger"}>Stop Server</Button>
                                             )}
                                             {(notification.action & NotificationActionType.RESTART_SERVER) !== 0 && (
-                                                <Button size={"sm"} color={"warning"}>Restart Server</Button>
+                                                <Button size={"sm"} variant={"primary"} className="bg-warning text-warning-foreground">Restart Server</Button>
                                             )}
                                             {(notification.action & NotificationActionType.UPDATE_NOW) !== 0 && (
-                                                <Button size={"sm"} color={"primary"}>Update Now</Button>
+                                                <Button size={"sm"} variant={"primary"}>Update Now</Button>
                                             )}
                                             {(notification.action & NotificationActionType.VIEW_MESSAGE) !== 0 && (
-                                                <Button size={"sm"} startContent={<Icon icon={"pixelarticons:message-text"}/>}>View Message</Button>
+                                                <Button size={"sm"}><Icon icon={"pixelarticons:message-text"}/> View Message</Button>
                                             )}
                                             {(notification.action & NotificationActionType.VIEW_DETAILS) !== 0 && (
                                                 <Button size={"sm"}>View Details</Button>

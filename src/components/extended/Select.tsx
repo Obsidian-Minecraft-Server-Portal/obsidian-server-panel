@@ -1,27 +1,13 @@
-import {forwardRef} from "react";
-import {cn, Select as OGSelect, SelectProps} from "@heroui/react";
+import {cn, Select as OGSelect} from "@heroui/react";
 
-export const Select = forwardRef<HTMLSelectElement, Omit<SelectProps, "radius">>((props, ref) =>
+export function Select(props: any)
 {
+    const {ref, className, children, ...rest} = props;
     return <OGSelect
-        radius={"none"}
-        listboxProps={{
-            itemClasses: {
-                base: cn("font-minecraft-body rounded-none", props.listboxProps?.itemClasses?.base),
-                ...props.listboxProps?.itemClasses
-            },
-            ...props.listboxProps
-        }}
-
-
-        classNames={{
-            popoverContent: cn("rounded-none border-primary border-1", props.classNames?.popoverContent),
-            ...props.classNames
-        }}
-
-        {...props}
+        className={cn("rounded-none font-minecraft-body", className)}
+        {...rest}
         ref={ref}
     >
-        {props.children}
+        {children}
     </OGSelect>;
-});
+}

@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import {QuiltVersionList, getQuiltVersions} from "../../ts/quilt-versions.ts";
 
 interface QuiltVersionsContextType
@@ -27,11 +27,7 @@ export function QuiltVersionsProvider({children}: { children: ReactNode })
             {
                 console.error("Failed to load quilt versions:", error);
                 setQuiltVersions(null); // Reset to null on error
-                addToast({
-                    title: "Error",
-                    description: "Failed to load quilt versions. Please try again later.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to load quilt versions. Please try again later.", variant: "danger"});
             });
     }, []);
 

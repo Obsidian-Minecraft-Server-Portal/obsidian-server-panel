@@ -1,4 +1,4 @@
-import {Listbox, ListboxItem, ScrollShadow} from "@heroui/react";
+import {ListBox, ListBoxItem, ScrollShadow} from "@heroui/react";
 import {useMinecraftVersions} from "../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 
 type ModpackFiltersProps = {
@@ -78,20 +78,18 @@ export function ModpackFilters(props: ModpackFiltersProps)
             <div className={"flex flex-col gap-2"}>
                 <label className={"font-minecraft-body text-large"}>Minecraft Version</label>
                 <ScrollShadow className={"max-h-[200px]"}>
-                    <Listbox
+                    <ListBox
                         selectionMode={"multiple"}
                         selectedKeys={selectedGameVersions}
-                        onSelectionChange={(keys) => onGameVersionChange([...keys] as string[])}
-                        itemClasses={{
-                            base: "rounded-none font-minecraft-body"
-                        }}
+                        onSelectionChange={(keys: any) => onGameVersionChange([...keys] as string[])}
+                        className="rounded-none font-minecraft-body"
                     >
                         {releaseVersions.map((version: string) => (
-                            <ListboxItem key={version}>
+                            <ListBoxItem key={version}>
                                 {version}
-                            </ListboxItem>
+                            </ListBoxItem>
                         ))}
-                    </Listbox>
+                    </ListBox>
                 </ScrollShadow>
             </div>
 
@@ -100,20 +98,18 @@ export function ModpackFilters(props: ModpackFiltersProps)
                 <div className={"flex flex-col gap-2"}>
                     <label className={"font-minecraft-body text-large"}>Categories</label>
                     <ScrollShadow className={"max-h-[200px]"}>
-                        <Listbox
+                        <ListBox
                             selectionMode={"multiple"}
                             selectedKeys={selectedCategories}
-                            onSelectionChange={(keys) => onCategoryChange([...keys] as string[])}
-                            itemClasses={{
-                                base: "rounded-none font-minecraft-body"
-                            }}
+                            onSelectionChange={(keys: any) => onCategoryChange([...keys] as string[])}
+                            className="rounded-none font-minecraft-body"
                         >
                             {categories.map((category: string) => (
-                                <ListboxItem key={category}>
+                                <ListBoxItem key={category}>
                                     {category}
-                                </ListboxItem>
+                                </ListBoxItem>
                             ))}
-                        </Listbox>
+                        </ListBox>
                     </ScrollShadow>
                 </div>
             )}

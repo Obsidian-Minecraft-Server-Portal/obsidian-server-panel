@@ -1,6 +1,6 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {getMinecraftVersions, MinecraftVersionList} from "../../ts/minecraft-versions.ts";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import {ForgeVersionsProvider} from "./ForgeVersionsProvider.tsx";
 import {FabricVersionsProvider} from "./FabricVersionsProvider.tsx";
 import {QuiltVersionsProvider} from "./QuiltVersionsProvider.tsx";
@@ -31,11 +31,7 @@ export function MinecraftVersionsProvider({children}: { children: ReactNode })
             {
                 console.error("Failed to load Minecraft versions:", error);
                 setMinecraftVersions(null); // Reset to null on error
-                addToast({
-                    title: "Error",
-                    description: "Failed to load Minecraft versions. Please try again later.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to load Minecraft versions. Please try again later.", variant: "danger"});
             });
     }, []);
 

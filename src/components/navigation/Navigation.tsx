@@ -1,9 +1,9 @@
 import {useLocation} from "react-router-dom";
-import {Divider, DropdownItem, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, PopoverContent, PopoverTrigger, useDisclosure} from "@heroui/react";
+import {DropdownItem, DropdownTrigger, Link, PopoverContent, PopoverTrigger, Separator, useOverlayState} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Dropdown, DropdownMenu} from "../extended/Dropdown";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import UserManagementModal from "../authentication/UserManagementModal.tsx";
 import {Popover} from "../extended/Popover.tsx";
 import {Button} from "../extended/Button.tsx";
@@ -20,8 +20,8 @@ export default function Navigation()
     const {logout, user} = useAuthentication();
     const messageApi = useMessage();
     const [isAccountPopoverOpen, setIsAccountPopoverOpen] = useState(false);
-    const {isOpen: isUserManagementOpen, onOpen: onUserManagementOpen, onClose: onUserManagementClose} = useDisclosure();
-    const {isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose} = useDisclosure();
+    const {isOpen: isUserManagementOpen, open: openUserManagement, close: closeUserManagement} = useOverlayState();
+    const {isOpen: isSettingsOpen, open: openSettings, close: closeSettings} = useOverlayState();
 
     if (!pathname.startsWith("/app") || user == null) return null;
 
@@ -38,16 +38,16 @@ export default function Navigation()
     return (
         <>
             <AnimatePresence>
-                <Navbar maxWidth={"full"} className={"font-minecraft-body"}>
+                <nav className={"w-full flex items-center px-4 h-16 bg-background font-minecraft-body"}>
                     <motion.div
                         initial={{opacity: 0, y: -20}}
                         animate={{opacity: 1, y: 0}}
                         exit={{opacity: 0, y: -20}}
                         transition={{duration: 0.2, delay: .1}}
                     >
-                        <NavbarBrand>
+                        <div>
                             <Link className="text-3xl text-primary font-minecraft-header" href={"/app"}>obsidian</Link>
-                        </NavbarBrand>
+                        </div>
                     </motion.div>
                     <motion.div
                         initial={{opacity: 0, y: -20}}
@@ -55,23 +55,23 @@ export default function Navigation()
                         exit={{opacity: 0, y: -20}}
                         transition={{duration: 0.2, delay: .2}}
                     >
-                        <NavbarContent justify={"center"}>
-                            <NavbarItem as={Link} href={"/app"} className={"text-foreground flex flex-row gap-1 hover:bg-default/40 py-2 px-4 transition-background duration-200 data-[active=true]:text-primary"} data-active={pathname === "/app"}>
+                        <div className={"flex items-center gap-2"}>
+                            <Link href={"/app"} className={"text-foreground flex flex-row gap-1 hover:bg-default/40 py-2 px-4 transition-background duration-200 data-[active=true]:text-primary"} data-active={pathname === "/app"}>
                                 <Icon icon={"pixel:home-solid"}/> <span>Home</span>
-                            </NavbarItem>
-                            <NavbarItem>
-                                <Dropdown showArrow>
+                            </Link>
+                            <div>
+                                <Dropdown>
                                     <DropdownTrigger>
-                                        <Button startContent={<Icon icon={"pixelarticons:map"}/>} variant={"light"}>Discover</Button>
+                                        <Button variant={"ghost"}><Icon icon={"pixelarticons:map"}/> Discover</Button>
                                     </DropdownTrigger>
                                     <DropdownMenu>
-                                        <DropdownItem key={"packs"} as={Link} href={"/app/discover/packs"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:subscriptions"}/>}>Modpacks</DropdownItem>
-                                        <DropdownItem key={"mods"} as={Link} href={"/app/discover/mods"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:note-multiple"}/>}>Mods</DropdownItem>
-                                        <DropdownItem key={"worlds"} as={Link} href={"/app/discover/worlds"} className={"text-foreground"} startContent={<Icon icon={"pixel:globe-americas-solid"}/>}>Worlds</DropdownItem>
+                                        <DropdownItem key={"packs"} href={"/app/discover/packs"} className={"text-foreground"}><Icon icon={"pixelarticons:subscriptions"}/> Modpacks</DropdownItem>
+                                        <DropdownItem key={"mods"} href={"/app/discover/mods"} className={"text-foreground"}><Icon icon={"pixelarticons:note-multiple"}/> Mods</DropdownItem>
+                                        <DropdownItem key={"worlds"} href={"/app/discover/worlds"} className={"text-foreground"}><Icon icon={"pixel:globe-americas-solid"}/> Worlds</DropdownItem>
                                     </DropdownMenu>
                                 </Dropdown>
-                            </NavbarItem>
-                        </NavbarContent>
+                            </div>
+                        </div>
                     </motion.div>
                     <motion.div
                         initial={{opacity: 0, y: -20}}
@@ -79,84 +79,80 @@ export default function Navigation()
                         exit={{opacity: 0, y: -20}}
                         transition={{duration: 0.2, delay: .15}}
                     >
-                        <NavbarContent justify={"end"} className={"gap-2"}>
-                            <NavbarItem>
+                        <div className={"flex items-center gap-2 ml-auto"}>
+                            <div>
                                 <ActionsDropdown/>
-                            </NavbarItem>
-                            <NavbarItem>
+                            </div>
+                            <div>
                                 <NotificationDropdown/>
-                            </NavbarItem>
-                            <NavbarItem>
-                                <Popover isOpen={isAccountPopoverOpen} onOpenChange={setIsAccountPopoverOpen} placement={"bottom-end"} className={"rounded-none font-minecraft-body"}>
+                            </div>
+                            <div>
+                                <Popover isOpen={isAccountPopoverOpen} onOpenChange={setIsAccountPopoverOpen}>
                                     <PopoverTrigger>
                                         <Button isIconOnly><Icon icon={"pixelarticons:user"}/></Button>
                                     </PopoverTrigger>
                                     <PopoverContent className={"rounded-none font-minecraft-body flex flex-col gap-1 w-48"}>
-                                        <p className={"text-tiny opacity-50 text-start w-full"}>{user.username}</p>
-                                        <Divider/>
-                                        <Button key={"account"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:users"}/>} as={Link} href={`/app/user/${user.id}`} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Account </Button>
+                                        <p className={"text-xs opacity-50 text-start w-full"}>{user.username}</p>
+                                        <Separator/>
+                                        <Link href={`/app/user/${user.id}`}><Button key={"account"} className={"text-foreground justify-start"} fullWidth variant={"ghost"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}><Icon icon={"pixelarticons:users"}/> Account </Button></Link>
                                         {hasSettingsPermission && (
                                             <Button
                                                 key={"settings"}
                                                 className={"text-foreground justify-start"}
-                                                startContent={<Icon icon={"pixelarticons:sliders"}/>}
                                                 fullWidth
-                                                variant={"light"}
-                                                size={"sm"}
+                                                variant={"ghost"}
                                                 onPress={() =>
                                                 {
                                                     setIsAccountPopoverOpen(false);
-                                                    onSettingsOpen();
+                                                    openSettings();
                                                 }}
                                             >
-                                                Settings
+                                                <Icon icon={"pixelarticons:sliders"}/> Settings
                                             </Button>
                                         )}
                                         {hasUserManagementPermission ? (
                                             <Button
                                                 key={"manage-users"}
                                                 className={"text-foreground justify-start"}
-                                                startContent={<Icon icon={"pixelarticons:users"}/>}
                                                 onPress={() =>
                                                 {
                                                     setIsAccountPopoverOpen(false);
-                                                    onUserManagementOpen();
+                                                    openUserManagement();
                                                 }}
                                                 fullWidth
-                                                variant={"light"}
-                                                size={"sm"}
+                                                variant={"ghost"}
                                             >
-                                                Manage Users
+                                                <Icon icon={"pixelarticons:users"}/> Manage Users
                                             </Button>
                                         ) : null}
-                                        <AccessibilityThemeSwitch size={"sm"} variant={"underlined"}/>
+                                        <AccessibilityThemeSwitch/>
 
-                                        <p className={"text-tiny text-start w-full text-danger mt-2"}>danger zone</p>
-                                        <Divider/>
-                                        <Button key={"logout"} className={"text-danger justify-start"} startContent={<Icon icon={"pixelarticons:logout"}/>} color={"danger"} onPress={() =>
+                                        <p className={"text-xs text-start w-full text-danger mt-2"}>danger zone</p>
+                                        <Separator/>
+                                        <Button key={"logout"} className={"text-danger justify-start"} variant={"danger"} onPress={() =>
                                         {
                                             setIsAccountPopoverOpen(false);
                                             logout();
-                                        }} variant={"light"} fullWidth size={"sm"}> Logout </Button>
+                                        }} fullWidth size={"sm"}><Icon icon={"pixelarticons:logout"}/> Logout </Button>
                                     </PopoverContent>
                                 </Popover>
-                            </NavbarItem>
-                        </NavbarContent>
+                            </div>
+                        </div>
                     </motion.div>
-                </Navbar>
+                </nav>
             </AnimatePresence>
 
             {/* User Management Modal */}
             <UserManagementModal
                 isOpen={isUserManagementOpen}
-                onClose={onUserManagementClose}
+                onClose={closeUserManagement}
             />
 
             {/* Settings Modal */}
             {hasSettingsPermission && (
                 <SettingsModal
                     isOpen={isSettingsOpen}
-                    onClose={onSettingsClose}
+                    onClose={closeSettings}
                     onShowMessage={(options) => messageApi.open(options as any)}
                 />
             )}

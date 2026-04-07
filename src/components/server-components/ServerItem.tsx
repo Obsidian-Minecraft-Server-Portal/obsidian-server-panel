@@ -26,24 +26,21 @@ export function ServerItem(props: ServerItemProps)
                 </Link>
                 <div className={"flex flex-row gap-2 items-center"}>
                     <Tooltip content={"Edit server"}>
-                        <Button
-                            isIconOnly
-                            radius={"none"}
-                            variant={"ghost"}
-                            size={"sm"}
-                            as={Link}
-                            href={`/app/servers/${serverId}?tab=options`}
-                        >
-                            <Icon icon={"pixelarticons:edit"} width={16}/>
-                        </Button>
+                        <Link href={`/app/servers/${serverId}?tab=options`}>
+                            <Button
+                                isIconOnly
+                                className="rounded-none"
+                                variant={"outline"}
+                            >
+                                <Icon icon={"pixelarticons:edit"} width={16}/>
+                            </Button>
+                        </Link>
                     </Tooltip>
                     <Tooltip content={"Delete server"}>
                         <Button
                             isIconOnly
-                            radius={"none"}
-                            variant={"ghost"}
-                            color={"danger"}
-                            size={"sm"}
+                            className="rounded-none"
+                            variant={"danger"}
                             onPress={async () =>
                             {
                                 let shouldDelete = await open({

@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import {addToast} from "@heroui/react";
+import {toast} from "@heroui/react";
 import {NeoForgeVersionList, getNeoForgeVersions} from "../../ts/neoforge-versions.ts";
 import {useAuthentication} from "../AuthenticationProvider.tsx";
 
@@ -32,11 +32,7 @@ export function NeoForgeVersionsProvider({children}: { children: ReactNode })
             {
                 console.error("Failed to load neoforge versions:", error);
                 setNeoForgeVersions(null); // Reset to null on error
-                addToast({
-                    title: "Error",
-                    description: "Failed to load neoforge versions. Please try again later.",
-                    color: "danger"
-                });
+                toast("Error", {description: "Failed to load neoforge versions. Please try again later.", variant: "danger"});
             });
     }, [isAuthenticated]);
 

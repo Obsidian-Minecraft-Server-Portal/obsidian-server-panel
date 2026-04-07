@@ -1,7 +1,8 @@
 import {useEffect, useState} from "react";
-import {Button, Chip, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, useDisclosure} from "@heroui/react";
+import {Button, Chip, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, useOverlayState} from "@heroui/react";
+import {Input} from "../extended/Input.tsx";
 import {Icon} from "@iconify-icon/react";
-import {AnimatePresence, motion} from "framer-motion";
+import {AnimatePresence, motion} from "motion/react";
 import $ from "jquery";
 import {PermissionFlag, UserData} from "../../types/UserTypes.ts";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
@@ -27,8 +28,8 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
     const [permissions, setPermissions] = useState<PermissionFlag[]>([]);
 
     // Modal states
-    const {isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose} = useDisclosure();
-    const {isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose} = useDisclosure();
+    const {isOpen: isCreateOpen, open: openCreate, close: closeCreate} = useOverlayState();
+    const {isOpen: isEditOpen, open: openEdit, close: closeEdit} = useOverlayState();
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
 
     // Load users and permissions on modal open
@@ -190,7 +191,7 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
     const handleEditUser = (user: UserData) =>
     {
         setSelectedUser(user);
-        onEditOpen();
+        openEdit();
     };
 
     const formatDate = (dateString: string) =>
@@ -216,21 +217,11 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
         <>
             <Modal
                 isOpen={isOpen}
-                onClose={onClose}
-                size="5xl"
-                scrollBehavior="inside"
-                backdrop="blur"
-                radius="none"
-                closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-                classNames={{
-                    closeButton: "rounded-none"
-                }}
-                isDismissable={false}
+                onOpenChange={(open) => !open && onClose()}
             >
-                <ModalContent>
-                    {() => (
-                        <>
-                            <ModalHeader className="flex flex-row items-center gap-2 text-2xl font-minecraft-body">
+                <ModalDialog>
+                    <>
+                        <ModalHeader>
                                 <Icon icon="pixelarticons:users" className="text-3xl"/>
                                 <span>Manage Users</span>
                             </ModalHeader>
@@ -243,25 +234,22 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                             value={searchQuery}
                                             onValueChange={setSearchQuery}
                                             startContent={<Icon icon="pixelarticons:search"/>}
-                                            radius="none"
-                                            className="flex-1"
+                                            className="flex-1 rounded-none"
                                         />
                                         <Button
-                                            color="primary"
-                                            radius="none"
-                                            startContent={<Icon icon="pixelarticons:user-plus"/>}
-                                            onPress={onCreateOpen}
+                                            variant="primary"
+                                            className="rounded-none"
+                                            onPress={openCreate}
                                         >
-                                            Create User
+                                            <Icon icon="pixelarticons:user-plus"/> Create User
                                         </Button>
                                         <Button
-                                            variant="ghost"
-                                            radius="none"
-                                            startContent={<Icon icon="pixelarticons:reload"/>}
+                                            variant="outline"
+                                            className="rounded-none"
                                             onPress={loadUsers}
-                                            isLoading={loading}
+                                            isPending={loading}
                                         >
-                                            Refresh
+                                            <Icon icon="pixelarticons:reload"/> Refresh
                                         </Button>
                                     </div>
 
@@ -279,13 +267,7 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                 transition={{duration: 0.2}}
                                             >
                                                 <Table
-                                                    radius="none"
-                                                    classNames={{
-                                                        wrapper: "rounded-none",
-                                                        th: "font-minecraft-body",
-                                                        td: "font-minecraft-body"
-                                                    }}
-                                                    removeWrapper
+                                                    className="rounded-none font-minecraft-body"
                                                 >
                                                     <TableHeader>
                                                         <TableColumn>USERNAME</TableColumn>
@@ -302,7 +284,7 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                                     <div className="flex flex-col">
                                                                         <span className="font-semibold">{user.username}</span>
                                                                         {user.needs_password_change && (
-                                                                            <Chip size="sm" color="warning" variant="flat">
+                                                                            <Chip size="sm" color="warning" variant="soft">
                                                                                 Password reset required
                                                                             </Chip>
                                                                         )}
@@ -316,8 +298,7 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                                 <TableCell>
                                                                     <Chip
                                                                         color={user.is_active ? "success" : "danger"}
-                                                                        variant="flat"
-                                                                        size="sm"
+                                                                        variant="soft"
                                                                     >
                                                                         {user.is_active ? "Active" : "Disabled"}
                                                                     </Chip>
@@ -329,53 +310,37 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                                         <DropdownTrigger>
                                                                             <Button
                                                                                 isIconOnly
-                                                                                size="sm"
-                                                                                variant="light"
-                                                                                radius="none"
+                                                                                variant="ghost"
+                                                                            className="rounded-none"
                                                                             >
                                                                                 <Icon icon="pixelarticons:more-horizontal"/>
                                                                             </Button>
                                                                         </DropdownTrigger>
-                                                                        <DropdownMenu
-                                                                            itemClasses={{base: "rounded-none font-minecraft-body"}}
-                                                                        >
+                                                                        <DropdownMenu>
                                                                             <DropdownItem
                                                                                 key="edit"
-                                                                                startContent={<Icon icon="pixelarticons:edit"/>}
                                                                                 onPress={() => handleEditUser(user)}
                                                                             >
-                                                                                Edit User
+                                                                                <Icon icon="pixelarticons:edit"/> Edit User
                                                                             </DropdownItem>
                                                                             <DropdownItem
                                                                                 key="toggle-status"
-                                                                                startContent={
-                                                                                    <Icon
-                                                                                        icon={
-                                                                                            user.is_active
-                                                                                                ? "pixelarticons:power"
-                                                                                                : "pixelarticons:power-on"
-                                                                                        }
-                                                                                    />
-                                                                                }
                                                                                 onPress={() => handleToggleUserStatus(user)}
                                                                             >
-                                                                                {user.is_active ? "Disable" : "Enable"}
+                                                                                <Icon icon={user.is_active ? "pixelarticons:power" : "pixelarticons:power-on"}/> {user.is_active ? "Disable" : "Enable"}
                                                                             </DropdownItem>
                                                                             <DropdownItem
                                                                                 key="reset-password"
-                                                                                startContent={<Icon icon="pixelarticons:key"/>}
                                                                                 onPress={() => handleForcePasswordReset(user)}
                                                                             >
-                                                                                Force Password Reset
+                                                                                <Icon icon="pixelarticons:key"/> Force Password Reset
                                                                             </DropdownItem>
                                                                             <DropdownItem
                                                                                 key="delete"
                                                                                 className="text-danger"
-                                                                                color="danger"
-                                                                                startContent={<Icon icon="pixelarticons:trash"/>}
                                                                                 onPress={() => handleDeleteUser(user)}
                                                                             >
-                                                                                Delete User
+                                                                                <Icon icon="pixelarticons:trash"/> Delete User
                                                                             </DropdownItem>
                                                                         </DropdownMenu>
                                                                     </Dropdown>
@@ -390,19 +355,18 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                 </div>
                             </ModalBody>
                             <ModalFooter>
-                                <Button radius="none" onPress={onClose}>
+                                <Button onPress={onClose} className="rounded-none">
                                     Close
                                 </Button>
                             </ModalFooter>
-                        </>
-                    )}
-                </ModalContent>
+                    </>
+                </ModalDialog>
             </Modal>
 
             {/* Create User Modal */}
             <CreateUserModal
                 isOpen={isCreateOpen}
-                onClose={onCreateClose}
+                onClose={closeCreate}
                 permissions={permissions}
                 onUserCreated={loadUsers}
                 onShowMessage={showMessage}
@@ -414,7 +378,7 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                     isOpen={isEditOpen}
                     onClose={() =>
                     {
-                        onEditClose();
+                        closeEdit();
                         setSelectedUser(null);
                     }}
                     user={selectedUser}

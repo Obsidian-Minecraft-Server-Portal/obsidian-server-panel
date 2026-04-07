@@ -1,6 +1,6 @@
-import {Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Modal, ModalBody, ModalDialog, ModalFooter, ModalHeader} from "@heroui/react";
 import {Button} from "../extended/Button.tsx";
-import {Icon} from "@iconify-icon/react";
+
 import {PasswordInput} from "../extended/PasswordInput.tsx";
 import {useState} from "react";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
@@ -57,97 +57,84 @@ export default function ChangePasswordModal(props: ChangePasswordProperties)
         confirmPassword.length > 0;
 
     return (
-        <Modal isOpen={props.isOpen} onClose={props.onClose}
-               size="2xl"
-               scrollBehavior="inside"
-               backdrop="blur"
-               radius="none"
-               closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-               classNames={{
-                   closeButton: "rounded-none"
-               }}
-               isDismissable={false}
-               isKeyboardDismissDisabled={false}
-               hideCloseButton
+        <Modal isOpen={props.isOpen} onOpenChange={(open) => !open && props.onClose()}
         >
-            <ModalContent>
-                {onClose => (
-                    <>
-                        <ModalHeader className={"font-minecraft-body text-2xl font-normal"}>Change Password</ModalHeader>
-                        <ModalBody>
-                            <PasswordInput
-                                label={"New Password"}
-                                autoComplete={"new-password webauthn"}
-                                value={newPassword}
-                                onValueChange={setNewPassword}
-                                allowPasswordGeneration
-                                tabIndex={0}
-                                autoFocus
-                                onPasswordGeneration={value =>
-                                {
-                                    setNewPassword(value);
-                                    setConfirmPassword(value);
-                                }}
-                                isInvalid={passwordErrors.length > 0}
-                                errorMessage={passwordErrors.length > 0 ? (
-                                    <ul className={"list-disc list-inside"}>
-                                        {passwordErrors.map((error, i) => (
-                                            <li key={i}>{error}</li>
-                                        ))}
-                                    </ul>
-                                ) : undefined}
-                            />
-                            <PasswordInput
-                                label={"Confirm Password"}
-                                autoComplete={"new-password webauthn"}
-                                tabIndex={1}
-                                value={confirmPassword}
-                                onValueChange={setConfirmPassword}
-                                isInvalid={confirmPasswordErrors.length > 0}
-                                errorMessage={confirmPasswordErrors.length > 0 ? (
-                                    <ul className={"list-disc list-inside"}>
-                                        {confirmPasswordErrors.map((error, i) => (
-                                            <li key={i}>{error}</li>
-                                        ))}
-                                    </ul>
-                                ) : undefined}
-                            />
-                        </ModalBody>
-                        <ModalFooter>
-                            <Button onPress={() =>
+            <ModalDialog>
+                <>
+                    <ModalHeader>Change Password</ModalHeader>
+                    <ModalBody>
+                        <PasswordInput
+                            label={"New Password"}
+                            autoComplete={"new-password webauthn"}
+                            value={newPassword}
+                            onValueChange={setNewPassword}
+                            allowPasswordGeneration
+                            tabIndex={0}
+                            autoFocus
+                            onPasswordGeneration={value =>
                             {
-                                logout();
-                                onClose();
-                            }}>Logout</Button>
-                            <Button
-                                color="primary"
-                                isDisabled={!isFormValid}
-                                onPress={async () =>
+                                setNewPassword(value);
+                                setConfirmPassword(value);
+                            }}
+                            isInvalid={passwordErrors.length > 0}
+                            errorMessage={passwordErrors.length > 0 ? (
+                                <ul className={"list-disc list-inside"}>
+                                    {passwordErrors.map((error, i) => (
+                                        <li key={i}>{error}</li>
+                                    ))}
+                                </ul>
+                            ) : undefined}
+                        />
+                        <PasswordInput
+                            label={"Confirm Password"}
+                            autoComplete={"new-password webauthn"}
+                            tabIndex={1}
+                            value={confirmPassword}
+                            onValueChange={setConfirmPassword}
+                            isInvalid={confirmPasswordErrors.length > 0}
+                            errorMessage={confirmPasswordErrors.length > 0 ? (
+                                <ul className={"list-disc list-inside"}>
+                                    {confirmPasswordErrors.map((error, i) => (
+                                        <li key={i}>{error}</li>
+                                    ))}
+                                </ul>
+                            ) : undefined}
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button onPress={() =>
+                        {
+                            logout();
+                            props.onClose();
+                        }}>Logout</Button>
+                        <Button
+                            variant="primary"
+                            isDisabled={!isFormValid}
+                            onPress={async () =>
+                            {
+                                console.log("Password change submitted");
+                                try
                                 {
-                                    console.log("Password change submitted");
-                                    try
-                                    {
-                                        await $.ajax("/api/auth/change-password", {method: "POST", data: newPassword});
-                                        setNewPassword("");
-                                        setConfirmPassword("");
-                                        onClose();
-                                    } catch (e)
-                                    {
-                                        await messageApi.open({
-                                            title: "Error",
-                                            body: "Failed to change password. Please try again.",
-                                            severity: "danger",
-                                            responseType: MessageResponseType.Close
-                                        });
-                                    }
-                                }}
-                            >
-                                Change Password
-                            </Button>
-                        </ModalFooter>
-                    </>
-                )}
-            </ModalContent>
+                                    await $.ajax("/api/auth/change-password", {method: "POST", data: newPassword});
+                                    setNewPassword("");
+                                    setConfirmPassword("");
+                                    props.onClose();
+                                } catch (e)
+                                {
+                                    await messageApi.open({
+                                        title: "Error",
+                                        body: "Failed to change password. Please try again.",
+                                        severity: "danger",
+                                        responseType: MessageResponseType.Close
+                                    });
+                                }
+                            }}
+                        >
+                            Change Password
+                        </Button>
+                    </ModalFooter>
+                </>
+            </ModalDialog>
         </Modal>
     );
 }
