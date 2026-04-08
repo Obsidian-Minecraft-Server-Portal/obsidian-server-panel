@@ -61,8 +61,8 @@ export default function Navigation()
                             </Link>
                             <div>
                                 <Dropdown>
-                                    <DropdownTrigger>
-                                        <Button variant={"ghost"}><Icon icon={"pixelarticons:map"}/> Discover</Button>
+                                    <DropdownTrigger className="rounded-none font-minecraft-body flex items-center gap-1">
+                                        <Icon icon={"pixelarticons:map"}/> Discover
                                     </DropdownTrigger>
                                     <DropdownMenu>
                                         <DropdownItem key={"packs"} href={"/app/discover/packs"} className={"text-foreground"}><Icon icon={"pixelarticons:subscriptions"}/> Modpacks</DropdownItem>

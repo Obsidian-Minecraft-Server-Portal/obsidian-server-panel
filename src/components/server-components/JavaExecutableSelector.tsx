@@ -1,5 +1,5 @@
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
-import {Button, ProgressBar, Select, ListBoxItem, ListBoxSection} from "@heroui/react";
+import {Button, ProgressBar, Select, ListBoxItem} from "@heroui/react";
 import {useCallback, useEffect, useState} from "react";
 import {getJavaRuntimeForMinecraftVersion, JavaRuntime, JavaVersion} from "../../ts/java-versions.ts";
 import {Tooltip} from "../extended/Tooltip.tsx";
@@ -150,36 +150,32 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                         }
                     }}
                 >
-                    <ListBoxSection aria-label="Installed">
-                        {
-                            javaVersions
-                                .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
-                                .filter(v => v.installed && v.executable != undefined && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
-                                .map((v) => (
-                                    <ListBoxItem
-                                        key={v.runtime}
-                                        textValue={`${v.version} (Installed)`}
-                                    >
-                                        {v.version} ({v.executable})
-                                    </ListBoxItem>
-                                ))
-                        }
-                    </ListBoxSection>
-                    <ListBoxSection aria-label="Available">
-                        {
-                            javaVersions
-                                .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
-                                .filter(v => !v.installed && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
-                                .map((v) => (
-                                    <ListBoxItem
-                                        key={v.runtime}
-                                        textValue={v.version}
-                                    >
-                                        {v.version} <span className={"italic opacity-50"}>({versionMap[v.runtime].min} - {versionMap[v.runtime].max})</span>
-                                    </ListBoxItem>
-                                ))
-                        }
-                    </ListBoxSection>
+                    {javaVersions
+                        .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
+                        .filter(v => v.installed && v.executable != undefined && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
+                        .map((v) => (
+                            <ListBoxItem
+                                key={v.runtime}
+                                id={v.runtime}
+                                textValue={`${v.version} (Installed)`}
+                            >
+                                {v.version} ({v.executable})
+                            </ListBoxItem>
+                        ))
+                    }
+                    {javaVersions
+                        .sort((a, b) => a.runtime == "legacy" ? 1 : (+(a.version.split(".")[0])) > +(b.version.split(".")[0]) ? 0 : 1)
+                        .filter(v => !v.installed && (Object.keys(versionMap) as JavaRuntime[]).includes(v.runtime))
+                        .map((v) => (
+                            <ListBoxItem
+                                key={v.runtime}
+                                id={v.runtime}
+                                textValue={v.version}
+                            >
+                                {v.version} <span className={"italic opacity-50"}>({versionMap[v.runtime].min} - {versionMap[v.runtime].max})</span>
+                            </ListBoxItem>
+                        ))
+                    }
                 </Select>
 
                 {selectedVersion != undefined && !selectedVersion.installed ?

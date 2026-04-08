@@ -232,10 +232,8 @@ export default function NewServerModal(props: NewServerProperties)
                                     </TabList>
                                 </Tabs>
                                 <Dropdown>
-                                    <DropdownTrigger>
-                                        <Button className={"h-[104px] w-[112px] shrink-0 bg-default-100 text-default-500 font-minecraft-body text-sm"} size={"lg"}>
-                                            <div className={"flex justify-center items-center flex-col gap-2"}><Icon icon={"pixelarticons:cloud-download"} width={32}/><p>More...</p></div>
-                                        </Button>
+                                    <DropdownTrigger className="h-[104px] w-[112px] shrink-0 bg-default-100 text-default-500 font-minecraft-body text-sm rounded-none flex justify-center items-center flex-col gap-2">
+                                        <Icon icon={"pixelarticons:cloud-download"} width={32}/><p>More...</p>
                                     </DropdownTrigger>
                                     <DropdownMenu>
                                         <DropdownItem key={"quilt"} onPress={() => setSelectedLoader("quilt")}><Quilt size={18}/> Quilt</DropdownItem>

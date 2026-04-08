@@ -235,14 +235,8 @@ export function UserSettings({onShowMessage}: UserSettingsProps) {
                                 </TableCell>
                                 <TableCell>
                                     <Dropdown className="rounded-none">
-                                        <DropdownTrigger>
-                                            <HeroButton
-                                                isIconOnly
-                                                variant="ghost"
-                                            className="rounded-none"
-                                            >
+                                        <DropdownTrigger className="rounded-none">
                                                 <Icon icon="pixelarticons:more-horizontal"/>
-                                            </HeroButton>
                                         </DropdownTrigger>
                                         <DropdownMenu
                                             aria-label="User actions"

@@ -307,14 +307,8 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                                 <TableCell>{formatDate(user.last_online)}</TableCell>
                                                                 <TableCell>
                                                                     <Dropdown>
-                                                                        <DropdownTrigger>
-                                                                            <Button
-                                                                                isIconOnly
-                                                                                variant="ghost"
-                                                                            className="rounded-none"
-                                                                            >
+                                                                        <DropdownTrigger className="rounded-none">
                                                                                 <Icon icon="pixelarticons:more-horizontal"/>
-                                                                            </Button>
                                                                         </DropdownTrigger>
                                                                         <DropdownMenu>
                                                                             <DropdownItem
