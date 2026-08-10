@@ -538,12 +538,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
             .service(super::modpack_install::create_server_from_modpack)
-            .service(
-                web::scope("/{server_id}")
-                    .configure(filesystem::configure)
-                    .configure(backups::configure)
-                    .configure(updates::configure)
-            )
             .service(get_installed_mods)
             .service(download_mod)
             .service(sync_mods)
@@ -564,6 +558,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(ping_server)
             .service(get_log_files)
             .service(get_log_file_contents)
+            .service(
+                web::scope("/{server_id}")
+                    .configure(filesystem::configure)
+                    .configure(backups::configure)
+                    .configure(updates::configure)
+            )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),
