@@ -364,38 +364,38 @@ export function Slider(props: SliderProps)
             aria-label={ariaLabel ?? (typeof label === "string" ? label : "slider")}
             className={cn("font-minecraft-body w-full", className)}
         >
-            {(label || getValue || renderValue) && (
-                <div className="flex w-full items-center justify-between text-sm">
-                    {label && <Label className="font-minecraft-body">{label}</Label>}
-                    {renderValue
-                        ? renderValue({index: 0, value: current})
-                        : getValue && (
-                            <V3Slider.Output>
-                                {({state}) => getValue(state.values.length > 1 ? state.values : state.values[0])}
-                            </V3Slider.Output>
-                        )}
-                    {!renderValue && !getValue && (
-                        <V3Slider.Output>
-                            {({state}) => state.values.map(v => state.getFormattedValue(v)).join(" – ")}
-                        </V3Slider.Output>
-                    )}
+            {label && <Label className="self-center font-minecraft-body">{label}</Label>}
+            {renderValue && (
+                <div className="self-center justify-self-end" style={{gridArea: "output"}}>
+                    {renderValue({index: 0, value: current})}
                 </div>
+            )}
+            {!renderValue && (label || getValue) && (
+                <V3Slider.Output className="self-center">
+                    {({state}) => getValue
+                        ? getValue(state.values.length > 1 ? state.values : state.values[0])
+                        : state.values.map(v => state.getFormattedValue(v)).join(" – ")}
+                </V3Slider.Output>
             )}
             <V3Slider.Track className="rounded-none">
                 <V3Slider.Fill className="rounded-none"/>
                 {(Array.isArray(value ?? defaultValue) ? (value ?? defaultValue) as number[] : [0]).map((_, i) => <V3Slider.Thumb key={i} index={Array.isArray(value ?? defaultValue) ? i : undefined} className="rounded-none"/>)}
             </V3Slider.Track>
             {marks && marks.length > 0 && (
-                <div className="relative w-full h-5 text-xs text-default-500">
-                    {marks.map(mark => (
-                        <span
-                            key={mark.value}
-                            className="absolute -translate-x-1/2 whitespace-nowrap"
-                            style={{left: `${((mark.value - minValue) / (maxValue - minValue)) * 100}%`}}
-                        >
-                            {mark.label}
-                        </span>
-                    ))}
+                <div className="relative col-span-full h-5 w-full text-xs text-default-500">
+                    {marks.map(mark =>
+                    {
+                        const pct = ((mark.value - minValue) / (maxValue - minValue)) * 100;
+                        return (
+                            <span
+                                key={mark.value}
+                                className={cn("absolute top-0 whitespace-nowrap", pct <= 0 ? "" : pct >= 100 ? "-translate-x-full" : "-translate-x-1/2")}
+                                style={{left: `${pct}%`}}
+                            >
+                                {mark.label}
+                            </span>
+                        );
+                    })}
                 </div>
             )}
         </V3Slider>
