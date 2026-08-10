@@ -423,17 +423,16 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
                                 </Tabs>
                             </div>
                         )}
+                        <DrawerFooter className="font-minecraft-body">
+                            <div className="ml-auto">
+                                <Button onPress={onClose} radius="none" variant="flat">
+                                    Close
+                                </Button>
+                            </div>
+                        </DrawerFooter>
                     </>
                 )}
             </DrawerContent>
-
-            <DrawerFooter className="font-minecraft-body">
-                <div className="ml-auto">
-                    <Button onPress={rest.onClose} radius="none" variant="flat">
-                        Close
-                    </Button>
-                </div>
-            </DrawerFooter>
         </Drawer>
     );
 }

@@ -37,6 +37,7 @@ interface ModalCtxValue
     hideCloseButton?: boolean;
     closeButton?: ReactNode;
     classNames?: ModalClassNames;
+    dialogClassName?: string;
 }
 
 const ModalCtx = createContext<ModalCtxValue>({close: () => undefined});
@@ -88,8 +89,9 @@ export function Modal(props: ModalProps)
         },
         hideCloseButton,
         closeButton,
-        classNames: {...classNames, base: cn(classNames?.base, className) || undefined}
-    }), [onOpenChange, onClose, hideCloseButton, closeButton, classNames, className]);
+        classNames: {...classNames, base: cn(classNames?.base, className) || undefined},
+        dialogClassName: mapped.className
+    }), [onOpenChange, onClose, hideCloseButton, closeButton, classNames, className, mapped.className]);
     return (
         <V3Modal>
             <V3Modal.Backdrop
@@ -109,7 +111,7 @@ export function Modal(props: ModalProps)
                     placement={placement === "top-center" ? "top" : placement === "bottom-center" ? "bottom" : placement}
                     scroll={scrollBehavior === "outside" ? "outside" : "inside"}
                     size={mapped.size}
-                    className={cn("rounded-none", mapped.className, classNames?.wrapper)}
+                    className={cn("rounded-none", classNames?.wrapper)}
                 >
                     <ModalCtx.Provider value={ctx}>
                         {children}
@@ -130,7 +132,7 @@ export function ModalContent({children, className}: ModalContentProps)
 {
     const ctx = useContext(ModalCtx);
     return (
-        <V3Modal.Dialog className={cn("rounded-none font-minecraft-body", ctx.classNames?.base, className)}>
+        <V3Modal.Dialog className={cn("rounded-none font-minecraft-body w-full", ctx.dialogClassName, ctx.classNames?.base, className)}>
             {!ctx.hideCloseButton && <V3Modal.CloseTrigger className={ctx.classNames?.closeButton}>{ctx.closeButton}</V3Modal.CloseTrigger>}
             {typeof children === "function" ? children(ctx.close) : children}
         </V3Modal.Dialog>
@@ -459,19 +461,34 @@ export interface DrawerProps extends DataAttrs
     onMouseDown?: (e: MouseEvent) => void;
 }
 
-const drawerSizeClass: Record<string, string> = {
+const drawerVerticalSize: Record<string, string> = {
     xs: "max-h-[20rem]",
     sm: "max-h-[24rem]",
     md: "max-h-[28rem]",
     lg: "max-h-[32rem]",
     xl: "max-h-[36rem]",
     "2xl": "max-h-[42rem]",
-    full: "max-h-full h-full w-full max-w-full"
+    full: "h-full max-h-full"
+};
+
+const drawerHorizontalSize: Record<string, string> = {
+    xs: "w-[20rem]",
+    sm: "w-[24rem]",
+    md: "w-[28rem]",
+    lg: "w-[32rem]",
+    xl: "w-[36rem]",
+    "2xl": "w-[42rem]",
+    full: "w-full max-w-full"
 };
 
 export function Drawer(props: DrawerProps)
 {
     const {children, isOpen, defaultOpen, onOpenChange, onClose, placement = "right", size = "md", backdrop, isDismissable, hideCloseButton, className, classNames} = props;
+    const isVertical = placement === "top" || placement === "bottom";
+    const dialogClassName = cn(
+        isVertical ? drawerVerticalSize[size] : drawerHorizontalSize[size],
+        isVertical ? "w-full max-w-full" : "h-full max-h-full"
+    );
     const ctx = useMemo<ModalCtxValue>(() => ({
         close: () =>
         {
@@ -479,8 +496,9 @@ export function Drawer(props: DrawerProps)
             onClose?.();
         },
         hideCloseButton,
-        classNames: {...classNames, base: cn(classNames?.base, className) || undefined}
-    }), [onOpenChange, onClose, hideCloseButton, classNames, className]);
+        classNames: {...classNames, base: cn(classNames?.base, className) || undefined},
+        dialogClassName
+    }), [onOpenChange, onClose, hideCloseButton, classNames, className, dialogClassName]);
     return (
         <V3Drawer>
             <V3Drawer.Backdrop
@@ -497,7 +515,7 @@ export function Drawer(props: DrawerProps)
             >
                 <V3Drawer.Content
                     placement={placement}
-                    className={cn("rounded-none", size === "full" ? drawerSizeClass.full : (placement === "top" || placement === "bottom") ? drawerSizeClass[size] : undefined, classNames?.wrapper) || undefined}
+                    className={cn("rounded-none", classNames?.wrapper) || undefined}
                 >
                     <ModalDrawerCtx.Provider value={ctx}>
                         {children}
@@ -514,7 +532,7 @@ export function DrawerContent({children, className}: {children?: ReactNode | ((o
 {
     const ctx = useContext(ModalDrawerCtx);
     return (
-        <V3Drawer.Dialog className={cn("rounded-none font-minecraft-body h-full", ctx.classNames?.base, className)}>
+        <V3Drawer.Dialog className={cn("rounded-none font-minecraft-body", ctx.dialogClassName, ctx.classNames?.base, className)}>
             {!ctx.hideCloseButton && <V3Drawer.CloseTrigger className={ctx.classNames?.closeButton}/>}
             {typeof children === "function" ? children(ctx.close) : children}
         </V3Drawer.Dialog>
