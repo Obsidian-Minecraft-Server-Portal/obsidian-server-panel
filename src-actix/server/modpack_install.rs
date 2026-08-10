@@ -259,10 +259,8 @@ async fn install_server_pack(server: &mut ServerData, url: &str) -> anyhow::Resu
 
     let archive = temp.join("server-pack.zip");
     download_file(platforms::http_client(), url, &archive).await?;
-    extract_zip(&archive, &dir).await?;
+    extract_zip_flattened(&archive, &dir).await?;
     tokio::fs::remove_dir_all(&temp).await.ok();
-
-    flatten_single_root(&dir)?;
 
     if let Ok(manifest) = tokio::fs::read_to_string(dir.join("manifest.json")).await
         && let Ok(manifest) = serde_json::from_str::<Value>(&manifest)
@@ -449,13 +447,28 @@ async fn download_file(client: &reqwest::Client, url: &str, dest: &Path) -> anyh
 }
 
 async fn extract_zip(archive: &Path, dest: &Path) -> anyhow::Result<()> {
-    let archive = archive.to_path_buf();
-    let dest = dest.to_path_buf();
+    extract_zip_inner(archive.to_path_buf(), dest.to_path_buf(), false).await
+}
+
+/// Extracts a zip, stripping the shared top-level folder if the whole archive lives in one.
+async fn extract_zip_flattened(archive: &Path, dest: &Path) -> anyhow::Result<()> {
+    extract_zip_inner(archive.to_path_buf(), dest.to_path_buf(), true).await
+}
+
+async fn extract_zip_inner(archive: PathBuf, dest: PathBuf, flatten: bool) -> anyhow::Result<()> {
     tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         let mut zip = zip::ZipArchive::new(std::fs::File::open(&archive)?)?;
+        let root = if flatten { single_root(zip.file_names()) } else { None };
         for i in 0..zip.len() {
             let mut entry = zip.by_index(i)?;
             let Some(rel) = entry.enclosed_name() else { continue };
+            let rel = match &root {
+                Some(root) => match rel.strip_prefix(root) {
+                    Ok(stripped) if !stripped.as_os_str().is_empty() => stripped.to_path_buf(),
+                    _ => continue,
+                },
+                None => rel,
+            };
             let out = dest.join(rel);
             if entry.is_dir() {
                 std::fs::create_dir_all(&out)?;
@@ -472,18 +485,18 @@ async fn extract_zip(archive: &Path, dest: &Path) -> anyhow::Result<()> {
     .await?
 }
 
-/// If the archive extracted into a single top-level folder, move its contents up.
-fn flatten_single_root(dir: &Path) -> anyhow::Result<()> {
-    let entries: Vec<PathBuf> = std::fs::read_dir(dir)?.filter_map(|e| e.ok()).map(|e| e.path()).collect();
-    if entries.len() != 1 || !entries[0].is_dir() {
-        return Ok(());
+/// Returns the folder name shared by every entry, if the archive has a single top-level folder.
+fn single_root<'a>(names: impl Iterator<Item = &'a str>) -> Option<String> {
+    let mut root: Option<&str> = None;
+    for name in names {
+        let (first, _) = name.split_once('/')?;
+        match root {
+            None => root = Some(first),
+            Some(existing) if existing == first => {}
+            _ => return None,
+        }
     }
-    let root = &entries[0];
-    for child in std::fs::read_dir(root)?.filter_map(|e| e.ok()) {
-        std::fs::rename(child.path(), dir.join(child.file_name()))?;
-    }
-    std::fs::remove_dir(root)?;
-    Ok(())
+    root.map(String::from)
 }
 
 fn detect_server_jar(dir: &Path) -> anyhow::Result<Option<String>> {
@@ -575,6 +588,14 @@ mod tests {
     }
 
     #[test]
+    fn single_root_detection() {
+        assert_eq!(super::single_root(["Pack/a.jar", "Pack/mods/b.jar", "Pack/"].into_iter()), Some("Pack".to_string()));
+        assert_eq!(super::single_root(["Pack/a.jar", "Other/b.jar"].into_iter()), None);
+        assert_eq!(super::single_root(["top-level.txt", "Pack/a.jar"].into_iter()), None);
+        assert_eq!(super::single_root(std::iter::empty::<&str>()), None);
+    }
+
+    #[test]
     fn parse_cf_manifest_loader() {
         let manifest = serde_json::json!({
             "minecraft": {
@@ -657,8 +678,7 @@ mod tests {
 
         let target = dir.join("server");
         std::fs::create_dir_all(&target).unwrap();
-        super::extract_zip(&archive, &target).await.unwrap();
-        super::flatten_single_root(&target).unwrap();
+        super::extract_zip_flattened(&archive, &target).await.unwrap();
 
         assert!(target.join("mods/somemod.jar").exists());
         assert!(target.join("config/settings.cfg").exists());
