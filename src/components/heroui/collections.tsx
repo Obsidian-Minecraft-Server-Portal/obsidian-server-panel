@@ -412,7 +412,7 @@ export function Tabs(props: TabsProps)
             orientation={isVertical ? "vertical" : "horizontal"}
             className={cn("font-minecraft-body", className, classNames?.base)}
         >
-            <V3Tabs.ListContainer className={cn("rounded-none", fullWidth && "w-full")}>
+            <V3Tabs.ListContainer className={cn("rounded-none", (fullWidth || isVertical) && "w-full")}>
                 <V3Tabs.List aria-label={ariaLabel ?? "tabs"} className={cn("rounded-none", fullWidth && "w-full", classNames?.tabList)}>
                     {nodes.map((node, i) =>
                     {

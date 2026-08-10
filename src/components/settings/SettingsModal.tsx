@@ -188,7 +188,7 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
                         className="flex flex-row h-[600px]"
                     >
                         {/* Left sidebar with category tabs */}
-                        <div className="w-64 border-r-1 border-divider flex-shrink-0">
+                        <div className="w-64 border-r-1 border-divider flex-shrink-0 flex items-center">
                             <Tabs
                                 selectedKey={selectedTab}
                                 onSelectionChange={(key) => setSelectedTab(key as string)}
