@@ -77,6 +77,7 @@
 :root {
     --radius: 0rem;
     --field-radius: 0rem;
+    --field-border-width: 1px;
 }
 
 /* Default dark theme (v2 "dark") */
@@ -87,12 +88,17 @@
     --secondary: #eaeaea;
     --secondary-foreground: #000000;
     --background: #0b0b0e;
+    /* v2-style filled fields: distinct from surface/modal backgrounds */
+    --field-background: color-mix(in oklab, var(--foreground) 10%, var(--surface));
+    --field-border: color-mix(in oklab, var(--foreground) 22%, var(--surface));
 }
 
 .light,
 [data-theme="light"] {
     --secondary: #7828c8;
     --secondary-foreground: #ffffff;
+    --field-background: color-mix(in oklab, var(--foreground) 6%, var(--surface));
+    --field-border: color-mix(in oklab, var(--foreground) 18%, var(--surface));
 }
 
 /* Deuteranopia friendly - blue/purple instead of green/red */
