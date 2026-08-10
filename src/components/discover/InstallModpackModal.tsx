@@ -13,13 +13,14 @@ type InstallModpackModalProps = {
     platform: ModpackPlatform;
     packId: string;
     version: string;
+    versionLabel?: string;
     packName: string;
     minecraftVersion?: string;
 };
 
 export function InstallModpackModal(props: InstallModpackModalProps)
 {
-    const {isOpen, onClose, platform, packId, version, packName, minecraftVersion} = props;
+    const {isOpen, onClose, platform, packId, version, versionLabel, packName, minecraftVersion} = props;
     const navigate = useNavigate();
     const [name, setName] = useState(packName);
     const [javaExecutable, setJavaExecutable] = useState<string | undefined>(undefined);
@@ -78,7 +79,7 @@ export function InstallModpackModal(props: InstallModpackModalProps)
                 <ModalHeader className={"font-minecraft-header font-normal"}>Create Server from Modpack</ModalHeader>
                 <ModalBody className={"flex flex-col gap-4 font-minecraft-body"}>
                     <p className={"text-default-500 text-sm"}>
-                        Installing {packName} {version}{minecraftVersion ? ` (Minecraft ${minecraftVersion})` : ""}
+                        Installing {packName} {versionLabel ?? version}{minecraftVersion ? ` (Minecraft ${minecraftVersion})` : ""}
                     </p>
                     <Input
                         label={"Server Name"}

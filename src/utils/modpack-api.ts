@@ -100,7 +100,7 @@ export async function fetchModrinthModpackVersions(projectId: string): Promise<M
         files: [...version.files].sort((a: any, b: any) => Number(b.primary) - Number(a.primary)),
         changelog: version.changelog,
         dependencies: version.dependencies,
-        serverInstallable: true
+        serverInstallable: version.files.some((file: any) => file.filename?.endsWith(".mrpack"))
     }));
 }
 

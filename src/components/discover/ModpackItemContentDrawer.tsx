@@ -44,9 +44,19 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
     const [selectedTab, setSelectedTab] = useState("description");
     const [installVersion, setInstallVersion] = useState<ModpackVersion | null>(null);
 
-    const isInstallSupported = platform === "atlauncher" || platform === "technic";
     const canInstallVersion = (version: ModpackVersion) =>
-        platform !== "technic" || Boolean(version.files[0]?.url);
+    {
+        switch (platform)
+        {
+            case "technic":
+                return Boolean(version.files[0]?.url);
+            case "curseforge":
+            case "modrinth":
+                return version.serverInstallable !== false;
+            default:
+                return true;
+        }
+    };
 
     const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
     const formatDownloads = (count: number) =>
@@ -402,19 +412,17 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                                                 >
                                                                     {version.version_type}
                                                                 </Chip>
-                                                                {isInstallSupported && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        radius="none"
-                                                                        color="primary"
-                                                                        variant="solid"
-                                                                        isDisabled={!canInstallVersion(version)}
-                                                                        onPress={() => setInstallVersion(version)}
-                                                                        startContent={<Icon icon="pixelarticons:download"/>}
-                                                                    >
-                                                                        Install
-                                                                    </Button>
-                                                                )}
+                                                                <Button
+                                                                    size="sm"
+                                                                    radius="none"
+                                                                    color="primary"
+                                                                    variant="solid"
+                                                                    isDisabled={!canInstallVersion(version)}
+                                                                    onPress={() => setInstallVersion(version)}
+                                                                    startContent={<Icon icon="pixelarticons:download"/>}
+                                                                >
+                                                                    Install
+                                                                </Button>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -444,6 +452,7 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                     platform={platform}
                     packId={packId}
                     version={installVersion.id}
+                    versionLabel={installVersion.version_number}
                     packName={modpackDetails?.name ?? packId}
                     minecraftVersion={installVersion.game_versions[0]}
                 />

@@ -10,6 +10,7 @@ import {FabricVersionSelector} from "./version-selectors/FabricVersionSelector.t
 import {FileInput} from "../extended/FileInput.tsx";
 import {QuiltVersionSelector} from "./version-selectors/QuiltVersionSelector.tsx";
 import {NeoForgeVersionSelector} from "./version-selectors/NeoForgeVersionSelector.tsx";
+import {GetBukkitVersionSelector} from "./version-selectors/GetBukkitVersionSelector.tsx";
 import {LoaderType, useServer} from "../../providers/ServerProvider.tsx";
 import RamSlider from "./RamSlider.tsx";
 import JavaExecutableSelector from "./JavaExecutableSelector.tsx";
@@ -61,6 +62,12 @@ export default function NewServerModal(props: NewServerProperties)
         {
             // Forge uses installer JARs that need to be run to generate the actual server JAR
             filepath = `forge-${selectedMinecraftVersion}-${loaderVersion}-installer.jar`;
+        } else if (selectedLoader === "spigot")
+        {
+            filepath = `spigot-${selectedMinecraftVersion}.jar`;
+        } else if (selectedLoader === "bukkit")
+        {
+            filepath = `craftbukkit-${selectedMinecraftVersion}.jar`;
         } else if (selectedLoader === "custom")
         {
             filepath = `custom-${selectedMinecraftVersion}.jar`;
@@ -109,7 +116,8 @@ export default function NewServerModal(props: NewServerProperties)
                 {
                     setCreationProgress(0.3 + (progress / 100 * 0.5)); // Progress from 30% to 80%
                     const loaderName = selectedLoader === "neoforge" ? "NeoForge" :
-                        selectedLoader.charAt(0).toUpperCase() + selectedLoader.slice(1);
+                        selectedLoader === "bukkit" ? "CraftBukkit" :
+                            selectedLoader.charAt(0).toUpperCase() + selectedLoader.slice(1);
                     setCreationStatusText(`Downloading ${loaderName} Server: ${(progress * 100).toFixed(1)}%`);
                     console.log(`Downloading ${selectedLoader} server: ${progress}% (${downloaded}/${total} bytes)`);
                 };
@@ -371,6 +379,10 @@ function LoaderSelector(props: LoaderSelectorProps)
             return <QuiltVersionSelector minecraftVersion={version} isDisabled={isDisabled}/>;
         case "neoforge":
             return <NeoForgeVersionSelector minecraftVersion={version} isDisabled={isDisabled}/>;
+        case "spigot":
+            return <GetBukkitVersionSelector flavor={"spigot"} minecraftVersion={version} onVersionChange={onChange}/>;
+        case "bukkit":
+            return <GetBukkitVersionSelector flavor={"craftbukkit"} minecraftVersion={version} onVersionChange={onChange}/>;
         case "custom":
             return (
                 <FileInput

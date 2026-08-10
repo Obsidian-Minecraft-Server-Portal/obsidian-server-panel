@@ -45,7 +45,7 @@ export type Server =
 export type CreateServerData = {
     /** Name of the server, e.g. 'My Minecraft Server' */
     name: string;
-    /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt' , or 'custom' */
+    /** Server type: 'vanilla', 'fabric', 'forge', 'neoforge', 'quilt', 'spigot', 'bukkit', or 'custom' */
     server_type: LoaderType;
     /** Minecraft version, e.g. '1.20.1', '1.19.4', or 'custom' */
     minecraft_version: string;
@@ -55,7 +55,7 @@ export type CreateServerData = {
     java_executable: string;
 }
 
-export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "custom";
+export type LoaderType = "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "spigot" | "bukkit" | "custom";
 export type ServerStatus = "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging";
 
 export type InstallModOptions = {

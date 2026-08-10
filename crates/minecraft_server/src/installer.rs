@@ -241,10 +241,10 @@ pub async fn install_server(
             config.server_jar = result.server_jar;
             config.java_args = result.java_args;
         }
-        ServerType::Custom => {
-            // Custom servers bring their own JAR - nothing to install
+        ServerType::Custom | ServerType::Spigot | ServerType::CraftBukkit => {
+            // These server types bring their own JAR - nothing to install
             #[cfg(feature = "logging")]
-            debug!("Custom server type - skipping installation");
+            debug!("{} server type - skipping installation", config.server_type);
         }
         ServerType::Quilt => {
             return Err(McServerError::InstallFailed(
