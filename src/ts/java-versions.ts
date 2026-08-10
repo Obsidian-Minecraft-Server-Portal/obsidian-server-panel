@@ -1,6 +1,6 @@
 import $ from "./http.ts";
 
-export type JavaRuntime = "alpha" | "beta" | "delta" | "gamma" | "gamma-snapshot" | "legacy";
+export type JavaRuntime = string;
 export type JavaOperatingSystem = "linux-i386" | "mac-os" | "mac-os-arm64" | "windows-arm64" | "windows-x64" | "windows-x86";
 export type JavaVersion = {
     executable: string | null,
@@ -32,9 +32,7 @@ export const installRuntime = async (runtime: JavaRuntime, onProgress: (report: 
     });
 };
 
-export type JavaVersionMap = {
-    [key in JavaRuntime]: { min: string, max: string };
-}
+export type JavaVersionMap = Record<JavaRuntime, { min: string, max: string }>;
 
 /**
  * Compare two Minecraft versions

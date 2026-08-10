@@ -1,5 +1,5 @@
 use crate::actix_util::path_sanitize::sanitize_path_component;
-use crate::java::java_data::{JavaVersionData, Manifest, OSVersions, RuntimeVersion, OS};
+use crate::java::java_data::{Manifest, OSVersions, RuntimeVersion, OS};
 use anyhow::{anyhow, Result};
 use futures::stream;
 use futures::stream::StreamExt;
@@ -57,44 +57,34 @@ pub struct DownloadProgress {
 
 impl JavaVersion {
     pub async fn list() -> Result<Vec<Self>> {
-        let mut versions: Vec<Self> = vec![];
         let response =
             reqwest::get("https://piston-meta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json").await?;
-        let data: OSVersions = response.json().await?;
+        let mut data: OSVersions = response.json().await?;
         let current_os = get_current_os().ok_or_else(|| anyhow!("Unsupported OS"))?;
-        let current_os_versions = match current_os {
-            OS::Linux => data.linux,
-            OS::LinuxI386 => data.linux_i386,
-            OS::Mac => data.macos,
-            OS::MacArm64 => data.macos_arm64,
-            OS::WindowsArm64 => data.windows_arm64,
-            OS::WindowsX64 => data.windows_x64,
-            OS::WindowsX86 => data.windows_x86,
-        };
+        let components = data.remove(current_os.as_str()).ok_or_else(|| anyhow!("No runtimes for OS {}", current_os.as_str()))?;
 
-        Self::append_versions(&mut versions, current_os_versions.alpha, current_os, RuntimeVersion::Alpha);
-        Self::append_versions(&mut versions, current_os_versions.beta, current_os, RuntimeVersion::Beta);
-        Self::append_versions(&mut versions, current_os_versions.delta, current_os, RuntimeVersion::Delta);
-        Self::append_versions(&mut versions, current_os_versions.gamma, current_os, RuntimeVersion::Gamma);
-        Self::append_versions(&mut versions, current_os_versions.gamma_snapshot, current_os, RuntimeVersion::GammaSnapshot);
-        Self::append_versions(&mut versions, current_os_versions.legacy, current_os, RuntimeVersion::Legacy);
+        let mut versions: Vec<Self> = vec![];
+        for (component, entries) in components {
+            if component == "minecraft-java-exe" {
+                continue;
+            }
+            let runtime = RuntimeVersion::from_component(&component);
+            for entry in entries {
+                let mut vcard = JavaVersion {
+                    operating_system: current_os,
+                    runtime: runtime.clone(),
+                    version: entry.version.name,
+                    installed: false,
+                    manifest: entry.manifest,
+                    executable: None,
+                };
+                vcard.check_if_version_installed();
+                versions.push(vcard);
+            }
+        }
+        versions.sort_by(|a, b| a.runtime.as_str().cmp(b.runtime.as_str()));
 
         Ok(versions)
-    }
-
-    fn append_versions(versions: &mut Vec<Self>, version_data: Vec<JavaVersionData>, os: OS, runtime: RuntimeVersion) {
-        for version in version_data {
-            let mut vcard = JavaVersion {
-                operating_system: os,
-                runtime,
-                version: version.version.name,
-                installed: false,
-                manifest: version.manifest,
-                executable: None,
-            };
-            vcard.check_if_version_installed();
-            versions.push(vcard);
-        }
     }
 
     pub async fn from_runtime(runtime: impl AsRef<str>) -> Result<Self> {
