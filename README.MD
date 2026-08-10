@@ -7,20 +7,25 @@ A modern, feature-rich, and user-friendly web-based control panel for managing M
 
 -   **🖥️ Comprehensive Server Management:**
     -   Create, configure, and manage multiple Minecraft servers.
-    -   Support for various server types: Vanilla, Fabric, Forge, NeoForge, and Quilt.
+    -   Support for Vanilla, Fabric, Forge, NeoForge, Quilt, Spigot, CraftBukkit, and custom server jars.
     -   Easy installation of different Minecraft and loader versions.
     -   Control server lifecycle: Start, Stop, Restart, and Kill operations.
+
+-   **📦 One-Click Modpack Installation:**
+    -   Browse and install server packs from Modrinth, CurseForge, ATLauncher, and Technic.
+    -   Automatic mod, dependency, and override handling from pack manifests.
+    -   Discovery is filtered to server-compatible packs, so client-only packs are clearly flagged.
 
 -   **🔒 Robust User & Permission System:**
     -   Multi-user support with a role-based permission system.
     -   Secure authentication with password and token-based sessions.
+    -   Optional email verification and two-factor authentication, enabled automatically when SMTP is configured and fully bypassed when it is not.
     -   Admin panel for user management: create, edit, delete, and disable users.
-    -   Force password resets for enhanced security.
 
 -   **📊 Real-time Monitoring & Console:**
     -   Live server console with command input.
+    -   On Linux, servers run inside named GNU `screen` sessions, so they're always reachable with `screen -ls` and survive a panel restart.
     -   Real-time host resource monitoring for CPU, memory, disk, and network usage.
-    -   Graphical representation of resource history.
     -   Live player count and list.
 
 -   **🗂️ Integrated File Manager:**
@@ -30,7 +35,7 @@ A modern, feature-rich, and user-friendly web-based control panel for managing M
     -   In-browser text editor for easy configuration file changes with syntax highlighting.
 
 -   **🧩 Effortless Mod & Content Management:**
-    -   Browse and install mods, modpacks, and more directly from Modrinth & CurseForge.
+    -   Browse and install mods directly from Modrinth & CurseForge.
     -   View installed mods and check for available updates.
     -   Detailed mod view with descriptions, changelogs, and version history.
 
@@ -50,29 +55,20 @@ A modern, feature-rich, and user-friendly web-based control panel for managing M
 ## 🛠️ Technology Stack
 
 -   **Backend:**
-    -   **Language:** Rust
+    -   **Language:** Rust (edition 2024)
     -   **Framework:** Actix Web
     -   **Database:** SQLite, MySQL, or PostgreSQL (via SQLx)
     -   **Real-time Communication:** Server-Sent Events (SSE)
 -   **Frontend:**
-    -   **Framework:** React (with TypeScript)
+    -   **Framework:** React 19 (with TypeScript)
     -   **Build Tool:** Vite
-    -   **UI Components:** [HeroUI](https://heroui.net/)
-    -   **Styling:** Tailwind CSS
+    -   **UI Components:** [HeroUI](https://heroui.com/) v3
+    -   **Styling:** Tailwind CSS v4
     -   **Animations:** Framer Motion
     -   **Charting:** Recharts
--   **API:**
-    -   Fully documented with an `openapi.yaml` specification.
+    -   **Editor:** Monaco
 
 ## 🚀 Getting Started
-
-### Prerequisites
-
--   For running the installation script: `curl` or `wget`, and `unzip` or `bsdtar`.
--   For building from source:
-    -   [Rust toolchain](https://www.rust-lang.org/tools/install)
-    -   [Node.js](https://nodejs.org/) (with pnpm enabled: `npm install -g pnpm`)
-    -   [just](https://github.com/casey/just) command runner (recommended)
 
 ### Installation (Linux)
 
@@ -91,48 +87,51 @@ The script will automatically:
 
 You will be prompted to set the port for the web UI during installation.
 
+> **Note:** For live server consoles on Linux, install GNU `screen` (4.06 or newer). The panel creates a `screen` session per server automatically.
+
+### Installation (Windows)
+
+Download the installer (`obsidian-server-windows-x86_64-setup.exe`) or the standalone zip from the [latest release](../../releases). The installer creates Start Menu shortcuts and an optional start-at-login entry.
+
+### Docker
+
+A Compose stack with MySQL is included:
+
+```bash
+docker compose -f composer.yml up --build
+```
+
+The panel will be available at `http://localhost:3698`. **Change the default passwords in `composer.yml` before deploying to production.**
+
+Prebuilt images are published to the GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/obsidian-minecraft-server-portal/server:latest
+```
+
+### Configuration
+
+The panel listens on **port 80** by default; pass `--port <PORT>` to change it. Key environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_CONNECTION_STRING` | Database connection string (defaults to a local SQLite file) |
+| `SMTP_HOST` | Enables email verification and 2FA when set; both are disabled when unset |
+| `RUST_LOG` | Log level filter |
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#environment-variables) for the complete list, including the full SMTP configuration.
+
 ### Building from Source
 
-This project uses [`just`](https://github.com/casey/just) as its command runner. Run `just --list` to see all available recipes.
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel.git
-    cd obsidian-server-panel
-    ```
-
-2.  **Install frontend dependencies:**
-    ```bash
-    pnpm install
-    ```
-
-3.  **Build and package (frontend + backend):**
-    ```bash
-    just build              # SQLite (default)
-    just build mysql        # MySQL
-    just build postgres     # PostgreSQL
-    ```
-
-4.  **Or build components individually:**
-    ```bash
-    just build-frontend          # Frontend only
-    just build-backend           # Backend debug build (SQLite default)
-    just build-backend postgres  # Backend debug build (PostgreSQL)
-    ```
-
-5.  **Run the application:**
-    ```bash
-    just run                # SQLite (default)
-    just run postgres       # PostgreSQL
-    ```
-
-The server will be available at `http://localhost:8080` by default.
-
-For more details on development workflows, testing, and all available recipes, see the [Wiki](../../wiki).
+Build instructions and development setup live in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## 📄 API Documentation
 
-This project includes a comprehensive OpenAPI 3.0 specification for its backend API. You can find the full details in the `openapi.yaml` file. This can be used with tools like Swagger UI or Postman to explore and interact with the API endpoints.
+This project includes an OpenAPI 3.0 specification for its backend API in [`openapi-v3.json`](openapi-v3.json). It can be used with tools like Swagger UI or Postman to explore and interact with the API endpoints.
+
+## 🤝 Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, code style, testing, and the pull request process.
 
 ## 📜 License
 
