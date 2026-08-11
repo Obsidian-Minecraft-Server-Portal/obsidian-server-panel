@@ -26,6 +26,7 @@ pub(crate) static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, ServerHandle>>
 
 const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const SHUTDOWN_GRACE_POLLS: u32 = 120;
+const READINESS_POLL_INTERVAL: Duration = Duration::from_secs(3);
 
 fn active_servers() -> &'static Arc<Mutex<HashMap<u64, ServerHandle>>> {
     ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
@@ -37,6 +38,29 @@ async fn handle_for(id: u64) -> Result<ServerHandle> {
 
 async fn process_for(pid: u32) -> Result<ProcessHandle> {
     AsynchronousInteractiveProcess::get_process_by_pid(pid).await.ok_or_else(|| anyhow::anyhow!("Server process not found"))
+}
+
+/// Force terminates a server process.
+///
+/// On Windows `TerminateProcess` against the JVM is routinely refused with `ERROR_ACCESS_DENIED`,
+/// which left Kill unusable, so shell out to `taskkill` instead. `/T` also reaps any helper
+/// processes the JVM spawned, which the raw API call would have orphaned.
+#[cfg(target_os = "windows")]
+async fn force_kill(pid: u32) -> Result<()> {
+    let output = tokio::process::Command::new("taskkill")
+        .args(["/F", "/T", "/PID", &pid.to_string()])
+        .output()
+        .await?;
+    // 128 == "process not found", i.e. it already exited; that is the outcome we wanted anyway.
+    if output.status.success() || output.status.code() == Some(128) {
+        return Ok(());
+    }
+    Err(anyhow::anyhow!("Failed to terminate process {}: {}", pid, String::from_utf8_lossy(&output.stderr).trim()))
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn force_kill(pid: u32) -> Result<()> {
+    process_for(pid).await?.kill().await
 }
 
 enum ConsoleReader {
@@ -171,40 +195,46 @@ impl ServerData {
         #[cfg(not(target_os = "linux"))]
         let handle = self.spawn_direct(args, &directory_path).await?;
 
+        // Register before attaching the console: stop/kill must work even if console attach is slow.
+        active_servers().lock().await.insert(self.id, handle.clone());
+        debug!("Server {} registered as active", self.id);
         let mut reader = ConsoleReader::from_handle(&handle).await?;
-        active_servers().lock().await.insert(self.id, handle);
 
         self.last_started = Some(chrono::Utc::now().timestamp() as u64);
         self.save().await?;
 
+        // The console broadcast channel drops messages when it lags behind Minecraft's startup
+        // burst, so the "Done (...)" line alone is not a reliable readiness signal. Poll the
+        // server's own port as a fallback so a ready server is never left stuck on `Starting`.
+        let mut readiness = tokio::time::interval(READINESS_POLL_INTERVAL);
+        readiness.tick().await;
+
         loop {
-            let line = match reader.next_line().await {
-                Ok(line) => line,
-                // The console closing because the server was stopped/killed mid-startup is not a failure.
-                Err(e) if !self.has_server_process().await => {
-                    debug!("Console for server {} closed during startup: {}", self.id, e);
-                    return Ok(());
+            let line = tokio::select! {
+                result = reader.next_line() => match result {
+                    Ok(line) => line,
+                    // The console closing because the server was stopped/killed mid-startup is not a failure.
+                    Err(e) if !self.has_server_process().await => {
+                        debug!("Console for server {} closed during startup: {}", self.id, e);
+                        return Ok(());
+                    }
+                    Err(e) => return Err(e),
+                },
+                _ = readiness.tick() => {
+                    if self.has_server_process().await && self.get_ping().await.is_ok() {
+                        debug!("Server {} answered a ping; marking it running", self.id);
+                        self.mark_running().await?;
+                        break;
+                    }
+                    None
                 }
-                Err(e) => return Err(e),
             };
             if !self.has_server_process().await {
                 return Ok(());
             }
             if let Some(line) = line {
-                if line.contains("Done (") && line.contains(r#")! For help, type "help""#) {
-                    self.status = ServerStatus::Running;
-                    self.save().await?;
-
-                    // Broadcast server status change
-                    broadcast::broadcast(BroadcastMessage::ServerUpdate {
-                        server: self.clone(),
-                    });
-
-                    // Send notification that server has started
-                    if let Err(e) = self.send_start_notification().await {
-                        error!("Failed to send server start notification: {}", e);
-                    }
-
+                if line.contains("Done (") && line.contains("For help, type") {
+                    self.mark_running().await?;
                     break;
                 }
                 if line.contains("has been compiled by a more recent version of the Java Runtime") {
@@ -221,6 +251,16 @@ impl ServerData {
             }
         }
 
+        Ok(())
+    }
+
+    async fn mark_running(&mut self) -> Result<()> {
+        self.status = ServerStatus::Running;
+        self.save().await?;
+        broadcast::broadcast(BroadcastMessage::ServerUpdate { server: self.clone() });
+        if let Err(e) = self.send_start_notification().await {
+            error!("Failed to send server start notification: {}", e);
+        }
         Ok(())
     }
 
@@ -266,12 +306,17 @@ impl ServerData {
     }
 
     pub async fn kill_server(&mut self) -> Result<()> {
-        // Take the handle first so the process exit callback treats this as an intentional stop.
+        // Take the handle first so the process exit callback treats this as an intentional stop,
+        // but put it back if the kill fails so the server stays controllable.
         let handle = active_servers().lock().await.remove(&self.id).ok_or_else(|| anyhow::anyhow!("Server not running"))?;
-        match handle {
-            ServerHandle::Direct(pid) => process_for(pid).await?.kill().await?,
+        let result = match &handle {
+            ServerHandle::Direct(pid) => force_kill(*pid).await,
             #[cfg(target_os = "linux")]
-            ServerHandle::Screen(session) => session.quit().await?,
+            ServerHandle::Screen(session) => session.quit().await,
+        };
+        if let Err(e) = result {
+            active_servers().lock().await.insert(self.id, handle);
+            return Err(e);
         }
         self.remove_server().await?;
         Ok(())
