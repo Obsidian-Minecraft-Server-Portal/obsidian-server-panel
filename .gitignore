@@ -139,3 +139,8 @@ Cargo.lock
 .idea/claudeCodeTabState.xml
 
 nul
+# Local UI verification artifacts
+.agent-shots/
+screenshots/
+vite.config.agent.ts
+vite.config.verify.ts
