@@ -537,6 +537,7 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/server")
+            .service(super::modpack_install::create_server_from_modpack)
             .service(
                 web::scope("/{server_id}")
                     .configure(filesystem::configure)
