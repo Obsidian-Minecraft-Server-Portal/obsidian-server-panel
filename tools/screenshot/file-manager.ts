@@ -161,6 +161,22 @@ async function main()
     console.log("alpha.txt:", JSON.stringify(await api<string>(page, `/api/server/${serverId}/fs/contents?filepath=alpha.txt`)));
     console.log("deep.txt:", JSON.stringify(await api<string>(page, `/api/server/${serverId}/fs/contents?filepath=agentpack/nested/deep.txt`)));
 
+    // --- Empty directory renders without breaking the collection ---
+    await api(page, `/api/server/${serverId}/fs/new`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({path: "emptydir", is_directory: true})
+    }).catch(() => {});
+    await page.reload({waitUntil: "networkidle2"});
+    await sleep(2500);
+    await page.evaluate(() =>
+    {
+        const row = document.querySelector("#server-files-table [role=row][data-key=\"emptydir\"]") as HTMLElement | null;
+        row?.dispatchEvent(new MouseEvent("dblclick", {bubbles: true}));
+    });
+    await sleep(2000);
+    await shot("empty-directory");
+
     console.log("--- console ---");
     for (const l of logs) console.log(l);
 
