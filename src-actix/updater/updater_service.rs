@@ -33,6 +33,12 @@ impl UpdateService {
                         "current_version": self.updater.current_version(),
                         "status": "up_to_date"
                     }),
+                    UpdateStatus::NoReleasesPublished => json!({
+                        "update_available": false,
+                        "current_version": self.updater.current_version(),
+                        "status": "unavailable",
+                        "message": "No published releases were found upstream"
+                    }),
                     _ => json!({
                         "update_available": false,
                         "current_version": self.updater.current_version(),
@@ -109,6 +115,11 @@ impl UpdateService {
             UpdateStatus::NoUpdateAvailable => json!({
                 "status": "up_to_date",
                 "current_version": self.updater.current_version()
+            }),
+            UpdateStatus::NoReleasesPublished => json!({
+                "status": "unavailable",
+                "current_version": self.updater.current_version(),
+                "message": "No published releases were found upstream"
             }),
             UpdateStatus::UpdateAvailable { version, .. } => json!({
                 "status": "available",

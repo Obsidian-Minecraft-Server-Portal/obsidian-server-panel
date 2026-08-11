@@ -125,11 +125,28 @@ export default function ServerConsole()
             return cleanup;
         } else
         {
-            getLogs().then((logFiles) => setLogFiles(logFiles.sort((a, b) => a === "latest.log" ? -1 : b === "latest.log" ? 1 : 0))).finally(async () =>
+            void (async () =>
             {
-                const logContent = await getLog("latest.log");
-                setLog(logContent.split("\n"));
-            });
+                try
+                {
+                    const files = await getLogs();
+                    setLogFiles(files.sort((a, b) => a === "latest.log" ? -1 : b === "latest.log" ? 1 : 0));
+                } catch (e)
+                {
+                    console.error("Failed to list log files:", e);
+                    setLogFiles([]);
+                }
+
+                try
+                {
+                    const logContent = await getLog("latest.log");
+                    setLog(logContent ? logContent.split("\n") : []);
+                } catch (e)
+                {
+                    console.error("Failed to load latest.log:", e);
+                    setLog([]);
+                }
+            })();
         }
     }, [isRunning]);
 

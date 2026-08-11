@@ -655,7 +655,7 @@ pub async fn rename_entry(server_id: web::Path<String>, body: web::Json<RenameRe
     Ok(HttpResponse::Ok().json(json!({"status": "success"})))
 }
 
-#[delete("/")]
+#[delete("")]
 pub async fn delete_entry(server_id: web::Path<String>, body: web::Json<DeleteRequest>, req: HttpRequest) -> Result<impl Responder> {
     let server_id = decode_single(server_id.as_str())?;
     let user = req.get_user()?;

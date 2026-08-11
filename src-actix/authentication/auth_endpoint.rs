@@ -31,7 +31,7 @@ async fn authenticate_credentials(body: &serde_json::Value) -> Result<UserData> 
     Err(anyhow!("Invalid username or password").into())
 }
 
-#[post("/")]
+#[post("")]
 pub async fn login(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
     let remember = body.get("remember").is_some_and(|v| v.as_bool().unwrap_or(false));
     let user = authenticate_credentials(&body).await?;
@@ -167,7 +167,7 @@ pub async fn reset_password(body: web::Json<serde_json::Value>) -> Result<impl R
     Ok(HttpResponse::Ok().json(json!({"message": "Password reset successfully"})))
 }
 
-#[get("/")]
+#[get("")]
 pub async fn login_with_token(req: HttpRequest) -> Result<impl Responder> {
     let user = req.get_user()?;
     Ok(HttpResponse::Ok().json(json!({
@@ -176,7 +176,7 @@ pub async fn login_with_token(req: HttpRequest) -> Result<impl Responder> {
     })))
 }
 
-#[get("/logout/")]
+#[get("/logout")]
 pub async fn logout() -> Result<impl Responder> {
     // Invalidate the session by clearing the token cookie
     let cookie = actix_web::cookie::Cookie::build(TOKEN_KEY, "")
@@ -188,7 +188,7 @@ pub async fn logout() -> Result<impl Responder> {
     Ok(HttpResponse::PermanentRedirect().append_header(("Location", "/")).cookie(cookie.clone()).finish())
 }
 
-#[put("/")]
+#[put("")]
 pub async fn register(body: web::Json<serde_json::Value>) -> Result<impl Responder> {
     let username = body_str(&body, "username")?;
     let password = body_str(&body, "password")?;
@@ -297,7 +297,7 @@ pub async fn get_permissions_list() -> Result<impl Responder> {
     Ok(HttpResponse::Ok().json(PermissionFlag::values()))
 }
 
-#[get("/users/")]
+#[get("/users")]
 pub async fn get_users(req: HttpRequest) -> Result<impl Responder> {
     let user = req.get_user()?;
     if !user.permissions.contains(PermissionFlag::Admin) && !user.permissions.contains(PermissionFlag::ViewUsers) {
@@ -583,7 +583,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .service(create_user)
                     .service(update_user)
                     .service(delete_user)
-                    .service(force_password_reset),
+                    .service(force_password_reset)
+                    .default_service(web::to(crate::actix_util::api_not_found)),
             )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({

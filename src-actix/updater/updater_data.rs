@@ -30,6 +30,8 @@ struct GitHubAsset {
 #[derive(Debug, Clone)]
 pub enum UpdateStatus {
     NoUpdateAvailable,
+    /// The upstream release feed has no published release yet (GitHub replied 404).
+    NoReleasesPublished,
     UpdateAvailable { version: String, download_url: String },
     UpdateInProgress,
     UpdateCompleted,
@@ -68,8 +70,13 @@ impl Updater {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            return Err(anyhow!("Failed to fetch release info: {}", response.status()));
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            log::warn!("No published releases found at {url}; treating as up to date");
+            return Ok(UpdateStatus::NoReleasesPublished);
+        }
+        if !status.is_success() {
+            return Err(anyhow!("Failed to fetch release info: {}", status));
         }
 
         let release: GitHubRelease = response.json().await?;
