@@ -7,6 +7,8 @@ import ChangePasswordModal from "../components/authentication/ChangePasswordModa
 export type UserData = {
     id: string | null,
     username: string,
+    email: string | null,
+    email_verified: boolean,
     permissions: UserPermissions[],
     join_date: Date,
     last_online: Date,
@@ -22,17 +24,26 @@ export type UserPermissions = {
 type LoginResponse = {
     user?: UserData,
     message: string,
+    requires_2fa?: boolean,
+    requires_verification?: boolean,
     stacktrace?: any,
 }
+
+export type LoginResult = "success" | "requires_2fa" | "requires_verification";
 
 interface AuthenticationContextType
 {
     isAuthenticated: boolean | undefined;
     user: UserData | null;
-    login: (username: string, password: string, rememberMe: boolean, delay?: number) => Promise<void>;
+    login: (username: string, password: string, rememberMe: boolean, delay?: number) => Promise<LoginResult>;
     loginWithToken: () => Promise<void>;
     logout: () => void;
-    register: (username: string, password: string) => Promise<void>;
+    register: (username: string, password: string, email?: string) => Promise<LoginResult>;
+    verifyLogin: (username: string, password: string, code: string, rememberMe: boolean) => Promise<void>;
+    verifyEmail: (username: string, password: string, code: string) => Promise<void>;
+    resendVerification: (username: string, password: string) => Promise<void>;
+    forgotPassword: (username: string) => Promise<void>;
+    resetPassword: (username: string, code: string, password: string) => Promise<void>;
     isLoggingIn: boolean;
     promptChangePassword: () => void;
 }
@@ -48,7 +59,20 @@ export function AuthenticationProvider({children}: { children: ReactNode })
     const navigate = useNavigate();
     const {pathname} = useLocation();
 
-    const login = useCallback(async (username: string, password: string, rememberMe: boolean, delay?: number) =>
+    const startSession = useCallback(async (user: UserData, delay?: number) =>
+    {
+        setIsLoggingIn(true);
+        setUser(user);
+        if (delay)
+        {
+            console.log(`Delaying login for ${delay}ms`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        setIsAuthenticated(true);
+        setTimeout(() => setIsLoggingIn(false), 1000);
+    }, [setUser, setIsAuthenticated, setIsLoggingIn]);
+
+    const login = useCallback(async (username: string, password: string, rememberMe: boolean, delay?: number): Promise<LoginResult> =>
     {
         try
         {
@@ -59,21 +83,14 @@ export function AuthenticationProvider({children}: { children: ReactNode })
                 dataType: "json"
             });
             console.log("Login Response: ", response);
+            if (response.requires_2fa) return "requires_2fa";
+            if (response.requires_verification) return "requires_verification";
             if (response.user)
             {
-                setIsLoggingIn(true);
-                setUser(response.user);
-                if (delay)
-                {
-                    console.log(`Delaying login for ${delay}ms`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-                setIsAuthenticated(true);
-                setTimeout(() => setIsLoggingIn(false), 1000);
-            } else
-            {
-                throw new Error(response.message || "Login failed");
+                await startSession(response.user, delay);
+                return "success";
             }
+            throw new Error(response.message || "Login failed");
         } catch (err: any | Error)
         {
             const errorMessage = err.responseJSON?.message || err.message;
@@ -83,7 +100,96 @@ export function AuthenticationProvider({children}: { children: ReactNode })
             throw new Error(errorMessage || "Failed to login");
         }
 
-    }, [setUser, setIsAuthenticated, setIsLoggingIn]);
+    }, [startSession, setIsAuthenticated, setIsLoggingIn]);
+
+    const verifyLogin = useCallback(async (username: string, password: string, code: string, rememberMe: boolean) =>
+    {
+        try
+        {
+            const response: LoginResponse = await $.ajax("/api/auth/verify-login", {
+                method: "POST",
+                data: JSON.stringify({username, password, code, remember: rememberMe}),
+                contentType: "application/json",
+                dataType: "json"
+            });
+            if (!response.user) throw new Error(response.message || "Verification failed");
+            await startSession(response.user, 500);
+        } catch (err: any | Error)
+        {
+            const errorMessage = err.responseJSON?.message || err.message;
+            throw new Error(errorMessage || "Verification failed");
+        }
+    }, [startSession]);
+
+    const verifyEmail = useCallback(async (username: string, password: string, code: string) =>
+    {
+        try
+        {
+            const response: LoginResponse = await $.ajax("/api/auth/verify-email", {
+                method: "POST",
+                data: JSON.stringify({username, password, code}),
+                contentType: "application/json",
+                dataType: "json"
+            });
+            if (!response.user) throw new Error(response.message || "Verification failed");
+            await startSession(response.user, 500);
+        } catch (err: any | Error)
+        {
+            const errorMessage = err.responseJSON?.message || err.message;
+            throw new Error(errorMessage || "Verification failed");
+        }
+    }, [startSession]);
+
+    const resendVerification = useCallback(async (username: string, password: string) =>
+    {
+        try
+        {
+            await $.ajax("/api/auth/resend-verification", {
+                method: "POST",
+                data: JSON.stringify({username, password}),
+                contentType: "application/json",
+                dataType: "json"
+            });
+        } catch (err: any | Error)
+        {
+            const errorMessage = err.responseJSON?.message || err.message;
+            throw new Error(errorMessage || "Failed to resend code");
+        }
+    }, []);
+
+    const forgotPassword = useCallback(async (username: string) =>
+    {
+        try
+        {
+            await $.ajax("/api/auth/forgot-password", {
+                method: "POST",
+                data: JSON.stringify({username}),
+                contentType: "application/json",
+                dataType: "json"
+            });
+        } catch (err: any | Error)
+        {
+            const errorMessage = err.responseJSON?.message || err.message;
+            throw new Error(errorMessage || "Failed to request a password reset");
+        }
+    }, []);
+
+    const resetPassword = useCallback(async (username: string, code: string, password: string) =>
+    {
+        try
+        {
+            await $.ajax("/api/auth/reset-password", {
+                method: "POST",
+                data: JSON.stringify({username, code, password}),
+                contentType: "application/json",
+                dataType: "json"
+            });
+        } catch (err: any | Error)
+        {
+            const errorMessage = err.responseJSON?.message || err.message;
+            throw new Error(errorMessage || "Failed to reset password");
+        }
+    }, []);
 
     const loginWithToken = useCallback(async () =>
     {
@@ -121,18 +227,19 @@ export function AuthenticationProvider({children}: { children: ReactNode })
     }, [setUser, setIsAuthenticated]);
 
 
-    const register = useCallback(async (username: string, password: string) =>
+    const register = useCallback(async (username: string, password: string, email?: string): Promise<LoginResult> =>
     {
         setIsLoggingIn(true);
         try
         {
             const response: LoginResponse = await $.ajax("/api/auth/", {
                 method: "PUT",
-                data: JSON.stringify({username, password}),
+                data: JSON.stringify({username, password, email}),
                 contentType: "application/json",
                 dataType: "json"
             });
             console.log("Register Response: ", response);
+            return response.requires_verification ? "requires_verification" : "success";
         } catch (err: any | Error)
         {
             const errorMessage = err.responseJSON?.message || err.message;
@@ -206,7 +313,9 @@ export function AuthenticationProvider({children}: { children: ReactNode })
 
 
     return (
-        <AuthenticationContext.Provider value={{user, isAuthenticated, login, logout, loginWithToken, isLoggingIn, register, promptChangePassword}}>
+        <AuthenticationContext.Provider
+            value={{user, isAuthenticated, login, logout, loginWithToken, isLoggingIn, register, verifyLogin, verifyEmail, resendVerification, forgotPassword, resetPassword, promptChangePassword}}
+        >
             <ChangePasswordModal isOpen={changePassword} onClose={handlePasswordChange}/>
             {children}
         </AuthenticationContext.Provider>

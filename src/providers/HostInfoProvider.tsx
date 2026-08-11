@@ -5,6 +5,7 @@ export type HostInfo = {
     version: string,
     is_development: boolean,
     has_admin_user: boolean,
+    smtp_enabled: boolean,
     resources: {
         os: string,
         num_cores: number,

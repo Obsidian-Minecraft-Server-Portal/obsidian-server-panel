@@ -1,5 +1,5 @@
 import {AnimatePresence, motion} from "framer-motion";
-import {addToast, Button, Form, Input, Link} from "@heroui/react";
+import {addToast, Button, Form, Input, InputOtp, Link} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import Checkbox from "../components/extended/Checkbox.tsx";
 import {useState} from "react";
@@ -14,9 +14,13 @@ export default function Signup()
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [termsAccepted, setTermsAccepted] = useState(false);
-    const {register, login} = useAuthentication();
-    const {refreshHostInfo} = useHostInfo();
+    const [stage, setStage] = useState<"form" | "verify">("form");
+    const [code, setCode] = useState("");
+    const [isBusy, setIsBusy] = useState(false);
+    const {register, login, verifyEmail, resendVerification} = useAuthentication();
+    const {hostInfo, refreshHostInfo} = useHostInfo();
 
     // Password validation
     const passwordErrors = [];
@@ -59,6 +63,13 @@ export default function Signup()
         usernameErrors.push("Username cannot be longer than 20 characters.");
     }
 
+    // Email validation (only required when SMTP is configured)
+    const emailErrors = [];
+    if (hostInfo.smtp_enabled && email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    {
+        emailErrors.push("Please enter a valid email address.");
+    }
+
     // Check if form is valid
     const isFormValid = username.length >= 3 &&
         username.length <= 20 &&
@@ -66,7 +77,93 @@ export default function Signup()
         password.length > 0 &&
         confirmPasswordErrors.length === 0 &&
         confirmPassword.length > 0 &&
+        (!hostInfo.smtp_enabled || (email.length > 0 && emailErrors.length === 0)) &&
         termsAccepted;
+
+    if (stage === "verify")
+    {
+        return (
+            <AnimatePresence>
+                <div className={"flex flex-col items-center justify-center grow mt-48"}>
+                    <motion.h1 className={"text-5xl text-primary"} initial={{opacity: 0, y: -20}} animate={{opacity: 1, y: 0}} transition={{duration: 0.2}}>
+                        Verify Email
+                    </motion.h1>
+                    <motion.p
+                        className={"text-medium mt-4 font-minecraft-body text-center max-w-lg"}
+                        initial={{opacity: 0, y: -20}}
+                        animate={{opacity: 1, y: 0}}
+                        transition={{duration: 0.2, delay: 0.1}}
+                    >
+                        A 6-digit code has been sent to {email}. It expires in 10 minutes.
+                    </motion.p>
+                    <Form className={"mt-6 w-4/5 max-w-lg min-w-48 items-center"}
+                          onSubmit={async e =>
+                          {
+                              e.preventDefault();
+                              if (isBusy || code.length !== 6) return;
+                              setIsBusy(true);
+                              try
+                              {
+                                  await verifyEmail(username, password, code);
+                                  await refreshHostInfo();
+                              } catch (error: any)
+                              {
+                                  addToast({
+                                      title: "Verification Failed",
+                                      description: error.message || "An error occurred during verification.",
+                                      color: "danger"
+                                  });
+                                  setCode("");
+                              } finally
+                              {
+                                  setIsBusy(false);
+                              }
+                          }}
+                    >
+                        <InputOtp
+                            length={6}
+                            radius={"none"}
+                            className={"font-minecraft-body"}
+                            value={code}
+                            onValueChange={setCode}
+                            autoFocus
+                            isRequired
+                        />
+                        <Button
+                            radius={"none"}
+                            className={"font-minecraft-body mt-4 w-full"}
+                            color={"primary"}
+                            type={"submit"}
+                            isLoading={isBusy}
+                            isDisabled={code.length !== 6}
+                        >
+                            Verify
+                        </Button>
+                        <Link
+                            className={"font-minecraft-body text-small cursor-pointer mt-2"}
+                            onPress={async () =>
+                            {
+                                try
+                                {
+                                    await resendVerification(username, password);
+                                    addToast({title: "Code Sent", description: "A new code has been sent to your email address."});
+                                } catch (error: any)
+                                {
+                                    addToast({
+                                        title: "Resend Failed",
+                                        description: error.message || "Failed to resend code.",
+                                        color: "danger"
+                                    });
+                                }
+                            }}
+                        >
+                            Resend code
+                        </Link>
+                    </Form>
+                </div>
+            </AnimatePresence>
+        );
+    }
 
     return (
         <AnimatePresence>
@@ -98,7 +195,13 @@ export default function Signup()
 
                           try
                           {
-                              await register(username, password);
+                              const result = await register(username, password, hostInfo.smtp_enabled ? email : undefined);
+                              if (result === "requires_verification")
+                              {
+                                  setCode("");
+                                  setStage("verify");
+                                  return;
+                              }
                               await refreshHostInfo();
                               await login(username, password, false);
                               setUnloading(true);
@@ -142,6 +245,38 @@ export default function Signup()
                             ) : undefined}
                         />
                     </motion.div>
+                    {hostInfo.smtp_enabled && (
+                        <motion.div
+                            className={"w-full"}
+                            initial={{opacity: 0, y: -20}}
+                            animate={{opacity: unloading ? 0 : 1, y: unloading ? -50 : 0}}
+                            exit={{opacity: 0, y: 50}}
+                            transition={{duration: 0.2, delay: 0.25}}
+                        >
+                            <Input
+                                id={"signup-email"}
+                                name={"email"}
+                                type={"email"}
+                                label={"Email"}
+                                placeholder={"Enter your email address"}
+                                radius={"none"}
+                                className={"font-minecraft-body"}
+                                isRequired
+                                autoComplete={"email"}
+                                endContent={<Icon icon={"pixelarticons:mail"} className={"mr-2"}/>}
+                                value={email}
+                                onValueChange={setEmail}
+                                isInvalid={emailErrors.length > 0}
+                                errorMessage={emailErrors.length > 0 ? (
+                                    <ul className={"list-disc list-inside"}>
+                                        {emailErrors.map((error, i) => (
+                                            <li key={i}>{error}</li>
+                                        ))}
+                                    </ul>
+                                ) : undefined}
+                            />
+                        </motion.div>
+                    )}
                     <motion.div
                         className={"w-full"}
                         initial={{opacity: 0, y: -20}}
