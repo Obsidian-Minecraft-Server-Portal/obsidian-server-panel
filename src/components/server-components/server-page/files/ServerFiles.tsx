@@ -896,27 +896,24 @@ export function ServerFiles()
                                         <Skeleton className={"w-8 h-8"}/>
                                         <Skeleton className={"w-32 h-6"}/>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell hidden={isEditingFile && selectedEntries.length === 1}>
                                         <Skeleton className={"w-24 h-6"}/>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell hidden={isEditingFile && selectedEntries.length === 1}>
                                         <Skeleton className={"w-16 h-6"}/>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell hidden={isEditingFile && selectedEntries.length === 1}>
                                         <Skeleton className={"w-8 h-6"}/>
                                     </TableCell>
                                 </TableRow>
-                            )) : (
-                                <>
-                                    {data?.entries?.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center text-gray-500">
-                                                This directory is empty
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        <>
-                                            {data?.entries.map(entry =>
+                            )) : !data?.entries?.length ? [(
+                                <TableRow key={"__empty"}>
+                                    <TableCell colSpan={4} className="text-center text-gray-500">
+                                        This directory is empty
+                                    </TableCell>
+                                </TableRow>
+                            )] : (
+                                            data.entries.map(entry =>
                                             {
                                                 const isSelected = selectedEntries.length === 1 && selectedEntries[0] === entry;
                                                 const isRenaming = renamingEntry === entry;
@@ -949,8 +946,8 @@ export function ServerFiles()
                                                             }
                                                             else if (isTextFile(entry.path))
                                                             {
-                                                                // Toggle edit mode for text files
-                                                                setIsEditingFile(prev => !prev);
+                                                                setSelectedEntries([entry]);
+                                                                setIsEditingFile(true);
                                                             }
                                                             else
                                                             {
@@ -1070,10 +1067,7 @@ export function ServerFiles()
                                                         </TableCell>
                                                     </TableRow>
                                                 );
-                                            })}
-                                        </>
-                                    )}
-                                </>
+                                            })
                             )}
                         </TableBody>
                     </Table>
@@ -1084,8 +1078,9 @@ export function ServerFiles()
                     onDelete={deleteSelected}
                     onArchive={startArchiveCreation}
                     onExtract={handleExtract}
-                    onEdit={() =>
+                    onEdit={entry =>
                     {
+                        setSelectedEntries([entry]);
                         setIsEditingFile(true);
                         setContextMenuOptions(prev => ({...prev, isOpen: false}));
                     }}
