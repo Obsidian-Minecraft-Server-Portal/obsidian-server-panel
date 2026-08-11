@@ -210,7 +210,7 @@ impl FabricClient {
         mc_version: &str,
         loader_version: &str,
         install_dir: &Path,
-        progress: Option<&dyn Fn(u64, u64)>,
+        progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
     ) -> Result<FabricInstallResult> {
         let installer = self.get_latest_stable_installer().await?;
         let url = Self::server_jar_url(mc_version, loader_version, &installer.version);
