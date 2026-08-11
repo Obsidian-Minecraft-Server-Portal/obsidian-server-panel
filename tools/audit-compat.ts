@@ -1,3 +1,4 @@
+import {execFileSync} from "node:child_process";
 import {Harness} from "./screenshot-harness.ts";
 
 const USER = "agentadmin";
@@ -67,7 +68,9 @@ try
     let {body: servers} = await h.api<any[]>("GET", "/api/server");
     if (!Array.isArray(servers) || !servers.length)
     {
-        await h.api("PUT", "/api/server", {name: "AgentCompat", server_type: "vanilla", minecraft_version: "1.20.1"});
+        const java = execFileSync("where", ["java"], {encoding: "utf8"}).split(/\r?\n/)[0].trim();
+        const created = await h.api("PUT", "/api/server", {name: "AgentCompat", server_type: "vanilla", minecraft_version: "1.20.1", java_executable: java});
+        console.log(`  create server -> ${created.status} ${JSON.stringify(created.body).slice(0, 200)}`);
         servers = (await h.api<any[]>("GET", "/api/server")).body;
     }
     if (Array.isArray(servers) && servers.length) pages.push(`/app/servers/${servers[0].id}?tab=console`);
@@ -104,6 +107,49 @@ try
     for (const c of evidence.navbarControls as any[]) seen.set(`${c.x},${c.y}`, (seen.get(`${c.x},${c.y}`) ?? 0) + 1);
     evidence.navbarStacked = [...seen.entries()].filter(([, n]) => n > 1);
     console.log(`  stacked coordinates: ${JSON.stringify(evidence.navbarStacked)}`);
+
+    // ---------- interaction: triggers still open their overlays ----------
+    log("trigger interaction");
+    await h.goto("/app");
+    await new Promise(r => setTimeout(r, 1500));
+    const openMenu = async (find: string) => await h.page.evaluate(sel =>
+    {
+        const btn = [...document.querySelectorAll("button")].find(b => (b.textContent ?? "").includes(sel) || b.querySelector(`iconify-icon[icon='${sel}']`));
+        if (!btn) return {clicked: false};
+        btn.click();
+        return {clicked: true, expanded: btn.getAttribute("aria-expanded")};
+    }, find);
+    const dropdown = await openMenu("Discover");
+    await new Promise(r => setTimeout(r, 800));
+    evidence.dropdownOpens = {...dropdown, menuItems: await h.page.evaluate(() => [...document.querySelectorAll("[role=menuitem]")].map(e => (e.textContent ?? "").trim()))};
+    console.log(`  dropdown: ${JSON.stringify(evidence.dropdownOpens)}`);
+    await h.shot("03-dropdown-open");
+    await h.page.keyboard.press("Escape");
+    await new Promise(r => setTimeout(r, 500));
+
+    const popover = await openMenu("pixelarticons:user");
+    await new Promise(r => setTimeout(r, 800));
+    evidence.popoverOpens = {...popover, dialogs: await h.page.evaluate(() => [...document.querySelectorAll("[data-slot=popover-dialog],[role=dialog]")].length)};
+    console.log(`  popover: ${JSON.stringify(evidence.popoverOpens)}`);
+    await h.shot("04-popover-open");
+    await h.page.keyboard.press("Escape");
+
+    // ---------- every Button rendered as a Link keeps a readable foreground ----------
+    log("as={Link} button sweep");
+    const sweep: unknown[] = [];
+    for (const p of ["/app/this-route-does-not-exist", "/app", "/app/discover/packs", "/signup"])
+    {
+        await h.goto(p);
+        await new Promise(r => setTimeout(r, 2000));
+        sweep.push({page: p, buttons: await h.page.evaluate(() =>
+            [...document.querySelectorAll("a.button")].map(a =>
+            {
+                const cs = getComputedStyle(a);
+                return {text: (a.textContent ?? "").trim().slice(0, 20), color: cs.color, background: cs.backgroundColor, sameAsBg: cs.color === cs.backgroundColor};
+            }))});
+    }
+    evidence.linkButtonSweep = sweep;
+    console.log(`  ${JSON.stringify(sweep)}`);
 
     // ---------- defect 3: New Server modal input group ----------
     log("New Server modal - Server Name input group");
