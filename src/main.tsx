@@ -21,6 +21,7 @@ import ServerPage from "./pages/ServerPage.tsx";
 import DiscoverPage from "./pages/DiscoverPage.tsx";
 import {ContentPage} from "./pages/ContentPage.tsx";
 import ErrorPage from "./pages/ErrorPage.tsx";
+import AccountPage from "./pages/AccountPage.tsx";
 import Navigation from "./components/navigation/Navigation.tsx";
 import {NotificationProvider} from "./providers/NotificationProvider.tsx";
 import {PersistentActionProvider} from "./providers/PersistentActionProvider.tsx";
@@ -70,6 +71,7 @@ export function MainContentRenderer()
                         <Route>
                             <Route path="/" element={<Login/>}/>
                             <Route path="/app" element={<Dashboard/>}/>
+                            <Route path="/app/account" element={<AccountPage/>}/>
                             <Route path="/app/servers/:id" element={<ServerPage/>}/>
                             <Route path="/app/discover/:type" element={<DiscoverPage/>}/>
                             <Route path="/app/discover/:type/:platform" element={<DiscoverPage/>}/>

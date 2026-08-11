@@ -94,7 +94,7 @@ export default function Navigation()
                                     <PopoverContent className={"rounded-none font-minecraft-body flex flex-col gap-1 w-48"}>
                                         <p className={"text-tiny opacity-50 text-start w-full"}>{user.username}</p>
                                         <Divider/>
-                                        <Button key={"account"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:users"}/>} as={Link} href={`/app/user/${user.id}`} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Account </Button>
+                                        <Button key={"account"} className={"text-foreground justify-start"} startContent={<Icon icon={"pixelarticons:user"}/>} as={Link} href={"/app/account"} fullWidth variant={"light"} size={"sm"} onPress={() => setIsAccountPopoverOpen(false)}> Account </Button>
                                         {hasSettingsPermission && (
                                             <Button
                                                 key={"settings"}
