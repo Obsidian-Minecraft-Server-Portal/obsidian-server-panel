@@ -124,12 +124,11 @@ impl SearchBuilder {
         self.facet_or(facets)
     }
 
-    /// Adds a server-side compatibility filter (excludes "unsupported").
+    /// Adds a server-side compatibility filter (only "required" or "optional").
     pub fn server_side(self) -> Self {
         self.facet_or(vec![
-            "server_side=required".to_string(),
-            "server_side=optional".to_string(),
-            "server_side=unknown".to_string(),
+            "server_side:required".to_string(),
+            "server_side:optional".to_string(),
         ])
     }
 
@@ -214,11 +213,7 @@ mod tests {
         assert_eq!(facets.len(), 1);
         assert_eq!(
             facets[0],
-            vec![
-                "server_side=required",
-                "server_side=optional",
-                "server_side=unknown"
-            ]
+            vec!["server_side:required", "server_side:optional"]
         );
     }
 
