@@ -52,7 +52,8 @@ export function ServerFiles()
     const newContentRef = useRef<string>("");
     const originalContentHashRef = useRef<string>("");
     const serverFileEditorRef = useRef<ServerFileEditorRef>(null);
-    const folderInputRef = useRef<HTMLInputElement>(null); // + add a hidden <input> for folder selection
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
 
     const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -344,6 +345,14 @@ export function ServerFiles()
         await Promise.all(promises);
         await refresh();
     }, [path, uploadFile, refresh, uploadWithRelPaths]);
+
+    const handleUploadInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) =>
+    {
+        const input = e.currentTarget;
+        const files = Array.from(input.files ?? []);
+        input.value = "";
+        await upload(files);
+    }, [upload]);
 
     // Helper: recursively collect files from a DataTransferItem (drag-and-drop folder)
     const collectFromEntry = useCallback(async (entry: any, prefix: string): Promise<FileWithRelPath[]> =>
@@ -797,7 +806,14 @@ export function ServerFiles()
                 )
             }
         >
-            {/* Hidden folder input for "Choose Folder" */}
+            {/* Hidden inputs backing the toolbar's upload actions */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{display: "none"}}
+                onChange={handleUploadInputChange}
+            />
             <input
                 ref={folderInputRef}
                 type="file"
@@ -805,13 +821,7 @@ export function ServerFiles()
                 // @ts-expect-error: non-standard but widely supported
                 webkitdirectory="true"
                 style={{display: "none"}}
-                onChange={async (e) =>
-                {
-                    const files = Array.from(e.currentTarget.files || []);
-                    // Each File may include webkitRelativePath
-                    await upload(files);
-                    e.currentTarget.value = ""; // reset
-                }}
+                onChange={handleUploadInputChange}
             />
 
             {/* Breadcrumbs and Toolbar - Always full width */}
@@ -820,6 +830,7 @@ export function ServerFiles()
                 <FileTableToolbar
                     onCreateFile={() => startEntryCreation(false)}
                     onCreateDirectory={() => startEntryCreation(true)}
+                    onUploadFiles={() => fileInputRef.current?.click()}
                     onUploadFolder={() => folderInputRef.current?.click()}
                     onToggleEditor={handleToggleEditor}
                     onRefresh={refresh}

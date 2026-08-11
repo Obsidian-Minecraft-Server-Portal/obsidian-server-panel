@@ -5,6 +5,7 @@ import {Tooltip} from "../../../extended/Tooltip.tsx";
 interface FileTableToolbarProps {
     onCreateFile: () => void;
     onCreateDirectory: () => void;
+    onUploadFiles: () => void;
     onUploadFolder: () => void;
     onToggleEditor: () => void;
     onRefresh: () => void;
@@ -15,6 +16,7 @@ interface FileTableToolbarProps {
 export function FileTableToolbar({
     onCreateFile,
     onCreateDirectory,
+    onUploadFiles,
     onUploadFolder,
     onToggleEditor,
     onRefresh,
@@ -33,6 +35,16 @@ export function FileTableToolbar({
                     <Icon icon={"pixelarticons:folder-plus"}/>
                 </Button>
             </Tooltip>
+            <Tooltip content={"Upload Files"}>
+                <Button
+                    radius={"none"}
+                    isIconOnly
+                    className={"text-xl"}
+                    onPress={onUploadFiles}
+                >
+                    <Icon icon={"pixelarticons:cloud-upload"}/>
+                </Button>
+            </Tooltip>
             <Tooltip content={"Upload Folder"}>
                 <Button
                     radius={"none"}
@@ -40,7 +52,7 @@ export function FileTableToolbar({
                     className={"text-xl"}
                     onPress={onUploadFolder}
                 >
-                    <Icon icon={"pixelarticons:cloud-upload"}/>
+                    <Icon icon={"pixelarticons:folder"}/>
                 </Button>
             </Tooltip>
             <Tooltip content={"Toggle File Editor"}>

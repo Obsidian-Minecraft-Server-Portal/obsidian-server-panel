@@ -1,3 +1,5 @@
+import {mkdirSync, writeFileSync} from "node:fs";
+import {resolve} from "node:path";
 import {api, launch, sleep} from "./harness.ts";
 
 const USER = "agenttester";
@@ -117,6 +119,47 @@ async function main()
     const onDisk = await api<string>(page, `/api/server/${serverId}/fs/contents?filepath=server.properties`);
     console.log("file on disk after save:", JSON.stringify(onDisk));
     console.log(onDisk.includes("edited-by-agent=true") ? "SAVE: OK" : "SAVE: FAILED");
+
+    // --- Upload: multiple individual files via the "Upload Files" toolbar action ---
+    mkdirSync("target/upload-fixtures", {recursive: true});
+    writeFileSync("target/upload-fixtures/alpha.txt", "alpha payload\n");
+    writeFileSync("target/upload-fixtures/beta.txt", "beta payload\n");
+
+    const inputs = await page.$$("input[type=file]");
+    console.log("file inputs:", inputs.length, "webkitdirectory flags:",
+        JSON.stringify(await page.$$eval("input[type=file]", els => els.map(e => (e as HTMLInputElement).webkitdirectory))));
+
+    await inputs[0].uploadFile(resolve("target/upload-fixtures/alpha.txt"), resolve("target/upload-fixtures/beta.txt"));
+    await sleep(4000);
+    await shot("after-multi-file-upload");
+
+    // --- Upload: a folder, preserving its relative structure ---
+    await page.evaluate(() =>
+    {
+        const input = document.querySelectorAll("input[type=file]")[1] as HTMLInputElement;
+        const make = (rel: string, body: string) =>
+        {
+            const f = new File([body], rel.split("/").pop()!, {type: "text/plain"});
+            Object.defineProperty(f, "webkitRelativePath", {value: rel});
+            return f;
+        };
+        const files = [make("agentpack/pack.txt", "pack\n"), make("agentpack/nested/deep.txt", "deep\n")];
+        Object.defineProperty(input, "files", {value: Object.assign(files, {item: (i: number) => files[i]}), configurable: true});
+        input.dispatchEvent(new Event("change", {bubbles: true}));
+    });
+    await sleep(5000);
+    await shot("after-folder-upload");
+
+    const listing = async (p: string) =>
+    {
+        const d = await api<{entries: {filename: string}[]}>(page, `/api/server/${serverId}/fs/files?path=${encodeURIComponent(p)}`);
+        return d.entries.map(e => e.filename);
+    };
+    console.log("root:", JSON.stringify(await listing("")));
+    console.log("agentpack:", JSON.stringify(await listing("agentpack")));
+    console.log("agentpack/nested:", JSON.stringify(await listing("agentpack/nested")));
+    console.log("alpha.txt:", JSON.stringify(await api<string>(page, `/api/server/${serverId}/fs/contents?filepath=alpha.txt`)));
+    console.log("deep.txt:", JSON.stringify(await api<string>(page, `/api/server/${serverId}/fs/contents?filepath=agentpack/nested/deep.txt`)));
 
     console.log("--- console ---");
     for (const l of logs) console.log(l);
