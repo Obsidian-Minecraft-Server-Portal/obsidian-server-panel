@@ -26,6 +26,7 @@ import {
 } from "../../utils/modpack-api.ts";
 import {ModDescription} from "./ModDescription.tsx";
 import {ModChangelog} from "./ModChangelog.tsx";
+import {InstallModpackModal} from "./InstallModpackModal.tsx";
 
 type ModpackItemContentDrawerProps = {
     packId: string;
@@ -41,6 +42,11 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
     const [loading, setLoading] = useState(false);
     const [versionsLoading, setVersionsLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState("description");
+    const [installVersion, setInstallVersion] = useState<ModpackVersion | null>(null);
+
+    const isInstallSupported = platform === "atlauncher" || platform === "technic";
+    const canInstallVersion = (version: ModpackVersion) =>
+        platform !== "technic" || Boolean(version.files[0]?.url);
 
     const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
     const formatDownloads = (count: number) =>
@@ -378,18 +384,33 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                                                     {version.game_versions.join(", ")}
                                                                 </div>
                                                             </div>
-                                                            <Chip
-                                                                size="sm"
-                                                                color={
-                                                                    version.version_type === "release"
-                                                                        ? "success"
-                                                                        : version.version_type === "beta"
-                                                                            ? "warning"
-                                                                            : "danger"
-                                                                }
-                                                            >
-                                                                {version.version_type}
-                                                            </Chip>
+                                                            <div className="flex items-center gap-2">
+                                                                <Chip
+                                                                    size="sm"
+                                                                    color={
+                                                                        version.version_type === "release"
+                                                                            ? "success"
+                                                                            : version.version_type === "beta"
+                                                                                ? "warning"
+                                                                                : "danger"
+                                                                    }
+                                                                >
+                                                                    {version.version_type}
+                                                                </Chip>
+                                                                {isInstallSupported && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        radius="none"
+                                                                        color="primary"
+                                                                        variant="solid"
+                                                                        isDisabled={!canInstallVersion(version)}
+                                                                        onPress={() => setInstallVersion(version)}
+                                                                        startContent={<Icon icon="pixelarticons:download"/>}
+                                                                    >
+                                                                        Install
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -410,6 +431,18 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                     </Button>
                 </div>
             </DrawerFooter>
+
+            {installVersion && (
+                <InstallModpackModal
+                    isOpen={true}
+                    onClose={() => setInstallVersion(null)}
+                    platform={platform}
+                    packId={packId}
+                    version={installVersion.id}
+                    packName={modpackDetails?.name ?? packId}
+                    minecraftVersion={installVersion.game_versions[0]}
+                />
+            )}
         </Drawer>
     );
 }
