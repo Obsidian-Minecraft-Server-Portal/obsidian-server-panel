@@ -126,7 +126,7 @@ impl ServerData {
         // Track the server as active during installation
         let servers = crate::server::server_actions::ACTIVE_SERVERS
             .get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        servers.lock().await.insert(self.id, 0);
+        servers.lock().await.insert(self.id, crate::server::server_actions::ServerHandle::Direct(0));
 
         Ok(())
     }

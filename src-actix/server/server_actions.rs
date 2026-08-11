@@ -6,12 +6,92 @@ use anyhow::Result;
 use log::{debug, error, warn};
 use obsidian_upnp::{UpnpManager, PortMappingProtocol};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio_interactive::AsynchronousInteractiveProcess;
+use tokio_interactive::{AsynchronousInteractiveProcess, ProcessHandle};
 
-pub(crate) static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, u32>>>> = OnceLock::new();
+#[cfg(target_os = "linux")]
+use crate::server::screen_session::{self, ScreenSession};
+
+#[derive(Clone)]
+pub(crate) enum ServerHandle {
+    Direct(u32),
+    #[cfg(target_os = "linux")]
+    Screen(Arc<ScreenSession>),
+}
+
+pub(crate) static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, ServerHandle>>>> = OnceLock::new();
+
+fn active_servers() -> &'static Arc<Mutex<HashMap<u64, ServerHandle>>> {
+    ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+}
+
+async fn handle_for(id: u64) -> Result<ServerHandle> {
+    active_servers().lock().await.get(&id).cloned().ok_or_else(|| anyhow::anyhow!("Server not running"))
+}
+
+async fn process_for(pid: u32) -> Result<ProcessHandle> {
+    AsynchronousInteractiveProcess::get_process_by_pid(pid).await.ok_or_else(|| anyhow::anyhow!("Server process not found"))
+}
+
+enum ConsoleReader {
+    Direct(ProcessHandle),
+    #[cfg(target_os = "linux")]
+    Screen(tokio::sync::broadcast::Receiver<String>),
+}
+
+impl ConsoleReader {
+    async fn from_handle(handle: &ServerHandle) -> Result<Self> {
+        match handle {
+            ServerHandle::Direct(pid) => Ok(Self::Direct(process_for(*pid).await?)),
+            #[cfg(target_os = "linux")]
+            ServerHandle::Screen(session) => Ok(Self::Screen(session.subscribe())),
+        }
+    }
+
+    async fn next_line(&mut self) -> Result<Option<String>> {
+        match self {
+            Self::Direct(process) => process.receive_output().await,
+            #[cfg(target_os = "linux")]
+            Self::Screen(rx) => {
+                use tokio::sync::broadcast::error::RecvError;
+                match tokio::time::timeout(Duration::from_millis(100), rx.recv()).await {
+                    Ok(Ok(line)) => Ok(Some(line)),
+                    Ok(Err(RecvError::Closed)) => Err(anyhow::anyhow!("Console stream closed")),
+                    Ok(Err(RecvError::Lagged(_))) => Ok(None),
+                    Err(_) => Ok(None),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) async fn reattach_screen_sessions(pool: &crate::database::Pool) -> Result<()> {
+    if !screen_session::screen_available().await {
+        return Ok(());
+    }
+    for entry in screen_session::list_sessions().await {
+        let Some(id) = screen_session::server_id_from_session_name(&entry.name) else { continue };
+        if !screen_session::is_pid_alive(entry.pid) {
+            continue;
+        }
+        let Ok(Some(mut server)) = ServerData::get_with_pool(id, pool).await else { continue };
+        if server.has_server_process().await {
+            continue;
+        }
+        let logfile = server.get_directory_path().join(screen_session::CONSOLE_LOG_FILE);
+        let session = ScreenSession::reattach(entry.pid, entry.name.clone(), logfile, server.exit_handler());
+        active_servers().lock().await.insert(id, ServerHandle::Screen(session));
+        server.status = ServerStatus::Running;
+        server.save_with_pool(pool).await?;
+        broadcast::broadcast(BroadcastMessage::ServerUpdate { server: server.clone() });
+        log::info!("Reattached to screen session {} for server {}", entry.name, server.name);
+    }
+    Ok(())
+}
 
 impl ServerData {
     pub async fn start_server(&mut self) -> Result<()> {
@@ -67,83 +147,35 @@ impl ServerData {
         debug!("Starting server {}", self.id);
 
         let directory_path = self.get_directory_path().canonicalize()?;
-        let self_clone = self.clone();
 
-        // Create the process builder
-        let mut process_builder = AsynchronousInteractiveProcess::new(&self.java_executable);
-
-        // Add java arguments
-        process_builder = process_builder.with_argument(format!("-Xmx{}G", &self.max_memory)).with_argument(format!("-Xms{}G", &self.min_memory));
-
-        if !self.java_args.trim().is_empty() {
-            for arg in self.java_args.split_whitespace() {
-                process_builder = process_builder.with_argument(arg);
-            }
-        }
-
+        let mut args: Vec<String> = vec![format!("-Xmx{}G", self.max_memory), format!("-Xms{}G", self.min_memory)];
+        args.extend(self.java_args.split_whitespace().map(String::from));
         if !self.server_jar.is_empty() {
-            process_builder = process_builder.with_argument("-jar").with_argument(&self.server_jar);
+            args.push("-jar".into());
+            args.push(self.server_jar.clone());
         }
+        args.extend(self.minecraft_args.split_whitespace().map(String::from));
 
-        // Add minecraft arguments
-        if !self.minecraft_args.trim().is_empty() {
-            for arg in self.minecraft_args.split_whitespace() {
-                process_builder = process_builder.with_argument(arg);
-            }
-        }
+        #[cfg(target_os = "linux")]
+        let handle = if screen_session::screen_available().await {
+            let session = ScreenSession::spawn(self.id, &self.java_executable, &args, &directory_path, self.exit_handler()).await?;
+            debug!("Server {} started in screen session {} (pid {})", self.id, session.name, session.pid);
+            ServerHandle::Screen(session)
+        } else {
+            warn!("GNU screen not found; starting server {} as a direct child process", self.id);
+            self.spawn_direct(args, &directory_path).await?
+        };
+        #[cfg(not(target_os = "linux"))]
+        let handle = self.spawn_direct(args, &directory_path).await?;
 
-        let pid = process_builder
-			.with_working_directory(&directory_path)
-			.process_exit_callback(move |exit_code| {
-				let mut self_clone = self_clone.clone();
-				tokio::spawn(async move {
-					debug!("Server exited with code {}", exit_code);
-					if exit_code != 0 {
-						if let Err(e) = self_clone.remove_server_crashed().await {
-							error!("Failed to remove server from list of running servers, you may need to restart the web panel in order to prevent against memory leaks: {}", e);
-						}
+        let mut reader = ConsoleReader::from_handle(&handle).await?;
+        active_servers().lock().await.insert(self.id, handle);
 
-						return;
-					}
-					if let Err(e) = self_clone.remove_server().await {
-						error!("Failed to remove server from list of running servers, you may need to restart the web panel in order to prevent against memory leaks: {}", e);
-					}
-				});
-			})
-			.start()
-			.await?;
-
-        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        servers.lock().await.insert(self.id, pid);
-        debug!("Server started with pid {}", pid);
         self.last_started = Some(chrono::Utc::now().timestamp() as u64);
         self.save().await?;
 
-        let hang_duration = Duration::from_secs(120); // 2 minutes
-
-        let id = self.id;
-        let owner_id = self.owner_id;
-        tokio::spawn(async move {
-            tokio::time::sleep(hang_duration).await;
-            let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-            let servers = servers.lock().await;
-            if let Some(pid) = servers.get(&id)
-                && let Some(process) = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await
-                && !process.is_process_running().await {
-                    return;
-                }
-            if let Ok(Some(server)) = ServerData::get(id, owner_id).await
-                && server.status == ServerStatus::Starting {}
-        });
-
-        let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
-            Some(process) => process,
-            None => return Err(anyhow::anyhow!("Server process not found after starting")),
-        };
-        let mut process = process;
-
         loop {
-            let line = process.receive_output().await?;
+            let line = reader.next_line().await?;
             if let Some(line) = line {
                 if line.contains("Done (") && line.contains(r#")! For help, type "help""#) {
                     self.status = ServerStatus::Running;
@@ -178,6 +210,30 @@ impl ServerData {
         Ok(())
     }
 
+    fn exit_handler(&self) -> impl Fn(i32) + Send + Sync + 'static {
+        let server = self.clone();
+        move |exit_code| {
+            let mut server = server.clone();
+            tokio::spawn(async move {
+                debug!("Server exited with code {}", exit_code);
+                let result = if exit_code != 0 { server.remove_server_crashed().await } else { server.remove_server().await };
+                if let Err(e) = result {
+                    error!("Failed to remove server from list of running servers, you may need to restart the web panel in order to prevent against memory leaks: {}", e);
+                }
+            });
+        }
+    }
+
+    async fn spawn_direct(&self, args: Vec<String>, directory: &Path) -> Result<ServerHandle> {
+        let mut builder = AsynchronousInteractiveProcess::new(&self.java_executable)
+            .with_arguments(args)
+            .with_working_directory(directory)
+            .process_exit_callback(self.exit_handler());
+        let pid = builder.start().await?;
+        debug!("Server started with pid {}", pid);
+        Ok(ServerHandle::Direct(pid))
+    }
+
     pub async fn stop_server(&mut self) -> Result<()> {
         self.status = ServerStatus::Stopping;
         self.save().await?;
@@ -192,11 +248,11 @@ impl ServerData {
     }
 
     pub async fn kill_server(&mut self) -> Result<()> {
-        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        let servers = servers.lock().await;
-        let pid = servers.get(&self.id).ok_or_else(|| anyhow::anyhow!("Server not running"))?;
-        let process = AsynchronousInteractiveProcess::get_process_by_pid(*pid).await.ok_or_else(|| anyhow::anyhow!("Server process not found"))?;
-        process.kill().await?;
+        match handle_for(self.id).await? {
+            ServerHandle::Direct(pid) => process_for(pid).await?.kill().await?,
+            #[cfg(target_os = "linux")]
+            ServerHandle::Screen(session) => session.quit().await?,
+        }
         self.remove_server().await?;
         Ok(())
     }
@@ -209,9 +265,7 @@ impl ServerData {
     }
 
     pub(crate) async fn remove_server(&mut self) -> Result<()> {
-        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        let mut servers = servers.lock().await;
-        servers.remove(&self.id);
+        active_servers().lock().await.remove(&self.id);
         self.status = ServerStatus::Stopped;
         self.save().await?;
 
@@ -239,11 +293,7 @@ impl ServerData {
     }
 
     pub(crate) async fn remove_server_crashed(&mut self) -> Result<()> {
-        {
-            let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-            let mut servers = servers.lock().await;
-            servers.remove(&self.id);
-        }
+        active_servers().lock().await.remove(&self.id);
         self.status = ServerStatus::Crashed;
         self.save().await?;
 
@@ -271,40 +321,21 @@ impl ServerData {
     }
 
     pub async fn send_command(&self, command: impl Into<String>) -> Result<()> {
-        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        let pid = {
-            let servers = servers.lock().await;
-            match servers.get(&self.id) {
-                Some(pid) => *pid,
-                None => return Err(anyhow::anyhow!("Server not running")),
-            }
-        };
-        let process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
-            Some(process) => process,
-            None => return Err(anyhow::anyhow!("Server process not found")),
-        };
-        process.send_input(command).await?;
-
+        match handle_for(self.id).await? {
+            ServerHandle::Direct(pid) => process_for(pid).await?.send_input(command).await?,
+            #[cfg(target_os = "linux")]
+            ServerHandle::Screen(session) => session.send_input(command).await?,
+        }
         Ok(())
     }
 
     pub async fn attach_to_stdout(&self, sender: tokio::sync::mpsc::Sender<actix_web_lab::sse::Event>) -> Result<()> {
-        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        let pid = {
-            let servers = servers.lock().await;
-            match servers.get(&self.id) {
-                Some(pid) => *pid,
-                None => return Err(anyhow::anyhow!("Server not running")),
-            }
-        };
-        let mut process = match AsynchronousInteractiveProcess::get_process_by_pid(pid).await {
-            Some(process) => process,
-            None => return Err(anyhow::anyhow!("Server process not found")),
-        };
+        let handle = handle_for(self.id).await?;
+        let mut reader = ConsoleReader::from_handle(&handle).await?;
 
         loop {
             // Add timeout to detect stale connections
-            let output_future = process.receive_output();
+            let output_future = reader.next_line();
             let timeout_future = tokio::time::sleep(Duration::from_secs(30));
 
             tokio::select! {
@@ -354,9 +385,7 @@ impl ServerData {
     }
 
     pub async fn has_server_process(&self) -> bool {
-        let servers = ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-        let servers = servers.lock().await;
-        servers.contains_key(&self.id)
+        active_servers().lock().await.contains_key(&self.id)
     }
 
     // Notification helper functions
