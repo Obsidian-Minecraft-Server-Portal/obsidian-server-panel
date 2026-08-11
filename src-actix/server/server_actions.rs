@@ -24,6 +24,9 @@ pub(crate) enum ServerHandle {
 
 pub(crate) static ACTIVE_SERVERS: OnceLock<Arc<Mutex<HashMap<u64, ServerHandle>>>> = OnceLock::new();
 
+const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(500);
+const SHUTDOWN_GRACE_POLLS: u32 = 120;
+
 fn active_servers() -> &'static Arc<Mutex<HashMap<u64, ServerHandle>>> {
     ACTIVE_SERVERS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
@@ -175,7 +178,18 @@ impl ServerData {
         self.save().await?;
 
         loop {
-            let line = reader.next_line().await?;
+            let line = match reader.next_line().await {
+                Ok(line) => line,
+                // The console closing because the server was stopped/killed mid-startup is not a failure.
+                Err(e) if !self.has_server_process().await => {
+                    debug!("Console for server {} closed during startup: {}", self.id, e);
+                    return Ok(());
+                }
+                Err(e) => return Err(e),
+            };
+            if !self.has_server_process().await {
+                return Ok(());
+            }
             if let Some(line) = line {
                 if line.contains("Done (") && line.contains(r#")! For help, type "help""#) {
                     self.status = ServerStatus::Running;
@@ -216,6 +230,10 @@ impl ServerData {
             let mut server = server.clone();
             tokio::spawn(async move {
                 debug!("Server exited with code {}", exit_code);
+                // An explicit kill already removed the handle and settled the status; don't overwrite it.
+                if !server.has_server_process().await {
+                    return;
+                }
                 let result = if exit_code != 0 { server.remove_server_crashed().await } else { server.remove_server().await };
                 if let Err(e) = result {
                     error!("Failed to remove server from list of running servers, you may need to restart the web panel in order to prevent against memory leaks: {}", e);
@@ -248,7 +266,9 @@ impl ServerData {
     }
 
     pub async fn kill_server(&mut self) -> Result<()> {
-        match handle_for(self.id).await? {
+        // Take the handle first so the process exit callback treats this as an intentional stop.
+        let handle = active_servers().lock().await.remove(&self.id).ok_or_else(|| anyhow::anyhow!("Server not running"))?;
+        match handle {
             ServerHandle::Direct(pid) => process_for(pid).await?.kill().await?,
             #[cfg(target_os = "linux")]
             ServerHandle::Screen(session) => session.quit().await?,
@@ -257,9 +277,23 @@ impl ServerData {
         Ok(())
     }
 
+    /// Waits for the running process to exit, force killing it if it overruns the grace period.
+    async fn await_shutdown(&mut self) -> Result<()> {
+        for _ in 0..SHUTDOWN_GRACE_POLLS {
+            if !self.has_server_process().await {
+                return Ok(());
+            }
+            tokio::time::sleep(SHUTDOWN_POLL_INTERVAL).await;
+        }
+        warn!("Server {} did not stop within the grace period; killing it", self.id);
+        self.kill_server().await
+    }
+
     pub async fn restart_server(&mut self) -> Result<()> {
-        self.stop_server().await?;
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        if self.has_server_process().await {
+            self.stop_server().await?;
+            self.await_shutdown().await?;
+        }
         self.start_server().await?;
         Ok(())
     }

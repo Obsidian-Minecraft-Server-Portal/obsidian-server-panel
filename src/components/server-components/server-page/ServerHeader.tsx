@@ -40,6 +40,14 @@ export function ServerHeader(props: ServerHeaderProps)
     const [ping, setPing] = useState<PingResponse>();
     const {open} = useMessage();
 
+    // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
+    const state = status.toLowerCase();
+    const isLive = state === "running" || state === "starting" || state === "hanging";
+    const canStart = state === "idle" || state === "stopped" || state === "error" || state === "crashed";
+    const canStop = isLive;
+    const canKill = isLive || state === "stopping";
+    const canRestart = state === "running" || state === "hanging";
+
     useEffect(() =>
     {
         if (status.toLowerCase() !== "running") {
@@ -195,32 +203,37 @@ export function ServerHeader(props: ServerHeaderProps)
                 exit={{opacity: 0, x: 40}}
                 transition={{duration: 0.3, ease: "easeInOut"}}
             >
-                {
-                    // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
-                    (status.toLowerCase() === "idle" || status.toLowerCase() === "stopped" || status.toLowerCase() === "error" || status.toLowerCase() === "crashed") ? (
-                        <Button radius={"none"} color={"primary"} variant={"solid"} isLoading={isServerStarting} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={async () =>
+                {canStart && (
+                    <Button radius={"none"} color={"primary"} variant={"solid"} isLoading={isServerStarting} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={async () =>
+                    {
+                        setIsServerStarting(true);
+                        try
                         {
-                            setIsServerStarting(true);
                             await startServer(id);
-                            setIsServerStarting(false);
-                        }}>Start</Button>
-                    ) : status.toLowerCase() === "running" ? (
-                        <>
-                            <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
-                            <Button radius={"none"} variant={"solid"} startContent={<Icon icon={"pixelarticons:repeat"} className={"text-xl"}/>} onPress={() => restartServer(id)}>Restart</Button>
-                        </>
-                    ) : status === "stopping" ? (
-                        <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"tabler:cancel"} className={"text-xl"}/>} onPress={async () =>
+                        } finally
                         {
-                            const response = await open({
-                                title: "Kill Server",
-                                body: "Are you sure you want to kill the server? This will forcefully stop the server and may cause data loss.",
-                                severity: "danger",
-                                responseType: MessageResponseType.YesNo
-                            });
-                            if (response) await killServer();
-                        }}>Kill</Button>
-                    ) : null}
+                            setIsServerStarting(false);
+                        }
+                    }}>Start</Button>
+                )}
+                {canStop && (
+                    <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
+                )}
+                {canRestart && (
+                    <Button radius={"none"} variant={"solid"} startContent={<Icon icon={"pixelarticons:repeat"} className={"text-xl"}/>} onPress={() => restartServer(id)}>Restart</Button>
+                )}
+                {canKill && (
+                    <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"tabler:cancel"} className={"text-xl"}/>} onPress={async () =>
+                    {
+                        const response = await open({
+                            title: "Kill Server",
+                            body: "Are you sure you want to kill the server? This will forcefully stop the server and may cause data loss.",
+                            severity: "danger",
+                            responseType: MessageResponseType.YesNo
+                        });
+                        if (response) await killServer(id);
+                    }}>Kill</Button>
+                )}
 
             </motion.div>
 
