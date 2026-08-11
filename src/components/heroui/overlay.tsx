@@ -35,6 +35,7 @@ interface ModalCtxValue
 {
     close: () => void;
     hideCloseButton?: boolean;
+    closeButton?: ReactNode;
     classNames?: ModalClassNames;
 }
 
@@ -77,7 +78,7 @@ export interface ModalProps extends DataAttrs
 
 export function Modal(props: ModalProps)
 {
-    const {children, isOpen, defaultOpen, onOpenChange, onClose, size = "md", backdrop, scrollBehavior, placement, isDismissable, isKeyboardDismissDisabled, hideCloseButton, className, classNames} = props;
+    const {children, isOpen, defaultOpen, onOpenChange, onClose, size = "md", backdrop, scrollBehavior, placement, isDismissable, isKeyboardDismissDisabled, hideCloseButton, closeButton, className, classNames} = props;
     const mapped = modalSizeMap[size] ?? modalSizeMap.md;
     const ctx = useMemo<ModalCtxValue>(() => ({
         close: () =>
@@ -86,8 +87,9 @@ export function Modal(props: ModalProps)
             onClose?.();
         },
         hideCloseButton,
+        closeButton,
         classNames: {...classNames, base: cn(classNames?.base, className) || undefined}
-    }), [onOpenChange, onClose, hideCloseButton, classNames, className]);
+    }), [onOpenChange, onClose, hideCloseButton, closeButton, classNames, className]);
     return (
         <V3Modal>
             <V3Modal.Backdrop
@@ -129,7 +131,7 @@ export function ModalContent({children, className}: ModalContentProps)
     const ctx = useContext(ModalCtx);
     return (
         <V3Modal.Dialog className={cn("rounded-none font-minecraft-body", ctx.classNames?.base, className)}>
-            {!ctx.hideCloseButton && <V3Modal.CloseTrigger className={ctx.classNames?.closeButton}/>}
+            {!ctx.hideCloseButton && <V3Modal.CloseTrigger className={ctx.classNames?.closeButton}>{ctx.closeButton}</V3Modal.CloseTrigger>}
             {typeof children === "function" ? children(ctx.close) : children}
         </V3Modal.Dialog>
     );
