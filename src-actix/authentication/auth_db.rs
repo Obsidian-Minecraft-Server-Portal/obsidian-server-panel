@@ -17,24 +17,16 @@ static CREATE_USER_TABLE_SQL: &str = include_str!("../../resources/sql/postgres/
 pub async fn initialize(pool: &Pool) -> Result<()> {
     debug!("Initializing authentication database...");
     pool.execute(CREATE_USER_TABLE_SQL).await?;
+    for statement in ["ALTER TABLE users ADD COLUMN email VARCHAR(255)", "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0"] {
+        if let Err(e) = pool.execute(statement).await {
+            debug!("Skipping users migration '{}': {}", statement, e);
+        }
+    }
+    crate::authentication::verification_db::initialize(pool).await?;
     Ok(())
 }
 
 impl UserData {
-    pub async fn login(username: String, password: String, pool: &Pool) -> Result<(String, Self)> {
-        let user = sqlx::query_as::<_, UserData>(&*sql(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#)).bind(username).fetch_optional(pool).await?;
-        if let Some(user) = user {
-            let is_valid_password = bcrypt::verify(password, &user.password)?;
-            if !is_valid_password {
-                return Err(anyhow::anyhow!("Invalid username or password"));
-            }
-            let token = user.generate_token()?;
-            user.update_login_time(pool).await?;
-            Ok((token, user))
-        } else {
-            Err(anyhow::anyhow!("User not found"))
-        }
-    }
     pub async fn login_with_token(token: &str, pool: &Pool) -> Result<Option<Self>> {
         let id_part = &token[..16];
         let token = &token[16..];
@@ -50,12 +42,36 @@ impl UserData {
         Ok(user)
     }
 
-    pub async fn register(username: impl  Into<String>, password: impl Into<String>, pool: &Pool) -> Result<Self> {
+    pub async fn register(username: impl Into<String>, password: impl Into<String>, email: Option<String>, pool: &Pool) -> Result<Self> {
         let username = username.into();
         let password = bcrypt::hash(password.into(), 10)?;
-        sqlx::query(&*sql(r#"INSERT INTO users (username, password) VALUES (?, ?)"#)).bind(&username).bind(password).execute(pool).await?;
+        sqlx::query(&*sql(r#"INSERT INTO users (username, password, email) VALUES (?, ?, ?)"#)).bind(&username).bind(password).bind(email).execute(pool).await?;
         let user = sqlx::query_as::<_, UserData>(&*sql(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#)).bind(username).fetch_one(pool).await?;
         Ok(user)
+    }
+
+    pub async fn find_by_username(username: &str, pool: &Pool) -> Result<Option<Self>> {
+        let user = sqlx::query_as::<_, UserData>(&*sql(r#"SELECT * FROM users WHERE username = ? LIMIT 1"#)).bind(username).fetch_optional(pool).await?;
+        Ok(user)
+    }
+
+    pub fn verify_password(&self, password: &str) -> Result<bool> {
+        Ok(bcrypt::verify(password, &self.password)?)
+    }
+
+    pub async fn set_email_verified(&self, pool: &Pool) -> Result<()> {
+        if let Some(id) = self.id {
+            sqlx::query(&*sql("UPDATE users SET email_verified = 1 WHERE id = ?")).bind(id as i64).execute(pool).await?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("User ID is not set"))
+        }
+    }
+
+    pub async fn create_session(&self, pool: &Pool) -> Result<String> {
+        let token = self.generate_token()?;
+        self.update_login_time(pool).await?;
+        Ok(token)
     }
 
     pub async fn exists(username: &str, pool: &Pool) -> Result<bool> {
