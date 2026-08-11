@@ -391,7 +391,7 @@ export function ServerOptions()
                         className="font-minecraft-body grow min-w-0"
                         value={name}
                         onValueChange={setName}
-                        startContent={<Icon icon="pixelarticons:device-game-console"/>}
+                        startContent={<Icon icon="pixelarticons:gamepad"/>}
                     />
                 </div>
 
@@ -633,7 +633,7 @@ export function ServerOptions()
                     max={maxMemory}
                     value={minMemory.toString()}
                     onValueChange={(value) => setMinMemory(Number(value) || 1)}
-                    startContent={<Icon icon="pixelarticons:memory"/>}
+                    startContent={<Icon icon="pixelarticons:memory-stick"/>}
                     description="Minimum RAM allocation for the JVM"
                 />
             </section>
@@ -651,7 +651,7 @@ export function ServerOptions()
                     placeholder="--nogui --port 25565..."
                     value={minecraftArgs}
                     onValueChange={setMinecraftArgs}
-                    startContent={<Icon icon="pixelarticons:command-line"/>}
+                    startContent={<Icon icon="pixelarticons:terminal"/>}
                     description="Additional arguments passed to the Minecraft server"
                 />
             </section>
@@ -680,7 +680,7 @@ export function ServerOptions()
                     {updateInfo && updateInfo.update_available && (
                         <div className="p-4 border border-success bg-success/10 rounded-none space-y-3">
                             <div className="flex items-center gap-2">
-                                <Icon icon="pixelarticons:circle-check" className="text-success" width={20}/>
+                                <Icon icon="pixelarticons:check" className="text-success" width={20}/>
                                 <p className="font-minecraft-body font-semibold">Update Available!</p>
                             </div>
                             <div className="flex items-center gap-2 text-sm font-minecraft-body">
@@ -733,7 +733,7 @@ export function ServerOptions()
                             Rollback to Previous Version
                         </Button>
                         <Tooltip content="Restore the previous server JAR from backup">
-                            <Icon icon="pixelarticons:info" width={16} className="text-default-400"/>
+                            <Icon icon="pixelarticons:info-box" width={16} className="text-default-400"/>
                         </Tooltip>
                     </div>
                 </div>

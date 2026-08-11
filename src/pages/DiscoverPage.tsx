@@ -375,7 +375,7 @@ export default function DiscoverPage()
                                 Array.from({length: 10}).map((_, index) => <ModpackItemSkeleton key={index}/>)
                             ) : platformData[selectedPlatform].modpacks.length === 0 ? (
                                 <div className={"text-center text-default-500 mt-8"}>
-                                    <Icon icon={"pixelarticons:folder-open"} width={48} height={48} className={"mx-auto mb-2"}/>
+                                    <Icon icon={"pixelarticons:folder"} width={48} height={48} className={"mx-auto mb-2"}/>
                                     <p>No modpacks found</p>
                                     <p className={"text-sm"}>Try adjusting your search or filters</p>
                                 </div>

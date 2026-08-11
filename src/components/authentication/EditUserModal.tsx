@@ -252,7 +252,7 @@ export default function EditUserModal({
                                         <Card className="bg-warning-50 border-warning-200">
                                             <CardBody className="p-3">
                                                 <div className="flex items-center gap-2">
-                                                    <Icon icon="pixelarticons:key" className="text-warning"/>
+                                                    <Icon icon="pixelarticons:lock" className="text-warning"/>
                                                     <span className="text-sm font-minecraft-body text-warning-700">
                                                         This user is required to change their password on next login.
                                                     </span>

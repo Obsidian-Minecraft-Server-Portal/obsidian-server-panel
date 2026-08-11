@@ -352,8 +352,8 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                                                     <Icon
                                                                                         icon={
                                                                                             user.is_active
-                                                                                                ? "pixelarticons:power"
-                                                                                                : "pixelarticons:power-on"
+                                                                                                ? "pixelarticons:power-off"
+                                                                                                : "pixelarticons:power"
                                                                                         }
                                                                                     />
                                                                                 }
@@ -363,7 +363,7 @@ export default function UserManagementModal({isOpen, onClose}: UserManagementMod
                                                                             </DropdownItem>
                                                                             <DropdownItem
                                                                                 key="reset-password"
-                                                                                startContent={<Icon icon="pixelarticons:key"/>}
+                                                                                startContent={<Icon icon="pixelarticons:lock"/>}
                                                                                 onPress={() => handleForcePasswordReset(user)}
                                                                             >
                                                                                 Force Password Reset

@@ -46,13 +46,13 @@ export function ActionsDropdown()
             case "archive":
                 return "pixelarticons:archive";
             case "extract":
-                return "pixelarticons:archive-out";
+                return "pixelarticons:open";
             case "move":
                 return "pixelarticons:move";
             case "copy":
                 return "pixelarticons:copy";
             case "backup_create":
-                return "pixelarticons:backup";
+                return "pixelarticons:save";
             case "mod_download":
                 return "pixelarticons:download";
             default:
@@ -322,7 +322,7 @@ export function ActionsDropdown()
                         </div>
                     ) : filteredActions.length === 0 ? (
                         <div className={"h-full w-full flex flex-col items-center justify-center opacity-50"}>
-                            <Icon icon={"pixelarticons:play-circle"} className={"text-4xl"}/>
+                            <Icon icon={"pixelarticons:play"} className={"text-4xl"}/>
                             <p className={"text-2xl"}>
                                 {selectedTab === "active" ? "No active tasks." :
                                     selectedTab === "completed" ? "No completed tasks." :

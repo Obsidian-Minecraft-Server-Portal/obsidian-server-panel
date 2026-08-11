@@ -120,13 +120,13 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
                     {
                         const archiveBaseName = getArchiveBaseName(entry.filename);
                         singleItemOptions.push(
-                            <ListboxItem key={"extract-here"} endContent={<Icon icon={"pixelarticons:extract"}/>} onPress={() => {
+                            <ListboxItem key={"extract-here"} endContent={<Icon icon={"pixelarticons:open"}/>} onPress={() => {
                                 onExtract(entry);
                                 onClose();
                             }}>Extract Here</ListboxItem>
                         );
                         singleItemOptions.push(
-                            <ListboxItem key={"extract-to-folder"} endContent={<Icon icon={"pixelarticons:folder-open"}/>} onPress={() => {
+                            <ListboxItem key={"extract-to-folder"} endContent={<Icon icon={"pixelarticons:folder-plus"}/>} onPress={() => {
                                 onExtract(entry, archiveBaseName);
                                 onClose();
                             }}>Extract to {archiveBaseName}</ListboxItem>

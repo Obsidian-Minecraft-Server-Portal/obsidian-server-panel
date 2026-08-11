@@ -702,7 +702,7 @@ export function ServerBackups()
                     <ModalHeader>Create Backup Schedule</ModalHeader>
                     <ModalBody className="gap-4">
                         <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
-                            <Icon icon="pixelarticons:info" className="text-primary-600 text-xl"/>
+                            <Icon icon="pixelarticons:info-box" className="text-primary-600 text-xl"/>
                             <div>
                                 <p className="text-sm font-medium text-primary-800">
                                     Automated Backups
@@ -792,7 +792,7 @@ export function ServerBackups()
                     <ModalHeader>Manage Ignored Files</ModalHeader>
                     <ModalBody>
                         <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg border border-warning-200 mb-4">
-                            <Icon icon="pixelarticons:info" className="text-warning-600 text-xl"/>
+                            <Icon icon="pixelarticons:info-box" className="text-warning-600 text-xl"/>
                             <div>
                                 <p className="text-sm font-medium text-warning-800">
                                     .obakignore Configuration
@@ -888,7 +888,7 @@ export function ServerBackups()
                     <ModalBody>
                         <div className="flex flex-col gap-4">
                             <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg border border-warning-200">
-                                <Icon icon="pixelarticons:warning" className="text-warning-600 text-xl"/>
+                                <Icon icon="pixelarticons:warning-diamond" className="text-warning-600 text-xl"/>
                                 <div>
                                     <p className="font-semibold text-warning-800">Warning: This action cannot be undone</p>
                                     <p className="text-sm text-warning-700">
