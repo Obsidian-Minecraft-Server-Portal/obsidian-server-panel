@@ -26,7 +26,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(delete_schedule)
             .service(delete_backup)
             .service(restore_backup)
-            .service(download_backup),
+            .service(download_backup)
+            .default_service(web::to(crate::actix_util::api_not_found)),
     );
 }
 

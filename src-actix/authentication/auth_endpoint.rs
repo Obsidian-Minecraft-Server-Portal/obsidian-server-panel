@@ -583,7 +583,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .service(create_user)
                     .service(update_user)
                     .service(delete_user)
-                    .service(force_password_reset),
+                    .service(force_password_reset)
+                    .default_service(web::to(crate::actix_util::api_not_found)),
             )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({

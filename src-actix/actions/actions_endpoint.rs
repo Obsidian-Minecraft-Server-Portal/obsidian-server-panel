@@ -11,7 +11,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(create_action)
             .service(update_action)
             .service(delete_completed_actions)
-            .service(delete_action),
+            .service(delete_action)
+            .default_service(web::to(crate::actix_util::api_not_found)),
     );
 }
 

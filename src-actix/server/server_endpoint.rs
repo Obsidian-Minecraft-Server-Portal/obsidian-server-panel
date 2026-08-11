@@ -571,6 +571,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .configure(filesystem::configure)
                     .configure(backups::configure)
                     .configure(updates::configure)
+                    .default_service(web::to(crate::actix_util::api_not_found)),
             )
             .default_service(web::to(|| async {
                 HttpResponse::NotFound().json(json!({

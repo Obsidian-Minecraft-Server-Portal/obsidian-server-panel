@@ -405,5 +405,11 @@ pub async fn validate_settings(req: HttpRequest, body: web::Json<Settings>) -> R
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/settings").service(get_settings).service(update_settings).service(validate_settings));
+    cfg.service(
+        web::scope("/settings")
+            .service(get_settings)
+            .service(update_settings)
+            .service(validate_settings)
+            .default_service(web::to(crate::actix_util::api_not_found)),
+    );
 }

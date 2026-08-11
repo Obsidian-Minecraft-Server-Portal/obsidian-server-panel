@@ -14,7 +14,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(check_updates)
             .service(apply_update)
             .service(rollback_update)
-            .service(list_backups),
+            .service(list_backups)
+            .default_service(web::to(crate::actix_util::api_not_found)),
     );
 }
 

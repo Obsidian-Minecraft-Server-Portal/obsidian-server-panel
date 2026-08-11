@@ -143,8 +143,8 @@ pub async fn run() -> Result<()> {
                         .configure(updater::configure)
                         .configure(broadcast::updates_endpoint::configure)
                         .configure(platforms::configure)
-                        .default_service(web::to(api_not_found)),
-                ).default_service(web::to(api_not_found)),
+                        .default_service(web::to(actix_util::api_not_found)),
+                ).default_service(web::to(actix_util::api_not_found)),
             )
             .configure_frontend_routes()
     })
@@ -178,10 +178,6 @@ pub async fn run() -> Result<()> {
     }
 
     Ok(stop_result?)
-}
-
-async fn api_not_found() -> impl Responder {
-    HttpResponse::NotFound().json(json!({ "error": "API endpoint not found" }))
 }
 
 #[get("/favicon.ico")]
