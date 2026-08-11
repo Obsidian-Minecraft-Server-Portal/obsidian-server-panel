@@ -20,7 +20,8 @@ export function QuiltVersionSelector(props: QuiltVersionSelectorProps)
     useEffect(() =>
     {
         if (!quiltVersions) return;
-        if (+(minecraftVersion.split(".")[1]) < 14)
+        const [major, minor] = minecraftVersion.split(".");
+        if (major === "1" && +minor < 14)
         {
             setVersions([]);
             setSelectedVersion(undefined);
