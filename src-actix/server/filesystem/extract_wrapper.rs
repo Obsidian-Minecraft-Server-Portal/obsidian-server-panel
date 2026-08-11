@@ -205,8 +205,8 @@ async fn extract_tar_gz(
         }
 
         let mut entry = entry_result?;
-        let entry_path = entry.path()?;
-        let output_file_path = output_path.join(&entry_path);
+        let entry_path = entry.path()?.into_owned();
+        let output_file_path = crate::actix_util::path_sanitize::ensure_path_within(output_path, &entry_path.to_string_lossy())?;
 
         debug!("Extracting: {} -> {}", entry_path.display(), output_file_path.display());
 

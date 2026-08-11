@@ -1,4 +1,5 @@
 use crate::actix_util::http_error::Result;
+use crate::actix_util::path_sanitize::ensure_path_within;
 use crate::authentication::auth_data::UserRequestExt;
 use crate::broadcast;
 use crate::broadcast::broadcast_data::BroadcastMessage;
@@ -113,7 +114,7 @@ pub async fn get_files(server_id: web::Path<String>, query: web::Query<HashMap<S
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
     let server_directory = server.get_directory_path();
-    let directory = server.get_directory_path().join(&path);
+    let directory = ensure_path_within(&server_directory, &path)?;
     if !directory.exists() {
         return Err(anyhow::anyhow!("Directory not found").into());
     }
@@ -145,12 +146,10 @@ pub async fn upload_file(
     // Extract upload ID and file path from query parameters
     let upload_id = query.get("upload_id").ok_or(anyhow::anyhow!("upload_id parameter is required"))?.clone();
     let file_path = query.get("path").ok_or(anyhow::anyhow!("path parameter is required"))?.clone();
-    // trim leading slashes from file path
-    let file_path = file_path.trim_start_matches('/').trim_start_matches('\\').to_string();
 
     // get server from server id
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
-    let full_path = server.get_directory_path().join(&file_path);
+    let full_path = ensure_path_within(&server.get_directory_path(), &file_path)?;
     let directory = full_path.parent().ok_or(anyhow::anyhow!("Invalid file path"))?;
     std::fs::create_dir_all(directory)?;
 
@@ -371,7 +370,7 @@ pub async fn upload_url(server_id: web::Path<String>, query: web::Query<HashMap<
     // get server from server id
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
-    let filepath = server.get_directory_path().join(filepath);
+    let filepath = ensure_path_within(&server.get_directory_path(), &filepath)?;
     let directory = filepath.parent().ok_or(anyhow::anyhow!("Invalid file path"))?;
     std::fs::create_dir_all(directory)?;
     tokio::spawn(async move {
@@ -469,7 +468,7 @@ async fn download(server_id: web::Path<String>, req: HttpRequest, query: web::Qu
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
 
     let server_directory = server.get_directory_path();
-    let items: Vec<PathBuf> = query.items.iter().map(|item| server_directory.join(item.trim_start_matches("\\").trim_start_matches("/"))).collect();
+    let items: Vec<PathBuf> = query.items.iter().map(|item| ensure_path_within(&server_directory, item)).collect::<anyhow::Result<_>>()?;
 
     let is_single_entry = items.len() == 1;
     let is_single_entry_directory = is_single_entry && items[0].is_dir();
@@ -584,8 +583,8 @@ pub async fn copy_entry(server_id: web::Path<String>, body: web::Json<CopyMoveRe
     let base_path = server.get_directory_path();
 
     for entry_path in &body.entries {
-        let source = base_path.join(entry_path);
-        let dest = base_path.join(&body.path).join(source.file_name().ok_or(anyhow::anyhow!("Invalid source path"))?);
+        let source = ensure_path_within(&base_path, entry_path)?;
+        let dest = ensure_path_within(&base_path, &body.path)?.join(source.file_name().ok_or(anyhow::anyhow!("Invalid source path"))?);
 
         if source.is_dir() {
             copy_dir_all(&source, &dest)?;
@@ -624,8 +623,8 @@ pub async fn move_entry(server_id: web::Path<String>, body: web::Json<CopyMoveRe
     let base_path = server.get_directory_path();
 
     for entry_path in &body.entries {
-        let source = base_path.join(entry_path);
-        let dest = base_path.join(&body.path).join(source.file_name().ok_or(anyhow::anyhow!("Invalid source path"))?);
+        let source = ensure_path_within(&base_path, entry_path)?;
+        let dest = ensure_path_within(&base_path, &body.path)?.join(source.file_name().ok_or(anyhow::anyhow!("Invalid source path"))?);
 
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)?;
@@ -645,8 +644,8 @@ pub async fn rename_entry(server_id: web::Path<String>, body: web::Json<RenameRe
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
 
-    let source = base_path.join(&body.source);
-    let dest = base_path.join(&body.destination);
+    let source = ensure_path_within(&base_path, &body.source)?;
+    let dest = ensure_path_within(&base_path, &body.destination)?;
 
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
@@ -667,7 +666,7 @@ pub async fn delete_entry(server_id: web::Path<String>, body: web::Json<DeleteRe
 
     let mut icon_deleted = false;
     for path in &body.paths {
-        let full_path = base_path.join(path);
+        let full_path = ensure_path_within(&base_path, path)?;
 
         // Check if this is the server icon before deleting
         if let Some(filename) = full_path.file_name().and_then(|n| n.to_str())
@@ -700,7 +699,7 @@ pub async fn create_entry(server_id: web::Path<String>, body: web::Json<NewEntry
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
-    let full_path = base_path.join(&body.path);
+    let full_path = ensure_path_within(&base_path, &body.path)?;
 
     if body.is_directory {
         std::fs::create_dir_all(&full_path)?;
@@ -771,8 +770,8 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
-    let cwd = base_path.join(&body.cwd);
-    let archive_path = cwd.join(&body.filename);
+    let cwd = ensure_path_within(&base_path, &body.cwd)?;
+    let archive_path = ensure_path_within(&cwd, &body.filename)?;
 
     // Create action tracking entry
     let action_details = json!({
@@ -798,7 +797,7 @@ pub async fn archive_files(server_id: web::Path<String>, body: web::Json<Archive
             cancel_flags.insert(body.tracker_id.clone(), cancel_flag.clone());
         }
 
-        let absolute_file_paths: Vec<PathBuf> = body.entries.iter().map(|entry| base_path.join(entry)).collect();
+        let absolute_file_paths: Vec<PathBuf> = body.entries.iter().map(|entry| ensure_path_within(&base_path, entry)).collect::<anyhow::Result<_>>()?;
 
         // Use the archive_wrapper to create the archive
         let archive_result = crate::server::filesystem::archive_wrapper::archive(archive_path.clone(), absolute_file_paths, tracker, &cancel_flag, &body.tracker_id).await;
@@ -878,7 +877,7 @@ pub async fn get_file_contents(server_id: web::Path<String>, query: web::Query<H
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
     let filepath = query.get("filepath").ok_or(anyhow::anyhow!("Missing 'filepath' query parameter"))?;
-    let filepath = base_path.join(filepath);
+    let filepath = ensure_path_within(&base_path, filepath)?;
     if !filepath.exists() || !filepath.is_file() {
         return Err(anyhow::anyhow!("File not found").into());
     }
@@ -898,7 +897,7 @@ pub async fn set_file_contents(
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
-    let filepath = base_path.join(query.get("filepath").ok_or(anyhow::anyhow!("Missing 'filepath' query parameter"))?);
+    let filepath = ensure_path_within(&base_path, query.get("filepath").ok_or(anyhow::anyhow!("Missing 'filepath' query parameter"))?)?;
     if !filepath.exists() || !filepath.is_file() {
         return Err(anyhow::anyhow!("File not found").into());
     }
@@ -915,13 +914,12 @@ pub async fn extract_archive(server_id: web::Path<String>, query: web::Query<Has
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow::anyhow!("Server not found"))?;
     let base_path = server.get_directory_path();
 
-    // Trim leading slashes and get paths relative to server directory
     let archive_param = query.get("archive").ok_or(anyhow::anyhow!("Missing 'archive' query parameter"))?;
     let output_param = query.get("directory").ok_or(anyhow::anyhow!("Missing 'directory' query parameter"))?;
     let tracker_id = query.get("tracker").ok_or(anyhow::anyhow!("Missing 'tracker' query parameter"))?;
 
-    let archive_path = base_path.join(archive_param.trim_start_matches('/').trim_start_matches('\\'));
-    let output_path = base_path.join(output_param.trim_start_matches('/').trim_start_matches('\\'));
+    let archive_path = ensure_path_within(&base_path, archive_param)?;
+    let output_path = ensure_path_within(&base_path, output_param)?;
 
     // Validate archive exists
     if !archive_path.exists() || !archive_path.is_file() {
