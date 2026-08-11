@@ -100,12 +100,37 @@ impl ForgeClient {
             return Err(ForgeError::InstallerFailed { exit_code });
         }
 
-        // Parse the generated start script
+        // Parse the generated start script (modern Forge, 1.17+)
         let script_name = script_parser::start_script_filename();
         let script_path = install_dir.join(script_name);
-        let script_content = tokio::fs::read_to_string(&script_path).await?;
+        if script_path.exists() {
+            let script_content = tokio::fs::read_to_string(&script_path).await?;
+            return script_parser::parse_start_script(&script_content, exit_code);
+        }
 
-        script_parser::parse_start_script(&script_content, exit_code)
+        // Legacy Forge (<= 1.16) produces a launchable server jar instead of a run script
+        let server_jar = Self::find_legacy_server_jar(&install_dir)?;
+        Ok(ForgeInstallResult {
+            server_jar,
+            java_args: String::new(),
+            exit_code,
+        })
+    }
+
+    /// Locates the universal server jar produced by legacy Forge installers,
+    /// e.g. `forge-1.12.2-14.23.5.2860.jar` or `forge-1.12.2-14.23.5.2860-universal.jar`.
+    fn find_legacy_server_jar(install_dir: &Path) -> Result<String> {
+        std::fs::read_dir(install_dir)
+            .map_err(ForgeError::Io)?
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .find(|name| {
+                let lower = name.to_lowercase();
+                lower.starts_with("forge") && lower.ends_with(".jar") && !lower.contains("installer")
+            })
+            .ok_or_else(|| ForgeError::ScriptParseError {
+                reason: "No run script or forge server jar found after installation".to_string(),
+            })
     }
 
     /// Full installation: download the installer, run it, and parse the
