@@ -28,6 +28,7 @@
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
 
+    --color-default-foreground: var(--default-foreground);
     --color-default-50: color-mix(in oklab, var(--foreground) 6%, var(--background));
     --color-default-100: color-mix(in oklab, var(--foreground) 12%, var(--background));
     --color-default-200: color-mix(in oklab, var(--foreground) 20%, var(--background));
@@ -129,12 +130,22 @@
     --secondary-foreground: #ffffff;
     --default: #808080;
     --default-foreground: #000000;
-    --success: #cccccc;
+    /* Semantic colours are separated by lightness, each >= 3:1 against the dark surfaces */
+    --success: #d9d9d9;
     --success-foreground: #000000;
-    --warning: #999999;
+    --warning: #8c8c8c;
     --warning-foreground: #000000;
-    --danger: #666666;
-    --danger-foreground: #ffffff;
+    --danger: #bfbfbf;
+    --danger-foreground: #000000;
+}
+
+/* Scroll containers inside overlays: v3 leaves them with a transparent overlay scrollbar and
+   no gutter, so long content reads as clipped rather than scrollable. */
+@utility scroll-visible {
+    min-height: 0;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
+    scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background-color);
 }
 
 :root {

@@ -258,11 +258,11 @@ export default function DiscoverPage()
     return (
         <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_100px)] h-screen min-h-[300px] relative"}>
             {/* Top Bar */}
-            <div className={"flex flex-row gap-4 items-center justify-between z-20"}>
+            <div className={"flex flex-row flex-wrap gap-4 items-center justify-between z-20 min-w-0"}>
                 <Input
                     label={"Search Modpacks"}
                     radius={"none"}
-                    className={"font-minecraft-body"}
+                    className={"font-minecraft-body min-w-0 grow basis-64"}
                     placeholder={"Ex: All the Mods, FTB, RLCraft, etc."}
                     autoComplete={"off"}
                     autoCorrect={"off"}
@@ -281,9 +281,10 @@ export default function DiscoverPage()
                 <Tabs
                     size={"lg"}
                     radius={"none"}
+                    className={"min-w-0 shrink"}
                     classNames={{
                         cursor: getPlatformColor(selectedPlatform),
-                        tabContent: "w-[20px]"
+                        tabList: "flex-wrap"
                     }}
                     selectedKey={selectedPlatform}
                     onSelectionChange={value => setSelectedPlatform(value as ModpackPlatform)}

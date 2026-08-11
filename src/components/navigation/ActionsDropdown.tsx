@@ -4,6 +4,7 @@ import {Icon} from "@iconify-icon/react";
 import {Popover} from "../extended/Popover.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {ErrorBoundary} from "../ErrorBoundry.tsx";
+import {CountChip} from "../CountChip.tsx";
 import {usePersistentAction, ActionData} from "../../providers/PersistentActionProvider.tsx";
 import {useState, useEffect, useMemo} from "react";
 
@@ -224,8 +225,8 @@ export function ActionsDropdown()
                                     color={"primary"}
                                     showOutline={false}
                                     size={"sm"}
-                                    className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none data-[show=false]:hidden"}
-                                    data-show={activeActions.length > 0}
+                                    isInvisible={activeActions.length === 0}
+                                    className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none"}
                                 >
                                     <Icon icon={"pixelarticons:checklist"} width={18}/>
                                 </Badge>
@@ -237,9 +238,7 @@ export function ActionsDropdown()
                     <div className={"flex flex-row justify-between w-full px-2 pt-2"}>
                         <div className={"text-xl font-minecraft-header"}>
                             Actions
-                            <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden ml-2"} data-show={actions.length > 0}>
-                                {actions.length}
-                            </Chip>
+                            <CountChip count={actions.length} className={"ml-2"}/>
                         </div>
                         <div className={"flex flex-row"}>
                             <Tooltip content={"Clear completed tasks"}>
@@ -268,9 +267,7 @@ export function ActionsDropdown()
                             title={
                                 <>
                                     <span className={"pl-2 mr-auto"}>Active</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={activeActions.length > 0}>
-                                        {activeActions.length}
-                                    </Chip>
+                                    <CountChip count={activeActions.length}/>
                                 </>
                             }
                         />
@@ -279,9 +276,7 @@ export function ActionsDropdown()
                             title={
                                 <>
                                     <span className={"pl-2 mr-auto"}>Done</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={completedActions.length > 0}>
-                                        {completedActions.length}
-                                    </Chip>
+                                    <CountChip count={completedActions.length}/>
                                 </>
                             }
                         />
@@ -290,9 +285,7 @@ export function ActionsDropdown()
                             title={
                                 <>
                                     <span className={"pl-2 mr-auto"}>Failed</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={failedActions.length > 0}>
-                                        {failedActions.length}
-                                    </Chip>
+                                    <CountChip count={failedActions.length}/>
                                 </>
                             }
                         />
@@ -301,9 +294,7 @@ export function ActionsDropdown()
                             title={
                                 <>
                                     <span className={"pl-2 mr-auto"}>All</span>
-                                    <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={actions.length > 0}>
-                                        {actions.length}
-                                    </Chip>
+                                    <CountChip count={actions.length}/>
                                 </>
                             }
                         />

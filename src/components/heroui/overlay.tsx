@@ -152,7 +152,7 @@ export function ModalHeader({children, className, ...rest}: HTMLAttributes<HTMLD
 export function ModalBody({children, className, ...rest}: HTMLAttributes<HTMLDivElement>)
 {
     const ctx = useContext(ModalCtx);
-    return <V3Modal.Body className={cn(ctx.classNames?.body, className)} {...rest}>{children}</V3Modal.Body>;
+    return <V3Modal.Body className={cn("scroll-visible", ctx.classNames?.body, className)} {...rest}>{children}</V3Modal.Body>;
 }
 
 export function ModalFooter({children, className, ...rest}: HTMLAttributes<HTMLDivElement>)

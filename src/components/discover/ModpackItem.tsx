@@ -86,7 +86,7 @@ export function ModpackItem(props: ModpackItemProps)
             />
             <motion.div
                 key={packId}
-                className={"flex flex-row gap-2 bg-default-200/50 w-full h-[136px] p-4 font-minecraft-body relative"}
+                className={"flex flex-row flex-wrap gap-2 bg-default-200/50 w-full min-h-[136px] shrink-0 p-4 font-minecraft-body relative"}
                 initial={{opacity: 0, y: 20}}
                 animate={{opacity: 1, y: 0}}
                 transition={{duration: 0.3}}
@@ -105,10 +105,10 @@ export function ModpackItem(props: ModpackItemProps)
                     className={"bg-default-100/20 p-2 shrink-0 grow-0 min-w-24 min-h-24"}
                     radius={"none"}
                 />
-                <div className={"flex flex-col gap-2 grow"}>
-                    <div className={"flex flex-row gap-2 items-center"}>
+                <div className={"flex flex-col gap-2 grow min-w-0 basis-64"}>
+                    <div className={"flex flex-row flex-wrap gap-2 items-center min-w-0"}>
                         <p
-                            className={"text-2xl font-minecraft-header"}
+                            className={"text-2xl font-minecraft-header min-w-0 break-words line-clamp-2"}
                             style={{color: getPlatformColor()}}
                         >
                             {name}
@@ -122,8 +122,8 @@ export function ModpackItem(props: ModpackItemProps)
                             </Tooltip>
                         )}
                     </div>
-                    <p className={"text-default-700 h-full truncate max-w-[calc(100vw_-_760px)]"}>{description}</p>
-                    <div className={"flex flex-row gap-2 text-default-500 truncate max-w-[calc(100vw_-_760px)] h-10"}>
+                    <p className={"text-default-700 min-w-0 line-clamp-2"}>{description}</p>
+                    <div className={"flex flex-row flex-wrap items-center gap-2 text-default-500 min-w-0 mt-auto"}>
                         {categories.slice(0, 6).map((category, index) => (
                             <>
                                 <span key={index} className={"text-sm"}>{category}</span>
@@ -132,21 +132,21 @@ export function ModpackItem(props: ModpackItemProps)
                         ))}
                     </div>
                 </div>
-                <div className={"flex flex-col gap-2 items-end shrink-0"}>
+                <div className={"flex flex-col gap-2 items-end shrink-0 max-w-full ml-auto"}>
                     {downloadCount > 0 && (
-                        <div className={"text-default-700 text-xl flex flex-row items-center gap-1"}>
+                        <div className={"text-default-700 text-xl flex flex-row flex-wrap justify-end items-center gap-1"}>
                             <Icon icon={"pixelarticons:download"}/>
                             <Downloads count={downloadCount}/>
                             <span className={"text-medium text-default-500"}>downloads</span>
                         </div>
                     )}
-                    <div className={"flex flex-row items-center gap-2"}>
+                    <div className={"flex flex-row flex-wrap justify-end items-center gap-2"}>
                         <span className={"text-default-500 flex flex-row gap-1 items-center"}>
                             <Icon icon={"pixelarticons:repeat"}/>Updated
                         </span>
                         <LastUpdated date={lastUpdated}/>
                     </div>
-                    <ButtonGroup className={"gap-2 z-30"}>
+                    <ButtonGroup className={"gap-2 z-30 flex-wrap justify-end"}>
                         <Tooltip content={`View ${name} details`}>
                             <Button
                                 variant={"solid"}
@@ -214,9 +214,9 @@ function Downloads({count}: { count: number })
 export function ModpackItemSkeleton()
 {
     return (
-        <div className={"flex flex-row gap-2 bg-default-200 w-full h-[136px] p-4 font-minecraft-body"}>
+        <div className={"flex flex-row flex-wrap gap-2 bg-default-200 w-full min-h-[136px] shrink-0 p-4 font-minecraft-body"}>
             <Skeleton className={"w-24 h-24 bg-default-100"}/>
-            <div className={"flex flex-col gap-2 grow"}>
+            <div className={"flex flex-col gap-2 grow min-w-0 basis-64"}>
                 <div className={"flex flex-row gap-2 items-center"}>
                     <Skeleton className={"w-48 h-8"}/>
                     <Skeleton className={"w-24 h-6"}/>
@@ -228,7 +228,7 @@ export function ModpackItemSkeleton()
                     <Skeleton className={"w-18 h-4"}/>
                 </div>
             </div>
-            <div className={"flex flex-col gap-2 items-end shrink-0"}>
+            <div className={"flex flex-col gap-2 items-end shrink-0 ml-auto"}>
                 <Skeleton className={"w-32 h-6"}/>
                 <Skeleton className={"w-28 h-5"}/>
                 <Skeleton className={"w-36 h-10 mt-auto"}/>

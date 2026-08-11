@@ -144,9 +144,6 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
         {
             const targetUnit = unit === "auto" ? autoUnit : unit;
             setMaxValue(convertBytesToUnit(hostInfo.resources.total_memory, targetUnit));
-        } else if ((variant === "network" || variant === "disk") && typeof currentValue === "object" && currentValue.mtu)
-        {
-            setMaxValue(currentValue.mtu);
         } else if (!props.maxValue)
         {
             // Keep existing default behavior if no MTU and no explicit maxValue
@@ -244,7 +241,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
             const timestamp = now - (i * interval);
             initialHistory.push({
                 time: timestamp,
-                value: Math.random() * maxValue,
+                value: 0,
                 timestamp: new Date(timestamp).toLocaleTimeString()
             });
         }
@@ -386,7 +383,13 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
 
     const sizeClasses = getSizeClasses();
     const numericValue = typeof currentValue === "object" ? (currentValue.read + currentValue.write) : currentValue;
-    const percentage = (numericValue / maxValue) * 100;
+    // Throughput has no fixed ceiling, so scale against the rolling peak; a fixed domain would
+    // flatten idle byte/s readings into an invisible baseline.
+    const isThroughput = variant === "network" || variant === "disk";
+    const scaleMax = isThroughput
+        ? Math.max(numericValue, ...valueHistory.map(p => p.value), Number.MIN_VALUE) * 1.15
+        : maxValue;
+    const percentage = Math.max(0, Math.min(100, (numericValue / scaleMax) * 100));
 
     // Custom tooltip formatter
     const CustomTooltip = ({active, payload, label}: any) =>
@@ -506,7 +509,7 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                                                 />
                                                 <Bar
                                                     dataKey="usage"
-                                                    fill="hsl(var(--heroui-primary))"
+                                                    fill="var(--accent)"
                                                     fillOpacity={1}
                                                     radius={0}
                                                     isAnimationActive={false}
@@ -533,12 +536,12 @@ export function ResourceGraph(props: ResourceGraphProps = defaultProps)
                                         />
                                         <RechartsTooltip
                                             content={<CustomTooltip/>}
-                                            cursor={{stroke: "hsl(var(--heroui-primary))", strokeWidth: 1}}
+                                            cursor={{stroke: "var(--accent)", strokeWidth: 1}}
                                         />
                                         <Line
                                             type="monotone"
                                             dataKey="value"
-                                            stroke="hsl(var(--heroui-primary))"
+                                            stroke="var(--accent)"
                                             strokeWidth={size === "sm" ? 1 : size === "lg" || size === "fullWidth" ? 3 : 2}
                                             dot={false}
                                             strokeOpacity={0.9}
