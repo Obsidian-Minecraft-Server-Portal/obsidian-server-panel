@@ -14,8 +14,8 @@ default:
 
 # Build the frontend (TypeScript check + Vite build → target/wwwroot)
 build-frontend:
-    pnpm exec tsc
-    pnpm exec vite build
+    node node_modules/typescript/bin/tsc
+    node node_modules/vite/bin/vite.js build
 
 # Start the Vite dev server with HMR
 dev-frontend:
@@ -76,6 +76,11 @@ _package feature:
     cd "{{ dist_dir }}/_staging" && zip -r "../obsidian-server-{{ os() }}-{{ arch() }}-{{ feature }}.zip" .
     rm -rf "{{ dist_dir }}/_staging"
     @echo "Packaged: {{ dist_dir }}/obsidian-server-{{ os() }}-{{ arch() }}-{{ feature }}.zip"
+
+# Build the NSIS installer from an existing release binary (requires makensis)
+[windows]
+installer version="0.0.0": (build "sqlite")
+    makensis /DVERSION={{ version }} installer/installer.nsi
 
 # ─── Development ───────────────────────────────────────────
 
@@ -159,7 +164,7 @@ compose-mysql:
     docker compose -f composer.yml exec mysql mysql -u obsidian -pobsidian_pass obsidian
 
 # Build the Docker image for a specific database backend
-docker-build feature="sqlite":
+docker-build feature="mysql":
     docker build --build-arg DB_FEATURE={{ feature }} -t obsidian-server-panel:{{ feature }} .
 
 # ─── Cleanup ───────────────────────────────────────────────
