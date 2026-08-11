@@ -246,9 +246,10 @@ export function Popover(props: PopoverProps)
     );
 }
 
-export function PopoverTrigger({children, className, ...rest}: HTMLAttributes<HTMLDivElement>)
+/** Same as DropdownTrigger: v3 wraps the child in its own div[role=button], duplicating the control the caller already passed. */
+export function PopoverTrigger({children}: HTMLAttributes<HTMLDivElement>)
 {
-    return <V3Popover.Trigger className={className} {...rest}>{children}</V3Popover.Trigger>;
+    return <>{children}</>;
 }
 
 export function PopoverContent({children, className}: {children?: ReactNode; className?: string})
@@ -312,9 +313,14 @@ export function Dropdown(props: DropdownProps)
     );
 }
 
-export function DropdownTrigger({children, className}: {children?: ReactNode; className?: string})
+/**
+ * v3's Dropdown.Trigger renders its own <button>, which would nest inside the child button every v2 call site passes.
+ * The RAC MenuTrigger above it already hands its press/aria props down through a PressResponder, so the child
+ * becomes the trigger on its own - render it bare and exactly one interactive element survives.
+ */
+export function DropdownTrigger({children}: {children?: ReactNode})
 {
-    return <V3Dropdown.Trigger className={className}>{children}</V3Dropdown.Trigger>;
+    return <>{children}</>;
 }
 
 export interface DropdownItemCompatProps
