@@ -1,11 +1,12 @@
 import "../ts/time-ext.ts";
 import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {Popover} from "../components/extended/Popover.tsx";
-import {Badge, Chip, PopoverContent, PopoverTrigger, ScrollShadow, Tab, Tabs} from "@heroui-compat";
+import {Badge, PopoverContent, PopoverTrigger, ScrollShadow, Tab, Tabs} from "@heroui-compat";
 import {Button} from "../components/extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
+import {CountChip} from "../components/CountChip.tsx";
 import {useAuthentication} from "./AuthenticationProvider.tsx";
 
 type NotificationItem = {
@@ -341,7 +342,7 @@ export function NotificationDropdown()
                     <div className={"max-w-fit"}>
                         <PopoverTrigger>
                             <Button isIconOnly variant={"light"}>
-                                <Badge content={unreadNotifications.length > 9 ? "9+" : unreadNotifications.length} color={"primary"} showOutline={false} size={"sm"} className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none data-[show=false]:hidden"} data-show={unreadNotifications.length > 0}>
+                                <Badge content={unreadNotifications.length > 9 ? "9+" : unreadNotifications.length} color={"primary"} showOutline={false} size={"sm"} isInvisible={unreadNotifications.length === 0} className={"-translate-y-[10px] translate-x-[10px] font-minecraft-body pointer-events-none"}>
                                     <Icon icon={"pixelarticons:notification"}/>
                                 </Badge>
                             </Button>
@@ -350,7 +351,7 @@ export function NotificationDropdown()
                 </Tooltip>
                 <PopoverContent className={"font-minecraft-body w-[32rem] max-h-[70dvh] h-[48rem] p-2 flex flex-col items-start justify-start"}>
                     <div className={"flex flex-row justify-between w-full px-2 pt-2"}>
-                        <div className={"text-xl font-minecraft-header"}>Notifications <Chip radius={"full"} size={"sm"} className={"text-tiny font-minecraft-body data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></div>
+                        <div className={"text-xl font-minecraft-header"}>Notifications <CountChip count={notifications.length}/></div>
                         <div className={"flex flex-row"}>
                             <Tooltip content={"Mark all as read"}>
                                 <Button isIconOnly variant={"light"} size={"lg"} onPress={markAllAsRead}><Icon icon={"pixelarticons:radio-on"}/></Button>
@@ -366,9 +367,9 @@ export function NotificationDropdown()
                         classNames={{tab: "w-32", tabContent: "w-full flex flex-row justify-between items-center"}}
                         onSelectionChange={key => setSelectedTab(key as string)}
                     >
-                        <Tab key={"all"} title={<><span className={"pl-2 mr-auto"}>All</span> <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={notifications.length > 0}>{notifications.length}</Chip></>}/>
-                        <Tab key={"unread"} title={<><span className={"pl-2 mr-auto"}>Unread</span> <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={unreadNotifications.length > 0}>{unreadNotifications.length}</Chip></>}/>
-                        <Tab key={"action"} title={<><span className={"pl-2 mr-auto"}>Actions</span> <Chip radius={"full"} size={"sm"} className={"text-tiny data-[show=false]:hidden"} data-show={actionNotifications.length > 0}>{actionNotifications.length}</Chip></>}/>
+                        <Tab key={"all"} title={<><span className={"pl-2 mr-auto"}>All</span> <CountChip count={notifications.length}/></>}/>
+                        <Tab key={"unread"} title={<><span className={"pl-2 mr-auto"}>Unread</span> <CountChip count={unreadNotifications.length}/></>}/>
+                        <Tab key={"action"} title={<><span className={"pl-2 mr-auto"}>Actions</span> <CountChip count={actionNotifications.length}/></>}/>
                     </Tabs>
 
                     {filteredNotifications.length == 0 ? (
