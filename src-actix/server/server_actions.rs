@@ -363,6 +363,9 @@ impl ServerData {
                                 break;
                             }
                         }
+                    } else if sender.is_closed() {
+                        warn!("Client connection closed, stopping console output forwarding");
+                        break;
                     }
                 }
                 _ = timeout_future => {

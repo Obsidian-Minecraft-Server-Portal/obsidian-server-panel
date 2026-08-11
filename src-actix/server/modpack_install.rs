@@ -9,13 +9,15 @@ use crate::server::server_status::ServerStatus;
 use crate::server::server_type::ServerType;
 use actix_web::{HttpRequest, HttpResponse, Responder, post, web};
 use anyhow::{Context, anyhow, bail, ensure};
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use log::{error, info, warn};
 use serde::Deserialize;
 use serde_hash::hashids::encode_single;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
+
+const DOWNLOAD_CONCURRENCY: usize = 8;
 
 #[derive(Deserialize)]
 pub struct ModpackInstallRequest {
@@ -116,7 +118,7 @@ async fn start_install(
     let mut server = ServerData::new(request.name.clone(), server_type, minecraft, loader_version, request.java_executable.clone(), user_id);
     server.status = ServerStatus::Starting;
     server.create(pool).await?;
-    std::fs::create_dir_all(server.get_directory_path())?;
+    tokio::fs::create_dir_all(server.get_directory_path()).await?;
     broadcast::broadcast(BroadcastMessage::ServerUpdate { server: server.clone() });
     Ok(server)
 }
@@ -135,6 +137,8 @@ async fn install_atlauncher_files(server: &ServerData, safe_name: &str, version:
     let mods_dir = dir.join("mods");
     tokio::fs::create_dir_all(&mods_dir).await?;
 
+    let mut downloads: Vec<(String, PathBuf)> = Vec::new();
+    let mut extractions: Vec<(PathBuf, PathBuf)> = Vec::new();
     let empty = vec![];
     for entry in manifest["mods"].as_array().unwrap_or(&empty) {
         if !entry["server"].as_bool().unwrap_or(false) || entry["optional"].as_bool().unwrap_or(false) {
@@ -154,19 +158,22 @@ async fn install_atlauncher_files(server: &ServerData, safe_name: &str, version:
         match entry["type"].as_str().unwrap_or("mods") {
             "extract" => {
                 let archive = ensure_path_within(&temp, file)?;
-                download_file(client, &url, &archive).await?;
                 let target = if entry["extractTo"].as_str() == Some("mods") { mods_dir.clone() } else { dir.clone() };
-                extract_zip(&archive, &target).await?;
+                downloads.push((url, archive.clone()));
+                extractions.push((archive, target));
             }
-            "mods" | "dependency" => {
-                let dest = ensure_path_within(&mods_dir, file)?;
-                download_file(client, &url, &dest).await?;
-            }
-            _ => {
-                let dest = ensure_path_within(&dir, file)?;
-                download_file(client, &url, &dest).await?;
-            }
+            "mods" | "dependency" => downloads.push((url, ensure_path_within(&mods_dir, file)?)),
+            _ => downloads.push((url, ensure_path_within(&dir, file)?)),
         }
+    }
+
+    futures::stream::iter(downloads.into_iter().map(|(url, dest)| async move { download_file(client, &url, &dest).await }))
+        .buffer_unordered(DOWNLOAD_CONCURRENCY)
+        .try_collect::<()>()
+        .await?;
+
+    for (archive, target) in extractions {
+        extract_zip(&archive, &target).await?;
     }
 
     tokio::fs::remove_dir_all(&temp).await.ok();

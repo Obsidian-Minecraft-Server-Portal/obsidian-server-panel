@@ -100,8 +100,8 @@ dev-mysql-down:
     docker compose -f .docker/mysql.compose.yml down
 
 # Run the backend against the local MySQL dev database
-run-mysql: dev-mysql
-    $env:DATABASE_CONNECTION_STRING = "mysql://root:root@localhost:3306/obsidian-server-panel"; cargo run --no-default-features --features mysql
+run-mysql $DATABASE_CONNECTION_STRING="mysql://root:root@localhost:3306/obsidian-server-panel": dev-mysql
+    cargo run --no-default-features --features mysql
 
 # ─── Quality ───────────────────────────────────────────────
 
