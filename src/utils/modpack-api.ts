@@ -1,4 +1,4 @@
-import type {ModpackDetails, ModpackItemProps, ModpackVersion} from "../types/ModpackTypes.ts";
+import type {ModpackDetails, ModpackItemProps, ModpackPlatform, ModpackVersion} from "../types/ModpackTypes.ts";
 
 
 // ============= MODRINTH =============
@@ -228,30 +228,7 @@ export async function fetchCurseForgeServerPackFile(modId: string, fileId: strin
 
 // ============= ATLAUNCHER =============
 
-const ATLAUNCHER_GRAPHQL_URL = "https://api.atlauncher.com/v2/graphql";
-
-async function atlLauncherGraphQL(query: string, variables?: any): Promise<any>
-{
-    const response = await fetch(ATLAUNCHER_GRAPHQL_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "User-Agent": "ObsidianServerPanel/1.0 (contact@example.com)" // Required by ATLauncher API
-        },
-        body: JSON.stringify({query, variables})
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const result = await response.json();
-
-    if (result.errors)
-    {
-        console.error("GraphQL errors:", result.errors);
-        throw new Error(result.errors[0]?.message || "GraphQL query failed");
-    }
-
-    return result.data;
-}
+const ATLAUNCHER_ICON = "https://atlauncher.com/assets/images/logo.svg";
 
 export async function searchATLauncherModpacks(params: {
     query?: string;
@@ -259,45 +236,23 @@ export async function searchATLauncherModpacks(params: {
 {
     try
     {
-        const gqlQuery = params.query
-            ? `query SearchPacks($query: String!) {
-                searchPacks(first: 50, query: $query, field: NAME) {
-                    id
-                    name
-                    safeName
-                    latestVersion {
-                        minecraftVersion
-                        updatedAt
-                    }
-                }
-            }`
-            : `query GetPacks {
-                packs(first: 50) {
-                    id
-                    name
-                    safeName
-                    latestVersion {
-                        minecraftVersion
-                        updatedAt
-                    }
-                }
-            }`;
+        const searchParams = new URLSearchParams();
+        if (params.query) searchParams.set("query", params.query);
 
-        const variables = params.query ? {query: params.query} : undefined;
-        const data = await atlLauncherGraphQL(gqlQuery, variables);
+        const response = await fetch(`/api/platform/atlauncher/search?${searchParams}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const packs = await response.json();
 
-        const packs = params.query ? data.searchPacks : data.packs;
-
-        return packs.map((pack: any) => ({
+        return (packs || []).map((pack: any) => ({
             packId: pack.safeName,
             platform: "atlauncher" as const,
-            description: "",
-            iconUrl: "https://atlauncher.com/assets/images/logo.svg",
+            description: pack.description || "",
+            iconUrl: ATLAUNCHER_ICON,
             name: pack.name,
             downloadCount: 0,
-            author: "Unknown",
-            categories: [],
-            lastUpdated: pack.latestVersion?.updatedAt ? new Date(pack.latestVersion.updatedAt) : new Date(),
+            author: "ATLauncher",
+            categories: pack.latestVersion?.minecraftVersion ? [pack.latestVersion.minecraftVersion] : [],
+            lastUpdated: pack.latestVersion?.publishedAt ? new Date(pack.latestVersion.publishedAt) : new Date(),
             slug: pack.safeName
         }));
     } catch (error)
@@ -309,40 +264,24 @@ export async function searchATLauncherModpacks(params: {
 
 export async function fetchATLauncherModpackDetails(packId: string): Promise<ModpackDetails>
 {
-    const gqlQuery = `query GetPack($safeName: String!) {
-        pack(safeName: $safeName) {
-            id
-            name
-            safeName
-            versions {
-                id
-                version
-                minecraftVersion
-                changelog
-                isRecommended
-                createdAt
-                updatedAt
-                publishedAt
-            }
-        }
-    }`;
+    const response = await fetch(`/api/platform/atlauncher/pack/${packId}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const pack = await response.json();
 
-    const data = await atlLauncherGraphQL(gqlQuery, {safeName: packId});
-    const pack = data.pack;
-
+    const versions = pack.versions || [];
     return {
         id: pack.id.toString(),
         name: pack.name,
-        description: "",
-        body: "",
-        icon_url: "https://atlauncher.com/assets/images/logo.svg",
+        description: pack.description || "",
+        body: pack.description || "",
+        icon_url: ATLAUNCHER_ICON,
         downloads: 0,
         categories: [],
-        versions: pack.versions?.map((v: any) => v.version) || [],
-        game_versions: [...new Set<string>(pack.versions?.map((v: any) => v.minecraftVersion as string) || [])],
+        versions: versions.map((v: any) => v.version),
+        game_versions: [...new Set<string>(versions.map((v: any) => v.minecraft as string))],
         loaders: [],
-        published: pack.versions?.[0]?.createdAt || "",
-        updated: pack.versions?.[0]?.updatedAt || "",
+        published: versions.length ? new Date(versions[versions.length - 1].published * 1000).toISOString() : "",
+        updated: versions.length ? new Date(versions[0].published * 1000).toISOString() : "",
         authors: [],
         slug: pack.safeName
     };
@@ -350,31 +289,18 @@ export async function fetchATLauncherModpackDetails(packId: string): Promise<Mod
 
 export async function fetchATLauncherModpackVersions(packId: string): Promise<ModpackVersion[]>
 {
-    const gqlQuery = `query GetPackVersions($safeName: String!) {
-        pack(safeName: $safeName) {
-            safeName
-            versions {
-                id
-                version
-                minecraftVersion
-                changelog
-                isRecommended
-                publishedAt
-            }
-        }
-    }`;
+    const response = await fetch(`/api/platform/atlauncher/pack/${packId}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const pack = await response.json();
 
-    const data = await atlLauncherGraphQL(gqlQuery, {safeName: packId});
-    const pack = data.pack;
-
-    return pack.versions?.map((version: any) => ({
-        id: version.id.toString(),
+    return (pack.versions || []).map((version: any, index: number) => ({
+        id: version.version,
         version_number: version.version,
         name: version.version,
-        version_type: version.isRecommended ? "release" : "beta",
+        version_type: index === 0 ? "release" : "unknown",
         loaders: [],
-        game_versions: [version.minecraftVersion],
-        date_published: version.publishedAt || "",
+        game_versions: [version.minecraft],
+        date_published: version.published ? new Date(version.published * 1000).toISOString() : "",
         downloads: 0,
         files: [{
             url: "",
@@ -382,8 +308,8 @@ export async function fetchATLauncherModpackVersions(packId: string): Promise<Mo
             primary: true,
             size: 0
         }],
-        changelog: version.changelog || ""
-    })) || [];
+        changelog: ""
+    }));
 }
 
 // ============= TECHNIC =============
@@ -398,24 +324,23 @@ export async function searchTechnicModpacks(params: {
     {
         const searchParams = new URLSearchParams();
         if (params.query) searchParams.set("q", params.query);
-        searchParams.set("build", "recommended");
 
-        const response = await fetch(`https://api.technicpack.net/search?${searchParams}`);
+        const response = await fetch(`/api/platform/technic/search?${searchParams}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
-        return data.modpacks?.slice(params.offset || 0, (params.offset || 0) + (params.limit || 20)).map((slug: string) => ({
-            packId: slug,
+        return (data.modpacks || []).slice(params.offset || 0, (params.offset || 0) + (params.limit || 20)).map((pack: any) => ({
+            packId: pack.slug,
             platform: "technic" as const,
             description: "",
-            iconUrl: `https://solder.technicpack.net/packs/${slug}/icon.png`,
-            name: slug.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" "),
+            iconUrl: pack.iconUrl,
+            name: pack.name,
             downloadCount: 0,
             author: "Unknown",
             categories: [],
             lastUpdated: new Date(),
-            slug: slug
-        })) || [];
+            slug: pack.slug
+        }));
     } catch (error)
     {
         console.error("Failed to search Technic modpacks:", error);
@@ -425,56 +350,77 @@ export async function searchTechnicModpacks(params: {
 
 export async function fetchTechnicModpackDetails(slug: string): Promise<ModpackDetails>
 {
-    const response = await fetch(`https://api.technicpack.net/modpack/${slug}?build=recommended`);
+    const response = await fetch(`/api/platform/technic/modpack/${slug}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
     return {
-        id: data.slug || slug,
-        name: data.display_name || slug,
+        id: data.name || slug,
+        name: data.displayName || slug,
         description: data.description || "",
         body: data.description || "",
         icon_url: data.icon?.url,
-        downloads: data.downloads || 0,
+        downloads: data.installs || 0,
         categories: data.tags || [],
-        versions: [data.recommended || ""],
+        versions: [data.version || ""],
         game_versions: [data.minecraft || ""],
         loaders: [],
         published: "",
         updated: "",
         authors: data.user ? [{name: data.user}] : [],
-        slug: data.slug || slug
+        slug: data.name || slug
     };
 }
 
 export async function fetchTechnicModpackVersions(slug: string): Promise<ModpackVersion[]>
 {
-    const response = await fetch(`https://api.technicpack.net/modpack/${slug}?build=recommended`);
+    const response = await fetch(`/api/platform/technic/modpack/${slug}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 
-    const versions: ModpackVersion[] = [];
+    if (!data.version) return [];
 
-    if (data.recommended)
-    {
-        versions.push({
-            id: data.recommended,
-            version_number: data.recommended,
-            name: data.recommended,
-            version_type: "release",
-            loaders: [],
-            game_versions: [data.minecraft || ""],
-            date_published: "",
-            downloads: 0,
-            files: [{
-                url: data.url || "",
-                filename: `${slug}-${data.recommended}.zip`,
-                primary: true,
-                size: 0
-            }],
-            changelog: ""
-        });
-    }
+    return [{
+        id: data.version,
+        version_number: data.version,
+        name: data.version,
+        version_type: "release",
+        loaders: [],
+        game_versions: [data.minecraft || ""],
+        date_published: "",
+        downloads: 0,
+        files: [{
+            url: data.serverPackUrl || "",
+            filename: `${slug}-${data.version}.zip`,
+            primary: true,
+            size: 0
+        }],
+        changelog: ""
+    }];
+}
 
-    return versions;
+// ============= INSTALLATION =============
+
+export async function installModpackServer(params: {
+    platform: ModpackPlatform;
+    packId: string;
+    version: string;
+    name: string;
+    javaExecutable: string;
+}): Promise<string>
+{
+    const response = await fetch("/api/server/from-modpack", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            platform: params.platform,
+            pack_id: params.packId,
+            version: params.version,
+            name: params.name,
+            java_executable: params.javaExecutable
+        })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data.server_id;
 }
