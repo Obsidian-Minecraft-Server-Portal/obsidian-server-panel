@@ -260,7 +260,7 @@ export default function NewServerModal(props: NewServerProperties)
                                 onValueChange={setName}
                                 isDisabled={isCreatingServer}
                             />
-                            <div className={"mx-auto flex flex-row"}>
+                            <div className={"flex flex-row min-w-0"}>
                                 <Tabs
                                     radius={"none"}
                                     className={"font-minecraft-body"}
