@@ -170,15 +170,22 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
     tokio::spawn(async move {
         if let Err(e) = server.start_server().await {
             error!("Failed to start server {}: {}", server.name, e);
-            // Optionally update server status to failed/crashed
-            server.status = ServerStatus::Crashed;
-            if let Err(save_err) = server.save().await {
-                error!("Failed to save server status after start failure: {}", save_err);
-            }
+            mark_start_failed(&mut server).await;
         }
     });
 
     Ok(HttpResponse::Ok().finish())
+}
+
+/// Marks a failed start as crashed, unless the process was already torn down (stop/kill) and the
+/// status settled by the shutdown path.
+async fn mark_start_failed(server: &mut ServerData) {
+    if server.has_server_process().await {
+        server.status = ServerStatus::Crashed;
+        if let Err(e) = server.save().await {
+            error!("Failed to save server status after start failure: {}", e);
+        }
+    }
 }
 
 #[post("{server_id}/stop")]
@@ -213,7 +220,12 @@ pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> R
     }
 
     let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
-    server.restart_server().await?;
+    tokio::spawn(async move {
+        if let Err(e) = server.restart_server().await {
+            error!("Failed to restart server {}: {}", server.name, e);
+            mark_start_failed(&mut server).await;
+        }
+    });
     Ok(HttpResponse::Ok().finish())
 }
 #[post("{server_id}/kill")]
