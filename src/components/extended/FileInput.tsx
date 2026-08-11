@@ -1,4 +1,4 @@
-import {forwardRef, InputHTMLAttributes, useCallback, useState, DragEvent} from "react";
+import {InputHTMLAttributes, useCallback, useState, DragEvent} from "react";
 import {Button, Input} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 
@@ -10,7 +10,7 @@ type FileInputProps = {
     size?: "sm" | "md" | "lg";
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
 
-export const FileInput = forwardRef<HTMLInputElement, FileInputProps>((props) =>
+export function FileInput(props: FileInputProps)
 {
     const [file, setFile] = useState(null as File | File[] | null);
     const [isDragging, setIsDragging] = useState(false);
@@ -101,4 +101,4 @@ export const FileInput = forwardRef<HTMLInputElement, FileInputProps>((props) =>
             )}
         </div>
     );
-});
+}

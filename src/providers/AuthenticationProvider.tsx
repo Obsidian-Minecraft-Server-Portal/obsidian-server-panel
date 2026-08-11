@@ -254,7 +254,7 @@ export function AuthenticationProvider({children}: { children: ReactNode })
 
     useEffect(() =>
     {
-        loginWithToken();
+        loginWithToken().catch(() => {});
     }, []);
 
 
