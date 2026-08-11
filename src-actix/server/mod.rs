@@ -1,6 +1,7 @@
 pub mod backups;
 mod filesystem;
 pub mod installed_mods;
+mod screen_session;
 mod server_actions;
 pub mod server_data;
 mod server_db;

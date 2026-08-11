@@ -435,6 +435,10 @@ impl ServerData {
     }
 
     pub async fn initialize_servers(pool: &Pool) -> Result<()> {
+        #[cfg(target_os = "linux")]
+        if let Err(e) = crate::server::server_actions::reattach_screen_sessions(pool).await {
+            log::error!("Failed to reattach screen sessions: {}", e);
+        }
         let servers = Self::list_all_with_pool(pool).await?;
         for mut server in servers {
             if let Err(e) = server.start_watch_server_mod_directory_for_changes().await {
