@@ -66,13 +66,13 @@ pub async fn is_version_map_expired(pool: &Pool) -> Result<bool> {
     }
 
     // Check if the oldest entry is more than 1 day old
-    let oldest: (String,) = sqlx::query_as(
+    let oldest: (chrono::NaiveDateTime,) = sqlx::query_as(
         r#"SELECT updated_at FROM java_version_map ORDER BY updated_at ASC LIMIT 1"#
     )
     .fetch_one(pool)
     .await?;
 
-    let updated_at = chrono::NaiveDateTime::parse_from_str(&oldest.0, "%Y-%m-%d %H:%M:%S")?;
+    let updated_at = oldest.0;
     let now = chrono::Utc::now().naive_utc();
     let age = now.signed_duration_since(updated_at);
 

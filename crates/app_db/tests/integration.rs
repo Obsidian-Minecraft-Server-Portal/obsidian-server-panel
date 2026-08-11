@@ -1,3 +1,5 @@
+#![cfg(feature = "sqlite")]
+
 use obsidian_database::{
     execute_schema, execute_schemas, query, query_as, query_scalar, sql, Database, DatabaseError,
     FromRow, Transaction,

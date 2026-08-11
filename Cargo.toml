@@ -85,6 +85,7 @@ strip = true        # Strip symbols from binary
 panic = "abort"     # Remove panic unwinding code
 
 [features]
+default = ["sqlite"]
 sqlite = ["sqlx/sqlite", "obsidian_database/sqlite"]
 mysql = ["sqlx/mysql", "obsidian_database/mysql"]
 postgres = ["sqlx/postgres", "obsidian_database/postgres"]

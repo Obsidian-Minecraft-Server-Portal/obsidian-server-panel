@@ -25,19 +25,19 @@ dev-frontend:
 
 # Build backend for a single database feature (debug)
 build-backend feature="sqlite":
-    cargo build --features {{ feature }}
+    cargo build --no-default-features --features {{ feature }}
 
 # Build backend for a single database feature (release)
 build-backend-release feature="sqlite":
-    cargo build --release --features {{ feature }}
+    cargo build --release --no-default-features --features {{ feature }}
 
 # Run clippy for a single database feature
 clippy feature="sqlite":
-    cargo clippy --features {{ feature }}
+    cargo clippy --no-default-features --features {{ feature }}
 
 # Run tests for a single database feature
 test feature="sqlite":
-    cargo test --features {{ feature }}
+    cargo test --no-default-features --features {{ feature }}
 
 # ─── Full Build ────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ build-all: build-frontend (_build-and-package "sqlite") (_build-and-package "mys
 # Internal: build release binary for a feature and package it into a zip
 [private]
 _build-and-package feature:
-    cargo build --release --features {{ feature }}
+    cargo build --release --no-default-features --features {{ feature }}
     just _package {{ feature }}
 
 # Internal: copy binary + wwwroot into a zip archive
@@ -81,29 +81,41 @@ _package feature:
 
 # Run the backend in debug mode (sqlite)
 run feature="sqlite":
-    cargo run --features {{ feature }}
+    cargo run --no-default-features --features {{ feature }}
 
 # Run the backend in release mode (sqlite)
 run-release feature="sqlite":
-    cargo run --release --features {{ feature }}
+    cargo run --release --no-default-features --features {{ feature }}
 
 # Watch for backend changes and rebuild (sqlite)
 watch feature="sqlite":
-    cargo watch -x "run --features {{ feature }}"
+    cargo watch -x "run --no-default-features --features {{ feature }}"
+
+# Start the local MySQL dev database (Docker)
+dev-mysql:
+    docker compose -f .docker/mysql.compose.yml up -d --wait
+
+# Stop the local MySQL dev database
+dev-mysql-down:
+    docker compose -f .docker/mysql.compose.yml down
+
+# Run the backend against the local MySQL dev database
+run-mysql: dev-mysql
+    $env:DATABASE_CONNECTION_STRING = "mysql://root:root@localhost:3306/obsidian-server-panel"; cargo run --no-default-features --features mysql
 
 # ─── Quality ───────────────────────────────────────────────
 
 # Run clippy across all database backends
 clippy-all:
-    cargo clippy --features sqlite
-    cargo clippy --features mysql
-    cargo clippy --features postgres
+    cargo clippy --no-default-features --features sqlite
+    cargo clippy --no-default-features --features mysql
+    cargo clippy --no-default-features --features postgres
 
 # Run tests across all database backends
 test-all:
-    cargo test --features sqlite
-    cargo test --features mysql
-    cargo test --features postgres
+    cargo test --no-default-features --features sqlite
+    cargo test --no-default-features --features mysql
+    cargo test --no-default-features --features postgres
 
 # Check TypeScript types
 check-frontend:

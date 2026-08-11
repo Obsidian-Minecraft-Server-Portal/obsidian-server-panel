@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
 
 -- User notifications table: tracks per-user read/hidden state
 CREATE TABLE IF NOT EXISTS `user_notifications` (
-	`user_id` INT UNSIGNED NOT NULL,
+	`user_id` BIGINT NOT NULL,
 	`notification_id` VARCHAR(255) NOT NULL,
 	`is_read` TINYINT NOT NULL DEFAULT 0,
 	`is_hidden` TINYINT NOT NULL DEFAULT 0,
