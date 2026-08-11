@@ -27,7 +27,8 @@ async function request(url: string, options: AjaxOptions = {})
         method,
         headers,
         body: options.data ?? undefined,
-        credentials: "same-origin"
+        credentials: "same-origin",
+        signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined
     });
     const text = await response.text();
     let json: unknown;

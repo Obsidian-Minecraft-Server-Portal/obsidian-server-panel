@@ -348,7 +348,8 @@ export interface SliderProps
 
 export function Slider(props: SliderProps)
 {
-    const {label, value, defaultValue, onChange, onChangeEnd, minValue, maxValue, step, isDisabled, className, getValue, formatOptions, "aria-label": ariaLabel} = props;
+    const {label, value, defaultValue, onChange, onChangeEnd, minValue = 0, maxValue = 100, step, isDisabled, className, getValue, renderValue, marks, formatOptions, "aria-label": ariaLabel} = props;
+    const current = Array.isArray(value) ? value[0] : (value ?? (Array.isArray(defaultValue) ? defaultValue[0] : defaultValue) ?? minValue);
     return (
         <V3Slider
             value={value}
@@ -363,18 +364,40 @@ export function Slider(props: SliderProps)
             aria-label={ariaLabel ?? (typeof label === "string" ? label : "slider")}
             className={cn("font-minecraft-body w-full", className)}
         >
-            {(label || getValue) && (
-                <div className="flex w-full justify-between text-sm">
+            {(label || getValue || renderValue) && (
+                <div className="flex w-full items-center justify-between text-sm">
                     {label && <Label className="font-minecraft-body">{label}</Label>}
-                    <V3Slider.Output>
-                        {({state}) => getValue ? getValue(state.values.length > 1 ? state.values : state.values[0]) : state.values.map(v => state.getFormattedValue(v)).join(" – ")}
-                    </V3Slider.Output>
+                    {renderValue
+                        ? renderValue({index: 0, value: current})
+                        : getValue && (
+                            <V3Slider.Output>
+                                {({state}) => getValue(state.values.length > 1 ? state.values : state.values[0])}
+                            </V3Slider.Output>
+                        )}
+                    {!renderValue && !getValue && (
+                        <V3Slider.Output>
+                            {({state}) => state.values.map(v => state.getFormattedValue(v)).join(" – ")}
+                        </V3Slider.Output>
+                    )}
                 </div>
             )}
             <V3Slider.Track className="rounded-none">
                 <V3Slider.Fill className="rounded-none"/>
                 {(Array.isArray(value ?? defaultValue) ? (value ?? defaultValue) as number[] : [0]).map((_, i) => <V3Slider.Thumb key={i} index={Array.isArray(value ?? defaultValue) ? i : undefined} className="rounded-none"/>)}
             </V3Slider.Track>
+            {marks && marks.length > 0 && (
+                <div className="relative w-full h-5 text-xs text-default-500">
+                    {marks.map(mark => (
+                        <span
+                            key={mark.value}
+                            className="absolute -translate-x-1/2 whitespace-nowrap"
+                            style={{left: `${((mark.value - minValue) / (maxValue - minValue)) * 100}%`}}
+                        >
+                            {mark.label}
+                        </span>
+                    ))}
+                </div>
+            )}
         </V3Slider>
     );
 }
