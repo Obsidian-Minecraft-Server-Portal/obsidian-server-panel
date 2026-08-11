@@ -255,7 +255,6 @@ export default function NewServerModal(props: NewServerProperties)
                                 className={"font-minecraft-body"}
                                 radius={"none"}
                                 size={"sm"}
-                                endContent={<Icon icon={""}/>}
                                 value={name}
                                 onValueChange={setName}
                                 isDisabled={isCreatingServer}
@@ -320,7 +319,7 @@ export default function NewServerModal(props: NewServerProperties)
                                     <p>The new server form is invalid:</p>
                                     <ul className={"list-disc pl-4"}>
                                         {invalidReasons.map(reason => (
-                                            <li>{reason}</li>
+                                            <li key={reason}>{reason}</li>
                                         ))}
                                     </ul>
                                 </div>
