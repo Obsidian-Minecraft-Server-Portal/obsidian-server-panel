@@ -5,14 +5,14 @@ WORKDIR /build
 ARG DB_FEATURE=mysql
 
 RUN apk add --no-cache nodejs npm musl-dev openssl-dev openssl-libs-static pkgconfig perl && \
-    npm i -g pnpm
+    npm i -g pnpm@10
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm i --no-frozen-lockfile
 
 COPY . .
 
-RUN pnpm run build:frontend
+RUN node node_modules/typescript/bin/tsc && node node_modules/vite/bin/vite.js build
 RUN cargo build --release --features "${DB_FEATURE}"
 
 # ── Runtime ──────────────────────────────────────────────────

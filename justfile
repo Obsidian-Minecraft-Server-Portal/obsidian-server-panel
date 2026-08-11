@@ -14,7 +14,8 @@ default:
 
 # Build the frontend (TypeScript check + Vite build → target/wwwroot)
 build-frontend:
-    pnpm run build:frontend
+    node node_modules/typescript/bin/tsc
+    node node_modules/vite/bin/vite.js build
 
 # Start the Vite dev server with HMR
 dev-frontend:
