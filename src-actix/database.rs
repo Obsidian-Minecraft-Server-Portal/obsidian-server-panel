@@ -102,11 +102,12 @@ pub async fn open_pool() -> Result<Pool> {
 
 	#[cfg(feature = "mysql")]
 	{
+		use anyhow::Context;
 		use sqlx::mysql::MySqlConnectOptions;
 		use std::str::FromStr;
 
 		let connection_string = connection_string
-			.expect("DATABASE_CONNECTION_STRING is required for MySQL (e.g., mysql://user:pass@localhost/dbname)");
+			.context("DATABASE_CONNECTION_STRING is required for MySQL (e.g., mysql://user:pass@localhost/dbname)")?;
 		let options = MySqlConnectOptions::from_str(&connection_string)?
 			.log_statements(LevelFilter::Trace);
 		Ok(Pool::connect_with(options).await?)
@@ -114,11 +115,12 @@ pub async fn open_pool() -> Result<Pool> {
 
 	#[cfg(feature = "postgres")]
 	{
+		use anyhow::Context;
 		use sqlx::postgres::PgConnectOptions;
 		use std::str::FromStr;
 
 		let connection_string = connection_string
-			.expect("DATABASE_CONNECTION_STRING is required for PostgreSQL (e.g., postgres://user:pass@localhost/dbname)");
+			.context("DATABASE_CONNECTION_STRING is required for PostgreSQL (e.g., postgres://user:pass@localhost/dbname)")?;
 		let options = PgConnectOptions::from_str(&connection_string)?
 			.log_statements(LevelFilter::Trace);
 		Ok(Pool::connect_with(options).await?)
