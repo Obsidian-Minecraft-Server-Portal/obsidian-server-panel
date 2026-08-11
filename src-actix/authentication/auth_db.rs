@@ -55,8 +55,10 @@ impl UserData {
         Ok(user)
     }
 
-    pub fn verify_password(&self, password: &str) -> Result<bool> {
-        Ok(bcrypt::verify(password, &self.password)?)
+    pub async fn verify_password(&self, password: &str) -> Result<bool> {
+        let password = password.to_string();
+        let hash = self.password.clone();
+        Ok(tokio::task::spawn_blocking(move || bcrypt::verify(password, &hash)).await??)
     }
 
     pub async fn set_email_verified(&self, pool: &Pool) -> Result<()> {

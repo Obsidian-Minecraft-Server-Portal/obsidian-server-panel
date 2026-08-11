@@ -23,11 +23,12 @@ async fn authenticate_credentials(body: &serde_json::Value) -> Result<UserData> 
     let username = body_str(body, "username")?;
     let password = body_str(body, "password")?;
     let pool = crate::database::get_pool();
-    let user = UserData::find_by_username(&username, pool).await?;
-    match user {
-        Some(user) if user.verify_password(&password)? => Ok(user),
-        _ => Err(anyhow!("Invalid username or password").into()),
+    if let Some(user) = UserData::find_by_username(&username, pool).await?
+        && user.verify_password(&password).await?
+    {
+        return Ok(user);
     }
+    Err(anyhow!("Invalid username or password").into())
 }
 
 #[post("/")]

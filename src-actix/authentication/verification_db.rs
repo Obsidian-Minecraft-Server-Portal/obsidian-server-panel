@@ -72,7 +72,8 @@ pub async fn issue_code(user_id: u64, purpose: CodePurpose, pool: &Pool) -> Resu
     }
 
     let code = generate_code()?;
-    let code_hash = bcrypt::hash(&code, 10)?;
+    let hash_input = code.clone();
+    let code_hash = tokio::task::spawn_blocking(move || bcrypt::hash(hash_input, 10)).await??;
     sqlx::query(&*sql("DELETE FROM verification_codes WHERE user_id = ? AND purpose = ?"))
         .bind(user_id as i64)
         .bind(purpose.as_str())
@@ -116,7 +117,8 @@ pub async fn verify_code(user_id: u64, purpose: CodePurpose, code: &str, pool: &
         delete().await?;
         return Ok(false);
     }
-    if bcrypt::verify(code, &code_hash)? {
+    let code = code.to_string();
+    if tokio::task::spawn_blocking(move || bcrypt::verify(code, &code_hash)).await?? {
         delete().await?;
         Ok(true)
     } else {
