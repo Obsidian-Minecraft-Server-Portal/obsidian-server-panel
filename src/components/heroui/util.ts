@@ -1,4 +1,4 @@
-import {Children, isValidElement, ReactElement, ReactNode, useCallback} from "react";
+import {Children, Fragment, isValidElement, ReactElement, ReactNode, useCallback} from "react";
 import {toast, useOverlayState} from "@heroui/react";
 
 export {cn} from "@heroui/react";
@@ -70,7 +70,19 @@ export function keyOf(element: ReactElement, index: number): string
 export function collectionNodes<T>(children: ReactNode | ((item: T) => ReactElement), items?: Iterable<T>): ReactElement[]
 {
     const resolved = typeof children === "function" ? Array.from(items ?? []).map(children) : children;
-    return Children.toArray(resolved).filter(isValidElement) as ReactElement[];
+    const nodes: ReactElement[] = [];
+    const visit = (input: ReactNode) =>
+    {
+        for (const node of Children.toArray(input))
+        {
+            if (!isValidElement(node)) continue;
+            // Children.toArray does not descend into fragments, which would otherwise receive the collection key
+            if (node.type === Fragment) visit((node.props as {children?: ReactNode}).children);
+            else nodes.push(node);
+        }
+    };
+    visit(resolved);
+    return nodes;
 }
 
 export function toValueArray(keys: Iterable<Key> | "all" | undefined): Key[]
