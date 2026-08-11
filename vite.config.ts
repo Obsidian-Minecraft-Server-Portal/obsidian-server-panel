@@ -10,6 +10,9 @@ export default defineConfig({
             "@heroui-compat": fileURLToPath(new URL("./src/components/heroui/index.ts", import.meta.url))
         }
     },
+    css: {
+        postcss: {}
+    },
     esbuild: {
         legalComments: "none",
         supported: {
