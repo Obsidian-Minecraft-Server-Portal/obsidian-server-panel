@@ -4,6 +4,7 @@ use std::sync::OnceLock;
 
 pub mod atlauncher;
 pub mod curseforge;
+pub mod getbukkit;
 pub mod modrinth;
 pub mod technic;
 
@@ -28,6 +29,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
 			.configure(curseforge::configure)
 			.configure(atlauncher::configure)
 			.configure(technic::configure)
+			.configure(getbukkit::configure)
 			.default_service(actix_web::web::to(|| async {
 				HttpResponse::NotFound().json(json!({
                     "error": "API endpoint not found".to_string(),

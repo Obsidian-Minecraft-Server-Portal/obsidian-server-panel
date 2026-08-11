@@ -12,6 +12,8 @@ pub enum ServerType {
     NeoForge,
     Quilt,
     Custom,
+    Spigot,
+    CraftBukkit,
 }
 
 impl From<u8> for ServerType {
@@ -22,6 +24,8 @@ impl From<u8> for ServerType {
             2 => Self::Fabric,
             3 => Self::NeoForge,
             4 => Self::Quilt,
+            6 => Self::Spigot,
+            7 => Self::CraftBukkit,
             _ => Self::Custom,
         }
     }
@@ -39,6 +43,8 @@ impl Display for ServerType {
                 Self::NeoForge => "NeoForge",
                 Self::Quilt => "Quilt",
                 Self::Custom => "Custom",
+                Self::Spigot => "Spigot",
+                Self::CraftBukkit => "CraftBukkit",
             }
         )
     }
@@ -55,6 +61,8 @@ impl FromStr for ServerType {
             "neo-forge" | "neoforge" => Ok(Self::NeoForge),
             "quilt" => Ok(Self::Quilt),
             "custom" => Ok(Self::Custom),
+            "spigot" => Ok(Self::Spigot),
+            "bukkit" | "craftbukkit" => Ok(Self::CraftBukkit),
             _ => Err(format!("Unknown server type: {}", s)),
         }
     }

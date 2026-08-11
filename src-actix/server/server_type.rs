@@ -9,6 +9,8 @@ pub enum ServerType {
     NeoForge = 3,
     Quilt = 4,
     Custom = 5,
+    Spigot = 6,
+    CraftBukkit = 7,
 }
 
 impl From<u8> for ServerType {
@@ -19,6 +21,8 @@ impl From<u8> for ServerType {
             2 => Self::Fabric,
             3 => Self::NeoForge,
             4 => Self::Quilt,
+            6 => Self::Spigot,
+            7 => Self::CraftBukkit,
             _ => Self::Custom,
         }
     }
@@ -32,6 +36,8 @@ impl From<String> for ServerType {
             "fabric" => Self::Fabric,
             "neo-forge" | "neoforge" => Self::NeoForge,
             "quilt" => Self::Quilt,
+            "spigot" => Self::Spigot,
+            "bukkit" | "craftbukkit" => Self::CraftBukkit,
             _ => Self::Custom,
         }
     }
@@ -46,6 +52,8 @@ impl From<ServerType> for u8 {
             ServerType::NeoForge => 3,
             ServerType::Quilt => 4,
             ServerType::Custom => 5,
+            ServerType::Spigot => 6,
+            ServerType::CraftBukkit => 7,
         }
     }
 }
@@ -59,6 +67,8 @@ impl From<ServerType> for String {
             ServerType::NeoForge => "NeoForge".to_string(),
             ServerType::Quilt => "Quilt".to_string(),
             ServerType::Custom => "Custom".to_string(),
+            ServerType::Spigot => "Spigot".to_string(),
+            ServerType::CraftBukkit => "CraftBukkit".to_string(),
         }
     }
 }

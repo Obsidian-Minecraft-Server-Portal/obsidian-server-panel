@@ -297,6 +297,8 @@ impl ServerData {
             Some(ServerType::Fabric) => minecraft_server::ServerType::Fabric,
             Some(ServerType::NeoForge) => minecraft_server::ServerType::NeoForge,
             Some(ServerType::Quilt) => minecraft_server::ServerType::Quilt,
+            Some(ServerType::Spigot) => minecraft_server::ServerType::Spigot,
+            Some(ServerType::CraftBukkit) => minecraft_server::ServerType::CraftBukkit,
             Some(ServerType::Custom) | None => minecraft_server::ServerType::Custom,
         };
 
