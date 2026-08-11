@@ -169,7 +169,7 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
             backdrop="blur"
             radius="none"
             closeButton={<Icon icon="pixelarticons:close-box" width={24}/>}
-            classNames={{closeButton: "rounded-none"}}
+            classNames={{closeButton: "rounded-none", base: "h-[85dvh]"}}
             isDismissable={!saving}
         >
             <ModalContent>
@@ -185,7 +185,7 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
                         initial={{opacity: 0}}
                         animate={{opacity: 1}}
                         transition={{duration: 0.2}}
-                        className="flex flex-row h-[600px]"
+                        className="flex flex-row h-full min-h-0"
                     >
                         {/* Left sidebar with category tabs */}
                         <div className="w-64 border-r-1 border-divider flex-shrink-0 flex items-center">
@@ -252,7 +252,7 @@ export default function SettingsModal({isOpen, onClose, onShowMessage}: Settings
                         </div>
 
                         {/* Right content area */}
-                        <div className="flex-1 p-6 overflow-y-auto">
+                        <div className="flex-1 min-w-0 p-6 overflow-y-auto scroll-visible">
                             {selectedTab === "general" && (
                                 <GeneralSettings
                                     settings={localSettings.general}

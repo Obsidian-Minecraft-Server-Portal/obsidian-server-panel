@@ -139,6 +139,15 @@
     --danger-foreground: #000000;
 }
 
+/* Scroll containers inside overlays: v3 leaves them with a transparent overlay scrollbar and
+   no gutter, so long content reads as clipped rather than scrollable. */
+@utility scroll-visible {
+    min-height: 0;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
+    scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background-color);
+}
+
 :root {
     --scrollbar-background-color: transparent;
     --scrollbar-thumb-color: var(--accent);
