@@ -1,4 +1,4 @@
-import {ComponentProps, CSSProperties, ElementType, HTMLAttributes, ImgHTMLAttributes, MouseEvent, ReactNode, Ref} from "react";
+import {ComponentProps, CSSProperties, ElementType, HTMLAttributes, ImgHTMLAttributes, MouseEvent, ReactNode, Ref, useContext} from "react";
 import {
     Accordion as V3Accordion,
     Breadcrumbs as V3Breadcrumbs,
@@ -13,7 +13,7 @@ import {
     Skeleton as V3Skeleton,
     Spinner as V3Spinner
 } from "@heroui/react";
-import {collectionNodes, keyOf, solidColorClass, textColorClass, V2Color} from "./util.ts";
+import {ButtonChromeContext, collectionNodes, keyOf, solidColorClass, textColorClass, V2Color} from "./util.ts";
 
 export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, "onClick">
 {
@@ -227,13 +227,16 @@ export interface LinkProps extends Omit<ComponentProps<typeof V3Link>, "children
 
 export function Link(props: LinkProps)
 {
-    const {children, color = "primary", size, underline, isExternal, showAnchorIcon, isBlock: _ib, className, ...rest} = props;
+    const {children, color, size, underline, isExternal, showAnchorIcon, isBlock: _ib, className, ...rest} = props;
+    // As the `as` target of a Button the link is button chrome, so it must inherit the button's foreground instead of its own.
+    const isChrome = useContext(ButtonChromeContext);
+    const resolved = color ?? (isChrome ? undefined : "primary");
     return (
         <V3Link
             target={isExternal ? "_blank" : undefined}
             rel={isExternal ? "noopener noreferrer" : undefined}
             className={cn(
-                color === "foreground" ? "text-foreground" : textColorClass[color],
+                resolved === "foreground" ? "text-foreground" : resolved && textColorClass[resolved],
                 size === "sm" && "text-sm",
                 size === "lg" && "text-lg",
                 underline === "always" ? "underline" : underline === "hover" ? "hover:underline" : "no-underline",
@@ -241,8 +244,10 @@ export function Link(props: LinkProps)
             )}
             {...rest}
         >
-            {children}
-            {showAnchorIcon && <V3Link.Icon/>}
+            <ButtonChromeContext.Provider value={false}>
+                {children}
+                {showAnchorIcon && <V3Link.Icon/>}
+            </ButtonChromeContext.Provider>
         </V3Link>
     );
 }

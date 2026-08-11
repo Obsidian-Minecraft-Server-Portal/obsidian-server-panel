@@ -14,7 +14,7 @@ import {
     Switch as V3Switch,
     TextField as V3TextField
 } from "@heroui/react";
-import {V2Color} from "./util.ts";
+import {hasSlotContent, V2Color} from "./util.ts";
 
 export interface InputClassNames
 {
@@ -107,7 +107,7 @@ export function Input(props: InputProps)
         >
             {label && <Label className={cn("font-minecraft-body", classNames?.label)}>{label}</Label>}
             <InputGroup className={cn("rounded-none min-w-0", classNames?.inputWrapper)}>
-                {startContent && <InputGroup.Prefix>{startContent}</InputGroup.Prefix>}
+                {hasSlotContent(startContent) && <InputGroup.Prefix>{startContent}</InputGroup.Prefix>}
                 <InputGroup.Input
                     ref={ref}
                     id={id}
@@ -131,7 +131,7 @@ export function Input(props: InputProps)
                     onChange={onChange}
                     className={cn("min-w-0", classNames?.input)}
                 />
-                {endContent && <InputGroup.Suffix>{endContent}</InputGroup.Suffix>}
+                {hasSlotContent(endContent) && <InputGroup.Suffix>{endContent}</InputGroup.Suffix>}
             </InputGroup>
             {description && <Description className={classNames?.description}>{description}</Description>}
             {errorMessage && <FieldError className={classNames?.errorMessage}>{errorMessage}</FieldError>}
