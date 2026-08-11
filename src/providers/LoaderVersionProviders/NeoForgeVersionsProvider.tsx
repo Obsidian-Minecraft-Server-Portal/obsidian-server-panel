@@ -43,8 +43,12 @@ export function NeoForgeVersionsProvider({children}: { children: ReactNode })
     const getFromMinecraftVersion = useCallback((minecraftVersion: string): string[] =>
     {
         if (!neoforgeVersions) return [];
-        let start = minecraftVersion.substring(2); // Remove the "1." prefix
-        return neoforgeVersions.versions.filter(version => version.startsWith(start));
+        const parts = minecraftVersion.split(".");
+        // NeoForge drops the legacy "1." prefix: 1.21.4 -> 21.4.x, 1.21 -> 21.0.x, 26.2 -> 26.2.x
+        const [major, minor] = parts[0] === "1" ? [parts[1], parts[2]] : [parts[0], parts[1]];
+        if (!major) return [];
+        const prefix = `${major}.${minor ?? "0"}.`;
+        return neoforgeVersions.versions.filter(version => version.startsWith(prefix));
     }, [neoforgeVersions]);
 
     return (
