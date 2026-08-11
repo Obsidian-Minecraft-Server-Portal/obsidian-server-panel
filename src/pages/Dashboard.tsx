@@ -2,7 +2,7 @@ import {AnimatePresence, motion} from "framer-motion";
 import {ResourceGraph} from "../components/ResourceGraph.tsx";
 import ServerList from "../components/server-components/ServerList.tsx";
 import {useEffect, useState} from "react";
-import {Tab, Tabs} from "@heroui/react";
+import {Tab, Tabs} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";
 import {useSearchParams} from "react-router-dom";

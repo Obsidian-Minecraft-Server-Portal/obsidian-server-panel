@@ -1,6 +1,6 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import {getMinecraftVersions, MinecraftVersionList} from "../../ts/minecraft-versions.ts";
-import {addToast} from "@heroui/react";
+import {addToast} from "@heroui-compat";
 import {ForgeVersionsProvider} from "./ForgeVersionsProvider.tsx";
 import {FabricVersionsProvider} from "./FabricVersionsProvider.tsx";
 import {QuiltVersionsProvider} from "./QuiltVersionsProvider.tsx";

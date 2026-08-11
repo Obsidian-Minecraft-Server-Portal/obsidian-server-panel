@@ -1,4 +1,4 @@
-import {addToast, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {addToast, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";

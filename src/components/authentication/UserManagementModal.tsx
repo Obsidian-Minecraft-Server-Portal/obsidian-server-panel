@@ -1,8 +1,8 @@
 import {useEffect, useState} from "react";
-import {Button, Chip, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, useDisclosure} from "@heroui/react";
+import {Button, Chip, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, useDisclosure} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {AnimatePresence, motion} from "framer-motion";
-import $ from "jquery";
+import $ from "../../ts/http.ts";
 import {PermissionFlag, UserData} from "../../types/UserTypes.ts";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
 import {useMessage} from "../../providers/MessageProvider.tsx";

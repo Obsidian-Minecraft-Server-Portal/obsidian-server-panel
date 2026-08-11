@@ -1,5 +1,5 @@
 import {useJavaVersion} from "../../providers/JavaVersionProvider.tsx";
-import {Button, Progress, Select, SelectItem, SelectSection} from "@heroui/react";
+import {Button, Progress, Select, SelectItem, SelectSection} from "@heroui-compat";
 import {useCallback, useEffect, useState} from "react";
 import {getJavaRuntimeForMinecraftVersion, JavaRuntime, JavaVersion} from "../../ts/java-versions.ts";
 import {Tooltip} from "../extended/Tooltip.tsx";

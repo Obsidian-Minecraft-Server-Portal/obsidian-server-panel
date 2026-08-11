@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $ from "./http.ts";
 
 type CategoryResult = {
     data: Category[],

@@ -1,4 +1,4 @@
-import {Badge, Chip, PopoverContent, PopoverTrigger, Progress, ScrollShadow, Tab, Tabs, Accordion, AccordionItem} from "@heroui/react";
+import {Badge, Chip, PopoverContent, PopoverTrigger, Progress, ScrollShadow, Tab, Tabs, Accordion, AccordionItem} from "@heroui-compat";
 import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Popover} from "../extended/Popover.tsx";

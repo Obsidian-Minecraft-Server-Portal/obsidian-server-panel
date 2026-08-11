@@ -18,10 +18,10 @@ import {
     TableHeader,
     TableRow,
     useDisclosure
-} from "@heroui/react";
+} from "@heroui-compat";
 import {Button} from "../../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
-import $ from "jquery";
+import $ from "../../../ts/http.ts";
 import {PermissionFlag, UserData} from "../../../types/UserTypes.ts";
 import {useAuthentication} from "../../../providers/AuthenticationProvider.tsx";
 import {MessageOptions, MessageResponseType} from "../../MessageModal.tsx";

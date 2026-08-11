@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $ from "../ts/http.ts";
 import {createContext, ReactNode, useContext, useEffect, useState} from "react";
 import {getJavaVersions, getRuntimeFiles as getFiles, installRuntime, JavaRuntime, JavaVersion, JavaVersionMap, uninstallRuntime} from "../ts/java-versions.ts";
 import {useAuthentication} from "./AuthenticationProvider.tsx";

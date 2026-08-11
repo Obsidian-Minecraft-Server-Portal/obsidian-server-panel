@@ -1,5 +1,5 @@
 import {forwardRef, useState} from "react";
-import {Chip, Input, Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui/react";
+import {Chip, Input, Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui-compat";
 import {useMinecraftVersions} from "../../../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 import {Icon} from "@iconify-icon/react";
 import Checkbox from "../../../extended/Checkbox.tsx";

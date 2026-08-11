@@ -1,6 +1,6 @@
 import {useServer} from "../../providers/ServerProvider.tsx";
 import {useMessage} from "../../providers/MessageProvider.tsx";
-import {Button, Link} from "@heroui/react";
+import {Button, Link} from "@heroui-compat";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {MessageResponseType} from "../MessageModal.tsx";
 import {Icon} from "@iconify-icon/react";

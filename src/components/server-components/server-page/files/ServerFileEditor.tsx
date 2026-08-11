@@ -1,4 +1,4 @@
-import {cn} from "@heroui/react";
+import {cn} from "@heroui-compat";
 import {Editor} from "@monaco-editor/react";
 import {AnimatePresence, motion} from "framer-motion";
 import {forwardRef, useCallback, useImperativeHandle, useRef} from "react";
@@ -35,7 +35,7 @@ interface ServerFileEditorProps
     selectedEntries: FilesystemEntry[];
     selectedFileContents: string;
     browserWidth: number;
-    containerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
     isDragging: boolean;
     needsToSave: boolean;
     onContentChange: (content: string) => void;

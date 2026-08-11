@@ -1,5 +1,5 @@
 import {forwardRef} from "react";
-import {Input as OGInput, InputProps} from "@heroui/react";
+import {Input as OGInput, InputProps} from "@heroui-compat";
 
 export const Input = forwardRef<HTMLInputElement, Omit<InputProps, "radius">>((props, ref) =>
 {

@@ -1,4 +1,4 @@
-import {Input, Slider} from "@heroui/react";
+import {Input, Slider} from "@heroui-compat";
 import {useEffect, useState} from "react";
 import {useHostInfo} from "../../providers/HostInfoProvider.tsx";
 import "../../ts/math-ext.ts";

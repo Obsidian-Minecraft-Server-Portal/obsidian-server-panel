@@ -1,10 +1,10 @@
-import {Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui-compat";
 import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {PasswordInput} from "../extended/PasswordInput.tsx";
 import {useState} from "react";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";
-import $ from "jquery";
+import $ from "../../ts/http.ts";
 import {useMessage} from "../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../MessageModal.tsx";
 

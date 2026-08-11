@@ -1,19 +1,150 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap');
 @import url('minecraft-font.css');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "@heroui/styles";
 
+@theme {
+    --font-minecraft-header: 'MinecraftHeader', sans-serif;
+    --font-minecraft-body: 'MinecraftBody', sans-serif;
+    --font-sans: 'Noto Sans', sans-serif;
+}
+
+/* HeroUI v2 compatibility tokens mapped onto v3 theme variables */
+@theme inline {
+    --color-primary: var(--accent);
+    --color-primary-foreground: var(--accent-foreground);
+    --color-primary-50: color-mix(in oklab, var(--accent) 15%, var(--background));
+    --color-primary-100: color-mix(in oklab, var(--accent) 25%, var(--background));
+    --color-primary-200: color-mix(in oklab, var(--accent) 40%, var(--background));
+    --color-primary-300: color-mix(in oklab, var(--accent) 55%, var(--background));
+    --color-primary-400: color-mix(in oklab, var(--accent) 75%, var(--background));
+    --color-primary-500: var(--accent);
+    --color-primary-600: color-mix(in oklab, var(--accent) 80%, var(--foreground));
+    --color-primary-700: color-mix(in oklab, var(--accent) 70%, var(--foreground));
+    --color-primary-800: color-mix(in oklab, var(--accent) 60%, var(--foreground));
+    --color-primary-900: color-mix(in oklab, var(--accent) 50%, var(--foreground));
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-default-50: color-mix(in oklab, var(--foreground) 6%, var(--background));
+    --color-default-100: color-mix(in oklab, var(--foreground) 12%, var(--background));
+    --color-default-200: color-mix(in oklab, var(--foreground) 20%, var(--background));
+    --color-default-300: color-mix(in oklab, var(--foreground) 30%, var(--background));
+    --color-default-400: color-mix(in oklab, var(--foreground) 42%, var(--background));
+    --color-default-500: color-mix(in oklab, var(--foreground) 55%, var(--background));
+    --color-default-600: color-mix(in oklab, var(--foreground) 65%, var(--background));
+    --color-default-700: color-mix(in oklab, var(--foreground) 75%, var(--background));
+    --color-default-800: color-mix(in oklab, var(--foreground) 85%, var(--background));
+    --color-default-900: color-mix(in oklab, var(--foreground) 95%, var(--background));
+
+    --color-warning-50: color-mix(in oklab, var(--warning) 15%, var(--background));
+    --color-warning-100: color-mix(in oklab, var(--warning) 25%, var(--background));
+    --color-warning-200: color-mix(in oklab, var(--warning) 40%, var(--background));
+    --color-warning-300: color-mix(in oklab, var(--warning) 55%, var(--background));
+    --color-warning-400: color-mix(in oklab, var(--warning) 75%, var(--background));
+    --color-warning-500: var(--warning);
+    --color-warning-600: color-mix(in oklab, var(--warning) 80%, var(--foreground));
+    --color-warning-700: color-mix(in oklab, var(--warning) 70%, var(--foreground));
+    --color-warning-800: color-mix(in oklab, var(--warning) 60%, var(--foreground));
+    --color-warning-900: color-mix(in oklab, var(--warning) 50%, var(--foreground));
+
+    --color-success-50: color-mix(in oklab, var(--success) 15%, var(--background));
+    --color-success-100: color-mix(in oklab, var(--success) 25%, var(--background));
+    --color-success-200: color-mix(in oklab, var(--success) 40%, var(--background));
+    --color-success-400: color-mix(in oklab, var(--success) 75%, var(--background));
+    --color-success-500: var(--success);
+    --color-success-600: color-mix(in oklab, var(--success) 80%, var(--foreground));
+    --color-success-700: color-mix(in oklab, var(--success) 70%, var(--foreground));
+
+    --color-danger-50: color-mix(in oklab, var(--danger) 15%, var(--background));
+    --color-danger-100: color-mix(in oklab, var(--danger) 25%, var(--background));
+    --color-danger-200: color-mix(in oklab, var(--danger) 40%, var(--background));
+    --color-danger-400: color-mix(in oklab, var(--danger) 75%, var(--background));
+    --color-danger-500: var(--danger);
+    --color-danger-600: color-mix(in oklab, var(--danger) 80%, var(--foreground));
+    --color-danger-700: color-mix(in oklab, var(--danger) 70%, var(--foreground));
+
+    --color-content1: var(--surface);
+    --color-content2: var(--surface-secondary);
+    --color-content3: var(--surface-tertiary);
+    --color-content4: var(--overlay);
+    --color-divider: var(--separator);
+}
+
+/* Sharp corners everywhere */
+:root {
+    --radius: 0rem;
+    --field-radius: 0rem;
+}
+
+/* Default dark theme (v2 "dark") */
+.dark,
+[data-theme="dark"] {
+    --accent: #1bd96a;
+    --accent-foreground: #000000;
+    --secondary: #eaeaea;
+    --secondary-foreground: #000000;
+    --background: #0b0b0e;
+}
+
+.light,
+[data-theme="light"] {
+    --secondary: #7828c8;
+    --secondary-foreground: #ffffff;
+}
+
+/* Deuteranopia friendly - blue/purple instead of green/red */
+.dark.deuteranopia-friendly {
+    --accent: #0ea5e9;
+    --accent-foreground: #ffffff;
+    --secondary: #6366f1;
+    --secondary-foreground: #ffffff;
+    --success: #0ea5e9;
+    --success-foreground: #ffffff;
+    --danger: #8b5cf6;
+    --danger-foreground: #ffffff;
+}
+
+/* Tritanopia friendly - cyan secondary */
+.dark.tritanopia-friendly {
+    --accent: #1bd96a;
+    --accent-foreground: #000000;
+    --secondary: #06b6d4;
+    --secondary-foreground: #000000;
+}
+
+/* Monochrome */
+.dark.monochrome {
+    --accent: #ffffff;
+    --accent-foreground: #000000;
+    --secondary: #666666;
+    --secondary-foreground: #ffffff;
+    --default: #808080;
+    --default-foreground: #000000;
+    --success: #cccccc;
+    --success-foreground: #000000;
+    --warning: #999999;
+    --warning-foreground: #000000;
+    --danger: #666666;
+    --danger-foreground: #ffffff;
+}
 
 :root {
     --scrollbar-background-color: transparent;
-    --scrollbar-thumb-color: hsl(var(--heroui-primary));
-    --scrollbar-thumb-hover-color: hsl(var(--heroui-primary));
+    --scrollbar-thumb-color: var(--accent);
+    --scrollbar-thumb-hover-color: var(--accent);
     overflow: auto;
     scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background-color);
     scrollbar-width: thin;
     scrollbar-gutter: stable;
+}
+
+body {
+    font-family: 'MinecraftBody', 'Noto Sans', sans-serif;
+    background: var(--background);
+    color: var(--foreground);
 }
 
 ::-webkit-scrollbar {
@@ -26,7 +157,6 @@
 
 ::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb-color);
-    border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -34,6 +164,6 @@
 }
 
 ::selection {
-    background-color: hsl(var(--heroui-primary));
-    color: hsl(var(--heroui-background));
+    background-color: var(--accent);
+    color: var(--background);
 }

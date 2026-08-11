@@ -1,5 +1,5 @@
 import {forwardRef, InputHTMLAttributes, useCallback, useState, DragEvent} from "react";
-import {Button, Input} from "@heroui/react";
+import {Button, Input} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 
 type FileInputProps = {

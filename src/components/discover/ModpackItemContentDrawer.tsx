@@ -10,7 +10,7 @@ import {
     Button,
     Link,
     Skeleton
-} from "@heroui/react";
+} from "@heroui-compat";
 import {useEffect, useMemo, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import type {ModpackDetails, ModpackVersion, ModpackPlatform} from "../../types/ModpackTypes.ts";

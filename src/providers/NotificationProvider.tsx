@@ -1,7 +1,7 @@
 import "../ts/time-ext.ts";
 import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {Popover} from "../components/extended/Popover.tsx";
-import {Badge, Chip, PopoverContent, PopoverTrigger, ScrollShadow, Tab, Tabs} from "@heroui/react";
+import {Badge, Chip, PopoverContent, PopoverTrigger, ScrollShadow, Tab, Tabs} from "@heroui-compat";
 import {Button} from "../components/extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../components/extended/Tooltip.tsx";

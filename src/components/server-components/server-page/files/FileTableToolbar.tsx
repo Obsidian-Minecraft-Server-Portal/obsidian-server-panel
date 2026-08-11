@@ -1,4 +1,4 @@
-import {Button, ButtonGroup} from "@heroui/react";
+import {Button, ButtonGroup} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 

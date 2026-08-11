@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Textarea, useDisclosure} from "@heroui/react";
+import {Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, Textarea, useDisclosure} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Button} from "../../../extended/Button.tsx";
 import {Select} from "../../../extended/Select.tsx";

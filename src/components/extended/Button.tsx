@@ -1,5 +1,5 @@
 import {forwardRef} from "react";
-import {ButtonProps, Button as OGButton, cn} from "@heroui/react";
+import {ButtonProps, Button as OGButton, cn} from "@heroui-compat";
 
 export const Button = forwardRef<HTMLButtonElement, Omit<ButtonProps, "radius">>((props, ref) =>
 {

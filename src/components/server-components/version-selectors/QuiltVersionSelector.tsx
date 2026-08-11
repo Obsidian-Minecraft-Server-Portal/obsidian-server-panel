@@ -1,4 +1,4 @@
-import {addToast, Autocomplete, AutocompleteItem} from "@heroui/react";
+import {addToast, Autocomplete, AutocompleteItem} from "@heroui-compat";
 import {useEffect, useState} from "react";
 import {useQuiltVersions} from "../../../providers/LoaderVersionProviders/QuiltVersionsProvider.tsx";
 import {getQuiltServerUrl} from "../../../ts/quilt-versions.ts";

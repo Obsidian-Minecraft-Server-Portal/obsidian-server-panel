@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Button, Card, CardBody} from "@heroui/react";
+import {Button, Card, CardBody} from "@heroui-compat";
 import {Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis} from "recharts";
 import {Tooltip} from "./extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";

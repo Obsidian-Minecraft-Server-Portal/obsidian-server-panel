@@ -1,4 +1,4 @@
-import {Divider, Select, SelectItem, Card, CardBody, Progress, Chip} from "@heroui/react";
+import {Divider, Select, SelectItem, Card, CardBody, Progress, Chip} from "@heroui-compat";
 import {Button} from "../../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {JavaSettings as JavaSettingsType} from "../../../types/SettingsTypes.ts";

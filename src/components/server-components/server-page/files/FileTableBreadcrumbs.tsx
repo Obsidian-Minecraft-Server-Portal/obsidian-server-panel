@@ -1,4 +1,4 @@
-import {BreadcrumbItem, Breadcrumbs} from "@heroui/react";
+import {BreadcrumbItem, Breadcrumbs} from "@heroui-compat";
 
 type FileTableBreadcrumbsProperties = {
     onNavigate: (path: string) => void;

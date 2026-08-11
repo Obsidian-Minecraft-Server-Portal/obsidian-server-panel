@@ -1,4 +1,4 @@
-import {addToast} from "@heroui/react";
+import {addToast} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useState} from "react";
 import {ImageCropModal} from "./options/ImageCropModal.tsx";

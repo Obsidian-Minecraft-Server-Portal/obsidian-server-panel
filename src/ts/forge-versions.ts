@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $ from "./http.ts";
 
 export type ForgeVersionList = {
     [key: string]: string[];

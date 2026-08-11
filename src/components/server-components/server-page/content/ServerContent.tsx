@@ -1,4 +1,4 @@
-import {Button, Input, Tab, Tabs} from "@heroui/react";
+import {Button, Input, Tab, Tabs} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {useEffect, useState} from "react";

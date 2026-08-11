@@ -1,12 +1,11 @@
 import React from "react";
 import {BrowserRouter, Route, Routes, useLocation, useNavigate} from "react-router-dom";
 import ReactDOM from "react-dom/client";
-import $ from "jquery";
 import {AnimatePresence} from "framer-motion";
 
 import "./css/index.css";
 import {ThemeProvider} from "./providers/ThemeProvider.tsx";
-import {HeroUIProvider, ToastProvider} from "@heroui/react";
+import {RouterProvider, ToastProvider} from "@heroui/react";
 import {AuthenticationProvider} from "./providers/AuthenticationProvider.tsx";
 import {HostInfoProvider} from "./providers/HostInfoProvider.tsx";
 import Footer from "./components/Footer.tsx";
@@ -26,7 +25,7 @@ import Navigation from "./components/navigation/Navigation.tsx";
 import {NotificationProvider} from "./providers/NotificationProvider.tsx";
 import {PersistentActionProvider} from "./providers/PersistentActionProvider.tsx";
 
-ReactDOM.createRoot($("#root")[0]!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
         <BrowserRouter>
             <WindowProvider>
@@ -62,19 +61,8 @@ export function MainContentRenderer()
     const location = useLocation();
 
     return (
-        <HeroUIProvider navigate={navigate}>
-            <ToastProvider
-                placement={"bottom-right"}
-                toastProps={{
-                    radius: "none",
-                    shouldShowTimeoutProgress: true,
-                    timeout: 3000, // 3 second timeout for toasts,
-                    classNames: {
-                        title: "font-minecraft-header",
-                        base: "font-minecraft-body"
-                    }
-                }}
-            />
+        <RouterProvider navigate={navigate}>
+            <ToastProvider placement={"bottom end"} className={"rounded-none font-minecraft-body"}/>
             <AnimatePresence mode="wait" initial={false}>
                 <main className={"w-full flex flex-col"}>
                     <Navigation/>
@@ -92,6 +80,6 @@ export function MainContentRenderer()
                     <Footer/>
                 </main>
             </AnimatePresence>
-        </HeroUIProvider>
+        </RouterProvider>
     );
 }

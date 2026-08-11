@@ -1,9 +1,8 @@
-import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui-compat";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import React, {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
 import "../../../../ts/math-ext.ts";
-import $ from "jquery";
 import {ContextMenuOptions, RowContextMenu} from "./RowContextMenu.tsx";
 import {useMessage} from "../../../../providers/MessageProvider.tsx";
 import {MessageResponseType} from "../../../MessageModal.tsx";
@@ -101,7 +100,7 @@ export function ServerFiles()
 
     const scrollToTop = useCallback(() =>
     {
-        $("#server-files-table").parent().scrollTop(0);
+        document.getElementById("server-files-table")?.parentElement?.scrollTo({top: 0});
     }, [path]);
 
     const saveContent = useCallback(async () =>
@@ -707,31 +706,24 @@ export function ServerFiles()
 
     useEffect(() =>
     {
-        $(document).on("click", e =>
+        const closeIfOutside = (e: Event) =>
         {
-            // Close the context menu when clicking outside
-            if (!$(e.target).closest("#server-files-context-menu").length)
+            // Close the context menu when interacting outside of it
+            if (!(e.target instanceof Element && e.target.closest("#server-files-context-menu")))
             {
                 setContextMenuOptions(prev => ({...prev, isOpen: false}));
             }
-        }).on("blur", e =>
-        {
-            // Close the context menu when focus is lost
-            if (!$(e.target).closest("#server-files-context-menu").length)
-            {
-                setContextMenuOptions(prev => ({...prev, isOpen: false}));
-            }
-        });
-        $("#server-files-table").parent().on("scroll", () =>
-        {
-            // Close the context menu when scrolling
-            setContextMenuOptions(prev => ({...prev, isOpen: false}));
-        });
+        };
+        const closeOnScroll = () => setContextMenuOptions(prev => ({...prev, isOpen: false}));
+        const scrollParent = document.getElementById("server-files-table")?.parentElement;
+        document.addEventListener("click", closeIfOutside);
+        document.addEventListener("blur", closeIfOutside, true);
+        scrollParent?.addEventListener("scroll", closeOnScroll);
         return () =>
         {
-            $(document).off("click");
-            $(document).off("blur");
-            $("#server-files-table").parent().off("scroll");
+            document.removeEventListener("click", closeIfOutside);
+            document.removeEventListener("blur", closeIfOutside, true);
+            scrollParent?.removeEventListener("scroll", closeOnScroll);
         };
     }, []);
 
@@ -1063,8 +1055,8 @@ export function ServerFiles()
                                                                 variant={"light"}
                                                                 onPress={e =>
                                                                 {
-                                                                    let position = $(e.target).offset();
-                                                                    if (!position) return;
+                                                                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                                                                    const position = {left: rect.left + window.scrollX, top: rect.top + window.scrollY};
                                                                     setContextMenuOptions({
                                                                         entry,
                                                                         x: position.left - 264,

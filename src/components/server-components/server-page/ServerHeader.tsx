@@ -1,4 +1,4 @@
-import {Button, cn, Divider} from "@heroui/react";
+import {Button, cn, Divider} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
 import {useEffect, useState} from "react";
@@ -7,7 +7,7 @@ import {MessageResponseType} from "../../MessageModal.tsx";
 import {motion} from "framer-motion";
 import {ServerIcon} from "./ServerIcon.tsx";
 import ReactMarkdown from "react-markdown";
-import $ from "jquery";
+import $ from "../../../ts/http.ts";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 
 type ServerHeaderProps = {

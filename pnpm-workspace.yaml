@@ -1,3 +1,7 @@
+allowBuilds:
+  '@heroui/shared-utils': set this to true or false
+  '@parcel/watcher': set this to true or false
+  esbuild: set this to true or false
 onlyBuiltDependencies:
   - '@heroui/shared-utils'
   - '@parcel/watcher'

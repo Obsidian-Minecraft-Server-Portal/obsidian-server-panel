@@ -1,4 +1,4 @@
-import {cn, Tooltip as OriginalTooltip, TooltipProps as OriginalTooltipProps} from "@heroui/react";
+import {cn, Tooltip as OriginalTooltip, TooltipProps as OriginalTooltipProps} from "@heroui-compat";
 import {forwardRef} from "react";
 
 export type TooltipProps =

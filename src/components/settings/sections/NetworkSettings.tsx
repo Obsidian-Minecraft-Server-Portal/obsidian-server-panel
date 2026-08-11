@@ -1,4 +1,4 @@
-import {Checkbox, Divider, Card, CardBody} from "@heroui/react";
+import {Checkbox, Divider, Card, CardBody} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {NetworkSettings as NetworkSettingsType} from "../../../types/SettingsTypes.ts";
 

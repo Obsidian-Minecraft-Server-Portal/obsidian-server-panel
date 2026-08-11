@@ -1,4 +1,4 @@
-import {Button, Divider, Image, Link} from "@heroui/react";
+import {Button, Divider, Image, Link} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {InstalledMod, useServer} from "../../../../../providers/ServerProvider.tsx";
 import React, {useState, useEffect} from "react";
