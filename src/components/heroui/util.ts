@@ -1,4 +1,4 @@
-import {Children, Fragment, isValidElement, ReactElement, ReactNode, useCallback} from "react";
+import {Children, createContext, Fragment, isValidElement, ReactElement, ReactNode, useCallback} from "react";
 import {toast, useOverlayState} from "@heroui/react";
 
 export {cn} from "@heroui/react";
@@ -57,6 +57,17 @@ export const textColorClass: Record<V2Color, string> = {
     warning: "text-warning",
     danger: "text-danger"
 };
+
+/** Guards adornment slots: `false`, `""` and a blank `<Icon icon=""/>` must not reserve layout space. */
+export function hasSlotContent(node: ReactNode): boolean
+{
+    if (node == null || node === false || node === "") return false;
+    if (isValidElement<{icon?: unknown}>(node) && node.props.icon === "") return false;
+    return true;
+}
+
+/** Set while a component renders a polymorphic child as button chrome, so the child suppresses its own text colour. */
+export const ButtonChromeContext = createContext(false);
 
 export function keyOf(element: ReactElement, index: number): string
 {

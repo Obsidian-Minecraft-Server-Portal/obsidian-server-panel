@@ -1,6 +1,6 @@
 import {ComponentProps, CSSProperties, ElementType, MouseEvent, ReactNode, Ref} from "react";
 import {Button as V3Button, ButtonGroup as V3ButtonGroup, buttonVariants, cn, Spinner} from "@heroui/react";
-import {borderColorClass, DataAttrs, flatColorClass, lightColorClass, solidColorClass, V2Color} from "./util.ts";
+import {borderColorClass, ButtonChromeContext, DataAttrs, flatColorClass, lightColorClass, solidColorClass, V2Color} from "./util.ts";
 
 type V3ButtonProps = ComponentProps<typeof V3Button>;
 export type ButtonVariant = "solid" | "bordered" | "light" | "flat" | "ghost" | "faded" | "shadow";
@@ -66,16 +66,18 @@ export function Button(props: ButtonProps)
     {
         const As = (as ?? "a") as ElementType;
         return (
-            <As
-                href={href}
-                target={target}
-                rel={rel}
-                className={cn(buttonVariants({variant: mapped.variant, size: size === "md" ? undefined : size, isIconOnly: props.isIconOnly ? true : undefined}), "rounded-none font-minecraft-body no-underline", mapped.className, className)}
-                onClick={onPress ? () => (onPress as () => void)() : undefined}
-                {...(rest as Record<string, unknown>)}
-            >
-                {content}
-            </As>
+            <ButtonChromeContext.Provider value={true}>
+                <As
+                    href={href}
+                    target={target}
+                    rel={rel}
+                    className={cn(buttonVariants({variant: mapped.variant, size: size === "md" ? undefined : size, isIconOnly: props.isIconOnly ? true : undefined}), "rounded-none font-minecraft-body no-underline", mapped.className, className)}
+                    onClick={onPress ? () => (onPress as () => void)() : undefined}
+                    {...(rest as Record<string, unknown>)}
+                >
+                    {content}
+                </As>
+            </ButtonChromeContext.Provider>
         );
     }
     return (
