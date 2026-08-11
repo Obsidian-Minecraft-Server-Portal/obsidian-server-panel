@@ -55,7 +55,7 @@ export function StorageSettings({settings, onChange}: StorageSettingsProps) {
                     value={settings.backups_directory}
                     onValueChange={(value) => onChange({...settings, backups_directory: value})}
                     radius="none"
-                    startContent={<Icon icon="pixelarticons:backup"/>}
+                    startContent={<Icon icon="pixelarticons:save"/>}
                     classNames={{
                         label: "font-minecraft-body",
                         input: "font-minecraft-body font-mono text-sm"
