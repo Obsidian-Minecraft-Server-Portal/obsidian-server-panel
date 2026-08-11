@@ -185,7 +185,8 @@ export function Tooltip(props: TooltipProps)
     const {children, content, placement, delay, closeDelay, showArrow, offset, isDisabled, isOpen, onOpenChange, className, classNames, ref} = props;
     return (
         <V3Tooltip delay={delay ?? 250} closeDelay={closeDelay ?? 0} isDisabled={isDisabled} isOpen={isOpen} onOpenChange={onOpenChange}>
-            <V3Tooltip.Trigger ref={ref} className="inline-flex max-w-fit">{children}</V3Tooltip.Trigger>
+            {/* V3Tooltip.Trigger spreads incoming props over its own `ref`, so an empty ref would null out the anchor it measures against. */}
+            <V3Tooltip.Trigger {...(ref ? {ref} : {})} className="inline-flex max-w-fit">{children}</V3Tooltip.Trigger>
             <V3Tooltip.Content
                 placement={mapPlacement(placement)}
                 showArrow={showArrow}
