@@ -1,0 +1,16 @@
+services:
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: obsidian-server-panel
+    tmpfs:
+      - /var/lib/mysql
+    command: --innodb-use-native-aio=0
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 2s
+      timeout: 5s
+      retries: 10

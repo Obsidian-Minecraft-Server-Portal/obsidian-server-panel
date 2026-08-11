@@ -12,7 +12,7 @@ RUN apk update && \
 RUN npm i vite pnpm -g
 RUN pnpm i --no-frozen-lockfile --force
 RUN pnpm run "build:frontend"
-RUN cargo build --release --features "${DB_FEATURE}"
+RUN cargo build --release --no-default-features --features "${DB_FEATURE}"
 
 # ── Runtime ──────────────────────────────────────────────────
 FROM alpine:latest
