@@ -16,6 +16,10 @@ pub struct UserData {
     pub username: String,
     #[serde(skip)]
     pub password: String,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub email_verified: bool,
     #[serde(serialize_with = "serialize_permissions")]
     pub permissions: BitFlags<PermissionFlag>,
     pub join_date: DateTime<Utc>,
@@ -30,6 +34,8 @@ impl Default for UserData {
             id: None,
             username: String::new(),
             password: String::new(),
+            email: None,
+            email_verified: false,
             permissions: PermissionFlag::None.into(),
             join_date: Utc::now(),
             last_online: Utc::now(),
@@ -73,6 +79,8 @@ impl<'a> FromRow<'a, Row> for UserData {
         let id: Option<u64> = row.try_get::<i64, _>("id").ok().map(|i| i as u64);
         let username: String = row.try_get("username")?;
         let password: String = row.try_get("password")?;
+        let email: Option<String> = row.try_get("email").unwrap_or(None);
+        let email_verified: i32 = row.try_get("email_verified").unwrap_or(0);
         let permissions: i32 = row.try_get("permissions")?;
         let permissions = BitFlags::<PermissionFlag>::from_bits_truncate(permissions as u16);
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
@@ -83,6 +91,8 @@ impl<'a> FromRow<'a, Row> for UserData {
             id,
             username,
             password,
+            email,
+            email_verified: email_verified != 0,
             permissions,
             join_date,
             last_online,

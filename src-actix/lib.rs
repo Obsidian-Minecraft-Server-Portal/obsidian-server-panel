@@ -19,6 +19,7 @@ mod authentication;
 mod broadcast;
 mod command_line_args;
 pub mod database;
+pub mod email;
 mod fabric_endpoint;
 mod forge_endpoint;
 mod neoforge_endpoint;
@@ -63,6 +64,9 @@ pub async fn run() -> Result<()> {
 
     // Initialize settings path
     settings::initialize_settings_path();
+
+    // Read SMTP configuration from environment (enables email verification + 2FA when set)
+    email::init();
 
     // Create shared database pool (stored globally)
     let pool = database::init_pool().await?;

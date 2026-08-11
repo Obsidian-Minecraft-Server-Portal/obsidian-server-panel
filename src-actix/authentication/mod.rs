@@ -3,6 +3,7 @@ mod auth_db;
 mod auth_endpoint;
 mod auth_middleware;
 pub mod user_permissions;
+pub mod verification_db;
 
 pub use auth_db::initialize;
 pub use auth_endpoint::configure;
