@@ -21,7 +21,8 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
     useEffect(() =>
     {
         if (!fabricVersions) return;
-        if (+(minecraftVersion.split(".")[1]) < 14)
+        const [major, minor] = minecraftVersion.split(".");
+        if (major === "1" && +minor < 14)
         {
             setVersions([]);
             setSelectedVersion(undefined);
@@ -44,9 +45,11 @@ export function FabricVersionSelector(props: FabricVersionSelectorProps)
 
     useEffect(() =>
     {
-        let installer: string | undefined = fabricVersions?.installer?.find(i => i.stable)?.version;
+        if (!fabricVersions) return;
+        let installer: string | undefined = fabricVersions.installer?.find(i => i.stable)?.version;
         if (!installer)
         {
+            console.error("No stable Fabric installer version found in", fabricVersions.installer);
             addToast({
                 title: "Error",
                 description: "No stable Fabric installer version found.",
