@@ -1,5 +1,5 @@
 import {forwardRef} from "react";
-import {cn, Select as OGSelect, SelectProps} from "@heroui/react";
+import {cn, Select as OGSelect, SelectProps} from "@heroui-compat";
 
 export const Select = forwardRef<HTMLSelectElement, Omit<SelectProps, "radius">>((props, ref) =>
 {

@@ -2,7 +2,7 @@ import {useParams, useSearchParams} from "react-router-dom";
 import ErrorPage from "./ErrorPage.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
 import {useCallback, useEffect, useState} from "react";
-import {Button, Card, CardHeader, Chip, Image, Link, Skeleton, Tab, Tabs} from "@heroui/react";
+import {Button, Card, CardHeader, Chip, Image, Link, Skeleton, Tab, Tabs} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {useMessage} from "../providers/MessageProvider.tsx";

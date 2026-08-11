@@ -1,5 +1,5 @@
 import {createRef, useEffect, useState} from "react";
-import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui-compat";
 import Cropper, {ReactCropperElement, ReactCropperProps} from "react-cropper";
 import "../../../../css/cropper.min.css";
 

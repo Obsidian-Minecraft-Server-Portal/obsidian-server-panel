@@ -1,5 +1,5 @@
 import {forwardRef} from "react";
-import {Autocomplete as OGAutocomplete, AutocompleteProps, cn} from "@heroui/react";
+import {Autocomplete as OGAutocomplete, AutocompleteProps, cn} from "@heroui-compat";
 
 export const Autocomplete = forwardRef<HTMLInputElement, Omit<AutocompleteProps, "radius">>((props, ref) =>
 {

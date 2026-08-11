@@ -1,4 +1,4 @@
-import {cn, Dropdown as OriginalDropdown, DropdownMenu as OriginalDropdownMenu, DropdownMenuProps, DropdownProps} from "@heroui/react";
+import {cn, Dropdown as OriginalDropdown, DropdownMenu as OriginalDropdownMenu, DropdownMenuProps, DropdownProps} from "@heroui-compat";
 
 export function Dropdown(props: DropdownProps)
 {

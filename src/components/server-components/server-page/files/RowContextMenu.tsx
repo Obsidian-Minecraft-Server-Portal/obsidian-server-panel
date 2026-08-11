@@ -1,4 +1,4 @@
-import {Listbox, ListboxItem, ListboxSection} from "@heroui/react";
+import {Listbox, ListboxItem, ListboxSection} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
 import {useCallback, useEffect, useRef, useState} from "react";

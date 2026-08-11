@@ -1,4 +1,4 @@
-import {Autocomplete, AutocompleteItem, Button} from "@heroui/react";
+import {Autocomplete, AutocompleteItem, Button} from "@heroui-compat";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useEffect, useState} from "react";

@@ -1,5 +1,5 @@
 import {AnimatePresence, motion} from "framer-motion";
-import {addToast, Button, Form, Input, Link} from "@heroui/react";
+import {addToast, Button, Form, Input, Link} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import Checkbox from "../components/extended/Checkbox.tsx";
 import {useState} from "react";

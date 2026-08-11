@@ -1,6 +1,6 @@
 import {Themes, useTheme} from "../providers/ThemeProvider.tsx";
 import {Select} from "./extended/Select.tsx";
-import {SelectItem, SelectProps} from "@heroui/react";
+import {SelectItem, SelectProps} from "@heroui-compat";
 import {forwardRef} from "react";
 
 export const AccessibilityThemeSwitch = forwardRef<HTMLSelectElement, Omit<SelectProps, "radius" | "children">>((props, ref) =>

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Chip, Input, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Chip, Input, SelectItem, Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useInfiniteScroll} from "@heroui/use-infinite-scroll";
 import {useAsyncList} from "@react-stately/data";

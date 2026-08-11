@@ -1,4 +1,4 @@
-import {Input, Checkbox, Divider} from "@heroui/react";
+import {Input, Checkbox, Divider} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {GeneralSettings as GeneralSettingsType} from "../../../types/SettingsTypes.ts";
 

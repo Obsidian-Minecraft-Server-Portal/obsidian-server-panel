@@ -1,4 +1,4 @@
-import {ButtonGroup, Divider, Image, Link, Skeleton} from "@heroui/react";
+import {ButtonGroup, Divider, Image, Link, Skeleton} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Button} from "../extended/Button.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";

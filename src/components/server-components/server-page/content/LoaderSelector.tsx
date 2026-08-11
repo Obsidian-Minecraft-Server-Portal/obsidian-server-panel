@@ -1,5 +1,5 @@
 import {forwardRef} from "react";
-import {Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui/react";
+import {Listbox, ListboxItem, ListboxProps, ScrollShadow} from "@heroui-compat";
 
 
 export const LoaderSelector = forwardRef<HTMLDivElement, Omit<ListboxProps, "children">>((props, ref) =>

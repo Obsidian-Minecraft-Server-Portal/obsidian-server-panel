@@ -1,4 +1,4 @@
-import {Autocomplete, AutocompleteItem} from "@heroui/react";
+import {Autocomplete, AutocompleteItem} from "@heroui-compat";
 import {useEffect, useState} from "react";
 import {useNeoForgeVersions} from "../../../providers/LoaderVersionProviders/NeoForgeVersionsProvider.tsx";
 

@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Button, Card, CardBody, CheckboxGroup, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Button, Card, CardBody, CheckboxGroup, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {motion} from "framer-motion";
 import $ from "jquery";

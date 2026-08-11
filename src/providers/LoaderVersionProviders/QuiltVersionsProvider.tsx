@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
-import {addToast} from "@heroui/react";
+import {addToast} from "@heroui-compat";
 import {QuiltVersionList, getQuiltVersions} from "../../ts/quilt-versions.ts";
 
 interface QuiltVersionsContextType

@@ -1,4 +1,4 @@
-import {addToast, Autocomplete, AutocompleteItem} from "@heroui/react";
+import {addToast, Autocomplete, AutocompleteItem} from "@heroui-compat";
 import {useEffect, useState} from "react";
 import {useFabricVersions} from "../../../providers/LoaderVersionProviders/FabricVersionsProvider.tsx";
 import {getFabricServerUrl} from "../../../ts/fabric-versions.ts";

@@ -1,4 +1,4 @@
-import {Popover as OriginalPopover, PopoverProps} from "@heroui/react";
+import {Popover as OriginalPopover, PopoverProps} from "@heroui-compat";
 
 export function Popover(props: PopoverProps)
 {

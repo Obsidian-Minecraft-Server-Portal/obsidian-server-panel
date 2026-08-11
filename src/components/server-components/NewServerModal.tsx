@@ -1,4 +1,4 @@
-import {addToast, CircularProgress, DropdownItem, DropdownTrigger, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui/react";
+import {addToast, CircularProgress, DropdownItem, DropdownTrigger, Input, Link, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tab, Tabs} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {NeoForge} from "../icons/NeoForge.svg.tsx";
 import Quilt from "../icons/Quilt.svg.tsx";

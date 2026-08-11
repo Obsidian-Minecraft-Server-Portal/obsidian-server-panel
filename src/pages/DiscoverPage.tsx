@@ -1,6 +1,6 @@
 import {useNavigate, useParams, useSearchParams} from "react-router-dom";
 import {useEffect, useState, useRef} from "react";
-import {Button, Input, Tab, Tabs} from "@heroui/react";
+import {Button, Input, Tab, Tabs} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {motion, AnimatePresence} from "framer-motion";
 import {Tooltip} from "../components/extended/Tooltip.tsx";

@@ -1,6 +1,6 @@
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useState} from "react";
-import {Button, Input} from "@heroui/react";
+import {Button, Input} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 

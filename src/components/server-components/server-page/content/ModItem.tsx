@@ -1,4 +1,4 @@
-import {ButtonGroup, cn, Divider, Image, Link, Skeleton} from "@heroui/react";
+import {ButtonGroup, cn, Divider, Image, Link, Skeleton} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import {useLocation, useNavigate} from "react-router-dom";

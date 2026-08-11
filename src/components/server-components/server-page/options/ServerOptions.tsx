@@ -1,5 +1,5 @@
 import "../../../../ts/string-ext.ts";
-import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea, Chip, addToast} from "@heroui/react";
+import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea, Chip, addToast} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";

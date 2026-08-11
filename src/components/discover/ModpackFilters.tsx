@@ -1,4 +1,4 @@
-import {Listbox, ListboxItem, ScrollShadow} from "@heroui/react";
+import {Listbox, ListboxItem, ScrollShadow} from "@heroui-compat";
 import {useMinecraftVersions} from "../../providers/LoaderVersionProviders/MinecraftVersionsProvider.tsx";
 
 type ModpackFiltersProps = {

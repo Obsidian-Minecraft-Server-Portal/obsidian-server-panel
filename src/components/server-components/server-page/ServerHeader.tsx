@@ -1,4 +1,4 @@
-import {Button, cn, Divider} from "@heroui/react";
+import {Button, cn, Divider} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../providers/ServerProvider.tsx";
 import {useEffect, useState} from "react";

@@ -1,4 +1,4 @@
-import {addToast, Button, Form, Input} from "@heroui/react";
+import {addToast, Button, Form, Input} from "@heroui-compat";
 import Checkbox from "../components/extended/Checkbox.tsx";
 import {Icon} from "@iconify-icon/react";
 import {useAuthentication} from "../providers/AuthenticationProvider.tsx";

@@ -1,5 +1,4 @@
 import {createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useState} from "react";
-import $ from "jquery";
 
 export enum Themes
 {
@@ -27,31 +26,20 @@ export function ThemeProvider({children}: { children: ReactNode })
     {
         const resolvedTheme = theme === Themes.SYSTEM ? getSystemTheme() : theme;
 
-        // Remove all possible theme classes
-        $("html")
-            .removeClass("dark light high-contrast deuteranopia-friendly tritanopia-friendly monochrome");
+        const html = document.documentElement;
+        html.classList.remove("dark", "light", "high-contrast", "deuteranopia-friendly", "tritanopia-friendly", "monochrome");
 
-        // All accessibility themes should be in dark mode, so we always add "dark" class
-        // except for the explicit light theme
+        // All accessibility themes extend dark mode; only the explicit light theme is light
         if (resolvedTheme === Themes.LIGHT)
         {
-            $("html").addClass("light");
+            html.classList.add("light");
         } else
         {
-            // Always add dark class for all other themes (including accessibility themes)
-            $("html").addClass("dark");
-
-            if (resolvedTheme === Themes.DEUTERANOPIA_FRIENDLY)
+            html.classList.add("dark");
+            if (resolvedTheme === Themes.DEUTERANOPIA_FRIENDLY || resolvedTheme === Themes.TRITANOPIA_FRIENDLY || resolvedTheme === Themes.MONOCHROME)
             {
-                $("html").addClass("deuteranopia-friendly");
-            } else if (resolvedTheme === Themes.TRITANOPIA_FRIENDLY)
-            {
-                $("html").addClass("tritanopia-friendly");
-            } else if (resolvedTheme === Themes.MONOCHROME)
-            {
-                $("html").addClass("monochrome");
+                html.classList.add(resolvedTheme);
             }
-            // If it's DARK theme, we only need the "dark" class which is already added
         }
 
         localStorage.setItem("app-theme", theme.toString());

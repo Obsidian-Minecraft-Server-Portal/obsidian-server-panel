@@ -1,4 +1,4 @@
-import {Card, CardBody, Divider, Image} from "@heroui/react";
+import {Card, CardBody, Divider, Image} from "@heroui-compat";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";

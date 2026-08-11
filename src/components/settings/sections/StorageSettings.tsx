@@ -1,4 +1,4 @@
-import {Input, Divider} from "@heroui/react";
+import {Input, Divider} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {StorageSettings as StorageSettingsType} from "../../../types/SettingsTypes.ts";
 

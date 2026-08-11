@@ -1,5 +1,5 @@
 import {forwardRef, InputHTMLAttributes, ReactNode, useImperativeHandle, useRef, useState} from "react";
-import {Button, cn} from "@heroui/react";
+import {Button, cn} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 
 type CheckboxProps = {

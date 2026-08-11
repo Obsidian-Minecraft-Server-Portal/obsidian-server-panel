@@ -10,7 +10,7 @@ import {
     Button,
     Link,
     Skeleton
-} from "@heroui/react";
+} from "@heroui-compat";
 import {useCallback, useEffect, useState} from "react";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";

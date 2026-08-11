@@ -1,5 +1,5 @@
 import {LogView} from "./LogView.tsx";
-import {Autocomplete, AutocompleteItem, Button} from "@heroui/react";
+import {Autocomplete, AutocompleteItem, Button} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {useServer} from "../../../../providers/ServerProvider.tsx";

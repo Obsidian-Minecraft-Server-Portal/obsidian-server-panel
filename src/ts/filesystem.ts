@@ -1,5 +1,5 @@
 import {extensionFileTypeMap, getFileType} from "./file-type-match.ts";
-import {addToast} from "@heroui/react";
+import {addToast} from "@heroui-compat";
 
 /**
  * Represents a filesystem entry (file or directory)

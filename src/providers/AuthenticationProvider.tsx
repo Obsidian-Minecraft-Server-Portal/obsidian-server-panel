@@ -1,7 +1,7 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 import $ from "jquery";
 import {useLocation, useNavigate} from "react-router-dom";
-import {addToast} from "@heroui/react";
+import {addToast} from "@heroui-compat";
 import ChangePasswordModal from "../components/authentication/ChangePasswordModal.tsx";
 
 export type UserData = {

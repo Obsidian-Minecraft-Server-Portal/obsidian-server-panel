@@ -1,4 +1,4 @@
-import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui/react";
+import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui-compat";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 import React, {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";

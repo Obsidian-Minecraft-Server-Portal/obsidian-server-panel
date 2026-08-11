@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tabs, Tab, addToast} from "@heroui/react";
+import {Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tabs, Tab, addToast} from "@heroui-compat";
 import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {motion} from "framer-motion";

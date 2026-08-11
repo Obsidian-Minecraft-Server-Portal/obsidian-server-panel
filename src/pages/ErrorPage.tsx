@@ -1,4 +1,4 @@
-import {Button, Link} from "@heroui/react";
+import {Button, Link} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {ReactNode} from "react";
 

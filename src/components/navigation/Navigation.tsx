@@ -1,5 +1,5 @@
 import {useLocation} from "react-router-dom";
-import {Divider, DropdownItem, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, PopoverContent, PopoverTrigger, useDisclosure} from "@heroui/react";
+import {Divider, DropdownItem, DropdownTrigger, Link, Navbar, NavbarBrand, NavbarContent, NavbarItem, PopoverContent, PopoverTrigger, useDisclosure} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Dropdown, DropdownMenu} from "../extended/Dropdown";
 import {useAuthentication} from "../../providers/AuthenticationProvider.tsx";

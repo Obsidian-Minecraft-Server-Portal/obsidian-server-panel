@@ -1,4 +1,4 @@
-import {Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui/react";
+import {Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui-compat";
 import {Button} from "../extended/Button.tsx";
 import {Icon} from "@iconify-icon/react";
 import {PasswordInput} from "../extended/PasswordInput.tsx";

@@ -1,5 +1,5 @@
 import React, {Component, ReactNode} from "react";
-import {Button} from "@heroui/react";
+import {Button} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 
 interface ErrorBoundaryState

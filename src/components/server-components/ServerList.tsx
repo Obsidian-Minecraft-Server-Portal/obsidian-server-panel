@@ -1,4 +1,4 @@
-import {Button, Card, CardBody, CardHeader} from "@heroui/react";
+import {Button, Card, CardBody, CardHeader} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import NewServerModal from "./NewServerModal.tsx";

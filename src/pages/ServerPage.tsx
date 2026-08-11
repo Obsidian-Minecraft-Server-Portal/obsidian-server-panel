@@ -2,7 +2,7 @@ import {useParams, useSearchParams} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {ServerHeader} from "../components/server-components/server-page/ServerHeader.tsx";
-import {Tab, Tabs} from "@heroui/react";
+import {Tab, Tabs} from "@heroui-compat";
 import ServerConsole from "../components/server-components/server-page/console/ServerConsole.tsx";
 import {ServerFiles} from "../components/server-components/server-page/files/ServerFiles.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
