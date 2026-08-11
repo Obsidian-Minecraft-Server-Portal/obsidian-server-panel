@@ -122,6 +122,7 @@ pub async fn run() -> Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
+            .wrap(middleware::NormalizePath::trim())
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::JsonConfig::default().limit(4096).error_handler(|err, _req| {
                 let error = json!({ "error": format!("{}", err) });
@@ -142,8 +143,8 @@ pub async fn run() -> Result<()> {
                         .configure(updater::configure)
                         .configure(broadcast::updates_endpoint::configure)
                         .configure(platforms::configure)
-                    ,
-                ),
+                        .default_service(web::to(api_not_found)),
+                ).default_service(web::to(api_not_found)),
             )
             .configure_frontend_routes()
     })
@@ -177,6 +178,10 @@ pub async fn run() -> Result<()> {
     }
 
     Ok(stop_result?)
+}
+
+async fn api_not_found() -> impl Responder {
+    HttpResponse::NotFound().json(json!({ "error": "API endpoint not found" }))
 }
 
 #[get("/favicon.ico")]
