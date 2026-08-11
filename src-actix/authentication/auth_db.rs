@@ -28,16 +28,16 @@ pub async fn initialize(pool: &Pool) -> Result<()> {
 
 impl UserData {
     pub async fn login_with_token(token: &str, pool: &Pool) -> Result<Option<Self>> {
-        let id_part = &token[..16];
-        let token = &token[16..];
+        let (id_part, token) = token.split_at_checked(16).ok_or_else(|| anyhow::anyhow!("Malformed token"))?;
         let id = serde_hash::hashids::decode_single(id_part).map_err(|e| anyhow::anyhow!("Failed to decode user ID: {}", e))?;
         let user = sqlx::query_as::<_, UserData>(&*sql(r#"SELECT * FROM users WHERE id = ? LIMIT 1"#)).bind(id as i64).fetch_optional(pool).await?;
         if let Some(ref user) = user {
-            if !bcrypt::verify(format!("{}{}", user.username, user.password), token)? {
+            let data = format!("{}{}", user.username, user.password);
+            let token = token.to_string();
+            if !tokio::task::spawn_blocking(move || bcrypt::verify(data, &token)).await?? {
                 return Err(anyhow::anyhow!("Invalid token"));
-            } else {
-                user.update_login_time(pool).await?;
             }
+            user.update_login_time(pool).await?;
         }
         Ok(user)
     }
