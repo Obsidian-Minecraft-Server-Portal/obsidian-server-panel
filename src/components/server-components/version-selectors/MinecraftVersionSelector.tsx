@@ -47,11 +47,11 @@ export function MinecraftVersionSelector(props: MinecraftVersionSelectorProps)
     }, [version]);
 
     return (
-        <div className={"flex flex-row gap-2 items-center"}>
+        <div className={"flex flex-row gap-2 items-end min-w-0"}>
             <Autocomplete
                 label={`Minecraft Version`}
                 radius={"none"}
-                className={"font-minecraft-body"}
+                className={"font-minecraft-body grow min-w-0"}
                 classNames={{
                     base: "capitalize",
                     popoverContent: "rounded-none border-primary border-1"

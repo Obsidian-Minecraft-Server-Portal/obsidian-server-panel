@@ -373,8 +373,7 @@ export function ServerOptions()
                     isDisabled={!hasChanges()}
                     onPress={handleSave}
                     startContent={<Icon icon="pixelarticons:save"/>}
-                    className={"absolute right-10 -translate-y-[70px] z-10"}
-                    // className={"data-[has-changes=true]:fixed data-[has-changes=false]:absolute data-[has-changes=false]:right-8 data-[has-changes=true]:right-16 z-10"}
+                    className="shrink-0"
                     data-has-changes={hasChanges()}
                 >
                     {isUploadingLoader ? "Uploading Server..." : "Save Changes"}
@@ -384,12 +383,12 @@ export function ServerOptions()
             {/* Basic Information */}
             <section className="flex flex-col gap-4">
                 <h3 className="text-lg font-minecraft-header">Basic Information</h3>
-                <div className={"flex flex-row gap-2"}>
+                <div className={"flex flex-row gap-2 items-end min-w-0"}>
                     <ServerIcon id={server.id} isChangeEnabled={true} size={"sm"}/>
                     <Input
                         label="Server Name"
                         radius="none"
-                        className="font-minecraft-body"
+                        className="font-minecraft-body grow min-w-0"
                         value={name}
                         onValueChange={setName}
                         startContent={<Icon icon="pixelarticons:device-game-console"/>}
@@ -470,7 +469,7 @@ export function ServerOptions()
                     </Tooltip>
                 </h3>
 
-                <div className="mx-auto">
+                <div className="min-w-0">
                     <Tabs
                         radius="none"
                         className="font-minecraft-body"

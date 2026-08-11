@@ -128,19 +128,18 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
 
     return (
         <div className={"flex flex-col gap-1"}>
-            <div className={"flex flex-row gap-2"}>
+            <div className={"flex flex-row gap-2 items-end min-w-0"}>
                 <Select
                     label={"Java"}
                     placeholder={"Select Java Version"}
                     radius={"none"}
                     size={"sm"}
-                    className={"font-minecraft-body"}
+                    className={"font-minecraft-body grow min-w-0"}
                     classNames={{listbox: "font-minecraft-body"}}
                     listboxProps={{itemClasses: {base: "rounded-none"}}}
                     disallowEmptySelection
                     selectedKeys={selectedVersion ? [selectedVersion.runtime] : []}
                     isDisabled={props.isDisabled}
-                    description={message}
                     errorMessage={errorMessage}
                     isInvalid={!!errorMessage}
                     onSelectionChange={keys =>
@@ -239,6 +238,7 @@ export default function JavaExecutableSelector(props: JavaExecutableSelectorProp
                 }
 
             </div>
+            {message && <p className={"text-tiny text-default-500 font-minecraft-body"}>{message}</p>}
             {isInstalling &&
                 <Progress
                     size={"sm"}

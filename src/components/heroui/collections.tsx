@@ -342,9 +342,9 @@ export function Autocomplete<T = object>(props: AutocompleteProps<T>)
             className={cn("font-minecraft-body", className, classNames?.base)}
         >
             {label && <Label className={cn("font-minecraft-body", classNames?.label)}>{label}</Label>}
-            <ComboBox.InputGroup className={cn("rounded-none", classNames?.inputWrapper)}>
+            <ComboBox.InputGroup className={cn("rounded-none min-w-0", classNames?.inputWrapper)}>
                 {startContent}
-                <V3Input ref={ref} placeholder={placeholder}/>
+                <V3Input ref={ref} placeholder={placeholder} className="min-w-0"/>
                 {endContent}
                 {isLoading && <V3Spinner size="sm"/>}
                 <ComboBox.Trigger/>
@@ -410,9 +410,9 @@ export function Tabs(props: TabsProps)
             onSelectionChange={onSelectionChange ? key => onSelectionChange(key as Key) : undefined}
             disabledKeys={disabledKeys ? Array.from(disabledKeys) : undefined}
             orientation={isVertical ? "vertical" : "horizontal"}
-            className={cn("font-minecraft-body", className, classNames?.base)}
+            className={cn("font-minecraft-body min-w-0", className, classNames?.base)}
         >
-            <V3Tabs.ListContainer className={cn("rounded-none", (fullWidth || isVertical) && "w-full")}>
+            <V3Tabs.ListContainer className={cn("rounded-none min-w-0 max-w-full overflow-x-auto", (fullWidth || isVertical) && "w-full")}>
                 <V3Tabs.List aria-label={ariaLabel ?? "tabs"} className={cn("rounded-none", fullWidth && "w-full", classNames?.tabList)}>
                     {nodes.map((node, i) =>
                     {

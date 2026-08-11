@@ -106,7 +106,7 @@ export function Input(props: InputProps)
             className={cn("font-minecraft-body", className, classNames?.base)}
         >
             {label && <Label className={cn("font-minecraft-body", classNames?.label)}>{label}</Label>}
-            <InputGroup className={cn("rounded-none", classNames?.inputWrapper)}>
+            <InputGroup className={cn("rounded-none min-w-0", classNames?.inputWrapper)}>
                 {startContent && <InputGroup.Prefix>{startContent}</InputGroup.Prefix>}
                 <InputGroup.Input
                     ref={ref}
@@ -129,7 +129,7 @@ export function Input(props: InputProps)
                     onBlur={onBlur}
                     onFocus={onFocus}
                     onChange={onChange}
-                    className={classNames?.input}
+                    className={cn("min-w-0", classNames?.input)}
                 />
                 {endContent && <InputGroup.Suffix>{endContent}</InputGroup.Suffix>}
             </InputGroup>
@@ -172,7 +172,7 @@ export function Textarea(props: TextareaProps)
             className={cn("font-minecraft-body", className, classNames?.base)}
         >
             {label && <Label className={cn("font-minecraft-body", classNames?.label)}>{label}</Label>}
-            <InputGroup className={cn("rounded-none", classNames?.inputWrapper)}>
+            <InputGroup className={cn("rounded-none min-w-0", classNames?.inputWrapper)}>
                 <InputGroup.TextArea
                     id={id}
                     placeholder={placeholder}
@@ -182,7 +182,7 @@ export function Textarea(props: TextareaProps)
                     onKeyDown={onKeyDown}
                     onBlur={onBlur}
                     onChange={onChange}
-                    className={classNames?.input}
+                    className={cn("min-w-0", classNames?.input)}
                 />
             </InputGroup>
             {description && <Description className={classNames?.description}>{description}</Description>}
