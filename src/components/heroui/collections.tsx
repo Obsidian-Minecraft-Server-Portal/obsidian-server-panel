@@ -141,7 +141,7 @@ export function Listbox<T = object>(props: ListboxProps<T>)
     const nodes = collectionNodes(children as ReactNode | ((item: T) => ReactElement), items);
     const dataAttrs = Object.fromEntries(Object.entries(rest).filter(([k]) => k.startsWith("data-")));
     return (
-        <div id={id} style={style} tabIndex={tabIndex} ref={ref} className={cn("flex flex-col w-full", classNames?.base)} {...dataAttrs}>
+        <div id={id} style={style} tabIndex={tabIndex} ref={ref} className={cn("flex flex-col w-full", classNames?.base, className)} {...dataAttrs}>
             {topContent}
             <V3ListBox
                 selectionMode={selectionMode}
@@ -153,7 +153,7 @@ export function Listbox<T = object>(props: ListboxProps<T>)
                 disallowEmptySelection={disallowEmptySelection}
                 aria-label={ariaLabel ?? "listbox"}
                 renderEmptyState={emptyContent ? () => emptyContent : undefined}
-                className={cn("font-minecraft-body w-full", className, classNames?.list)}
+                className={cn("font-minecraft-body w-full", classNames?.list)}
             >
                 {nodes.length > 0 ? renderListBoxNodes(nodes, ListboxSection, itemClasses) : []}
             </V3ListBox>
