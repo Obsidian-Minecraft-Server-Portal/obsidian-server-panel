@@ -155,3 +155,6 @@ docker-build feature="sqlite":
 # Remove all build artifacts
 clean:
     cargo clean
+
+dev-mysql:
+    @docker compose -f ./.docker/mysql.compose.yml up -d
