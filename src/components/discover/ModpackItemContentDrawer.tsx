@@ -378,18 +378,25 @@ export function ModpackItemContentDrawer(props: ModpackItemContentDrawerProps)
                                                                     {version.game_versions.join(", ")}
                                                                 </div>
                                                             </div>
-                                                            <Chip
-                                                                size="sm"
-                                                                color={
-                                                                    version.version_type === "release"
-                                                                        ? "success"
-                                                                        : version.version_type === "beta"
-                                                                            ? "warning"
-                                                                            : "danger"
-                                                                }
-                                                            >
-                                                                {version.version_type}
-                                                            </Chip>
+                                                            <div className="flex items-center gap-2">
+                                                                {version.serverInstallable === false && (
+                                                                    <Chip size="sm" variant="flat" color="warning">
+                                                                        Client only
+                                                                    </Chip>
+                                                                )}
+                                                                <Chip
+                                                                    size="sm"
+                                                                    color={
+                                                                        version.version_type === "release"
+                                                                            ? "success"
+                                                                            : version.version_type === "beta"
+                                                                                ? "warning"
+                                                                                : "danger"
+                                                                    }
+                                                                >
+                                                                    {version.version_type}
+                                                                </Chip>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>

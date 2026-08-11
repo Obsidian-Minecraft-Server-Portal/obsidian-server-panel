@@ -316,3 +316,26 @@ async fn test_get_projects_batch() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].title, "Sodium");
 }
+
+#[tokio::test]
+#[ignore = "hits the live Modrinth API"]
+async fn test_live_server_side_modpack_search() {
+    let client = ModrinthClient::new();
+    let params = SearchBuilder::new()
+        .project_type("modpack")
+        .server_side()
+        .limit(20)
+        .build();
+
+    let result = client.search(&params).await.unwrap();
+    assert!(!result.hits.is_empty());
+    for hit in &result.hits {
+        assert_eq!(hit.project_type, "modpack");
+        assert!(
+            matches!(hit.server_side.as_str(), "required" | "optional"),
+            "pack {} has server_side={}",
+            hit.slug,
+            hit.server_side
+        );
+    }
+}

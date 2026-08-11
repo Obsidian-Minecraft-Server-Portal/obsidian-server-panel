@@ -235,6 +235,70 @@ async fn test_get_mod_file() {
     assert_eq!(file.file_name, "sodium-fabric-0.5.3+mc1.20.1.jar");
 }
 
+fn pack_file_json(id: u64, server_pack_file_id: Option<u64>, is_server_pack: bool) -> serde_json::Value {
+    serde_json::json!({
+        "data": {
+            "id": id,
+            "gameId": 432,
+            "modId": 520914,
+            "isAvailable": true,
+            "displayName": format!("pack-{id}"),
+            "fileName": format!("pack-{id}.zip"),
+            "releaseType": 1,
+            "fileStatus": 4,
+            "hashes": [],
+            "fileDate": "2024-01-10T10:00:00.000Z",
+            "fileLength": 1024,
+            "downloadCount": 100,
+            "downloadUrl": format!("https://edge.forgecdn.net/files/{id}/pack-{id}.zip"),
+            "gameVersions": ["1.20.1", "Forge"],
+            "sortableGameVersions": [],
+            "dependencies": [],
+            "isServerPack": is_server_pack,
+            "serverPackFileId": server_pack_file_id,
+            "modules": []
+        }
+    })
+}
+
+#[tokio::test]
+async fn test_get_server_pack_file_resolves_id() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/v1/mods/520914/files/6000001"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(pack_file_json(6000001, Some(6000002), false)))
+        .mount(&mock_server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/v1/mods/520914/files/6000002"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(pack_file_json(6000002, None, true)))
+        .mount(&mock_server)
+        .await;
+
+    let client = CurseForgeClient::with_base_url("test-key", format!("{}/v1", mock_server.uri()));
+    let server_pack = client.get_server_pack_file(520914, 6000001).await.unwrap().unwrap();
+
+    assert_eq!(server_pack.id, 6000002);
+    assert!(server_pack.is_server_pack);
+}
+
+#[tokio::test]
+async fn test_get_server_pack_file_none_when_missing() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/v1/mods/520914/files/6000003"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(pack_file_json(6000003, None, false)))
+        .mount(&mock_server)
+        .await;
+
+    let client = CurseForgeClient::with_base_url("test-key", format!("{}/v1", mock_server.uri()));
+    let server_pack = client.get_server_pack_file(520914, 6000003).await.unwrap();
+
+    assert!(server_pack.is_none());
+}
+
 #[tokio::test]
 async fn test_get_categories() {
     let mock_server = MockServer::start().await;

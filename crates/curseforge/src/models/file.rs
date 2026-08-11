@@ -50,6 +50,9 @@ pub struct File {
     /// Whether this is a server pack.
     #[serde(default)]
     pub is_server_pack: bool,
+    /// ID of the dedicated server pack file, if one exists.
+    #[serde(default)]
+    pub server_pack_file_id: Option<u64>,
     /// MurmurHash2 fingerprint.
     #[serde(default)]
     pub file_fingerprint: Option<u64>,

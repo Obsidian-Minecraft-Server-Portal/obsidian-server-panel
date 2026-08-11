@@ -19,9 +19,10 @@ export async function searchModrinthModpacks(params: {
         searchParams.set("offset", (params.offset || 0).toString());
         searchParams.set("index", "relevance");
 
-        // Add facet for project type = modpack
+        // Add facets for project type = modpack, restricted to server-compatible packs
         const facets = params.facets ? JSON.parse(params.facets) : [];
         facets.push(["project_type:modpack"]);
+        facets.push(["server_side:required", "server_side:optional"]);
         searchParams.set("facets", JSON.stringify(facets));
 
         const response = await fetch(`/api/platform/modrinth/search?${searchParams}`);
@@ -38,7 +39,8 @@ export async function searchModrinthModpacks(params: {
             author: project.author,
             categories: project.categories,
             lastUpdated: new Date(project.date_modified),
-            slug: project.slug
+            slug: project.slug,
+            serverPackAvailable: true
         }));
     } catch (error)
     {
@@ -74,7 +76,9 @@ export async function fetchModrinthModpackDetails(projectId: string): Promise<Mo
         published: data.published,
         updated: data.updated,
         author: data.team,
-        slug: data.slug
+        slug: data.slug,
+        server_side: data.server_side,
+        client_side: data.client_side
     };
 }
 
@@ -93,9 +97,10 @@ export async function fetchModrinthModpackVersions(projectId: string): Promise<M
         game_versions: version.game_versions,
         date_published: version.date_published,
         downloads: version.downloads,
-        files: version.files,
+        files: [...version.files].sort((a: any, b: any) => Number(b.primary) - Number(a.primary)),
         changelog: version.changelog,
-        dependencies: version.dependencies
+        dependencies: version.dependencies,
+        serverInstallable: true
     }));
 }
 
@@ -134,7 +139,8 @@ export async function searchCurseForgeModpacks(params: {
             author: pack.authors?.[0]?.name || "Unknown",
             categories: pack.categories?.map((cat: any) => cat.name) || [],
             lastUpdated: new Date(pack.dateModified),
-            slug: pack.slug
+            slug: pack.slug,
+            serverPackAvailable: pack.latestFiles?.some((file: any) => file.serverPackFileId || file.isServerPack) ?? false
         }));
     } catch (error)
     {
@@ -193,8 +199,31 @@ export async function fetchCurseForgeModpackVersions(projectId: string): Promise
             primary: true,
             size: file.fileLength
         }],
-        changelog: file.changelog
+        changelog: file.changelog,
+        serverInstallable: !!(file.serverPackFileId || file.isServerPack),
+        serverPackFileId: file.serverPackFileId ?? undefined
     }));
+}
+
+/**
+ * Resolves the dedicated server pack file for a CurseForge modpack version.
+ * Server installs MUST use this file, never the client zip.
+ */
+export async function fetchCurseForgeServerPackFile(modId: string, fileId: string): Promise<ModpackVersion["files"][0] | null>
+{
+    const response = await fetch(`/api/platform/curseforge/mod/${modId}/files/${fileId}/server-pack`);
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const file = await response.json();
+
+    if (!file.downloadUrl) return null;
+    return {
+        hashes: {sha1: file.hashes?.find((h: any) => h.algo === 1)?.value || ""},
+        url: file.downloadUrl,
+        filename: file.fileName,
+        primary: true,
+        size: file.fileLength
+    };
 }
 
 // ============= ATLAUNCHER =============

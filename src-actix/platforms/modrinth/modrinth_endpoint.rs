@@ -31,8 +31,13 @@ async fn search(query: web::Query<SearchQuery>) -> Result<impl Responder> {
     if let Some(ref facets_str) = query.facets {
         let facets: Vec<Vec<String>> = serde_json::from_str(facets_str)
             .map_err(|e| anyhow::anyhow!("Invalid facets JSON: {e}"))?;
+        let is_modpack = facets.iter().flatten().any(|f| f == "project_type:modpack");
+        let has_server_side = facets.iter().flatten().any(|f| f.starts_with("server_side"));
         for group in facets {
             builder = builder.facet_or(group);
+        }
+        if is_modpack && !has_server_side {
+            builder = builder.server_side();
         }
     }
 

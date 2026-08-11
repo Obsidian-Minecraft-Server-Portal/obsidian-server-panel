@@ -101,7 +101,10 @@ impl CurseForgeClient {
 
     /// Performs a GET request and deserializes the response.
     async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
-        if !url.starts_with("https://") {
+        if !url.starts_with("https://")
+            && !url.starts_with("http://127.0.0.1")
+            && !url.starts_with("http://localhost")
+        {
             return Err(CurseForgeError::Other(anyhow::anyhow!(
                 "Only HTTPS URLs are allowed"
             )));
@@ -285,6 +288,18 @@ impl CurseForgeClient {
             .insert(cache_key, wrapper.data.clone())
             .await;
         Ok(wrapper.data)
+    }
+
+    /// Resolves the dedicated server pack file for a mod file, if one exists.
+    pub async fn get_server_pack_file(&self, mod_id: u32, file_id: u64) -> Result<Option<File>> {
+        let file = self.get_mod_file(mod_id, file_id).await?;
+        if file.is_server_pack {
+            return Ok(Some(file));
+        }
+        match file.server_pack_file_id {
+            Some(id) => Ok(Some(self.get_mod_file(mod_id, id).await?)),
+            None => Ok(None),
+        }
     }
 
     /// Fetches all categories for Minecraft (gameId=432).

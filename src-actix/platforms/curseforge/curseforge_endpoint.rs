@@ -105,6 +105,22 @@ async fn get_mod_file(path: web::Path<(u32, u64)>) -> Result<impl Responder> {
     Ok(HttpResponse::Ok().json(file))
 }
 
+#[get("/mod/{mod_id}/files/{file_id}/server-pack")]
+async fn get_server_pack_file(path: web::Path<(u32, u64)>) -> Result<impl Responder> {
+    let (mod_id, file_id) = path.into_inner();
+    let client = super::get_client();
+    let file = client
+        .get_server_pack_file(mod_id, file_id)
+        .await
+        .map_err(anyhow::Error::from)?;
+    match file {
+        Some(f) => Ok(HttpResponse::Ok().json(f)),
+        None => Ok(HttpResponse::NotFound().json(json!({
+            "error": "No server pack available for this file",
+        }))),
+    }
+}
+
 #[get("/mods")]
 async fn get_mods(query: web::Query<IdsQuery>) -> Result<impl Responder> {
     let ids: Vec<u32> = serde_json::from_str(&query.ids)
@@ -142,6 +158,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
             .service(get_mod)
             .service(get_mod_files)
             .service(get_mod_file)
+            .service(get_server_pack_file)
             .service(get_mods)
             .service(get_categories)
             .service(clear_cache)

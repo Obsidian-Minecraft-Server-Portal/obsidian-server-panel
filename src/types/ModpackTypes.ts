@@ -23,6 +23,8 @@ export type ModpackDetails = {
     author?: string;
     authors?: Array<{ name: string, url?: string }>;
     slug?: string;
+    server_side?: "required" | "optional" | "unsupported" | "unknown";
+    client_side?: "required" | "optional" | "unsupported" | "unknown";
 };
 
 export type ModpackVersion = {
@@ -49,6 +51,8 @@ export type ModpackVersion = {
         file_name?: string;
         dependency_type: "required" | "optional" | "incompatible" | "embedded";
     }>;
+    serverInstallable?: boolean;
+    serverPackFileId?: number;
 };
 
 export type ModpackItemProps = {
@@ -62,4 +66,5 @@ export type ModpackItemProps = {
     categories: string[];
     lastUpdated: Date;
     slug?: string;
+    serverPackAvailable?: boolean;
 };
