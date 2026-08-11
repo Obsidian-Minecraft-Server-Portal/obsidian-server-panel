@@ -337,9 +337,7 @@ pub async fn get_log_files(server_id: web::Path<String>, req: HttpRequest) -> Re
     let log_directory = server.get_directory_path().join("logs");
 
     if !log_directory.exists() {
-        return Ok(HttpResponse::NotFound().json(json!({
-            "error": "Log directory not found".to_string()
-        })));
+        return Ok(HttpResponse::Ok().json(Vec::<String>::new()));
     }
 
     let files = match std::fs::read_dir(log_directory) {
@@ -375,9 +373,7 @@ pub async fn get_log_file_contents(path: web::Path<(String, String)>, req: HttpR
     let log_file_path = crate::actix_util::path_sanitize::ensure_path_within(&log_directory, &log_file)?;
 
     if !log_file_path.exists() {
-        return Ok(HttpResponse::NotFound().json(json!({
-            "error": "Log file not found".to_string(),
-        })));
+        return Ok(HttpResponse::Ok().content_type("text/plain").body(""));
     }
 
     if let Some(extension) = log_file_path.extension()
