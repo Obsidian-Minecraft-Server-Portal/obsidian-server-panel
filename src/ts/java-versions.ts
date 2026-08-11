@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $ from "./http.ts";
 
 export type JavaRuntime = "alpha" | "beta" | "delta" | "gamma" | "gamma-snapshot" | "legacy";
 export type JavaOperatingSystem = "linux-i386" | "mac-os" | "mac-os-arm64" | "windows-arm64" | "windows-x64" | "windows-x86";

@@ -1,5 +1,5 @@
 import {createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState} from "react";
-import $ from "jquery";
+import $ from "../ts/http.ts";
 import {FileSystem, FilesystemData, FilesystemEntry} from "../ts/filesystem.ts";
 
 export type Server =

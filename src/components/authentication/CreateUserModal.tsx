@@ -2,7 +2,7 @@ import {useState} from "react";
 import {Button, Card, CardBody, Checkbox, CheckboxGroup, Code, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {motion} from "framer-motion";
-import $ from "jquery";
+import $ from "../../ts/http.ts";
 import {CreateUserRequest, PermissionFlag} from "../../types/UserTypes.ts";
 import {MessageOptions, MessageResponseType} from "../MessageModal.tsx";
 

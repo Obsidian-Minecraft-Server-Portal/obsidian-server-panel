@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $ from "../ts/http.ts";
 import {createContext, ReactNode, useContext, useEffect, useState} from "react";
 import {Settings, ValidationResult, SettingsUpdateResponse} from "../types/SettingsTypes.ts";
 import {useAuthentication} from "./AuthenticationProvider.tsx";

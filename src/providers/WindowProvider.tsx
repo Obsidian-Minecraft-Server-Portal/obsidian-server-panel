@@ -1,5 +1,4 @@
-import {createContext, ReactNode, useContext, useState} from "react";
-import $ from "jquery";
+import {createContext, ReactNode, useContext, useEffect, useState} from "react";
 
 interface WindowContextType
 {
@@ -13,11 +12,16 @@ export function WindowProvider({children}: { children: ReactNode })
 {
     const [width, setWidth] = useState(window.innerWidth);
     const [height, setHeight] = useState(window.innerHeight);
-    $(window).on("resize", () =>
+    useEffect(() =>
     {
-        setWidth(window.innerWidth);
-        setHeight(window.innerHeight);
-    });
+        const onResize = () =>
+        {
+            setWidth(window.innerWidth);
+            setHeight(window.innerHeight);
+        };
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
 
 
     return (

@@ -2,7 +2,6 @@ import {Listbox, ListboxItem, ListboxSection} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
 import {useCallback, useEffect, useRef, useState} from "react";
-import $ from "jquery";
 import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
 
@@ -67,17 +66,18 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
 
     useEffect(() =>
     {
-        let parent = $("#server-file-browser");
+        let parent = document.getElementById("server-file-browser");
         let menu = menuRef.current;
-        if (parent.length === 0 || !menu) return;
-        let menuElement = $(menu);
+        if (!parent || !menu) return;
 
-        let offset = parent.offset();
-        let parentWidth = parent.width();
-        let parentHeight = parent.height();
-        let menuWidth = menuElement.outerWidth();
-        let menuHeight = menuElement.outerHeight();
-        if (!offset || !menuWidth || !menuHeight || !parentWidth || !parentHeight) return;
+        let parentRect = parent.getBoundingClientRect();
+        let menuRect = menu.getBoundingClientRect();
+        let offset = {left: parentRect.left + window.scrollX, top: parentRect.top + window.scrollY};
+        let parentWidth = parentRect.width;
+        let parentHeight = parentRect.height;
+        let menuWidth = menuRect.width;
+        let menuHeight = menuRect.height;
+        if (!menuWidth || !menuHeight || !parentWidth || !parentHeight) return;
 
 
         let newX = x;

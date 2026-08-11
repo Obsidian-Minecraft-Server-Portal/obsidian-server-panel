@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $ from "../ts/http.ts";
 import {createContext, ReactNode, useCallback, useContext, useEffect, useState} from "react";
 
 export type HostInfo = {

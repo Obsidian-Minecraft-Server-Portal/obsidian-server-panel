@@ -7,7 +7,7 @@ import {MessageResponseType} from "../../MessageModal.tsx";
 import {motion} from "framer-motion";
 import {ServerIcon} from "./ServerIcon.tsx";
 import ReactMarkdown from "react-markdown";
-import $ from "jquery";
+import $ from "../../../ts/http.ts";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 
 type ServerHeaderProps = {
