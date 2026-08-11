@@ -1,4 +1,4 @@
-import {ButtonGroup, Divider, Image, Link, Skeleton} from "@heroui/react";
+import {ButtonGroup, Chip, Divider, Image, Link, Skeleton} from "@heroui/react";
 import {Icon} from "@iconify-icon/react";
 import {Button} from "../extended/Button.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
@@ -21,7 +21,8 @@ export function ModpackItem(props: ModpackItemProps)
         author,
         categories,
         lastUpdated,
-        slug
+        slug,
+        serverPackAvailable
     } = props;
 
     const getPlatformColor = () =>
@@ -113,6 +114,13 @@ export function ModpackItem(props: ModpackItemProps)
                             {name}
                         </p>
                         <span className={"text-default-500"}>by {author}</span>
+                        {serverPackAvailable === false && (
+                            <Tooltip content={"This modpack does not provide a dedicated server pack"}>
+                                <Chip size={"sm"} radius={"none"} variant={"flat"} color={"warning"}>
+                                    No server pack
+                                </Chip>
+                            </Tooltip>
+                        )}
                     </div>
                     <p className={"text-default-700 h-full truncate max-w-[calc(100vw_-_760px)]"}>{description}</p>
                     <div className={"flex flex-row gap-2 text-default-500 truncate max-w-[calc(100vw_-_760px)] h-10"}>
