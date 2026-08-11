@@ -281,10 +281,9 @@ export default function DiscoverPage()
                 <Tabs
                     size={"lg"}
                     radius={"none"}
-                    className={"min-w-0 shrink"}
+                    className={"shrink-0"}
                     classNames={{
-                        cursor: getPlatformColor(selectedPlatform),
-                        tabList: "flex-wrap"
+                        cursor: getPlatformColor(selectedPlatform)
                     }}
                     selectedKey={selectedPlatform}
                     onSelectionChange={value => setSelectedPlatform(value as ModpackPlatform)}
