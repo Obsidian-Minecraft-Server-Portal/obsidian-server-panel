@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import {fileURLToPath} from "node:url";
 
+const port = Number(process.env.OBSIDIAN_VITE_PORT ?? 3000);
+
 export default defineConfig({
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -22,13 +24,13 @@ export default defineConfig({
     clearScreen: false,
     server: {
         host: true,
-        port: 3000,
+        port,
         strictPort: true,
         hmr: {
             protocol: "ws",
             host: "localhost",
-            port: 3000,
-            clientPort: 3000,
+            port,
+            clientPort: port,
             overlay: true
         },
         watch: {

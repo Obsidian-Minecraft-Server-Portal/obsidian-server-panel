@@ -40,18 +40,26 @@ pub async fn run() -> Result<()> {
 
     #[cfg(debug_assertions)]
     {
-        ProxyViteOptions::new().disable_logging().build()?;
-        std::thread::spawn(|| {
-            loop {
-                info!("Starting Vite server in development mode...");
-                let status = start_vite_server().expect("Failed to start vite server").wait().expect("Vite server crashed!");
-                if !status.success() {
-                    error!("The vite server has crashed!");
-                } else {
-                    break;
+        let mut options = ProxyViteOptions::new().disable_logging();
+        if let Some(port) = std::env::var("OBSIDIAN_VITE_PORT").ok().and_then(|port| port.parse::<u16>().ok()) {
+            options = options.port(port);
+        }
+        options.build()?;
+        if std::env::var("OBSIDIAN_SKIP_VITE").is_ok_and(|value| value == "1") {
+            info!("OBSIDIAN_SKIP_VITE is set; not starting the Vite dev server");
+        } else {
+            std::thread::spawn(|| {
+                loop {
+                    info!("Starting Vite server in development mode...");
+                    let status = start_vite_server().expect("Failed to start vite server").wait().expect("Vite server crashed!");
+                    if !status.success() {
+                        error!("The vite server has crashed!");
+                    } else {
+                        break;
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // setup serde hashids
         serde_hash::hashids::SerdeHashOptions::new().with_min_length(16).with_salt("obsidian-server-panel").build();
