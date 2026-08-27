@@ -1,0 +1,19 @@
+# Ephemeral MySQL 8.0 instance for the cross-engine database test suite
+# (used by `just test-mysql`). Runs on host port 3307 so it can coexist
+# with the dev MySQL instance in mysql.compose.yml (port 3306).
+name: osp-mysql-test
+services:
+  db:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    tmpfs:
+      - /var/lib/mysql
+    command: --innodb-use-native-aio=0
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
