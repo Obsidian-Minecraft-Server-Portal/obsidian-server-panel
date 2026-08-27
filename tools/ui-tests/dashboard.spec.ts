@@ -35,7 +35,7 @@ async function main(h: UIHarness)
     await h.goto("/app");
     await h.waitFor("server list header", () => h.textVisible("Servers"), 30000);
     h.check("dashboard renders with server list", await h.textVisible("Servers"));
-    await h.waitFor("resource graphs", () => h.page.evaluate(() => document.querySelectorAll("canvas, .recharts-wrapper, svg.recharts-surface").length >= 2), 20000);
+    await h.waitFor("resource graphs", () => h.textVisible("CPU Usage") && h.textVisible("Network Usage"), 20000);
     await h.shot("dashboard");
 
     // --- 2. Server cards ----------------------------------------------------------
