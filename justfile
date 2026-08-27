@@ -17,6 +17,9 @@ build-frontend:
     node node_modules/typescript/bin/tsc
     node node_modules/vite/bin/vite.js build
 
+install:
+    pnpm i
+
 # Start the Vite dev server with HMR
 dev-frontend:
     pnpm exec vite dev
@@ -42,10 +45,10 @@ test feature="sqlite":
 # ─── Full Build ────────────────────────────────────────────
 
 # Build frontend + backend for a single database feature, package into zip
-build feature="sqlite": build-frontend (_build-and-package feature)
+build feature="sqlite": build-frontend (_build-and-package feature) install
 
 # Build and package release binaries for ALL database backends
-build-all: build-frontend (_build-and-package "sqlite") (_build-and-package "mysql") (_build-and-package "postgres")
+build-all: build-frontend (_build-and-package "sqlite") (_build-and-package "mysql") (_build-and-package "postgres") install
 
 # Internal: build release binary for a feature and package it into a zip
 [private]
@@ -85,15 +88,15 @@ installer version="0.0.0": (build "sqlite")
 # ─── Development ───────────────────────────────────────────
 
 # Run the backend in debug mode (sqlite)
-run feature="sqlite":
+run feature="sqlite": install
     cargo run --no-default-features --features {{ feature }}
 
 # Run the backend in release mode (sqlite)
-run-release feature="sqlite":
+run-release feature="sqlite": install
     cargo run --release --no-default-features --features {{ feature }}
 
 # Watch for backend changes and rebuild (sqlite)
-watch feature="sqlite":
+watch feature="sqlite": install
     cargo watch -x "run --no-default-features --features {{ feature }}"
 
 # Start the local MySQL dev database (Docker)
@@ -105,7 +108,7 @@ dev-mysql-down:
     docker compose -f .docker/mysql.compose.yml down
 
 # Run the backend against the local MySQL dev database
-run-mysql $DATABASE_CONNECTION_STRING="mysql://root:root@localhost:3306/obsidian-server-panel": dev-mysql
+run-mysql $DATABASE_CONNECTION_STRING="mysql://root:root@localhost:3306/obsidian-server-panel": dev-mysql install
     cargo run --no-default-features --features mysql
 
 # ─── Quality ───────────────────────────────────────────────
