@@ -54,22 +54,27 @@ async function main(h: UIHarness)
     await h.shot("backup-in-list");
 
     // --- 3. Restore it ---------------------------------------------------------------------
-    const restoreClicked = await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:reply-all");
-    if (restoreClicked)
+    // Row buttons remount when the list refreshes, so a click can hit a detached element;
+    // retry until the confirmation modal is actually open (same pattern as the download step).
+    let restoreModalOpen = false;
+    for (let attempt = 0; attempt < 3 && !restoreModalOpen; attempt++)
     {
-        await h.waitFor("restore confirmation", () => h.textVisible("Restore Backup"), 10000);
+        await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:reply-all");
+        restoreModalOpen = await h.page.evaluate(() => !!document.querySelector(".modal__dialog")).catch(() => false);
+        if (!restoreModalOpen) await new Promise(r => setTimeout(r, 2000));
+    }
+    h.check("restore confirmation opens", restoreModalOpen);
+    if (restoreModalOpen)
+    {
         await h.shot("restore-confirmation");
         await h.confirmModal("Okay");
-        const restored = await h.waitFor("restore finishes", async () =>
-        {
-            const list = await h.api<any[]>("GET", `/api/server/${serverId}/backups`);
-            return Array.isArray(list.body);
-        }, 120000);
-        h.check("restore completes", restored);
-    } else
-    {
-        h.check("restore completes", false, "restore button not found");
     }
+    const restored = await h.waitFor("restore finishes", async () =>
+    {
+        const list = await h.api<any[]>("GET", `/api/server/${serverId}/backups`);
+        return Array.isArray(list.body);
+    }, 120000);
+    h.check("restore completes", restored);
     await h.shot("after-restore");
 
     // --- 4. Download it -----------------------------------------------------------------------
@@ -86,15 +91,18 @@ async function main(h: UIHarness)
     h.check("backup download produces a file", dl.file !== null && dl.size > 0, `${dl.size} bytes`);
 
     // --- 5. Delete it ---------------------------------------------------------------------------
-    await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:trash");
-    await h.waitFor("delete confirmation", () => h.page.evaluate(() => !!document.querySelector(".modal__dialog")), 10000);
-    await h.shot("delete-backup-confirmation");
-    await h.confirmModal("Okay");
-    const deleted = await h.waitFor("backup removed from list", async () =>
+    // Deleting a backup is immediate (no confirmation dialog); retry the click because the
+    // row buttons remount when the list refreshes.
+    let deleted = false;
+    for (let attempt = 0; attempt < 3 && !deleted; attempt++)
     {
-        const list = await h.api<any[]>("GET", `/api/server/${serverId}/backups`);
-        return (list.body ?? []).length === 0;
-    }, 60000);
+        await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:trash");
+        deleted = await h.waitFor("backup removed from list", async () =>
+        {
+            const list = await h.api<any[]>("GET", `/api/server/${serverId}/backups`);
+            return (list.body ?? []).length === 0;
+        }, 20000);
+    }
     h.check("backup deleted", deleted);
     await h.shot("after-backup-delete");
 }
