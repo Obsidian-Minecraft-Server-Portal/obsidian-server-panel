@@ -179,7 +179,7 @@ export class UIHarness extends BaseHarness
             if (this.allMessages.length > 400) this.allMessages.shift();
             if ((m.type() as string) === "error" || (m.type() as string) === "warning")
                 this.consoleIssues.push({type: m.type(), text});
-            if (text.includes('unique "key"'))
+            if (text.includes('unique "key"') || text.includes("two children with the same key"))
             {
                 this.keyWarningTexts.push(text);
                 console.log(`  [KEY WARNING] ${text.slice(0, 300)}`);
