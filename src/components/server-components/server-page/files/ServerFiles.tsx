@@ -15,6 +15,7 @@ import {FileTableToolbar} from "./FileTableToolbar.tsx";
 import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
+import {useWindow} from "../../../../providers/WindowProvider.tsx";
 
 // Add a tiny helper to get dirname from a relative path like "a/b/c.txt" -> "a/b"
 const dirname = (p: string) =>
@@ -29,6 +30,10 @@ type FileWithRelPath = { file: File; relativePath: string };
 export function ServerFiles()
 {
     const {server, getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents, downloadEntry} = useServer();
+    // below md the browser/editor split pane cannot fit side by side (each pane needs
+    // >= 300px), so the editor stacks under the file browser instead
+    const {width: windowWidth} = useWindow();
+    const editorSideBySide = windowWidth >= 768;
     const {open} = useMessage();
     const [path, setPath] = useState("");
     const [data, setData] = useState<FilesystemData>();
@@ -923,16 +928,16 @@ export function ServerFiles()
             </div>
 
             {/* Content area with file browser and editor */}
-            <div className={"flex flex-row gap-2 overflow-x-hidden"}>
+            <div className={"flex flex-col md:flex-row gap-2 overflow-x-hidden"}>
                 <div
                     id={"server-file-browser"}
                     className={
                         cn(
-                            "flex flex-col gap-2 px-4 pb-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative min-w-[300px]"
+                            "flex flex-col gap-2 px-4 pb-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative min-w-0 md:min-w-[300px]"
                         )
                     }
                     style={{
-                        width: isEditingFile && selectedEntries.length === 1 ? `${browserWidth}px` : "100%",
+                        width: isEditingFile && selectedEntries.length === 1 && editorSideBySide ? `${browserWidth}px` : "100%",
                         transition: isDragging ? "none" : "width 0.3s ease-in-out"
                     }}
                     onDragStart={() => setIsDraggingOver(false)}

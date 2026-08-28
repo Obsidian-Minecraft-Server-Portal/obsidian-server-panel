@@ -72,26 +72,32 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
 
         let parentRect = parent.getBoundingClientRect();
         let menuRect = menu.getBoundingClientRect();
-        let offset = {left: parentRect.left + window.scrollX, top: parentRect.top + window.scrollY};
         let parentWidth = parentRect.width;
         let parentHeight = parentRect.height;
         let menuWidth = menuRect.width;
         let menuHeight = menuRect.height;
         if (!menuWidth || !menuHeight || !parentWidth || !parentHeight) return;
 
-
-        let newX = x;
-        let newY = y;
-        if (newX + menuWidth > offset.left + parentWidth)
+        // The menu is absolutely positioned inside the browser container, so work in
+        // container-relative coordinates and clamp the menu fully into the container.
+        // (The old code mixed page coordinates with container offsets plus a magic
+        // "-340px" fudge for the desktop header height, which pushed the menu off the
+        // container whenever the page was scrolled or the header height differed -
+        // e.g. on mobile layouts.)
+        let newX = x - parentRect.left;
+        let newY = y - parentRect.top;
+        if (newX + menuWidth > parentWidth - 10)
         {
-            newX = (offset.left + parentWidth) - menuWidth - 10; // 10px padding
+            newX = parentWidth - menuWidth - 10;
         }
-        if (newY + menuHeight > offset.top + parentHeight)
+        if (newY + menuHeight > parentHeight - 10)
         {
-            newY = (offset.top + parentHeight) - menuHeight - 10; // 10px padding
+            newY = parentHeight - menuHeight - 10;
         }
+        newX = Math.max(10, newX);
+        newY = Math.max(10, newY);
 
-        setPosition({x: newX - 50, y: newY - 340});
+        setPosition({x: newX, y: newY});
     }, [x, y, isOpen, onClose]);
     return (
         <Listbox

@@ -139,7 +139,7 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                 <motion.div
                     id={"server-file-editor"}
                     ref={editorWrapperRef}
-                    className={"max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative flex-1 w-0"}
+                    className={"max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative w-full md:w-0 md:flex-1"}
                     initial={{opacity: 0}}
                     animate={{
                         opacity: isEditingFile && selectedEntries.length === 1 ? 1 : 0
@@ -233,7 +233,7 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                     {isEditingFile && selectedEntries.length === 1 && (
                         <div
                             className={cn(
-                                "w-[8px] h-full bg-transparent transition-all duration-200 absolute left-0 top-0 cursor-ew-resize select-none hover:bg-primary hover:opacity-50"
+                                "w-[8px] h-full bg-transparent transition-all duration-200 absolute left-0 top-0 cursor-ew-resize select-none hover:bg-primary hover:opacity-50 hidden md:block"
                             )}
                             data-dragging={isDragging}
                             onMouseDown={(e) =>

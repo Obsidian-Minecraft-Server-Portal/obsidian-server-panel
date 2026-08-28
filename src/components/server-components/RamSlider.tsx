@@ -1,6 +1,7 @@
 import {Input, Slider} from "@heroui-compat";
 import {useEffect, useState} from "react";
 import {useHostInfo} from "../../providers/HostInfoProvider.tsx";
+import {useWindow} from "../../providers/WindowProvider.tsx";
 import "../../ts/math-ext.ts";
 
 type RamSliderProps = {
@@ -22,6 +23,7 @@ export default function RamSlider(props: RamSliderProps)
     const [isInvalid, setIsInvalid] = useState(false);
 
     const {hostInfo, resources} = useHostInfo();
+    const {width: windowWidth} = useWindow();
     useEffect(() =>
     {
         // Update max RAM based on available resources
@@ -111,12 +113,15 @@ export default function RamSlider(props: RamSliderProps)
                             value: maxRam,
                             label: `${maxRam} GB`
                         },
-                        // Add marks for warning and danger thresholds
-                        ...(maxRam > 16 ? [{
+                        // Add marks for warning and danger thresholds. Their labels sit
+                        // next to the end labels and collide with them on narrow
+                        // screens, so they only render from sm up (the colored track
+                        // segments carry the same information).
+                        ...(windowWidth >= 640 && maxRam > 16 ? [{
                             value: 16,
                             label: "Warning"
                         }] : []),
-                        ...(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)) > 2 ? [{
+                        ...(windowWidth >= 640 && maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3)) > 2 ? [{
                             value: Math.floor(maxRam - ((resources.allocated_memory ?? hostInfo.resources.total_memory) / Math.pow(1024, 3))),
                             label: "Danger"
                         }] : [])
