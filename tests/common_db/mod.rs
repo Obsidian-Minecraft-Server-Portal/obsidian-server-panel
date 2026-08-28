@@ -46,10 +46,13 @@ impl Engine {
     }
 
     fn default_test_port(&self) -> u16 {
+        // High, engine-specific ports: parallel agent/test environments may
+        // run other instances of the panel on this machine, so the suite must
+        // not assume the default ports are free.
         match self {
-            Self::Sqlite => 18101,
-            Self::Mysql => 18102,
-            Self::Postgres => 18103,
+            Self::Sqlite => 18201,
+            Self::Mysql => 18202,
+            Self::Postgres => 18203,
         }
     }
 
