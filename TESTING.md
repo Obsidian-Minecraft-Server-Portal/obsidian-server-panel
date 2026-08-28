@@ -55,19 +55,25 @@ running 19 tests
 test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured
 ```
 
-### Integration Testing
+### HTTP API Integration Tests
 
-Integration tests would require:
-- Test database setup
-- Mock HTTP servers for version APIs
-- Filesystem operations testing
+`tests/api.rs` (+ `tests/common/`) boots the real server binary (sqlite build)
+on port 18101 and exercises every endpoint group over real HTTP: auth and
+permissions, users, servers CRUD, lifecycle (via a fake `java` script), the
+filesystem scope (upload/download/archive/extract with SSE trackers), mods,
+backups, updates, settings, platforms and SSE/WebSocket surfaces. The suite is
+re-run safe and network-tolerant (upstream-dependent routes degrade to
+"route must answer" assertions when offline).
 
-These are currently not implemented but would be valuable for:
-- Testing actual update application flow
-- Testing rollback functionality
-- Testing backup creation during updates
+```bash
+cargo test --no-default-features --features sqlite
+```
 
-## Database Engine Tests
+The suite only compiles under the `sqlite` feature (the app builds exactly one
+database driver per feature flag); cross-engine coverage is provided by the
+database engine suite below.
+
+### Database Engine Tests
 
 The backend compiles for three database engines via cargo features (`sqlite`,
 `mysql`, `postgres`; exactly one at a time). The integration suite in
@@ -106,6 +112,26 @@ justfile recipes):
 Compose files: `.docker/mysql-test.compose.yml` and
 `.docker/postgres.compose.yml`. Engine-specific schema lives in
 `resources/sql/{sqlite,mysql,postgres}/`.
+
+## UI Pathway Tests (Puppeteer)
+
+`tools/ui-tests/` drives the real app (backend + Vite) with Puppeteer and
+screenshots every pathway at a mobile viewport of **360x760** (override with
+`UI_VIEWPORT=1920x1080`). Every page load is audited for horizontal overflow.
+
+```bash
+# Starts/reuses the backend on port 18104 (Vite on 3174) and runs every spec
+./node_modules/.bin/tsx tools/ui-tests/run-all.ts
+
+# Single spec
+./node_modules/.bin/tsx tools/ui-tests/auth.spec.ts
+```
+
+Specs: auth, dashboard (+ all 4 accessibility themes), server-create (all
+loaders), server-lifecycle (fake java start/stop/restart/kill), server-files
+(upload/Monaco edit/download), server-options, server-backups, discover,
+account, errors. Results aggregate to `target/ui-tests/report.json` with
+screenshots under `target/ui-tests/`.
 
 ## Frontend Tests
 
