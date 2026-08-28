@@ -12,7 +12,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_timestamp ON notifications(timestam
 
 -- User notifications table: tracks per-user read/hidden state
 CREATE TABLE IF NOT EXISTS user_notifications (
-	user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	notification_id VARCHAR(255) NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
 	is_read         SMALLINT NOT NULL DEFAULT 0,
 	is_hidden       SMALLINT NOT NULL DEFAULT 0,

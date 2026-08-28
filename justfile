@@ -111,6 +111,39 @@ dev-mysql-down:
 run-mysql $DATABASE_CONNECTION_STRING="mysql://root:root@localhost:3306/obsidian-server-panel": dev-mysql install
     cargo run --no-default-features --features mysql
 
+# Start the ephemeral MySQL test database (Docker, host port 3307)
+dev-mysql-test:
+    docker compose -f .docker/mysql-test.compose.yml up -d --wait
+
+# Stop and remove the ephemeral MySQL test database
+dev-mysql-test-down:
+    docker compose -f .docker/mysql-test.compose.yml down -v
+
+# Start the ephemeral PostgreSQL test database (Docker, host port 5433)
+dev-postgres:
+    docker compose -f .docker/postgres.compose.yml up -d --wait
+
+# Stop and remove the ephemeral PostgreSQL test database
+dev-postgres-down:
+    docker compose -f .docker/postgres.compose.yml down -v
+
+# Run the backend against the ephemeral PostgreSQL test database
+run-postgres $DATABASE_CONNECTION_STRING="postgres://postgres:postgres@localhost:5433/obsidian-server-panel": dev-postgres install
+    cargo run --no-default-features --features postgres
+
+# Run the integration test suite against the ephemeral MySQL test database
+test-mysql: dev-mysql-test
+    docker compose -f .docker/mysql-test.compose.yml exec -T db mysql -uroot -proot -e "DROP DATABASE IF EXISTS obsidian_test; CREATE DATABASE obsidian_test;"
+    env DATABASE_CONNECTION_STRING=mysql://root:root@localhost:3307/obsidian_test OBSIDIAN_TEST_DB_ENGINE=mysql OBSIDIAN_TEST_DB_URL=mysql://root:root@localhost:3307/obsidian_test OBSIDIAN_TEST_DB_ADMIN_URL=mysql://root:root@localhost:3307 cargo test --no-default-features --features mysql
+
+# Run the integration test suite against the ephemeral PostgreSQL test database
+test-postgres: dev-postgres
+    docker compose -f .docker/postgres.compose.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS obsidian_test;" -c "CREATE DATABASE obsidian_test;"
+    env DATABASE_CONNECTION_STRING=postgres://postgres:postgres@localhost:5433/obsidian_test OBSIDIAN_TEST_DB_ENGINE=postgres OBSIDIAN_TEST_DB_URL=postgres://postgres:postgres@localhost:5433/obsidian_test OBSIDIAN_TEST_DB_ADMIN_URL=postgres://postgres:postgres@localhost:5433/postgres cargo test --no-default-features --features postgres
+
+# Run the integration test suite against every database engine (sqlite, mysql, postgres)
+test-databases: test test-mysql test-postgres
+
 # ─── Quality ───────────────────────────────────────────────
 
 # Run clippy across all database backends

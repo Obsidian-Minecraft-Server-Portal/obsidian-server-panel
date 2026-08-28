@@ -32,9 +32,19 @@ impl ServerData {
         Ok(sqlx::query_as(&*sql(r#"select * from servers WHERE id = ?"#)).bind(id as i64).fetch_optional(pool).await?)
     }
     pub async fn create(&mut self, pool: &Pool) -> Result<()> {
-        let result = sqlx::query(
-			&*sql(r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_cron, backup_retention, description, minecraft_version, server_type, loader_version, owner_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
+        // PostgreSQL returns the generated id via RETURNING; SQLite and MySQL
+        // expose it through last_insert_rowid()/last_insert_id() after the
+        // insert.
+        #[cfg(feature = "postgres")]
+        const INSERT_SQL: &str = r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_cron, backup_retention, description, minecraft_version, server_type, loader_version, owner_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id"#;
+        #[cfg(any(feature = "sqlite", feature = "mysql"))]
+        const INSERT_SQL: &str = r#"INSERT INTO servers (name, directory, java_executable, java_args, max_memory, min_memory, minecraft_args, server_jar, upnp, status, auto_start, auto_restart, backup_enabled, backup_cron, backup_retention, description, minecraft_version, server_type, loader_version, owner_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#;
+
+        let statement = sql(INSERT_SQL);
+        let query = sqlx::query(&statement)
 			.bind(&self.name)
 			.bind(&self.directory)
 			.bind(&self.java_executable)
@@ -43,30 +53,32 @@ impl ServerData {
 			.bind(self.min_memory as i16)
 			.bind(&self.minecraft_args)
 			.bind(&self.server_jar)
-			.bind(self.upnp)
+			.bind(self.upnp as i16)
 			.bind(&self.status)
-			.bind(self.auto_start)
-			.bind(self.auto_restart)
-			.bind(self.backup_enabled)
+			.bind(self.auto_start as i16)
+			.bind(self.auto_restart as i16)
+			.bind(self.backup_enabled as i16)
 			.bind(&self.backup_cron)
 			.bind(self.backup_retention as i32)
 			.bind(self.description.as_deref())
 			.bind(self.minecraft_version.as_deref())
 			.bind(&self.server_type)
 			.bind(self.loader_version.as_deref())
-			.bind(self.owner_id as i64)
-			.execute(pool)
-			.await?;
+			.bind(self.owner_id as i64);
 
-        #[cfg(feature = "sqlite")]
-        { self.id = result.last_insert_rowid() as u64; }
-        #[cfg(feature = "mysql")]
-        { self.id = result.last_insert_id(); }
         #[cfg(feature = "postgres")]
         {
-            let id: (i64,) = sqlx::query_as(&*sql("SELECT currval(pg_get_serial_sequence('servers', 'id'))"))
-                .fetch_one(pool).await?;
-            self.id = id.0 as u64;
+            use sqlx::Row as _;
+            let row = query.fetch_one(pool).await?;
+            self.id = row.try_get::<i64, _>("id")? as u64;
+        }
+        #[cfg(any(feature = "sqlite", feature = "mysql"))]
+        {
+            let result = query.execute(pool).await?;
+            #[cfg(feature = "sqlite")]
+            { self.id = result.last_insert_rowid() as u64; }
+            #[cfg(feature = "mysql")]
+            { self.id = result.last_insert_id(); }
         }
 
         // Send notification that server has been created
@@ -88,11 +100,11 @@ impl ServerData {
 			.bind(self.min_memory as i16)
 			.bind(&self.minecraft_args)
 			.bind(&self.server_jar)
-			.bind(self.upnp)
+			.bind(self.upnp as i16)
 			.bind(&self.status)
-			.bind(self.auto_start)
-			.bind(self.auto_restart)
-			.bind(self.backup_enabled)
+			.bind(self.auto_start as i16)
+			.bind(self.auto_restart as i16)
+			.bind(self.backup_enabled as i16)
 			.bind(&self.backup_cron)
 			.bind(self.backup_retention as i32)
 			.bind(self.description.as_deref())

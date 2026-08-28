@@ -1,0 +1,18 @@
+# Ephemeral PostgreSQL 16 instance for the cross-engine database test suite
+# (used by `just test-postgres`). Runs on host port 5433.
+name: osp-postgres-test
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+    tmpfs:
+      - /var/lib/postgresql/data
+    command: --fsync=off --synchronous_commit=off --full_page_writes=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10

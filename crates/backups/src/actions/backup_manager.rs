@@ -1186,26 +1186,13 @@ impl BackupManager {
             // Get all commits that come after (descendants of) the target
             let commits_to_rewrite = &all_ids[..target_position];
 
-            // Determine the new parent for the rewrite
-            let new_parent_oid = if let Some(parent_oid) = parent_oid {
-                parent_oid
-            } else {
-                // If the target has no parent, we need to make the next commit the new root
-                let next_commit_id = &all_ids[target_position + 1];
-                let next_oid = Oid::from_str(next_commit_id)?;
-                let next_commit = self.repository.find_commit(next_oid)?;
-
-                // Create a new root commit with the same tree as the next commit
-                let sig = self.repository.signature()?;
-                self.repository.commit(
-                    None,
-                    &next_commit.author(),
-                    &next_commit.committer(),
-                    next_commit.message().unwrap_or("No description provided"),
-                    &next_commit.tree()?,
-                    &[],
-                )?
-            };
+            // Determine the new parent for the rewrite. When the target is
+            // the root commit it has no parent; its oldest descendant (the
+            // commit immediately newer than it, at `target_position - 1` in
+            // this newest-first list) is rewritten as the new parentless
+            // root. `all_ids[target_position + 1]` would be out of bounds
+            // here because the target is the oldest commit in the repository.
+            let new_parent_oid = parent_oid;
 
             // Rewrite all descendant commits
             self.rewrite_commit_chain(commits_to_rewrite, new_parent_oid)?;
@@ -1263,7 +1250,7 @@ impl BackupManager {
         debug!("Created new base commit: {}", new_base_oid);
 
         // Now we need to rewrite the remaining commits to use this new base
-        self.rewrite_commit_chain(&commits_to_keep[..commits_to_keep.len() - 1], new_base_oid)?;
+        self.rewrite_commit_chain(&commits_to_keep[..commits_to_keep.len() - 1], Some(new_base_oid))?;
 
         // Force garbage collection to remove unreferenced objects
         self.cleanup_orphaned_commits()?;
@@ -1333,7 +1320,7 @@ impl BackupManager {
 
         // Rewrite remaining commits
         if commits_to_keep.len() > 1 {
-            self.rewrite_commit_chain(&commits_to_keep[..commits_to_keep.len() - 1], new_base_oid)?;
+            self.rewrite_commit_chain(&commits_to_keep[..commits_to_keep.len() - 1], Some(new_base_oid))?;
         } else {
             // Only one commit to keep, just update HEAD to the new base
             self.repository.reference(
@@ -1407,7 +1394,13 @@ impl BackupManager {
     }
 
     /// Helper function to rewrite a chain of commits with a new parent
-    fn rewrite_commit_chain(&self, commit_ids: &[String], new_parent_oid: Oid) -> Result<()> {
+    /// Rewrite a chain of commits onto a new parent.
+    ///
+    /// `commit_ids` are given newest-first; they are rewritten oldest-first
+    /// so each new commit points at the rewrite of its child. When
+    /// `new_parent_oid` is `None`, the oldest rewritten commit becomes a
+    /// parentless root commit (used when purging the repository's root).
+    fn rewrite_commit_chain(&self, commit_ids: &[String], new_parent_oid: Option<Oid>) -> Result<()> {
         debug!("Rewriting commit chain with {} commits", commit_ids.len());
 
         let mut current_parent = new_parent_oid;
@@ -1420,21 +1413,33 @@ impl BackupManager {
 
             debug!("Rewriting commit: {}", commit_id);
 
-            let parent_commit = self.repository.find_commit(current_parent)?;
-
-            // Create new commit with same tree but new parent
-            let new_oid = self.repository.commit(
-                None,
-                &old_commit.author(),
-                &old_commit.committer(),
-                old_commit.message().unwrap_or("No description provided"),
-                &old_commit.tree()?,
-                &[&parent_commit],
-            )?;
+            // Create new commit with same tree but new parent chain
+            let new_oid = match current_parent {
+                Some(parent_oid) => {
+                    let parent_commit = self.repository.find_commit(parent_oid)?;
+                    self.repository.commit(
+                        None,
+                        &old_commit.author(),
+                        &old_commit.committer(),
+                        old_commit.message().unwrap_or("No description provided"),
+                        &old_commit.tree()?,
+                        &[&parent_commit],
+                    )?
+                }
+                // The oldest rewritten commit becomes the new root commit
+                None => self.repository.commit(
+                    None,
+                    &old_commit.author(),
+                    &old_commit.committer(),
+                    old_commit.message().unwrap_or("No description provided"),
+                    &old_commit.tree()?,
+                    &[],
+                )?,
+            };
 
             debug!("Created new commit: {} (was: {})", new_oid, old_oid);
 
-            current_parent = new_oid;
+            current_parent = Some(new_oid);
             new_head = Some(new_oid);
         }
 
@@ -1634,98 +1639,17 @@ impl BackupManager {
     }
 
     /// Pack loose objects into packfiles
+    ///
+    /// NOTE: This intentionally does not pack. `git2`'s `PackBuilder`
+    /// only exposes `write_buf`, which emits the packfile *without* the
+    /// companion `.idx` index. A packfile without an index cannot be read
+    /// back by libgit2, and deleting the loose originals afterwards made
+    /// every reachable object invisible, silently corrupting the whole
+    /// repository on each GC. Pruning unreachable loose objects (above)
+    /// already reclaims the space that GC is responsible for.
     fn pack_loose_objects(&self) -> Result<usize> {
-        let objects_dir = self.repository.path().join("objects");
-        let mut loose_oids = Vec::new();
-
-        // Collect all loose object OIDs
-        for i in 0..256 {
-            let dir_name = format!("{:02x}", i);
-            let dir_path = objects_dir.join(&dir_name);
-
-            if !dir_path.exists() {
-                continue;
-            }
-
-            for entry in fs::read_dir(&dir_path)? {
-                let entry = entry?;
-                let file_name = entry.file_name();
-                let file_name_str = file_name.to_string_lossy();
-
-                // Skip pack and idx files
-                if file_name_str == "pack" || file_name_str == "info" {
-                    continue;
-                }
-
-                // Construct the full OID
-                let oid_str = format!("{}{}", dir_name, file_name_str);
-                if let Ok(oid) = Oid::from_str(&oid_str) {
-                    loose_oids.push(oid);
-                }
-            }
-        }
-
-        let loose_count = loose_oids.len();
-
-        if loose_oids.is_empty() {
-            debug!("No loose objects to pack");
-            return Ok(0);
-        }
-
-        debug!("Packing {} loose objects", loose_count);
-
-        // Create a packbuilder
-        let mut packbuilder = self.repository.packbuilder()?;
-
-        // Add all loose objects to the pack
-        for oid in &loose_oids {
-            if let Err(_e) = packbuilder.insert_object(*oid, None) {
-                debug!("Failed to insert object {} into pack: {}", oid, _e);
-                // Continue with other objects
-            }
-        }
-
-        // Write the packfile
-        let pack_dir = objects_dir.join("pack");
-        fs::create_dir_all(&pack_dir)?;
-
-        // Generate a unique pack name based on timestamp
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs();
-        let pack_path = pack_dir.join(format!("pack-{:x}.pack", timestamp));
-
-        debug!("Writing packfile to: {:?}", pack_path);
-        let mut buf = git2::Buf::new();
-        packbuilder.write_buf(&mut buf)?;
-        fs::write::<&std::path::PathBuf, &[u8]>(&pack_path, buf.as_ref())?;
-
-        // After successful packing, remove the loose objects
-        for oid in &loose_oids {
-            let oid_str = oid.to_string();
-            let dir_name = &oid_str[..2];
-            let file_name = &oid_str[2..];
-            let file_path = objects_dir.join(dir_name).join(file_name);
-
-            if file_path.exists() {
-                let _ = fs::remove_file(&file_path);
-            }
-        }
-
-        // Clean up empty directories
-        for i in 0..256 {
-            let dir_name = format!("{:02x}", i);
-            let dir_path = objects_dir.join(&dir_name);
-
-            if dir_path.exists()
-                && let Ok(mut entries) = fs::read_dir(&dir_path)
-                && entries.next().is_none()
-            {
-                let _ = fs::remove_dir(&dir_path);
-            }
-        }
-
-        Ok(loose_count)
+        debug!("Skipping loose object packing (packfile writing without an index corrupts the object database)");
+        Ok(0)
     }
 
     /// Pack references into packed-refs file

@@ -72,6 +72,13 @@ forge-loader = { path = "crates/forge_loader", features = ["logging"] }
 neoforge-loader = { path = "crates/neoforge_loader", features = ["logging"] }
 minecraft-server = { path = "crates/minecraft_server", features = ["logging"] }
 
+[dev-dependencies]
+reqwest = { version = "0.12.22", features = ["json", "stream"] }
+tokio = { version = "1.46.1", features = ["time", "fs", "rt-multi-thread", "sync", "rt", "macros", "process"] }
+serde_json = "1.0.125"
+uuid = { version = "1.17.0", features = ["v4"] }
+futures = "0.3.31"
+
 [build-dependencies]
 include_dir = "0.7.4"
 walkdir = "2.5.0"

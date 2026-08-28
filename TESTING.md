@@ -67,6 +67,46 @@ These are currently not implemented but would be valuable for:
 - Testing rollback functionality
 - Testing backup creation during updates
 
+## Database Engine Tests
+
+The backend compiles for three database engines via cargo features (`sqlite`,
+`mysql`, `postgres`; exactly one at a time). The integration suite in
+`tests/database_engines.rs` boots the real server binary against the selected
+engine and validates the full CRUD surface (auth, servers, filesystem,
+backups, users, settings) plus an app-restart persistence scenario.
+
+### Running
+
+```bash
+# MySQL (ephemeral Docker DB on port 3307; scratch DB recreated each run)
+just test-mysql
+
+# PostgreSQL (ephemeral Docker DB on port 5433; scratch DB recreated each run)
+just test-postgres
+
+# All three engines sequentially (sqlite + mysql + postgres)
+just test-databases
+
+# Bring the test databases up/down manually
+just dev-mysql-test / just dev-mysql-test-down
+just dev-postgres / just dev-postgres-down
+```
+
+### Configuration
+
+The suite is controlled by environment variables (set automatically by the
+justfile recipes):
+
+| Variable | Purpose |
+| --- | --- |
+| `OBSIDIAN_TEST_DB_ENGINE` | `mysql`, `postgres` or `sqlite`; tests skip early when unset |
+| `OBSIDIAN_TEST_DB_URL` | Connection string for the scratch database |
+| `OBSIDIAN_TEST_DB_ADMIN_URL` | Admin connection (DB lifecycle is managed by the justfile) |
+
+Compose files: `.docker/mysql-test.compose.yml` and
+`.docker/postgres.compose.yml`. Engine-specific schema lives in
+`resources/sql/{sqlite,mysql,postgres}/`.
+
 ## Frontend Tests
 
 Frontend tests use the standard testing tools configured in the project.
