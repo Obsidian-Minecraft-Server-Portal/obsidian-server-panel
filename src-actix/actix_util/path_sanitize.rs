@@ -19,10 +19,17 @@ pub fn sanitize_path_component(s: &str) -> String {
 /// - Rejecting `..` components that would escape the base
 /// - Canonicalizing to resolve symlinks when the path exists
 pub fn ensure_path_within(base: &Path, user_path: &str) -> Result<PathBuf> {
-    // Strip leading slashes/backslashes from the user input
-    let cleaned = user_path
-        .trim_start_matches('/')
-        .trim_start_matches('\\');
+    // Normalize Windows-style separators so traversal checks behave consistently on every platform
+    let normalized = user_path.replace('\\', "/");
+    let cleaned = normalized.trim_start_matches('/');
+
+    // Reject drive-letter absolute paths (e.g. "C:/Windows") regardless of host platform
+    let bytes = cleaned.as_bytes();
+    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        return Err(anyhow!(
+            "Absolute paths are not allowed in user-provided path"
+        ));
+    }
 
     // Reject any path containing `..` components
     let candidate = Path::new(cleaned);

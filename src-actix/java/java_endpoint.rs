@@ -44,11 +44,16 @@ pub async fn install_java_version(runtime: web::Path<String>) -> Result<impl Res
             if let Err(e) = version.install(sender.clone()).await {
                 error!("Error installing java version: {}", e);
                 let data = json!({"message": "Error installing java version", "stacktrace": e.to_string()});
-                let event_data = sse::Data::new_json(&data).unwrap().event("error");
-                sender.try_send(event_data.into()).unwrap();
+                if let Ok(event_data) = sse::Data::new_json(&data)
+                    && let Err(e) = sender.try_send(event_data.event("error").into()) {
+                        error!("Failed to send installation error event: {}", e);
+                    }
             }
 
-            sender.try_send(sse::Data::new_json(json!({"message": "Installation completed!"})).unwrap().event("completed").into()).unwrap();
+            if let Ok(data) = sse::Data::new_json(json!({"message": "Installation completed!"}))
+                && let Err(e) = sender.try_send(data.event("completed").into()) {
+                    error!("Failed to send installation completion event: {}", e);
+                }
         }
     });
     Ok(sse::Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))

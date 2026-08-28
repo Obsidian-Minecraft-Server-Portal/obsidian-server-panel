@@ -141,6 +141,14 @@ async fn delete_backup(
         },
         Err(e) => {
             error!("Failed to delete backup: {}", e);
+            let message = e.to_string();
+            // The backup crate refuses to purge the last remaining commit; surface that as a
+            // client error instead of a server fault.
+            if message.contains("Cannot purge the only commit") {
+                return Ok(HttpResponse::BadRequest().json(json!({
+                    "error": "Cannot delete the only remaining backup. Create a newer backup first."
+                })));
+            }
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": format!("Failed to delete backup: {}", e)
             })))

@@ -446,7 +446,14 @@ pub async fn upload_url(server_id: web::Path<String>, query: web::Query<HashMap<
             };
         }
 
-        sender.try_send(Data::new_json(json!({"message": "File uploaded!"})).unwrap().event("complete").into()).unwrap();
+        match Data::new_json(json!({"message": "File uploaded!"})) {
+            Ok(data) => {
+                if let Err(e) = sender.try_send(data.event("complete").into()) {
+                    error!("Failed to send completion message: {}", e);
+                }
+            }
+            Err(e) => error!("Failed to serialize completion message: {}", e),
+        }
     });
 
     Ok(Sse::from_infallible_receiver(receiver).with_keep_alive(Duration::from_secs(10)))

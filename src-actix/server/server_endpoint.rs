@@ -19,6 +19,16 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::time::Duration;
 
+fn required_string(body: &serde_json::Value, field: &str) -> Result<String> {
+    Ok(body.get(field).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| anyhow!("Missing or invalid '{}'", field))?)
+}
+
+fn server_not_found() -> HttpResponse {
+    HttpResponse::NotFound().json(json!({
+        "error": "Server not found".to_string(),
+    }))
+}
+
 #[get("")]
 pub async fn get_servers(req: HttpRequest) -> Result<impl Responder> {
     let user = req.get_user()?;
@@ -83,11 +93,11 @@ pub async fn create_server(body: web::Json<serde_json::Value>, req: HttpRequest)
 
     let body = body.0;
 
-    let name: String = body.get("name").ok_or(anyhow!("Name not found"))?.as_str().unwrap().to_string();
-    let server_type: String = body.get("server_type").ok_or(anyhow!("Server type not found"))?.as_str().unwrap().to_string();
-    let minecraft_version: String = body.get("minecraft_version").ok_or(anyhow!("Minecraft version not found"))?.as_str().unwrap().to_string();
+    let name: String = required_string(&body, "name")?;
+    let server_type: String = required_string(&body, "server_type")?;
+    let minecraft_version: String = required_string(&body, "minecraft_version")?;
     let loader_version: Option<String> = body.get("loader_version").and_then(|v| v.as_str().map(String::from));
-    let java_executable: String = body.get("java_executable").ok_or(anyhow!("Java executable not found"))?.as_str().unwrap().to_string();
+    let java_executable: String = required_string(&body, "java_executable")?;
 
     let pool = crate::database::get_pool();
     let mut server = ServerData::new(name, server_type.into(), minecraft_version, loader_version, java_executable, user_id);
@@ -111,7 +121,9 @@ pub async fn ping_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
-    let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
+    let Some(server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
     let ping_response = server.get_ping().await?;
     Ok(HttpResponse::Ok().json(ping_response))
 }
@@ -161,7 +173,9 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
         })));
     }
 
-    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let Some(mut server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
     if server.has_server_process().await {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Server is already running".to_string(),
@@ -201,7 +215,9 @@ pub async fn stop_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
         })));
     }
 
-    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let Some(mut server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
     server.stop_server().await?;
     Ok(HttpResponse::Ok().finish())
 }
@@ -219,7 +235,9 @@ pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> R
         })));
     }
 
-    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let Some(mut server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
     tokio::spawn(async move {
         if let Err(e) = server.restart_server().await {
             error!("Failed to restart server {}: {}", server.name, e);
@@ -241,7 +259,9 @@ pub async fn kill_server(server_id: web::Path<String>, req: HttpRequest) -> Resu
         })));
     }
 
-    let mut server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let Some(mut server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
     server.kill_server().await?;
     Ok(HttpResponse::Ok().finish())
 }
@@ -260,20 +280,24 @@ pub async fn send_command(server_id: web::Path<String>, body: web::Bytes, req: H
         })));
     }
 
-    let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let Some(server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
     server.send_command(body).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
 #[get("{server_id}/console")]
-pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> Result<impl Responder> {
+pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> Result<HttpResponse> {
     let (sender, receiver) = tokio::sync::mpsc::channel(100);
     let server_id = decode_single(server_id.into_inner())?;
     let user = req.get_user()?;
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
-    let server = ServerData::get(server_id, user_id).await?.expect("Server not found");
+    let Some(server) = ServerData::get(server_id, user_id).await? else {
+        return Ok(server_not_found());
+    };
 
     // Spawn the attachment in a separate task to handle connection cleanup
     let sender_clone = sender.clone();
@@ -284,9 +308,10 @@ pub async fn get_console_out(server_id: web::Path<String>, req: HttpRequest) -> 
     });
 
     // Use a shorter keep-alive interval and add connection timeout
-    Ok(actix_web_lab::sse::Sse::from_infallible_receiver(receiver)
+    let sse = actix_web_lab::sse::Sse::from_infallible_receiver(receiver)
         .with_keep_alive(Duration::from_secs(5)) // Shorter keep-alive
-        .with_retry_duration(Duration::from_secs(3))) // Add retry duration
+        .with_retry_duration(Duration::from_secs(3)); // Add retry duration
+    Ok(sse.respond_to(&req))
 }
 
 #[get("{server_id}/icon")]
@@ -441,7 +466,11 @@ pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_js
     let user_id = user.id.ok_or(anyhow!("User ID not found"))?;
 
     let download_url = body.get("download_url").and_then(|v| v.as_str()).ok_or(anyhow!("download_url is required"))?;
-    let filename = body.get("filename").and_then(|v| v.as_str()).map(String::from).expect("filename is required");
+    let filename = body
+        .get("filename")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .ok_or_else(|| anyhow!("filename is required"))?;
     let version = body.get("version").and_then(|v| v.as_str()).map(String::from);
     let modrinth_id = body.get("modrinth_id").and_then(|v| v.as_str()).map(String::from);
     let curseforge_id = body.get("curseforge_id").and_then(|v| v.as_str()).map(String::from);
