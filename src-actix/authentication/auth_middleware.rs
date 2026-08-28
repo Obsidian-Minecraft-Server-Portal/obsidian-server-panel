@@ -51,7 +51,7 @@ where
             if let Some(token) = token {
                 let user = UserData::authenticate_with_session_token(&token).await.map_err(ErrorUnauthorized)?;
                 req.extensions_mut().insert(user);
-                return service.call(req).await.map_err(actix_web::error::ErrorInternalServerError);
+                return service.call(req).await;
             }
             Err(ErrorUnauthorized("Missing or invalid authentication token"))
         })
