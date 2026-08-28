@@ -1,3 +1,7 @@
+// The app compiles exactly one database driver per feature flag; this suite drives the
+// default sqlite build, so skip it entirely when targeting mysql/postgres.
+#![cfg(feature = "sqlite")]
+
 mod common;
 
 use common::*;
@@ -961,7 +965,7 @@ async fn backups_delete_only_backup_resets_repository() {
     let res = client.get(base.clone()).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let empty: Value = res.json().await.unwrap();
-    assert!(empty.as_array().map_or(true, |list| list.is_empty()), "backup list should be empty after purging the only backup");
+    assert!(empty.as_array().is_none_or(|list| list.is_empty()), "backup list should be empty after purging the only backup");
 
     // The repository must re-initialize cleanly for the next backup.
     let res = client.post(base.clone()).json(&json!({"backup_type": 0, "description": "reborn backup"})).send().await.unwrap();
