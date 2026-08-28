@@ -94,25 +94,16 @@ mod tests {
 
     #[test]
     fn rejects_mixed_separator_traversal() {
-        // On Windows, `\` is a path separator, so `..\..` escapes the base.
-        // On Unix, backslashes are plain filename characters, not traversal.
-        #[cfg(windows)]
-        {
-            let base = test_base();
-            assert!(ensure_path_within(&base, "..\\..").is_err());
-            assert!(ensure_path_within(&base, "nested\\..\\..\\secret").is_err());
-        }
+        let base = test_base();
+        assert!(ensure_path_within(&base, "..\\..").is_err());
+        assert!(ensure_path_within(&base, "nested\\..\\..\\secret").is_err());
     }
 
     #[test]
     fn rejects_absolute_paths() {
         let base = test_base();
-        // `C:\...` / `C:/...` are only absolute (or prefixed) paths on Windows.
-        #[cfg(windows)]
-        {
-            assert!(ensure_path_within(&base, "C:\\Windows\\System32").is_err());
-            assert!(ensure_path_within(&base, "C:/Windows").is_err());
-        }
+        assert!(ensure_path_within(&base, "C:\\Windows\\System32").is_err());
+        assert!(ensure_path_within(&base, "C:/Windows").is_err());
         let escaped = ensure_path_within(&base, "/").unwrap();
         assert_eq!(escaped.canonicalize().unwrap(), base.canonicalize().unwrap());
     }
