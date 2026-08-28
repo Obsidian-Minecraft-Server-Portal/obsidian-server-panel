@@ -89,3 +89,10 @@ default = ["sqlite"]
 sqlite = ["sqlx/sqlite", "obsidian_database/sqlite"]
 mysql = ["sqlx/mysql", "obsidian_database/mysql"]
 postgres = ["sqlx/postgres", "obsidian_database/postgres"]
+
+[dev-dependencies]
+reqwest = { version = "0.12.22", features = ["json", "stream"] }
+tokio = { version = "1.46.1", features = ["time", "fs", "rt-multi-thread", "sync", "rt", "macros", "process"] }
+serde_json = "1.0.125"
+uuid = { version = "1.17.0", features = ["v4"] }
+futures = "0.3.31"
