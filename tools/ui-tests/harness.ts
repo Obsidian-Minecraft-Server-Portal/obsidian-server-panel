@@ -268,7 +268,10 @@ export class UIHarness extends BaseHarness
 
     /** Clicks the first element (button/a/role=tab) whose trimmed text matches exactly,
      *  using REAL mouse events: synthetic element.click() double-fires react-aria press
-     *  handlers (observed: pressing "New Directory" once created the entry on disk twice). */
+     *  handlers (observed: pressing "New Directory" once created the entry on disk twice).
+     *  The element is scrolled into view first - at 360px wide, carousel/tab-strip items
+     *  regularly sit outside the viewport where a mouse click would land on nothing
+     *  (or worse, on the modal backdrop behind it). */
     async clickText(text: string, selector = "button, a, [role=tab]"): Promise<boolean>
     {
         const box = await this.page.evaluate((t, sel) =>
@@ -276,6 +279,7 @@ export class UIHarness extends BaseHarness
             const el = [...document.querySelectorAll(sel)]
                 .find(e => (e.textContent ?? "").trim() === t) as HTMLElement | undefined;
             if (!el) return null;
+            el.scrollIntoView({block: "nearest", inline: "nearest"});
             const r = el.getBoundingClientRect();
             if (r.width === 0 && r.height === 0) return null;
             return {x: r.left + r.width / 2, y: r.top + r.height / 2, text: t};
@@ -330,8 +334,11 @@ export class UIHarness extends BaseHarness
     }
 
     /** Types into the input/textarea that belongs to a label with the given text.
-     *  `tag` ("textarea"/"input") disambiguates containers holding several fields. */
-    async fillLabeled(label: string, value: string, tag?: "input" | "textarea"): Promise<boolean>
+     *  `tag` disambiguates containers holding several fields: "textarea", "input"
+     *  (any non-range input), or an input type such as "number"/"range".
+     *  NOTE: keep the callback free of inner NAMED functions - tsx's keepNames
+     *  transform wraps them in `__name(...)` calls that do not exist in the page. */
+    async fillLabeled(label: string, value: string, tag?: "input" | "textarea" | "number" | "range"): Promise<boolean>
     {
         const handle = await this.page.evaluateHandle((lbl, fieldTag) =>
         {
@@ -343,10 +350,16 @@ export class UIHarness extends BaseHarness
                 for (let i = 0; i < 5 && cur; i++)
                 {
                     const fields = [...cur.querySelectorAll("input:not([type=hidden]), textarea")]
-                        .filter(f => f.getBoundingClientRect().width > 0) as HTMLElement[];
+                        .filter(f => f.getBoundingClientRect().width > 0) as (HTMLInputElement | HTMLTextAreaElement)[];
                     if (fields.length > 0)
                     {
-                        const wanted = fieldTag ? fields.find(f => f.tagName.toLowerCase() === fieldTag) : undefined;
+                        const wanted = fieldTag ? fields.find(f =>
+                        {
+                            const tagName = f.tagName.toLowerCase();
+                            if (fieldTag === "textarea") return tagName === "textarea";
+                            if (fieldTag === "input") return tagName === "input" && (f as HTMLInputElement).type !== "range";
+                            return tagName === "input" && (f as HTMLInputElement).type === fieldTag;
+                        }) : undefined;
                         return (wanted ?? fields[fields.length - 1]);
                     }
                     cur = cur.parentElement;
@@ -374,8 +387,9 @@ export class UIHarness extends BaseHarness
             throw new Error(`replaceInSelector: could not focus ${selector} - refusing to send editing keys`);
         }
         await new Promise(r => setTimeout(r, 150));
-        await this.page.keyboard.press("End");
-        for (let i = 0; i < 40; i++) await this.page.keyboard.press("Backspace");
+        await this.page.keyboard.down("Control");
+        await this.page.keyboard.press("KeyA");
+        await this.page.keyboard.up("Control");
         await this.page.keyboard.type(value);
         if (!(await focused()))
         {
@@ -419,8 +433,10 @@ export class UIHarness extends BaseHarness
     private async replaceInHandle(el: ElementHandle<HTMLInputElement | HTMLTextAreaElement>, value: string): Promise<void>
     {
         // Real keyboard events only: react-aria controlled inputs revert DOM-level value
-        // mutations, and Ctrl+A is unreliable in the inline table inputs. Moving the cursor to
-        // the end and backspacing over the pre-filled default is deterministic.
+        // mutations. Select-all + type replaces the pre-filled value in one stroke -
+        // clear-then-type is NOT safe here: controlled inputs that coerce an empty value
+        // back to their default (e.g. Minimum Memory Number("")||1) revert while the
+        // cursor sits at the end, so the typed replacement APPENDS ("1" -> "12").
         await el.click();
         await new Promise(r => setTimeout(r, 150));
         const focused = await el.evaluate(node => document.activeElement === node);
@@ -428,9 +444,22 @@ export class UIHarness extends BaseHarness
         {
             throw new Error(`replaceInHandle: element could not be focused - refusing to send editing keys`);
         }
-        await this.page.keyboard.press("End");
-        for (let i = 0; i < 40; i++) await this.page.keyboard.press("Backspace");
-        await this.page.keyboard.type(value);
+        const typeReplacement = async () =>
+        {
+            await this.page.keyboard.down("Control");
+            await this.page.keyboard.press("KeyA");
+            await this.page.keyboard.up("Control");
+            await this.page.keyboard.type(value);
+        };
+        await typeReplacement();
+        if (await el.evaluate(node => (node as HTMLInputElement).value) !== value)
+        {
+            await typeReplacement();
+        }
+        if (await el.evaluate(node => (node as HTMLInputElement).value) !== value)
+        {
+            throw new Error(`replaceInHandle: element value did not become "${value}" after typing`);
+        }
         if (!(await el.evaluate(node => document.activeElement === node)))
         {
             throw new Error(`replaceInHandle: element lost focus while editing`);
@@ -512,6 +541,7 @@ export class UIHarness extends BaseHarness
                 .filter(e => (e.textContent ?? "").includes(t));
             const el = rows[rows.length - 1] as HTMLElement | undefined;
             if (!el) return null;
+            el.scrollIntoView({block: "nearest", inline: "nearest"});
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) return null;
             return {x: r.left + Math.min(120, r.width / 2), y: r.top + r.height / 2};
@@ -534,6 +564,7 @@ export class UIHarness extends BaseHarness
         {
             const el = document.querySelector(sel) as HTMLElement | null;
             if (!el) return null;
+            el.scrollIntoView({block: "center", inline: "nearest"});
             const r = el.getBoundingClientRect();
             return {x: r.left + r.width / 2, y: r.top + r.height / 2};
         }, selector);
@@ -553,9 +584,70 @@ export class UIHarness extends BaseHarness
                 .filter(e => e.getBoundingClientRect().width > 0);
             const el = matches[matches.length - 1] as HTMLElement | undefined;
             if (!el) return null;
+            el.scrollIntoView({block: "nearest", inline: "nearest"});
             const r = el.getBoundingClientRect();
             return {x: r.left + r.width / 2, y: r.top + r.height / 2};
         }, scope, text);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
+    }
+
+    /** Clicks the nth [role=tab] with real mouse events - icon-only tab strips
+     *  (e.g. the discover platform switcher) have no text to match on. */
+    async clickRoleTabByIndex(index: number): Promise<boolean>
+    {
+        const box = await this.page.evaluate(i =>
+        {
+            const tabs = [...document.querySelectorAll("[role=tab]")];
+            const el = tabs[i] as HTMLElement | undefined;
+            if (!el) return null;
+            el.scrollIntoView({block: "nearest", inline: "nearest"});
+            const r = el.getBoundingClientRect();
+            if (r.width === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, index);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
+    }
+
+    /** Clicks a visible button with the given exact label INSIDE a scope (e.g. a modal
+     *  dialog that duplicates a page-level button label) with real mouse events -
+     *  synthetic element.click() does not fire react-aria onPress handlers. */
+    async clickButtonInScope(scope: string, label: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate((sc, t) =>
+        {
+            const root = document.querySelector(sc);
+            const btn = [...(root?.querySelectorAll("button") ?? [])]
+                .find(b => (b.textContent ?? "").trim() === t) as HTMLElement | undefined;
+            if (!btn) return null;
+            btn.scrollIntoView({block: "nearest", inline: "nearest"});
+            const r = btn.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, scope, label);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
+    }
+
+    /** Clicks an icon button identified by the iconify icon it contains, inside a scope,
+     *  with real mouse events (see clickButtonInScope). */
+    async clickIconButtonInScope(scope: string, icon: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate((sc, ic) =>
+        {
+            const root = document.querySelector(sc);
+            const btn = [...(root?.querySelectorAll("button") ?? [])]
+                .find(b => b.querySelector(`iconify-icon[icon='${ic}']`)) as HTMLElement | undefined;
+            if (!btn) return null;
+            btn.scrollIntoView({block: "nearest", inline: "nearest"});
+            const r = btn.getBoundingClientRect();
+            if (r.width === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, scope, icon);
         if (!box) return false;
         await this.page.mouse.click((box as any).x, (box as any).y);
         return true;
@@ -569,6 +661,7 @@ export class UIHarness extends BaseHarness
         {
             const btn = [...document.querySelectorAll("button")].find(b => b.querySelector(`iconify-icon[icon='${icon}']`));
             if (!btn) return null;
+            btn.scrollIntoView({block: "nearest", inline: "nearest"});
             const r = btn.getBoundingClientRect();
             if (r.width === 0) return null;
             return {x: r.left + r.width / 2, y: r.top + r.height / 2};
@@ -593,6 +686,7 @@ export class UIHarness extends BaseHarness
             const btn = [...document.querySelectorAll("button")]
                 .find(b => (b.textContent ?? "").trim() === label) as HTMLElement | undefined;
             if (!btn) return null;
+            btn.scrollIntoView({block: "nearest", inline: "nearest"});
             const r = btn.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) return null;
             return {x: r.left + r.width / 2, y: r.top + r.height / 2};
@@ -710,6 +804,9 @@ export class UIHarness extends BaseHarness
     /** Writes the spec report and returns the process exit code. */
     async finish(): Promise<number>
     {
+        // audit the page's FINAL state too - several tabs render their (possibly
+        // overflowing) content asynchronously well after goto() resolved
+        try { await this.auditNow("final-state"); } catch { /* page may be gone */ }
         // surface every page state with horizontal document overflow as a failed check
         const overflowing = this.mobileAudits.filter(a => a.docOverflow);
         const seen = new Set<string>();
