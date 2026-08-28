@@ -1,6 +1,6 @@
 import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui-compat";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
-import React, {KeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
+import React, {KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
 import "../../../../ts/math-ext.ts";
 import {ContextMenuOptions, RowContextMenu} from "./RowContextMenu.tsx";
@@ -530,7 +530,8 @@ export function ServerFiles()
                 severity: "danger"
             });
         } finally
-        {            completingEntryCreationRef.current = false;
+        {
+            completingEntryCreationRef.current = false;
         }
     }, [newItemCreationEntry, path, createEntry, refresh, open]);
 
@@ -567,17 +568,33 @@ export function ServerFiles()
         else inlineEnterRef.current = () => {};
     }, [renamingEntry, newItemCreationEntry, renameSelectedEntry, completeEntryCreation]);
 
+    const inlineCancelRef = useRef<() => void>(() => {});
+    // Route native Escape keypresses (captured above) to whichever inline edit is active.
+    useEffect(() =>
+    {
+        if (renamingEntry) inlineCancelRef.current = () => setRenamingEntry(undefined);
+        else if (newItemCreationEntry) inlineCancelRef.current = () => void cancelEntryCreation();
+        else inlineCancelRef.current = () => {};
+    }, [renamingEntry, newItemCreationEntry, cancelEntryCreation]);
+
     const inlineInputRef = useCallback((el: HTMLElement | null) =>
     {
         if (!el) return;
-        el.addEventListener("keydown", e =>
+        const onKeyDown = (e: KeyboardEvent) =>
         {
             e.stopPropagation();
             if (e.key === "Enter" && !e.defaultPrevented)
             {
                 inlineEnterRef.current((e.target as HTMLInputElement).value);
             }
-        });
+            else if (e.key === "Escape")
+            {
+                e.preventDefault();
+                inlineCancelRef.current();
+            }
+        };
+        el.addEventListener("keydown", onKeyDown);
+        return () => el.removeEventListener("keydown", onKeyDown);
     }, []);
 
     const startArchiveCreation = useCallback(async () =>
@@ -667,7 +684,7 @@ export function ServerFiles()
         }
     }, [path, extractArchive, open, refresh]);
 
-    const handleKeyDown = useCallback(async (e: KeyboardEvent<HTMLTableElement>) =>
+    const handleKeyDown = useCallback(async (e: ReactKeyboardEvent<HTMLTableElement>) =>
     {
         // Ignore key events coming from inline inputs (rename / new-entry creation / uploads):
         // Backspace and Delete inside those inputs must edit text, not delete the selected files.
@@ -1148,12 +1165,13 @@ export function ServerFiles()
                                                                 variant={"light"}
                                                                 onPress={e =>
                                                                 {
+                                                                    // client coordinates - RowContextMenu positions
+                                                                    // relative to the browser container's viewport rect
                                                                     const rect = (e.target as HTMLElement).getBoundingClientRect();
-                                                                    const position = {left: rect.left + window.scrollX, top: rect.top + window.scrollY};
                                                                     setContextMenuOptions({
                                                                         entry,
-                                                                        x: position.left - 264,
-                                                                        y: position.top,
+                                                                        x: rect.left - 264,
+                                                                        y: rect.top,
                                                                         isOpen: true
                                                                     });
                                                                 }}
