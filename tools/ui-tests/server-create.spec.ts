@@ -69,18 +69,19 @@ async function main(h: UIHarness)
     await new Promise(r => setTimeout(r, 800));
     await h.fillLabeled("Server Name", SERVER_NAME);
 
-    // The Minecraft version Autocomplete auto-selects the latest release once the
-    // Mojang manifest loads; pin it to 1.20.1 so the fake gamma java matches.
-    const pickedVersion = await h.page.evaluate(() =>
-    {
-        const input = [...document.querySelectorAll(".modal__dialog input")]
-            .find(i => (i as HTMLInputElement).value && /\d+\.\d+/.test((i as HTMLInputElement).value));
-        return input ? (input as HTMLInputElement).value : null;
-    });
-    if (pickedVersion)
-        h.check("minecraft version auto-selected in modal", true, pickedVersion);
-    else
-        h.check("minecraft version auto-selected in modal", false, "version input empty (Mojang manifest may have failed to load)");
+    // The Minecraft version Autocomplete auto-selects the latest release, whose required
+    // Java runtime the fake runtimes do not satisfy (and "latest" keeps moving as Mojang
+    // ships new versions) - pin 1.20.1 so the fake gamma runtime matches.
+    await h.fillLabeled("Minecraft Version", "1.20.1");
+    await h.waitFor("1.20.1 option", () => h.page.evaluate(() =>
+        [...document.querySelectorAll("[role=option]")].some(o => (o.textContent ?? "").includes("1.20.1"))), 8000);
+    await h.clickOpenSelectOption("1.20.1");
+    await new Promise(r => setTimeout(r, 500));
+    const versionPinned = await h.page.evaluate(() =>
+        [...document.querySelectorAll(".modal__dialog input")]
+            .some(i => (i as HTMLInputElement).value === "1.20.1"));
+    h.check("minecraft version pinned in modal", versionPinned,
+        `version input=${await h.page.evaluate(() => [...document.querySelectorAll(".modal__dialog input")].map(i => (i as HTMLInputElement).value).join("|"))}`);
 
     // wait for the fake java to be auto-selected (gamma runtime) so the form becomes valid
     const formReady = await h.waitFor("form validity (java auto-selected)", () => h.page.evaluate(() =>
@@ -94,8 +95,10 @@ async function main(h: UIHarness)
 
     if (!formReady)
     {
-        // Fall back: pick the java by hand from the Java select
-        await h.pickSelect("Java", "17");
+        // Fall back: pick the installed gamma runtime by hand from the Java select
+        // (the "Installed" section renders before "Available", so this never matches
+        // the not-installed beta runtime that ships the same version number)
+        await h.pickSelect("Java", "17.0.15");
         await new Promise(r => setTimeout(r, 800));
     }
     await h.shot("modal-form-valid");

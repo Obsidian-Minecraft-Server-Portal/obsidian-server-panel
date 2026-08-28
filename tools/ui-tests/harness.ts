@@ -493,14 +493,23 @@ export class UIHarness extends BaseHarness
         }, label);
         if (!opened) return false;
         await this.waitFor(`options for ${label}`, () => this.page.evaluate(() => !!document.querySelector("[role=option]")));
+        return await this.clickOpenSelectOption(optionText);
+    }
+
+    /** Real-mouse click on the visible [role=option] whose text contains `text`, for a
+     *  listbox that is already open (e.g. a HeroUI Autocomplete opened by typing into it). */
+    async clickOpenSelectOption(text: string): Promise<boolean>
+    {
         const box = await this.page.evaluate(t =>
         {
             const el = [...document.querySelectorAll("[role=option]")]
                 .find(e => (e.textContent ?? "").trim().toLowerCase().includes(t.toLowerCase())) as HTMLElement | undefined;
             if (!el) return null;
+            el.scrollIntoView({block: "nearest", inline: "nearest"});
             const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) return null;
             return {x: r.left + r.width / 2, y: r.top + r.height / 2};
-        }, optionText);
+        }, text);
         if (!box) return false;
         await this.page.mouse.click((box as any).x, (box as any).y);
         return true;
