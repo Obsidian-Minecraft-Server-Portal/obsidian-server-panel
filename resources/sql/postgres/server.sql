@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS servers
 (
-	id                SERIAL PRIMARY KEY,
+	id                BIGSERIAL PRIMARY KEY,
 	name              VARCHAR(255) NOT NULL,
 	directory         VARCHAR(255) NOT NULL,
 	java_executable   VARCHAR(512) NOT NULL,
@@ -11,20 +11,20 @@ CREATE TABLE IF NOT EXISTS servers
 	server_jar        VARCHAR(255) NOT NULL DEFAULT '',
 	upnp              SMALLINT NOT NULL DEFAULT 0,
 	status            SMALLINT NOT NULL DEFAULT 0,
-	auto_start        BOOLEAN NOT NULL DEFAULT FALSE,
-	auto_restart      BOOLEAN NOT NULL DEFAULT TRUE,
-	backup_enabled    BOOLEAN NOT NULL DEFAULT TRUE,
+	auto_start        SMALLINT NOT NULL DEFAULT 0,
+	auto_restart      SMALLINT NOT NULL DEFAULT 1,
+	backup_enabled    SMALLINT NOT NULL DEFAULT 1,
 	backup_cron       VARCHAR(50) NOT NULL DEFAULT '0 0 * * * *',
 	backup_retention  INT NOT NULL DEFAULT 7,
 	description       TEXT,
 	minecraft_version VARCHAR(50) DEFAULT '',
 	server_type       SMALLINT NOT NULL DEFAULT 0,
 	loader_version    VARCHAR(50) DEFAULT NULL,
-	owner_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	owner_id          BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	created_at        BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW())::BIGINT),
 	updated_at        BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW())::BIGINT),
 	last_started      BIGINT DEFAULT NULL,
 	last_update_check BIGINT DEFAULT NULL,
-	update_available  BOOLEAN NOT NULL DEFAULT FALSE,
+	update_available  SMALLINT NOT NULL DEFAULT 0,
 	latest_version    VARCHAR(50) DEFAULT NULL
 );

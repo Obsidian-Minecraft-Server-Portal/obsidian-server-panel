@@ -96,7 +96,9 @@ impl NotificationData {
                     id: row.try_get("id")?,
                     title: row.try_get("title")?,
                     message: row.try_get("message")?,
-                    is_read: row.try_get::<i32, _>("is_read")? != 0,
+                    // is_read/is_hidden are TINYINT (MySQL), SMALLINT
+                    // (PostgreSQL) and INTEGER (SQLite) — i16 is portable.
+                    is_read: row.try_get::<i16, _>("is_read")? != 0,
                     timestamp: row.try_get("timestamp")?,
                     notification_type: NotificationType::from_str(row.try_get("type")?),
                     action: row.try_get::<i32, _>("action")? as u16,

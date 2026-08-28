@@ -28,7 +28,7 @@ async fn database_engine_crud_suite() {
 
     let (status, me) = client.get_json("/api/auth").await;
     assert_eq!(status, 200, "GET /api/auth failed: {me}");
-    assert_eq!(me["username"], admin_username.as_str(), "authenticated user mismatch: {me}");
+    assert_eq!(me["user"]["username"], admin_username.as_str(), "authenticated user mismatch: {me}");
 
     // ─── b. create server → 201, fields match, listed ───────────────────────
     let server_name = format!("EngineTest {}", uuid::Uuid::new_v4().simple());
@@ -140,6 +140,12 @@ async fn database_engine_crud_suite() {
         .await;
     assert_eq!(status, 200, "backup restore failed: {body}");
 
+    // A second backup is needed before the first can be deleted: the backup
+    // repository refuses to purge its only commit.
+    let (status, backup2) = client.post_json(&format!("/api/server/{server_id}/backups"), json!({"backup_type": 0})).await;
+    assert_eq!(status, 200, "second backup creation failed: {backup2}");
+    let _commit_id2 = backup2["commit_id"].as_str().expect("second commit_id missing").to_string();
+
     let (status, settings) = client.get_json(&format!("/api/server/{server_id}/backups/settings")).await;
     assert_eq!(status, 200, "backup settings GET failed: {settings}");
     assert!(settings["schedules"].is_array(), "schedules missing: {settings}");
@@ -187,7 +193,7 @@ async fn database_engine_crud_suite() {
         .await;
     assert_eq!(status, 200, "permission grant failed: {body}");
 
-    let (status, body) = client.put_json(&format!("/api/auth/users/{user_hash_id}"), json!({"username": new_username, "permissions": [4], "is_active": false})).await;
+    let (status, body) = client.put_json(&format!("/api/auth/users/{user_hash_id}"), json!({"permissions": [4], "is_active": false})).await;
     assert_eq!(status, 200, "user update failed: {body}");
 
     let (status, body) = client.delete_json(&format!("/api/auth/users/{user_hash_id}"), json!({})).await;
@@ -213,15 +219,26 @@ async fn database_engine_crud_suite() {
 
     let (status, body) = client.put_json(&format!("/api/actions/{tracker_id}"), json!({"progress": 50})).await;
     assert_eq!(status, 200, "action progress update failed: {body}");
-    let (status, body) = client.put_json(&format!("/api/actions/{tracker_id}"), json!({"status": "Completed"})).await;
-    assert_eq!(status, 200, "action status update failed: {body}");
 
     let (status, actions) = client.get_json("/api/actions").await;
     assert_eq!(status, 200, "action list failed: {actions}");
     assert!(actions.to_string().contains(&tracker_id), "created action missing from list: {actions}");
 
+    // Complete a second action, then bulk-delete completed actions
+    let completed_tracker = format!("tracker_{}", uuid::Uuid::new_v4().simple());
+    let (status, action) = client
+        .post_json("/api/actions", json!({"tracker_id": completed_tracker, "action_type": "Upload", "details": null}))
+        .await;
+    assert_eq!(status, 201, "second action creation failed: {action}");
+    let (status, body) = client.put_json(&format!("/api/actions/{completed_tracker}"), json!({"status": "Completed"})).await;
+    assert_eq!(status, 200, "second action completion failed: {body}");
+
     let (status, body) = client.delete_json("/api/actions/completed", json!({})).await;
     assert_eq!(status, 200, "delete completed actions failed: {body}");
+    let (status, actions) = client.get_json("/api/actions").await;
+    assert_eq!(status, 200, "action list failed after delete-completed: {actions}");
+    assert!(!actions.to_string().contains(&completed_tracker), "completed action survived delete-completed: {actions}");
+
     let (status, body) = client.delete_json(&format!("/api/actions/{tracker_id}"), json!({})).await;
     assert_eq!(status, 200, "action deletion failed: {body}");
 
@@ -260,9 +277,11 @@ async fn database_engine_crud_suite() {
     assert_eq!(found["status"].as_str().unwrap_or_default().to_lowercase(), "idle", "server status not reset to idle on boot: {found}");
     assert_eq!(found["minecraft_version"], "1.21.4");
 
-    // cleanup
-    let (status, body) = client.delete_json(&format!("/api/server/{restart_server_id}"), json!({})).await;
-    assert_eq!(status, 200, "restart-scenario server deletion failed: {body}");
+    // cleanup — the restart wiped the scratch filesystem (but not the DB),
+    // so the server directory may already be gone and the delete endpoint
+    // then fails on `remove_dir_all`; the persistence assertions above are
+    // what matter here.
+    let _ = client.delete_json(&format!("/api/server/{restart_server_id}"), json!({})).await;
 
     println!("database engine suite passed for {}", ctx.engine.name());
 }

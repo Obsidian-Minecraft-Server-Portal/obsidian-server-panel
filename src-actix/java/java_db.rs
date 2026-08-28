@@ -21,8 +21,9 @@ pub async fn save_version_map(map: &HashMap<String, (String, String)>, pool: &Po
     // Clear existing data
     sqlx::query("DELETE FROM java_version_map").execute(pool).await?;
 
-    // Insert new data with current timestamp
-    let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    // Insert new data with current timestamp (bound as NaiveDateTime, which
+    // encodes natively on SQLite, MySQL and PostgreSQL alike)
+    let now = chrono::Utc::now().naive_utc();
     for (java_version, (min_version, max_version)) in map {
         sqlx::query(
             &*sql(r#"INSERT INTO java_version_map (java_version, min_version, max_version, updated_at) VALUES (?, ?, ?, ?)"#)
@@ -30,7 +31,7 @@ pub async fn save_version_map(map: &HashMap<String, (String, String)>, pool: &Po
         .bind(java_version)
         .bind(min_version)
         .bind(max_version)
-        .bind(&now)
+        .bind(now)
         .execute(pool)
         .await?;
     }

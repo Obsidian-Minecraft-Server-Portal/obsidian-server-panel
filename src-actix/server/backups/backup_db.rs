@@ -37,28 +37,40 @@ pub async fn create_schedule(
     retention_days: Option<i64>,
     pool: &Pool,
 ) -> Result<BackupSchedule> {
-    let result = sqlx::query(
-        &*sql(r#"INSERT INTO backup_schedules (server_id, interval_amount, interval_unit, backup_type, enabled, retention_days)
-           VALUES (?, ?, ?, ?, ?, ?)"#),
-    )
+    // PostgreSQL returns the generated id via RETURNING; SQLite and MySQL
+    // expose it through last_insert_rowid()/last_insert_id() after the insert.
+    // (The previous approach queried `currval(...)` on a pooled connection,
+    // which fails because the INSERT typically ran on a different session.)
+    #[cfg(feature = "postgres")]
+    const INSERT_SQL: &str = r#"INSERT INTO backup_schedules (server_id, interval_amount, interval_unit, backup_type, enabled, retention_days)
+       VALUES (?, ?, ?, ?, ?, ?)
+       RETURNING id"#;
+    #[cfg(any(feature = "sqlite", feature = "mysql"))]
+    const INSERT_SQL: &str = r#"INSERT INTO backup_schedules (server_id, interval_amount, interval_unit, backup_type, enabled, retention_days)
+       VALUES (?, ?, ?, ?, ?, ?)"#;
+
+    let statement = sql(INSERT_SQL);
+    let query = sqlx::query(&statement)
     .bind(server_id)
     .bind(interval_amount)
     .bind(&interval_unit)
     .bind(backup_type as i32)
     .bind(enabled)
-    .bind(retention_days)
-    .execute(pool)
-    .await?;
+    .bind(retention_days);
 
-    #[cfg(feature = "sqlite")]
-    let id = result.last_insert_rowid();
-    #[cfg(feature = "mysql")]
-    let id = result.last_insert_id() as i64;
     #[cfg(feature = "postgres")]
-    let id = {
-        let row: (i64,) = sqlx::query_as(&*sql("SELECT currval(pg_get_serial_sequence('backup_schedules', 'id'))"))
-            .fetch_one(pool).await?;
-        row.0
+    let id: i64 = {
+        use sqlx::Row as _;
+        let row = query.fetch_one(pool).await?;
+        row.try_get("id")?
+    };
+    #[cfg(any(feature = "sqlite", feature = "mysql"))]
+    let id: i64 = {
+        let result = query.execute(pool).await?;
+        #[cfg(feature = "sqlite")]
+        { result.last_insert_rowid() }
+        #[cfg(feature = "mysql")]
+        { result.last_insert_id() as i64 }
     };
 
     // Fetch the created schedule

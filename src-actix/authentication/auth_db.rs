@@ -176,7 +176,8 @@ impl UserData {
     pub async fn set_active_status(&self, is_active: bool, pool: &Pool) -> Result<()> {
         if let Some(id) = self.id {
             sqlx::query(&*sql("UPDATE users SET is_active = ? WHERE id = ?"))
-                .bind(is_active)
+                // is_active is TINYINT/SMALLINT/INTEGER per engine — never BOOLEAN
+                .bind(is_active as i16)
                 .bind(id as i64)
                 .execute(pool)
                 .await?;

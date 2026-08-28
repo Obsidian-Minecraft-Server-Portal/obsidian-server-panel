@@ -132,12 +132,12 @@ run-postgres $DATABASE_CONNECTION_STRING="postgres://postgres:postgres@localhost
     cargo run --no-default-features --features postgres
 
 # Run the integration test suite against the ephemeral MySQL test database
-test-mysql: dev-mysql-test install
+test-mysql: dev-mysql-test
     docker compose -f .docker/mysql-test.compose.yml exec -T db mysql -uroot -proot -e "DROP DATABASE IF EXISTS obsidian_test; CREATE DATABASE obsidian_test;"
     env DATABASE_CONNECTION_STRING=mysql://root:root@localhost:3307/obsidian_test OBSIDIAN_TEST_DB_ENGINE=mysql OBSIDIAN_TEST_DB_URL=mysql://root:root@localhost:3307/obsidian_test OBSIDIAN_TEST_DB_ADMIN_URL=mysql://root:root@localhost:3307 cargo test --no-default-features --features mysql
 
 # Run the integration test suite against the ephemeral PostgreSQL test database
-test-postgres: dev-postgres install
+test-postgres: dev-postgres
     docker compose -f .docker/postgres.compose.yml exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS obsidian_test;" -c "CREATE DATABASE obsidian_test;"
     env DATABASE_CONNECTION_STRING=postgres://postgres:postgres@localhost:5433/obsidian_test OBSIDIAN_TEST_DB_ENGINE=postgres OBSIDIAN_TEST_DB_URL=postgres://postgres:postgres@localhost:5433/obsidian_test OBSIDIAN_TEST_DB_ADMIN_URL=postgres://postgres:postgres@localhost:5433/postgres cargo test --no-default-features --features postgres
 

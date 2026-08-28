@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS installed_mods
 (
-	id            SERIAL PRIMARY KEY,
+	id            BIGSERIAL PRIMARY KEY,
 	mod_id        TEXT NOT NULL,
 	name          TEXT NOT NULL,
 	version       TEXT NOT NULL,
@@ -10,5 +10,5 @@ CREATE TABLE IF NOT EXISTS installed_mods
 	modrinth_id   TEXT,
 	curseforge_id TEXT,
 	filename      TEXT,
-	server_id     INT NOT NULL REFERENCES servers(id) ON DELETE CASCADE
+	server_id     BIGINT NOT NULL REFERENCES servers(id) ON DELETE CASCADE
 );

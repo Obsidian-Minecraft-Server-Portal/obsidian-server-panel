@@ -137,7 +137,9 @@ impl<'a> FromRow<'a, Row> for ServerData {
         let minecraft_args: String = row.try_get("minecraft_args")?;
         let server_jar: String = row.try_get("server_jar")?;
         let upnp: i16 = row.try_get("upnp")?;
-        let status: i32 = row.try_get("status")?;
+        // Status/server_type are stored as SMALLINT on PostgreSQL and
+        // TINYINT on MySQL — i16 decodes on all three engines.
+        let status: i16 = row.try_get("status")?;
         let auto_start: i16 = row.try_get("auto_start")?;
         let auto_restart: i16 = row.try_get("auto_restart")?;
         let backup_enabled: i16 = row.try_get("backup_enabled")?;
@@ -145,7 +147,7 @@ impl<'a> FromRow<'a, Row> for ServerData {
         let backup_retention: i32 = row.try_get("backup_retention")?;
         let description: Option<String> = row.try_get("description")?;
         let minecraft_version: Option<String> = row.try_get("minecraft_version")?;
-        let server_type: Option<i32> = row.try_get("server_type")?;
+        let server_type: Option<i16> = row.try_get("server_type")?;
         let loader_version: Option<String> = row.try_get("loader_version")?;
         let owner_id: u64 = row.try_get::<i64, _>("owner_id")? as u64;
         let created_at: i64 = row.try_get("created_at")?;

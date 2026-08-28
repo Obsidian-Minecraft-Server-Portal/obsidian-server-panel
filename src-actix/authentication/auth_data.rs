@@ -85,8 +85,10 @@ impl<'a> FromRow<'a, Row> for UserData {
         let permissions = BitFlags::<PermissionFlag>::from_bits_truncate(permissions as u16);
         let join_date: DateTime<Utc> = row.try_get("join_date")?;
         let last_online: DateTime<Utc> = row.try_get("last_online")?;
-        let needs_password_change: i32 = row.try_get("needs_password_change")?;
-        let is_active: i32 = row.try_get("is_active")?;
+        // MySQL stores these as TINYINT, PostgreSQL as SMALLINT and SQLite as
+        // INTEGER — i16 decodes on all three engines.
+        let needs_password_change: i16 = row.try_get("needs_password_change")?;
+        let is_active: i16 = row.try_get("is_active")?;
         Ok(UserData {
             id,
             username,
