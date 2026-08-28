@@ -39,6 +39,11 @@ mkdir -p "$ROOT/target/ui-tests"
 export PATH="$ROOT/node_modules/.bin:$PATH"
 export OBSIDIAN_VITE_PORT="$VITE_PORT"
 
+# Anchor the backend's working directory at the worktree root: the debug binary resolves
+# its dev-env as "./target/dev-env" RELATIVE TO ITS STARTUP CWD, and run-all invokes this
+# script with cwd=tools/ui-tests - without the cd the backend silently uses
+# tools/ui-tests/target/dev-env while the harness seeds fixtures into target/dev-env.
+cd "$ROOT"
 nohup "$HOME/.cargo/bin/cargo" run --no-default-features --features sqlite \
     --manifest-path "$ROOT/Cargo.toml" -- --port "$PORT" > "$LOG" 2>&1 &
 echo $! > "$PIDFILE"
