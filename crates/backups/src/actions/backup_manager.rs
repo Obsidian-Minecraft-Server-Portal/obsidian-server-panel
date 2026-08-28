@@ -463,12 +463,28 @@ impl BackupManager {
         let head = self.repository.head();
 
         // Create and own the parent_commit outside the if scope
-        let parent_commit = if let Ok(head) = head {
-            debug!("Found existing HEAD, using as parent commit");
-            Some(head.peel_to_commit()?)
-        } else {
-            debug!("No existing HEAD found, creating initial commit");
-            None
+        let parent_commit = match head {
+            Ok(head) => match head.peel_to_commit() {
+                Ok(commit) => {
+                    debug!("Found existing HEAD, using as parent commit");
+                    Some(commit)
+                }
+                Err(error) => {
+                    // A ref whose target object is gone (e.g. left behind by a purge or
+                    // an interrupted rewrite) must not poison every future create:
+                    // drop the dangling branch ref so the fresh initial commit can
+                    // re-create it, then treat the repository as having no history.
+                    warn!("HEAD exists but could not be peeled to a commit ({}); creating a fresh initial commit", error);
+                    if let Ok(mut dangling) = self.repository.find_reference("refs/heads/master") {
+                        let _ = dangling.delete();
+                    }
+                    None
+                }
+            },
+            Err(_) => {
+                debug!("No existing HEAD found, creating initial commit");
+                None
+            }
         };
 
         // Build the parent's vector using references to the owned commit
@@ -1149,9 +1165,16 @@ impl BackupManager {
 
         debug!("Target commit found at position {}", target_position);
 
-        // Cannot delete if it's the only commit
+        // Purging the only commit returns the repository to its initial (unborn HEAD)
+        // state; the next backup() call creates a fresh initial commit. Refusing here
+        // instead left repositories whose master ref kept pointing at the pruned
+        // commit, which made every subsequent create fail with
+        // "the reference 'refs/heads/master' cannot be peeled".
         if all_ids.len() == 1 {
-            return Err(anyhow::anyhow!("Cannot purge the only commit in the repository"));
+            let mut branch = self.repository.find_reference("refs/heads/master")?;
+            branch.delete()?;
+            info!("Purged the only commit; repository reset to unborn HEAD");
+            return Ok(());
         }
 
         // Get the parent of the target commit (if it exists)

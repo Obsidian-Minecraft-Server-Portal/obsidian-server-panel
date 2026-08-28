@@ -349,7 +349,7 @@ export function NotificationDropdown()
                         </PopoverTrigger>
                     </div>
                 </Tooltip>
-                <PopoverContent className={"font-minecraft-body w-[32rem] max-h-[70dvh] h-[48rem] p-2 flex flex-col items-start justify-start"}>
+                <PopoverContent className={"font-minecraft-body w-[32rem] max-w-[calc(100vw-1rem)] max-h-[70dvh] h-[48rem] p-2 flex flex-col items-start justify-start"}>
                     <div className={"flex flex-row justify-between w-full px-2 pt-2"}>
                         <div className={"text-xl font-minecraft-header"}>Notifications <CountChip count={notifications.length}/></div>
                         <div className={"flex flex-row"}>

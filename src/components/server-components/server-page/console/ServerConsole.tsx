@@ -77,10 +77,16 @@ export default function ServerConsole()
         {
             // Switch to live log when server starts running
             setSelectedLogFile("live-log");
-            // load the latest log file when the server is running
+            // load the latest log file when the server is running, but never clobber
+            // lines that are already streaming in via the live SSE subscription
             getLog("latest.log")
-                .then((logContent) => setLog(logContent.split("\n").splice(-1000)))
-                .catch(() => setLog(["Failed to load latest log file. Please try again."]))
+                .then((logContent) =>
+                {
+                    const lines = logContent ? logContent.split("\n").splice(-1000) : [];
+                    if (!lines.some(line => line.trim() !== "")) return;
+                    setLog(prevLog => (prevLog.some(line => line.trim() !== "") ? prevLog : lines));
+                })
+                .catch(() => setLog(prevLog => (prevLog.some(line => line.trim() !== "") ? prevLog : ["Failed to load latest log file. Please try again."])))
                 .finally(() =>
                 {
                     if (isAutoscrollEnabledRef.current)

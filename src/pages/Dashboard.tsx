@@ -30,7 +30,7 @@ export default function Dashboard()
     return (
         <AnimatePresence>
             <motion.div
-                className={"flex flex-col gap-4 px-8 h-full"}
+                className={"flex flex-col gap-4 px-4 sm:px-8 h-full"}
                 initial={{opacity: 0, y: 20}}
                 animate={{opacity: 1, y: 0}}
                 transition={{duration: 0.3}}
@@ -41,7 +41,7 @@ export default function Dashboard()
                         color={"primary"}
                         onSelectionChange={value => setGraphSize(value as "sm" | "md" | "lg" | "fullWidth")}
                         selectedKey={graphSize}
-                        className={"flex flex-row gap-2 items-center justify-end translate-y-[35px] z-20 data-[size=fullWidth]:translate-y-[10px] transition-transform duration-200 max-w-fit ml-auto"}
+                        className={"flex flex-row gap-2 items-center justify-end translate-y-0 sm:translate-y-[35px] sm:data-[size=fullWidth]:translate-y-[10px] z-20 transition-transform duration-200 max-w-fit ml-auto"}
                         classNames={{
                             tabList: "bg-content1"
                         }}
@@ -53,7 +53,7 @@ export default function Dashboard()
                         <Tab key={"fullWidth"} title={<Tooltip content={"Full Width View"}><Icon icon={"pixelarticons:device-tv-smart"}/></Tooltip>}/>
                     </Tabs>
                     <motion.div
-                        className={"flex data-[size=fullWidth]:flex-col flex-row gap-2 items-center justify-center mt-4"}
+                        className={"grid grid-cols-2 gap-2 mt-4 data-[size=fullWidth]:grid-cols-1 sm:flex sm:flex-row sm:items-center sm:justify-center sm:data-[size=fullWidth]:flex-col"}
                         initial={{opacity: 0, y: 20}}
                         animate={{opacity: 1, y: 0}}
                         transition={{duration: 0.3, delay: 0.1}}

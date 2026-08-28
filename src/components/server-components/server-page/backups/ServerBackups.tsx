@@ -469,7 +469,7 @@ export function ServerBackups()
     return (
         <div className="flex flex-col gap-4 p-4 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] relative font-minecraft-body">
             {/* Header with actions */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between sm:items-center">
                 <div>
                     <h2 className="text-2xl">Server Backups</h2>
                     <p className="text-default-500">
@@ -481,7 +481,7 @@ export function ServerBackups()
                         )}
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <Button
                         variant="flat"
                         onPress={openIgnoreModal}

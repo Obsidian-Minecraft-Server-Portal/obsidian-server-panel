@@ -3,7 +3,7 @@ import {Icon} from "@iconify-icon/react";
 import {Button} from "../extended/Button.tsx";
 import {Tooltip} from "../extended/Tooltip.tsx";
 import {motion} from "framer-motion";
-import {useState} from "react";
+import {Fragment, useState} from "react";
 import type {ModpackItemProps} from "../../types/ModpackTypes.ts";
 import {ModpackItemContentDrawer} from "./ModpackItemContentDrawer.tsx";
 
@@ -125,10 +125,10 @@ export function ModpackItem(props: ModpackItemProps)
                     <p className={"text-default-700 min-w-0 line-clamp-2"}>{description}</p>
                     <div className={"flex flex-row flex-wrap items-center gap-2 text-default-500 min-w-0 mt-auto"}>
                         {categories.slice(0, 6).map((category, index) => (
-                            <>
-                                <span key={index} className={"text-sm"}>{category}</span>
+                            <Fragment key={index}>
+                                <span className={"text-sm"}>{category}</span>
                                 <Divider orientation={"vertical"}/>
-                            </>
+                            </Fragment>
                         ))}
                     </div>
                 </div>
