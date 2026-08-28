@@ -1,6 +1,5 @@
 import {mkdir, chmod, writeFile, copyFile} from "node:fs/promises";
 import {resolve} from "node:path";
-import {execFileSync} from "node:child_process";
 import {existsSync, readdirSync, statSync} from "node:fs";
 import type {ElementHandle, Page} from "puppeteer";
 import {Harness as BaseHarness} from "../screenshot-harness.ts";
@@ -866,28 +865,4 @@ export class UIHarness extends BaseHarness
         }
         return exitCode;
     }
-}
-
-/** Ensures the dev-env + fake java fixtures exist (safe to call repeatedly). */
-export async function ensureFixtures(): Promise<void>
-{
-    if (!existsSync(resolve(DEV_ENV, "app.db")))
-    {
-        console.warn("[fixtures] dev-env database missing - backend may not have been started via setup-backend.sh");
-    }
-    const h = new UIHarness("fixtures");
-    try
-    {
-        await h.open();
-        await h.seedFakeJava();
-    } finally
-    {
-        await h.close().catch(() => {});
-    }
-}
-
-/** Removes stray chrome processes started by this suite (best effort). */
-export function killOrphans(): void
-{
-    try { execFileSync("pkill", ["-f", "puppeteer"], {stdio: "ignore"}); } catch { /* none */ }
 }
