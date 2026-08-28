@@ -23,6 +23,7 @@ export type SpecReport = {
     consoleErrors: ConsoleIssue[];
     keyWarnings: string[];
     skipped: string[];
+    allMessages?: string[];
 };
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -34,6 +35,7 @@ export class UIHarness extends BaseHarness
     readonly screenshots: Record<string, string> = {};
     readonly consoleIssues: ConsoleIssue[] = [];
     readonly keyWarningTexts: string[] = [];
+    readonly allMessages: string[] = [];
     readonly checks: Check[] = [];
     readonly skipped: string[] = [];
 
@@ -51,6 +53,8 @@ export class UIHarness extends BaseHarness
         this.page.on("console", m =>
         {
             const text = m.text();
+            this.allMessages.push(`[${m.type()}] ${text}`);
+            if (this.allMessages.length > 400) this.allMessages.shift();
             if ((m.type() as string) === "error" || (m.type() as string) === "warning")
                 this.consoleIssues.push({type: m.type(), text});
             if (text.includes('unique "key"'))
@@ -116,6 +120,17 @@ export class UIHarness extends BaseHarness
     textVisible(text: string): Promise<boolean>
     {
         return this.page.evaluate(t => document.body.innerText.includes(t), text);
+    }
+
+    /**
+     * True when the given text exists in the page's textContent. Unlike innerText, this is
+     * immune to the syntax highlighter fragmenting every word into its own element (the
+     * console log view renders one element per token, so innerText inserts a newline
+     * between each word and substring checks on phrases always fail).
+     */
+    textContentVisible(text: string): Promise<boolean>
+    {
+        return this.page.evaluate(t => (document.body.textContent ?? "").includes(t), text);
     }
 
     /** Clicks the first element (button/a/role=tab) whose trimmed text matches exactly. */
@@ -353,21 +368,30 @@ export class UIHarness extends BaseHarness
     }
 
     /** Writes the fake-java script into the dev-env runtime layout so the
-     *  JavaExecutableSelector sees an installed runtime (gamma = Java 17 for MC 1.19-1.20.4). */
+     *  JavaExecutableSelector sees installed runtimes for every MC era
+     *  (gamma = 1.19-1.20.4, delta = 1.20.5+, epsilon = 26.1+, beta/alpha/legacy). */
     async seedFakeJava(): Promise<string>
     {
         const source = resolve("tools/ui-tests/fake-java.sh");
-        const runtimeDir = resolve(DEV_ENV, "meta/java/gamma-17.0.15/bin");
-        const target = resolve(runtimeDir, "java");
-        await mkdir(runtimeDir, {recursive: true});
-        await copyFile(source, target);
-        await chmod(target, 0o755);
-        // Extra runtime so MC 1.20.5+/1.21 pick a fake java too.
-        const deltaDir = resolve(DEV_ENV, "meta/java/delta-21.0.7/bin");
-        await mkdir(deltaDir, {recursive: true});
-        await copyFile(source, resolve(deltaDir, "java"));
-        await chmod(resolve(deltaDir, "java"), 0o755);
-        return target;
+        const runtimes = [
+            "gamma-17.0.15",
+            "delta-21.0.7",
+            "epsilon-25.0.1",
+            "beta-17.0.15",
+            "alpha-16.0.1.9.1",
+            "legacy-8u202"
+        ];
+        let first = "";
+        for (const runtime of runtimes)
+        {
+            const dir = resolve(DEV_ENV, `meta/java/${runtime}/bin`);
+            await mkdir(dir, {recursive: true});
+            const target = resolve(dir, "java");
+            await copyFile(source, target);
+            await chmod(target, 0o755);
+            if (!first) first = target;
+        }
+        return first;
     }
 
     /** Writes the spec report and returns the process exit code. */
@@ -381,8 +405,9 @@ export class UIHarness extends BaseHarness
             screenshots: this.screenshots,
             consoleErrors: this.consoleIssues.filter(i => i.type === "error" || i.type === "pageerror"),
             keyWarnings: this.keyWarningTexts,
-            skipped: this.skipped
-        };
+            skipped: this.skipped,
+            allMessages: this.allMessages
+        } as SpecReport;
         await this.writeReport("report", report);
         console.log(`\n[${this.spec}] ${report.pass ? "PASS" : "FAIL"} - ${this.checks.length - failed.length}/${this.checks.length} checks, ${this.screenshots.length} screenshots, ${report.consoleErrors.length} console errors, ${report.keyWarnings.length} key warnings`);
         for (const f of failed) console.log(`  FAILED: ${f.name}${f.detail ? ` - ${f.detail}` : ""}`);

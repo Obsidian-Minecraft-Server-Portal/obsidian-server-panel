@@ -28,6 +28,8 @@ if [ -f "$PIDFILE" ]; then
     fi
 fi
 fuser -k "${PORT}/tcp" 2>/dev/null || true
+# the backend spawns vite as a child; a killed backend can leave it holding the vite port
+fuser -k "${VITE_PORT}/tcp" 2>/dev/null || true
 sleep 1
 
 mkdir -p "$ROOT/target/ui-tests"

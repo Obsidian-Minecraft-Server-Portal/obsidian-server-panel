@@ -103,7 +103,7 @@ async function main(h: UIHarness)
     h.check("create button clickable", createClicked);
 
     // The modal closes after create + jar download. Tolerate slow downloads.
-    const closed = await h.waitFor("modal closes after create", () => !h.textVisible("Create New Server"), 180000);
+    const closed = await h.waitFor("modal closes after create", async () => !(await h.textVisible("Create New Server")), 180000);
     h.check("modal closes after server creation", closed);
     await h.goto("/app");
     await h.waitFor("dashboard", () => h.textVisible("Servers"), 30000);

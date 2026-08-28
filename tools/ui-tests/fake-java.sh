@@ -12,8 +12,8 @@ while IFS= read -r line; do
         list)
             echo 'There are 0 of a max of 20 players online: '
             ;;
-        say\ *)
-            echo "[Server] ${line#say }"
+        say*)
+            echo "[Server] ${line#say}"
             ;;
         help|'')
             echo 'help: stop, list, say <msg>'
