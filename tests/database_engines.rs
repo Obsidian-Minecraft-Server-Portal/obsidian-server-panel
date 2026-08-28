@@ -15,7 +15,10 @@ async fn database_engine_crud_suite() {
     let Some(ctx) = TestContext::from_env_or_skip() else {
         return;
     };
-    println!("Running database engine suite against: {:?} ({:?})", ctx.engine, ctx.db_url);
+    println!(
+        "Running database engine suite against: {:?} (db: {:?}, admin: {:?})",
+        ctx.engine, ctx.db_url, ctx.admin_url
+    );
 
     let _app = ctx.spawn_app().await;
     let anon = Client::anonymous(&ctx.base_url);

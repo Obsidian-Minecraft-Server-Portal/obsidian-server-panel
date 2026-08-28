@@ -142,7 +142,7 @@ test-postgres: dev-postgres
     env DATABASE_CONNECTION_STRING=postgres://postgres:postgres@localhost:5433/obsidian_test OBSIDIAN_TEST_DB_ENGINE=postgres OBSIDIAN_TEST_DB_URL=postgres://postgres:postgres@localhost:5433/obsidian_test OBSIDIAN_TEST_DB_ADMIN_URL=postgres://postgres:postgres@localhost:5433/postgres cargo test --no-default-features --features postgres
 
 # Run the integration test suite against every database engine (sqlite, mysql, postgres)
-test-databases: test-mysql test-postgres
+test-databases: test test-mysql test-postgres
 
 # ─── Quality ───────────────────────────────────────────────
 
