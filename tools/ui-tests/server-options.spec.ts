@@ -15,24 +15,30 @@ async function main(h: UIHarness)
     await h.shot("options-tab");
 
     // --- 2. Edit description, JVM args, min/max memory, save ------------------------
-    await h.fillLabeled("Description", "Edited by ui-tests");
+    await h.fillLabeled("Description", "Edited by ui-tests", "textarea");
     await h.fillLabeled("Additional Java Arguments", "-XX:+UseG1GC");
     await h.fillLabeled("Minimum Memory (GB)", "2");
 
-    // max memory: nudge the slider thumb to change the value
+    // max memory: the RamSlider renders a small number input next to its label
     const maxBefore = (await h.api<any>("GET", `/api/server/${serverId}`)).body?.max_memory;
-    await h.page.evaluate(() =>
+    const maxSet = await h.fillLabeled("Configured RAM (GB)", String(Math.max(3, (maxBefore ?? 2)) + 1));
+    if (!maxSet)
     {
-        const thumb = document.querySelector("[role=slider]") as HTMLElement | null;
-        thumb?.focus();
-    });
-    for (let i = 0; i < 2; i++)
-    {
-        await h.page.keyboard.press("ArrowRight");
-        await new Promise(r => setTimeout(r, 150));
+        // fall back to keyboard interaction with the slider thumb
+        await h.page.evaluate(() =>
+        {
+            const thumb = document.querySelector("[role=slider]") as HTMLElement | null;
+            thumb?.focus();
+        });
+        for (let i = 0; i < 2; i++)
+        {
+            await h.page.keyboard.press("ArrowRight");
+            await new Promise(r => setTimeout(r, 150));
+        }
     }
     const saveClicked = await h.clickButton("Save Changes");
     h.check("save button clickable", saveClicked);
+    const expectedMax = Math.max(3, (maxBefore ?? 2)) + 1;
     const saved = await h.waitFor("options persisted", async () =>
     {
         const r = await h.api<any>("GET", `/api/server/${serverId}`);
@@ -41,8 +47,8 @@ async function main(h: UIHarness)
     const after = (await h.api<any>("GET", `/api/server/${serverId}`)).body;
     h.check("description + java args + min memory persisted via API", saved,
         `description=${after?.description} java_args=${after?.java_args} min=${after?.min_memory}`);
-    h.check("max memory slider interaction changed value", Number(after?.max_memory) !== Number(maxBefore) || saved,
-        `before=${maxBefore} after=${after?.max_memory}`);
+    h.check("max memory slider interaction changed value", Number(after?.max_memory) === expectedMax || Number(after?.max_memory) !== Number(maxBefore),
+        `before=${maxBefore} after=${after?.max_memory} (wanted ${expectedMax})`);
     await h.shot("options-saved");
 
     // --- 3. Version selectors render ------------------------------------------------

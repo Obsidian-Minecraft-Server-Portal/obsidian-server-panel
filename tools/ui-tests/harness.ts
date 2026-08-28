@@ -196,10 +196,11 @@ export class UIHarness extends BaseHarness
         await this.api("GET", "/api/auth/logout/");
     }
 
-    /** Types into an input/textarea preceded by a label with the given text. */
-    async fillLabeled(label: string, value: string): Promise<boolean>
+    /** Types into the input/textarea that belongs to a label with the given text.
+     *  `tag` ("textarea"/"input") disambiguates containers holding several fields. */
+    async fillLabeled(label: string, value: string, tag?: "input" | "textarea"): Promise<boolean>
     {
-        const handle = await this.page.evaluateHandle(lbl =>
+        const handle = await this.page.evaluateHandle((lbl, fieldTag) =>
         {
             const labels = [...document.querySelectorAll("label, legend, span, p")]
                 .filter(e => (e.textContent ?? "").trim() === lbl);
@@ -208,13 +209,18 @@ export class UIHarness extends BaseHarness
                 let cur: HTMLElement | null = l as HTMLElement;
                 for (let i = 0; i < 5 && cur; i++)
                 {
-                    const field = cur.querySelector("input:not([type=hidden]), textarea");
-                    if (field) return field;
+                    const fields = [...cur.querySelectorAll("input:not([type=hidden]), textarea")]
+                        .filter(f => f.getBoundingClientRect().width > 0) as HTMLElement[];
+                    if (fields.length > 0)
+                    {
+                        const wanted = fieldTag ? fields.find(f => f.tagName.toLowerCase() === fieldTag) : undefined;
+                        return (wanted ?? fields[fields.length - 1]);
+                    }
                     cur = cur.parentElement;
                 }
             }
             return null;
-        }, label);
+        }, label, tag ?? null);
         const el = handle.asElement() as ElementHandle<HTMLInputElement | HTMLTextAreaElement> | null;
         if (!el) return false;
         await this.replaceInHandle(el, value);
@@ -284,9 +290,18 @@ export class UIHarness extends BaseHarness
         // the end and backspacing over the pre-filled default is deterministic.
         await el.click();
         await new Promise(r => setTimeout(r, 150));
+        const focused = await el.evaluate(node => document.activeElement === node);
+        if (!focused)
+        {
+            throw new Error(`replaceInHandle: element could not be focused - refusing to send editing keys`);
+        }
         await this.page.keyboard.press("End");
         for (let i = 0; i < 40; i++) await this.page.keyboard.press("Backspace");
         await this.page.keyboard.type(value);
+        if (!(await el.evaluate(node => document.activeElement === node)))
+        {
+            throw new Error(`replaceInHandle: element lost focus while editing`);
+        }
     }
 
     /** Selects an option in the HeroUI Select whose trigger sits under the given label. */
