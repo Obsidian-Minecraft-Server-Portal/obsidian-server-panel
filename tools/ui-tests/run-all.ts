@@ -17,6 +17,9 @@ const SPECS = [
 ] as const;
 
 const ROOT = resolve(process.cwd(), "tools/ui-tests");
+// specs must run from the worktree root: OUT_ROOT (target/ui-tests) is cwd-relative and
+// the relative tsx binary path is resolved against the child process' working directory
+const WORKTREE_ROOT = resolve(ROOT, "../..");
 
 async function run(): Promise<number>
 {
@@ -35,11 +38,11 @@ async function run(): Promise<number>
         let exitCode = 1;
         try
         {
-            execFileSync("./node_modules/.bin/tsx", [resolve(ROOT, `${spec}.spec.ts`)], {stdio: "inherit", cwd: ROOT});
+            execFileSync("./node_modules/.bin/tsx", [resolve(ROOT, `${spec}.spec.ts`)], {stdio: "inherit", cwd: WORKTREE_ROOT});
             exitCode = 0;
         } catch (e: any)
         {
-            console.error(`spec ${spec} exited with code ${e.status ?? "?"}`);
+            console.error(`spec ${spec} exited: ${e.message?.split("\n")[0] ?? "unknown error"}`);
         }
         // read the report the spec wrote
         let report: any = null;

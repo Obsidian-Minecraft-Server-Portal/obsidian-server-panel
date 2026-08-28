@@ -55,8 +55,13 @@ async function main(h: UIHarness)
     // --- 4. Download it -----------------------------------------------------------------------
     const dl = await h.captureDownload(async () =>
     {
-        await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:download");
-        await new Promise(r => setTimeout(r, 2000));
+        // the row buttons remount when the list refreshes after the restore; retry the
+        // click a couple of times before giving up on the download
+        for (let attempt = 0; attempt < 3; attempt++)
+        {
+            await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:download");
+            await new Promise(r => setTimeout(r, 4000));
+        }
     }, "backup");
     h.check("backup download produces a file", dl.file !== null && dl.size > 0, `${dl.size} bytes`);
 
