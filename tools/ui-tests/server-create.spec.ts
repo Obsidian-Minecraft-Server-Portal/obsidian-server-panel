@@ -61,6 +61,7 @@ async function main(h: UIHarness)
             !crashed && state.bodyLen > 0 && (loader === "vanilla" || !state.needsVersion || state.hasSelects > 0),
             `needsVersion=${state.needsVersion} interactive=${state.hasSelects}`);
         await h.shot(`loader-${loader}`);
+        await h.auditNow(`modal:${loader}`);
     }
 
     // --- 3. Create a vanilla server through the modal ------------------------------

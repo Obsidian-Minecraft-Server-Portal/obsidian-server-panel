@@ -13,6 +13,7 @@ async function main(h: UIHarness)
     await h.waitFor("options form", () => h.textVisible("Server Configuration"), 30000);
     h.check("options tab renders", await h.textVisible("Server Configuration") && await h.textVisible("Basic Information"));
     await h.shot("options-tab");
+    await h.auditNow("options-tab");
 
     // --- 2. Edit description, JVM args, min/max memory, save ------------------------
     await h.fillLabeled("Description", "Edited by ui-tests", "textarea");
@@ -21,7 +22,7 @@ async function main(h: UIHarness)
 
     // max memory: the RamSlider renders a small number input next to its label
     const maxBefore = (await h.api<any>("GET", `/api/server/${serverId}`)).body?.max_memory;
-    const maxSet = await h.fillLabeled("Configured RAM (GB)", String(Math.max(3, (maxBefore ?? 2)) + 1));
+    const maxSet = await h.fillLabeled("Configured RAM (GB)", String(Math.max(3, (maxBefore ?? 2)) + 1), "number");
     if (!maxSet)
     {
         // fall back to keyboard interaction with the slider thumb

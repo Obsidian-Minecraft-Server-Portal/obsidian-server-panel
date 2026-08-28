@@ -12,20 +12,19 @@ async function main(h: UIHarness)
     await h.goto(`/app/servers/${serverId}?tab=backups`);
     await h.waitFor("backups view", () => h.textVisible("Create Backup"), 30000);
     h.check("backups tab renders", await h.textVisible("Create Backup"));
+    await h.auditNow("backups-tab");
     await h.shot("backups-tab");
 
     // --- 2. Create a backup via the UI ------------------------------------------------
     await h.clickText("Create Backup", "button");
     await h.waitFor("create backup modal", () => h.page.evaluate(() => !!document.querySelector(".modal__dialog")), 10000);
-    await h.fillLabeled("Description", "ui-tests backup", );
+    await h.fillLabeled("Description (Optional)", "ui-tests backup", "textarea");
+    await h.auditNow("create-backup-modal");
     await h.shot("create-backup-modal");
-    // click the Create Backup button inside the modal footer
-    await h.page.evaluate(() =>
-    {
-        const footer = document.querySelector(".modal__footer");
-        const btn = [...(footer?.querySelectorAll("button") ?? [])].find(b => (b.textContent ?? "").includes("Create Backup"));
-        (btn as HTMLElement)?.click();
-    });
+    // click the Create Backup button inside the modal footer (scoped to the dialog:
+    // the toolbar button behind the modal has the same label; real mouse events -
+    // synthetic clicks do not fire react-aria onPress)
+    h.check("create backup button clickable in modal", await h.clickButtonInScope(".modal__dialog", "Create Backup"));
     const created = await h.waitFor("backup entry appears", () => h.page.evaluate(() =>
     {
         const table = document.querySelector("[aria-label='Server backups table']");
@@ -35,13 +34,7 @@ async function main(h: UIHarness)
     await h.shot("backup-in-list");
 
     // --- 3. Restore it ---------------------------------------------------------------------
-    const restoreClicked = await h.page.evaluate(() =>
-    {
-        const table = document.querySelector("[aria-label='Server backups table']");
-        const btn = [...(table?.querySelectorAll("button") ?? [])].find(b => b.querySelector("iconify-icon[icon='pixelarticons:reload']"));
-        (btn as HTMLElement)?.click();
-        return !!btn;
-    });
+    const restoreClicked = await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:reply-all");
     if (restoreClicked)
     {
         await h.waitFor("restore confirmation", () => h.textVisible("Restore Backup"), 10000);
@@ -62,23 +55,13 @@ async function main(h: UIHarness)
     // --- 4. Download it -----------------------------------------------------------------------
     const dl = await h.captureDownload(async () =>
     {
-        await h.page.evaluate(() =>
-        {
-            const table = document.querySelector("[aria-label='Server backups table']");
-            const btn = [...(table?.querySelectorAll("button") ?? [])].find(b => b.querySelector("iconify-icon[icon='pixelarticons:download']"));
-            (btn as HTMLElement)?.click();
-        });
+        await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:download");
         await new Promise(r => setTimeout(r, 2000));
     }, "backup");
     h.check("backup download produces a file", dl.file !== null && dl.size > 0, `${dl.size} bytes`);
 
     // --- 5. Delete it ---------------------------------------------------------------------------
-    await h.page.evaluate(() =>
-    {
-        const table = document.querySelector("[aria-label='Server backups table']");
-        const btn = [...(table?.querySelectorAll("button") ?? [])].find(b => b.querySelector("iconify-icon[icon='pixelarticons:trash']"));
-        (btn as HTMLElement)?.click();
-    });
+    await h.clickIconButtonInScope("[aria-label='Server backups table']", "pixelarticons:trash");
     await h.waitFor("delete confirmation", () => h.page.evaluate(() => !!document.querySelector(".modal__dialog")), 10000);
     await h.shot("delete-backup-confirmation");
     await h.confirmModal("Okay");

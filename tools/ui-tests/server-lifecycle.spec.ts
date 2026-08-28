@@ -36,6 +36,7 @@ async function main(h: UIHarness)
     await h.waitFor("console view", () => h.textVisible("Console"), 30000);
     h.check("console tab renders", await h.textVisible("Console"));
     h.check("header status chip present", (await headerStatus(h)) !== null);
+    await h.auditNow("console-idle");
     await h.shot("console-idle");
 
     // --- 2. Start via UI ------------------------------------------------------------

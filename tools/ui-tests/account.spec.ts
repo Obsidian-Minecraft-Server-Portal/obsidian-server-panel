@@ -1,6 +1,8 @@
 import {UIHarness} from "./harness.ts";
 
-const THROWAWAY_USER = "uit-throwaway";
+// unique per run: the dev-env database persists between runs, and a leftover
+// throwaway user would already carry the rotated password from the previous run
+const THROWAWAY_USER = `uit-throwaway-${Date.now()}`;
 const THROWAWAY_PASS = "Throwaway!Pass1";
 const THROWAWAY_NEW_PASS = "Rotated!Pass2";
 
@@ -44,6 +46,9 @@ async function main(h: UIHarness)
     await h.waitFor("logout entry", () => h.textVisible("Logout"), 8000);
     await h.clickText("Logout", "button");
     await h.waitFor("back at login", () => h.page.evaluate(() => location.pathname === "/"), 20000);
+    // right after logout the Login page briefly renders Signup while hostInfo is still
+    // loading (has_admin_user unknown) - wait for the real login form
+    await h.waitFor("login form fields", () => h.page.evaluate(() => !!document.querySelector("#login-username")), 15000);
     await h.page.type("#login-username", THROWAWAY_USER);
     await h.page.type("#login-password", THROWAWAY_PASS);
     await h.page.click("button[type=submit]");
@@ -57,18 +62,14 @@ async function main(h: UIHarness)
     await h.fillLabeled("New Password", THROWAWAY_NEW_PASS);
     await h.fillLabeled("Confirm Password", THROWAWAY_NEW_PASS);
     await h.shot("change-password-modal-throwaway");
-    // click the submit button inside the modal (not the page-level button behind it)
-    await h.page.evaluate(() =>
-    {
-        const dialog = document.querySelector(".modal__dialog");
-        const btn = [...(dialog?.querySelectorAll("button") ?? [])].find(b => (b.textContent ?? "").trim() === "Change Password");
-        (btn as HTMLElement)?.click();
-    });
-    const modalGone = await h.waitFor("modal closes after change", () => !h.page.evaluate(() =>
+    // click the submit button inside the modal (not the page-level button behind it);
+    // real mouse events - synthetic clicks do not fire react-aria onPress
+    await h.clickButtonInScope(".modal__dialog", "Change Password");
+    const modalGone = await h.waitFor("modal closes after change", async () => !(await h.page.evaluate(() =>
     {
         const dialog = document.querySelector(".modal__dialog");
         return !!dialog && (dialog.textContent ?? "").includes("New Password");
-    }), 30000);
+    })), 30000);
     h.check("password change submitted", modalGone);
 
     // log out, then log back in with the NEW password
@@ -76,6 +77,7 @@ async function main(h: UIHarness)
     await h.waitFor("logout entry 2", () => h.textVisible("Logout"), 8000);
     await h.clickText("Logout", "button");
     await h.waitFor("login page again", () => h.page.evaluate(() => location.pathname === "/"), 20000);
+    await h.waitFor("login form fields 2", () => h.page.evaluate(() => !!document.querySelector("#login-username")), 15000);
     await h.page.type("#login-username", THROWAWAY_USER);
     await h.page.type("#login-password", THROWAWAY_NEW_PASS);
     await h.page.click("button[type=submit]");

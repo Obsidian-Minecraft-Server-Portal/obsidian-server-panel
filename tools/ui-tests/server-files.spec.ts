@@ -21,6 +21,7 @@ async function main(h: UIHarness)
     const rows = await h.waitFor("file rows", () => h.page.evaluate(() =>
         document.querySelectorAll("#server-files-table [role=row]").length > 0), 30000);
     h.check("files tab renders with file rows", rows);
+    await h.auditNow("files-tab");
     await h.shot("files-tab");
 
     // --- 2. Create a folder via the toolbar ------------------------------------------

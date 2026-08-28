@@ -27,15 +27,17 @@ async function main(h: UIHarness)
             state.mounted && !state.crashed && state.tabStrip,
             `mounted=${state.mounted} crashed=${state.crashed} tabs=${state.tabStrip} bodyLen=${state.bodyLen}`);
         await h.shot(`discover-packs-${platform}`);
+        await h.auditNow(`discover-packs-${platform}`);
 
-        // platform switch via the tab strip (where reachable)
+        // platform switch via the tab strip (icon-only tabs -> click by index)
         const next = platform === "modrinth" ? "curseforge" : "modrinth";
-        await h.clickText(next, "[role=tab]");
+        const nextIndex = ["modrinth", "curseforge", "atlauncher", "technic"].indexOf(next);
+        const tabClicked = await h.clickRoleTabByIndex(nextIndex);
         await new Promise(r => setTimeout(r, 3000));
-        const switched = await h.page.evaluate(p => location.pathname.includes(p), next) ||
-            await h.textVisible(next.charAt(0).toUpperCase() + next.slice(1));
+        const switched = tabClicked && (await h.page.evaluate(p => location.pathname.includes(p), next) ||
+            await h.textVisible(next.charAt(0).toUpperCase() + next.slice(1)));
         h.check(`discover tab switch to ${next} (from ${platform})`, switched,
-            `pathname=${await h.page.evaluate(() => location.pathname)}`);
+            `clicked=${tabClicked} pathname=${await h.page.evaluate(() => location.pathname)}`);
     }
 
     // mods discovery page
