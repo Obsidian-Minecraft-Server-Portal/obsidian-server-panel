@@ -83,16 +83,37 @@ export function ServerFiles()
             if (!a.is_dir && b.is_dir) return 1; // Files after directories
             return a.filename.localeCompare(b.filename); // Sort alphabetically
         });
+        // A refresh must not wipe an in-progress inline entry creation: the temp entry only
+        // lives in UI state, so dropping it would unmount the inline input mid-edit (and its
+        // blur handler would then create an unwanted entry with the default name).
+        if (newItemCreationEntry && !data.entries.some(entry => entry.filename === newItemCreationEntry.filename))
+        {
+            data.entries = [newItemCreationEntry, ...data.entries];
+        }
         setData(data);
         setIsLoading(false);
         setSelectedEntries([]);
         setContextMenuOptions({entry: undefined, x: 0, y: 0, isOpen: false});
-    }, [path, data]);
+    }, [path, data, newItemCreationEntry]);
 
     useEffect(() =>
     {
         selectedEntriesRef.current = selectedEntries;
     }, [selectedEntries]);
+
+    // Background refreshes rebuild the table rows, which drops focus from the inline
+    // new-entry input. Losing focus there fires its blur handler, which commits an entry
+    // with whatever default/pre-typed name the input had - so restore focus for as long
+    // as an inline creation is in progress.
+    useEffect(() =>
+    {
+        if (!newItemCreationEntry) return;
+        const input = document.querySelector<HTMLElement>("#server-files-table input");
+        if (input && document.activeElement !== input && !input.closest(".modal__dialog"))
+        {
+            input.focus({preventScroll: true});
+        }
+    }, [data, newItemCreationEntry]);
 
     useEffect(() =>
     {
@@ -474,17 +495,23 @@ export function ServerFiles()
         setNewItemCreationEntry(entry);
     }, [data, path, scrollToTop]);
 
+    const completingEntryCreationRef = useRef(false);
     const completeEntryCreation = useCallback(async (newName: string) =>
     {
-        if (!newItemCreationEntry || newName.trim() === "")
-        {
-            setNewItemCreationEntry(undefined);
-            await refresh();
-            return;
-        }
-
+        // Pressing Enter unmounts the inline input, which fires its blur afterwards; without
+        // this guard the blur handler runs the creation a second time (with a stale entry
+        // closure) and creates a duplicate "New Directory"/"New File" entry.
+        if (completingEntryCreationRef.current) return;
+        completingEntryCreationRef.current = true;
         try
         {
+            if (!newItemCreationEntry || newName.trim() === "")
+            {
+                setNewItemCreationEntry(undefined);
+                await refresh();
+                return;
+            }
+
             await createEntry(newName, path, newItemCreationEntry.is_dir);
             setNewItemCreationEntry(undefined);
             await refresh();
@@ -497,8 +524,56 @@ export function ServerFiles()
                 responseType: MessageResponseType.Close,
                 severity: "danger"
             });
+        } finally
+        {            completingEntryCreationRef.current = false;
         }
     }, [newItemCreationEntry, path, createEntry, refresh, open]);
+
+    // Cancels the inline creation. Blur deliberately does NOT commit: background refreshes
+    // rebuild the table rows and can blur/unmount the inline input programmatically, and a
+    // committing blur would then silently create an entry with the pre-filled default name.
+    // Enter (or the confirm key) is the only way to commit a new entry.
+    const cancelEntryCreation = useCallback(async () =>
+    {
+        if (completingEntryCreationRef.current) return;
+        if (!newItemCreationEntry) return;
+        completingEntryCreationRef.current = true;
+        try
+        {
+            setNewItemCreationEntry(undefined);
+            await refresh();
+        } finally
+        {
+            completingEntryCreationRef.current = false;
+        }
+    }, [newItemCreationEntry, refresh]);
+
+    // The inline inputs live inside the react-aria table, whose collection keyboard
+    // navigation reacts to keys like End/Home/arrows (jump to last row) and steals focus
+    // from the input mid-edit. A native listener stops those events from reaching the
+    // table container; because React delegates synthetic events at the root (which
+    // stopPropagation also blocks), the Enter-to-commit handling runs here natively.
+    const inlineEnterRef = useRef<(value: string) => void>(() => {});
+    // Route native Enter keypresses (captured above) to whichever inline edit is active.
+    useEffect(() =>
+    {
+        if (renamingEntry) inlineEnterRef.current = value => void renameSelectedEntry(value);
+        else if (newItemCreationEntry) inlineEnterRef.current = value => void completeEntryCreation(value);
+        else inlineEnterRef.current = () => {};
+    }, [renamingEntry, newItemCreationEntry, renameSelectedEntry, completeEntryCreation]);
+
+    const inlineInputRef = useCallback((el: HTMLElement | null) =>
+    {
+        if (!el) return;
+        el.addEventListener("keydown", e =>
+        {
+            e.stopPropagation();
+            if (e.key === "Enter" && !e.defaultPrevented)
+            {
+                inlineEnterRef.current((e.target as HTMLInputElement).value);
+            }
+        });
+    }, []);
 
     const startArchiveCreation = useCallback(async () =>
     {
@@ -589,6 +664,14 @@ export function ServerFiles()
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent<HTMLTableElement>) =>
     {
+        // Ignore key events coming from inline inputs (rename / new-entry creation / uploads):
+        // Backspace and Delete inside those inputs must edit text, not delete the selected files.
+        const target = e.target as HTMLElement | null;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable))
+        {
+            return;
+        }
+
         if (renamingEntry !== undefined)
         {
             e.preventDefault();
@@ -901,7 +984,7 @@ export function ServerFiles()
                             <TableColumn width={48} hideHeader hidden={isEditingFile && selectedEntries.length === 1}>Action</TableColumn>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? Array.from({length: 5}, (_, i) => (
+                            {isLoading && !renamingEntry && !newItemCreationEntry ? Array.from({length: 5}, (_, i) => (
                                 <TableRow key={`skeleton-${i}`}>
                                     <TableCell className={"flex items-center h-14 gap-2"}>
                                         <Skeleton className={"w-8 h-8"}/>
@@ -926,9 +1009,12 @@ export function ServerFiles()
                             )] : (
                                             data.entries.map(entry =>
                                             {
-                                                const isSelected = selectedEntries.length === 1 && selectedEntries[0] === entry;
-                                                const isRenaming = renamingEntry === entry;
-                                                const isNewItem = newItemCreationEntry === entry;
+                                                // Compare by filename: refresh() rebuilds the entry objects,
+                                                // so reference equality would silently drop the inline
+                                                // rename/create states mid-edit.
+                                                const isSelected = selectedEntries.length === 1 && selectedEntries[0]?.filename === entry.filename;
+                                                const isRenaming = renamingEntry?.filename === entry.filename;
+                                                const isNewItem = newItemCreationEntry?.filename === entry.filename;
 
                                                 return (
                                                     <TableRow
@@ -970,26 +1056,20 @@ export function ServerFiles()
                                                         <TableCell className={"flex items-center h-14 gap-2"}>
                                                             {isRenaming ? (
                                                                 <Input
+                                                                    ref={inlineInputRef}
                                                                     defaultValue={entry.filename}
                                                                     autoFocus
                                                                     onBlur={e => renameSelectedEntry(e.currentTarget.value)}
-                                                                    onKeyDown={async e =>
-                                                                    {
-                                                                        if (e.key === "Enter") await renameSelectedEntry(e.currentTarget.value);
-                                                                    }}
                                                                     radius={"none"}
                                                                     className={"font-minecraft-body"}
                                                                 />
                                                             ) : isNewItem ? (
                                                                 <Input
+                                                                    ref={inlineInputRef}
                                                                     startContent={<FileEntryIcon entry={entry}/>}
                                                                     defaultValue={entry.filename}
                                                                     autoFocus
-                                                                    onBlur={e => completeEntryCreation(e.currentTarget.value)}
-                                                                    onKeyDown={async e =>
-                                                                    {
-                                                                        if (e.key === "Enter") await completeEntryCreation(e.currentTarget.value);
-                                                                    }}
+                                                                    onBlur={() => void cancelEntryCreation()}
                                                                     radius={"none"}
                                                                     className={"font-minecraft-body"}
                                                                 />

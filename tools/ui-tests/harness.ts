@@ -1,8 +1,8 @@
 import {mkdir, chmod, writeFile, copyFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {execFileSync} from "node:child_process";
-import {existsSync, statSync} from "node:fs";
-import type {ElementHandle} from "puppeteer";
+import {existsSync, readdirSync, statSync} from "node:fs";
+import type {Browser, ElementHandle} from "puppeteer";
 import {Harness as BaseHarness} from "../screenshot-harness.ts";
 
 export const BASE_URL = "http://127.0.0.1:18104";
@@ -133,17 +133,23 @@ export class UIHarness extends BaseHarness
         return this.page.evaluate(t => (document.body.textContent ?? "").includes(t), text);
     }
 
-    /** Clicks the first element (button/a/role=tab) whose trimmed text matches exactly. */
-    clickText(text: string, selector = "button, a, [role=tab]"): Promise<boolean>
+    /** Clicks the first element (button/a/role=tab) whose trimmed text matches exactly,
+     *  using REAL mouse events: synthetic element.click() double-fires react-aria press
+     *  handlers (observed: pressing "New Directory" once created the entry on disk twice). */
+    async clickText(text: string, selector = "button, a, [role=tab]"): Promise<boolean>
     {
-        return this.page.evaluate((t, sel) =>
+        const box = await this.page.evaluate((t, sel) =>
         {
             const el = [...document.querySelectorAll(sel)]
-                .find(e => (e.textContent ?? "").trim() === t);
-            if (!el) return false;
-            (el as HTMLElement).click();
-            return true;
+                .find(e => (e.textContent ?? "").trim() === t) as HTMLElement | undefined;
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2, text: t};
         }, text, selector);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
     }
 
     /** Clicks the first element whose trimmed text contains the needle. */
@@ -215,21 +221,71 @@ export class UIHarness extends BaseHarness
         return true;
     }
 
-    /** Clicks an input, selects everything (Ctrl+A) and types the replacement. */
+    /** Clicks an input, selects everything (Ctrl+A) and types the replacement.
+     *  FAIL-SAFE: throws if the input could not be focused OR lost focus during editing -
+     *  sending editing keys while unfocused would leak them to the document, where the file
+     *  table treats Ctrl+A as "select all files" and Delete/Backspace as "delete selected
+     *  files" (a stray Enter would then confirm that dialog). */
     async replaceInSelector(selector: string, value: string): Promise<void>
     {
-        const el = await this.page.$(selector);
-        if (!el) throw new Error(`replaceInSelector: ${selector} not found`);
-        await this.replaceInHandle(el as ElementHandle<HTMLInputElement>, value);
+        await this.page.focus(selector);
+        const focused = (): Promise<boolean> => this.page.evaluate(sel => document.activeElement === document.querySelector(sel), selector);
+        if (!(await focused()))
+        {
+            throw new Error(`replaceInSelector: could not focus ${selector} - refusing to send editing keys`);
+        }
+        await new Promise(r => setTimeout(r, 150));
+        await this.page.keyboard.press("End");
+        for (let i = 0; i < 40; i++) await this.page.keyboard.press("Backspace");
+        await this.page.keyboard.type(value);
+        if (!(await focused()))
+        {
+            throw new Error(`replaceInSelector: ${selector} lost focus while editing - refusing to continue`);
+        }
+    }
+
+    /**
+     * Sets an input's value at the DOM level and fires the input/change events React needs.
+     * More reliable than synthetic typing for the file table's inline rename/create inputs,
+     * which can lose focus (and remount) when the surrounding table refreshes.
+     */
+    async setInputValue(selector: string, value: string): Promise<boolean>
+    {
+        return await this.page.evaluate((sel, val) =>
+        {
+            const input = document.querySelector(sel) as HTMLInputElement | null;
+            if (!input) return false;
+            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+            setter?.call(input, val);
+            input.dispatchEvent(new Event("input", {bubbles: true}));
+            input.dispatchEvent(new Event("change", {bubbles: true}));
+            return true;
+        }, selector, value);
+    }
+
+    /** Focuses an element and presses Enter on it (bubbling KeyboardEvent). */
+    async pressEnterOn(selector: string): Promise<boolean>
+    {
+        return await this.page.evaluate(sel =>
+        {
+            const el = document.querySelector(sel) as HTMLElement | null;
+            if (!el) return false;
+            el.focus();
+            el.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true, cancelable: true}));
+            el.dispatchEvent(new KeyboardEvent("keyup", {key: "Enter", bubbles: true, cancelable: true}));
+            return true;
+        }, selector);
     }
 
     private async replaceInHandle(el: ElementHandle<HTMLInputElement | HTMLTextAreaElement>, value: string): Promise<void>
     {
+        // Real keyboard events only: react-aria controlled inputs revert DOM-level value
+        // mutations, and Ctrl+A is unreliable in the inline table inputs. Moving the cursor to
+        // the end and backspacing over the pre-filled default is deterministic.
         await el.click();
-        await this.page.keyboard.down("Control");
-        await this.page.keyboard.press("KeyA");
-        await this.page.keyboard.up("Control");
-        await this.page.keyboard.press("Delete");
+        await new Promise(r => setTimeout(r, 150));
+        await this.page.keyboard.press("End");
+        for (let i = 0; i < 40; i++) await this.page.keyboard.press("Backspace");
         await this.page.keyboard.type(value);
     }
 
@@ -260,16 +316,20 @@ export class UIHarness extends BaseHarness
         return this.clickTextContains(optionText, "[role=option]");
     }
 
-    /** Opens the navbar account popover (user icon button). */
+    /** Opens the navbar account popover (user icon button) with a real mouse click. */
     async openUserMenu(): Promise<boolean>
     {
-        return await this.page.evaluate(() =>
+        const box = await this.page.evaluate(() =>
         {
             const btn = [...document.querySelectorAll("button")].find(b => b.querySelector("iconify-icon[icon='pixelarticons:user']"));
-            if (!btn) return false;
-            (btn as HTMLElement).click();
-            return true;
+            if (!btn) return null;
+            const r = btn.getBoundingClientRect();
+            if (r.width === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
         });
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
     }
 
     /** Confirms a MessageModal-style dialog by clicking the given button text (Yes/Okay). */
@@ -281,28 +341,104 @@ export class UIHarness extends BaseHarness
         return this.clickText(buttonText, ".modal__dialog button, [data-open=true] button, [role=dialog] button, button");
     }
 
-    /** Clicks a toolbar/file-row icon button identified by the iconify icon it contains. */
-    async clickIconButton(icon: string): Promise<boolean>
+    /** Double-clicks the row containing `text` inside `scope` with real mouse events.
+     *  Re-measures the row between clicks: a selection-triggered re-render can move rows. */
+    async realDoubleClickText(scope: string, text: string): Promise<boolean>
     {
-        return await this.page.evaluate(icon =>
+        const locate = (): Promise<{x: number; y: number} | null> => this.page.evaluate((sc, t) =>
         {
-            const btn = [...document.querySelectorAll("button")].find(b => b.querySelector(`iconify-icon[icon='${icon}']`));
-            if (!btn) return false;
-            (btn as HTMLElement).click();
-            return true;
-        }, icon);
+            const rows = [...document.querySelectorAll(`${sc} [role=row]`)]
+                .filter(e => (e.textContent ?? "").includes(t));
+            const el = rows[rows.length - 1] as HTMLElement | undefined;
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) return null;
+            return {x: r.left + Math.min(120, r.width / 2), y: r.top + r.height / 2};
+        }, scope, text);
+        const first = await locate();
+        if (!first) return false;
+        await this.page.mouse.click((first as any).x, (first as any).y, {delay: 30});
+        await new Promise(r2 => setTimeout(r2, 120));
+        const second = await locate();
+        if (!second) return false;
+        await this.page.mouse.click((second as any).x, (second as any).y, {delay: 30, clickCount: 2});
+        return true;
     }
 
-    /** Waits for the numbered button in the navbar plus-icon cluster. */
+    /** Clicks a visible element with real mouse events (react-aria press handlers need
+     *  pointer events, which element.click() does not deliver). */
+    async realClick(selector: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate(sel =>
+        {
+            const el = document.querySelector(sel) as HTMLElement | null;
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, selector);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
+    }
+
+    /** Clicks the last visible element with the given text inside `scope` using real mouse events. */
+    async realClickText(scope: string, text: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate((sc, t) =>
+        {
+            const root = document.querySelector(sc);
+            const matches = [...(root?.querySelectorAll("*") ?? [])]
+                .filter(e => (e.textContent ?? "").trim() === t && (e.children?.length ?? 1) <= 2)
+                .filter(e => e.getBoundingClientRect().width > 0);
+            const el = matches[matches.length - 1] as HTMLElement | undefined;
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, scope, text);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
+    }
+
+    /** Clicks a toolbar/file-row icon button identified by the iconify icon it contains
+     *  (real mouse events, see clickText). */
+    async clickIconButton(icon: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate(icon =>
+        {
+            const btn = [...document.querySelectorAll("button")].find(b => b.querySelector(`iconify-icon[icon='${icon}']`));
+            if (!btn) return null;
+            const r = btn.getBoundingClientRect();
+            if (r.width === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, icon);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
+    }
+
+    /** Clicks the dashboard plus icon (New Server) with a real mouse click. */
     async clickNewServer(): Promise<boolean>
     {
-        return await this.page.evaluate(() =>
+        return this.clickIconButton("pixelarticons:plus");
+    }
+
+    /** Clicks a visible button by exact label with a real mouse click (overrides the
+     *  base harness' synthetic click, which double-fires react-aria handlers). */
+    override async clickButton(label: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate(label =>
         {
-            const btn = [...document.querySelectorAll("button")].find(b => b.querySelector("iconify-icon[icon='pixelarticons:plus']"));
-            if (!btn) return false;
-            (btn as HTMLElement).click();
-            return true;
-        });
+            const btn = [...document.querySelectorAll("button")]
+                .find(b => (b.textContent ?? "").trim() === label) as HTMLElement | undefined;
+            if (!btn) return null;
+            const r = btn.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) return null;
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, label);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
     }
 
     /** Captures a browser download triggered by `action` into target/ui-tests/downloads. */
@@ -310,25 +446,41 @@ export class UIHarness extends BaseHarness
     {
         const dir = resolve(OUT_ROOT, "downloads");
         await mkdir(dir, {recursive: true});
-        const client = await this.page.createCDPSession();
-        await client.send("Browser.setDownloadBehavior", {behavior: "allow", downloadPath: dir} as any);
-        const downloadPromise = new Promise<string | null>(res =>
+        // start from a clean slate: overwriting an existing file would be indistinguishable
+        // from "nothing was downloaded"
+        for (const stale of existsSync(dir) ? readdirSync(dir) : [])
         {
-            const timeout = setTimeout(() => res(null), 45000);
-            this.page.once("download", (dl: any) =>
+            (await import("node:fs")).rmSync(resolve(dir, stale), {force: true, recursive: true});
+        }
+        // download behavior must be set on the BROWSER-level session; page-scoped sessions ignore it
+        const browser = (this as unknown as {browser: Browser}).browser;
+        const client = await browser.target().createCDPSession();
+        await client.send("Browser.setDownloadBehavior", {behavior: "allow", downloadPath: dir, eventsEnabled: true} as any).catch(() => {});
+        try
+        {
+            await action();
+            // poll the directory for the new file
+            const deadline = Date.now() + 45000;
+            while (Date.now() < deadline)
             {
-                clearTimeout(timeout);
-                res(dl.savePath ? dl.savePath() : null);
-            });
-        });
-        await action();
-        const file = await downloadPromise;
-        await sleep(1500);
-        let size = 0;
-        if (file && existsSync(file)) size = statSync(file).size;
-        client.detach().catch(() => {});
-        console.log(`  download ${name}: ${file ?? "none"} (${size} bytes)`);
-        return {file, size};
+                const now = existsSync(dir) ? readdirSync(dir) : [];
+                const fresh = now.filter(f => !f.endsWith(".crdownload"));
+                if (fresh.length > 0)
+                {
+                    const file = resolve(dir, fresh[0]);
+                    await sleep(1500); // let the writer finish
+                    const size = existsSync(file) ? statSync(file).size : 0;
+                    console.log(`  download ${name}: ${file} (${size} bytes)`);
+                    return {file, size};
+                }
+                await sleep(500);
+            }
+        } finally
+        {
+            client.detach().catch(() => {});
+        }
+        console.log(`  download ${name}: none`);
+        return {file: null, size: 0};
     }
 
     /** Finds an existing server by name or creates one through the API. */
