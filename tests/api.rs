@@ -944,7 +944,7 @@ async fn backups_create_list_download_restore_delete() {
 }
 
 #[tokio::test]
-async fn backups_delete_only_backup_is_client_error() {
+async fn backups_delete_only_backup_resets_repository() {
     let server_id = fresh_fs_server().await;
     let client = admin_client();
     let base = format!("{BASE_URL}/api/server/{server_id}/backups");
@@ -953,10 +953,21 @@ async fn backups_delete_only_backup_is_client_error() {
     assert_eq!(res.status(), 200);
     let commit_id: String = res.json::<Value>().await.unwrap()["commit_id"].as_str().unwrap().to_string();
 
-    // The backup engine refuses to purge the last remaining commit; the endpoint must
-    // surface that as a clean client error instead of a server fault.
+    // The backup engine now resets the repository to an unborn HEAD when the last
+    // commit is purged, so deleting the only backup must succeed cleanly (not 400/500).
     let res = client.delete(format!("{base}/{commit_id}")).send().await.unwrap();
-    assert_eq!(res.status(), 400, "deleting the only backup must be a clean client error, not a 500");
+    assert!(res.status().is_success(), "deleting the only backup must succeed, got {}", res.status());
+
+    let res = client.get(base.clone()).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let empty: Value = res.json().await.unwrap();
+    assert!(empty.as_array().map_or(true, |list| list.is_empty()), "backup list should be empty after purging the only backup");
+
+    // The repository must re-initialize cleanly for the next backup.
+    let res = client.post(base.clone()).json(&json!({"backup_type": 0, "description": "reborn backup"})).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let reborn: Value = res.json().await.unwrap();
+    assert!(!reborn["commit_id"].as_str().unwrap_or_default().is_empty());
 }
 
 #[tokio::test]
