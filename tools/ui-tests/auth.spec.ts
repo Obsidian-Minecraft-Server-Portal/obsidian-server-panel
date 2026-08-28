@@ -50,8 +50,18 @@ async function main(h: UIHarness)
     }
 
     // --- 3. Wrong password shows an error --------------------------------------
+    // the login form briefly renders Signup while hostInfo loads (see account.spec), and
+    // the mount animations/transient isLoggingIn state can swallow an early submit click -
+    // wait for the real form and an idle submit button before attempting the login
+    await h.waitFor("login form fields", () => h.page.evaluate(() => !!document.querySelector("#login-username")), 15000);
+    await h.waitFor("submit button idle", () => h.page.evaluate(() =>
+    {
+        const btn = document.querySelector("button[type=submit]") as HTMLButtonElement | null;
+        return !!btn && !btn.disabled && btn.getAttribute("aria-busy") !== "true";
+    }), 10000);
     await h.page.type("#login-username", SIGNUP_USER);
-    await h.page.type("#login-password", "WrongPassword!42");    await h.page.click("button[type=submit]");
+    await h.page.type("#login-password", "WrongPassword!42");
+    await h.page.click("button[type=submit]");
     const sawError = await h.waitFor("login failed toast", () => h.textVisible("Login Failed"), 20000);
     h.check("wrong password shows error toast", sawError);
     await h.shot("login-wrong-password");
