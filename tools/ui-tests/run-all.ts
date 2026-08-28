@@ -1,6 +1,7 @@
 import {execFileSync} from "node:child_process";
 import {readFile, writeFile, mkdir} from "node:fs/promises";
 import {resolve} from "node:path";
+import {VIEWPORT} from "./harness.ts";
 
 const SPECS = [
     "auth",
@@ -62,6 +63,7 @@ async function run(): Promise<number>
     const allPass = results.every(r => r.pass);
     const aggregate = {
         pass: allPass,
+        viewport: `${VIEWPORT.width}x${VIEWPORT.height}`,
         results,
         screenshots: screenshotsBySpec,
         finishedAt: new Date().toISOString()

@@ -2,7 +2,7 @@ import {mkdir, chmod, writeFile, copyFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {execFileSync} from "node:child_process";
 import {existsSync, readdirSync, statSync} from "node:fs";
-import type {Browser, ElementHandle} from "puppeteer";
+import type {ElementHandle, Page} from "puppeteer";
 import {Harness as BaseHarness} from "../screenshot-harness.ts";
 
 export const BASE_URL = "http://127.0.0.1:18104";
@@ -11,9 +11,128 @@ export const ADMIN_USER = "uitest-admin";
 export const ADMIN_PASS = "UiTestAdmin!1";
 const DEV_ENV = resolve("target/dev-env");
 
+/**
+ * Viewport used for every pathway spec. Mobile-first: 360x760 is the default the owner
+ * wants the UI audited at; override via `UI_VIEWPORT=1920x1080` for a desktop run.
+ */
+export const VIEWPORT = ((): {width: number; height: number} =>
+{
+    const raw = process.env.UI_VIEWPORT?.trim();
+    const match = raw?.match(/^(\d{2,5})\s*[xX*]\s*(\d{2,5})$/);
+    if (raw && !match) throw new Error(`UI_VIEWPORT must look like 360x760 or 1920x1080 (got "${raw}")`);
+    return match ? {width: Number(match[1]), height: Number(match[2])} : {width: 360, height: 760};
+})();
+
+/** Short tag baked into screenshot filenames, e.g. `dashboard.mobile.png`. */
+export const VIEWPORT_LABEL = VIEWPORT.width <= 500 ? "mobile" : VIEWPORT.width <= 1024 ? "tablet" : "desktop";
+
 export type ConsoleIssue = {type: string; text: string};
 
 export type Check = {name: string; pass: boolean; detail?: string};
+
+export type OverflowElement = {
+    selector: string;
+    /** px the element extends past the right edge of the viewport */
+    overflowPx: number;
+    left: number;
+    right: number;
+    width: number;
+};
+
+export type MobileAudit = {
+    /** page path (or custom label for mid-interaction audits) */
+    path: string;
+    viewport: {width: number; height: number};
+    innerWidth: number;
+    scrollWidth: number;
+    /** documentElement.scrollWidth > innerWidth + 1 */
+    docOverflow: boolean;
+    /** elements extending past the viewport whose clipping ancestors do NOT scroll */
+    offenders: OverflowElement[];
+    /** overflow happening INSIDE scrollable containers (allowed by design, still reported) */
+    containedOverflows: {selector: string; overflowPx: number}[];
+    /** position:fixed elements present when the audit ran (navbar, popovers, modals) */
+    fixedOverlays: string[];
+};
+
+/**
+ * In-page mobile layout audit: detects horizontal document overflow, ranks the worst
+ * elements extending past the viewport edge (ignoring overflow that is safely contained
+ * in a scrollable ancestor), and lists fixed overlays. Cheap enough to run after every
+ * navigation; vertical-fit issues are left to screenshot review.
+ *
+ * Passed to page.evaluate as a STRING: tsx's keepNames transform wraps inner named
+ * functions in `__name(...)` calls, which do not exist in the page context.
+ */
+const AUDIT_SNIPPET_SOURCE = `(function auditMobileLayoutInPage(pathLabel) {
+    const selectorOf = (el) => {
+        const parts = [];
+        let cur = el;
+        for (let i = 0; i < 4 && cur && cur !== document.body; i++) {
+            const tag = cur.tagName.toLowerCase();
+            const id = cur.id ? "#" + cur.id : "";
+            const cls = typeof cur.className === "string" && cur.className
+                ? "." + cur.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
+            parts.unshift(tag + id + cls);
+            cur = cur.parentElement;
+        }
+        return parts.join(">");
+    };
+    const innerW = window.innerWidth;
+    const de = document.documentElement;
+    const docOverflow = de.scrollWidth > innerW + 1;
+    const offenders = [];
+    const contained = [];
+    const fixed = [];
+    const clipKind = (el) => {
+        let hiddenClip = null;
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+            const s = getComputedStyle(p);
+            const ox = s.overflowX;
+            if (ox === "auto" || ox === "scroll") return "scroll";
+            if ((ox === "hidden" || ox === "clip") && !hiddenClip) hiddenClip = "hidden";
+        }
+        return hiddenClip;
+    };
+    for (const el of document.querySelectorAll("body *")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        const style = getComputedStyle(el);
+        if (style.position === "fixed") {
+            fixed.push(selectorOf(el));
+            // fixed elements do not expand the document, but one sticking out of the
+            // viewport is still a layout defect
+            if (r.right > innerW + 1 || r.left < -1)
+                offenders.push({selector: selectorOf(el), overflowPx: Math.max(r.right - innerW, -r.left), left: r.left, right: r.right, width: r.width});
+            continue;
+        }
+        if (r.right <= innerW + 1) continue;
+        const overflowPx = r.right - innerW;
+        const entry = {selector: selectorOf(el), overflowPx: overflowPx, left: r.left, right: r.right, width: r.width};
+        // a scrollable ancestor legitimately contains the overflow; a hidden clip or no
+        // clip at all means the element is cut off / pushes the layout wide = defect
+        if (clipKind(el) === "scroll") contained.push({selector: entry.selector, overflowPx: overflowPx});
+        else offenders.push(entry);
+    }
+    offenders.sort((a, b) => b.overflowPx - a.overflowPx);
+    contained.sort((a, b) => b.overflowPx - a.overflowPx);
+    return {
+        path: pathLabel,
+        viewport: {width: innerW, height: window.innerHeight},
+        innerWidth: innerW,
+        scrollWidth: de.scrollWidth,
+        docOverflow: docOverflow,
+        offenders: offenders.slice(0, 12),
+        containedOverflows: contained.slice(0, 12),
+        fixedOverlays: fixed.filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 12)
+    };
+})`;
+
+export async function auditMobileLayout(page: Page, path: string): Promise<MobileAudit>
+{
+    const snippet = `${AUDIT_SNIPPET_SOURCE}(${JSON.stringify(path)})`;
+    return await page.evaluate(snippet) as MobileAudit;
+}
 
 export type SpecReport = {
     spec: string;
@@ -24,6 +143,8 @@ export type SpecReport = {
     keyWarnings: string[];
     skipped: string[];
     allMessages?: string[];
+    viewport: {width: number; height: number};
+    mobileAudits: MobileAudit[];
 };
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -38,10 +159,11 @@ export class UIHarness extends BaseHarness
     readonly allMessages: string[] = [];
     readonly checks: Check[] = [];
     readonly skipped: string[] = [];
+    readonly mobileAudits: MobileAudit[] = [];
 
     constructor(spec: string)
     {
-        super({baseUrl: BASE_URL, outDir: resolve(OUT_ROOT, spec)});
+        super({baseUrl: BASE_URL, outDir: resolve(OUT_ROOT, spec), width: VIEWPORT.width, height: VIEWPORT.height});
         this.spec = spec;
     }
 
@@ -84,11 +206,11 @@ export class UIHarness extends BaseHarness
         console.log(`  SKIP - ${name} (${reason})`);
     }
 
-    /** Saves a numbered screenshot and records it under a stable name. */
+    /** Saves a numbered screenshot and records it under a stable name (viewport-tagged). */
     async shot(name: string): Promise<string>
     {
         this.shotCounter++;
-        const numbered = `${String(this.shotCounter).padStart(2, "0")}-${name}`;
+        const numbered = `${String(this.shotCounter).padStart(2, "0")}-${name}.${VIEWPORT_LABEL}`;
         const path = await super.shot(numbered);
         this.screenshots[name] = path;
         return path;
@@ -98,6 +220,17 @@ export class UIHarness extends BaseHarness
     {
         await super.goto(path, attempts);
         await sleep(300);
+        await this.auditNow(path);
+    }
+
+    /** Runs the mobile layout audit for the CURRENT page state (e.g. with a modal open). */
+    async auditNow(path?: string): Promise<MobileAudit>
+    {
+        const audit = await auditMobileLayout(this.page, path ?? await this.page.evaluate(() => location.pathname + location.search));
+        this.mobileAudits.push(audit);
+        if (audit.docOverflow)
+            console.log(`  [OVERFLOW] ${audit.path}: scrollWidth=${audit.scrollWidth} innerWidth=${audit.innerWidth} worst: ${audit.offenders[0]?.selector ?? "?"} (+${audit.offenders[0]?.overflowPx ?? 0}px)`);
+        return audit;
     }
 
     /** Waits until the in-page predicate returns true. */
@@ -304,7 +437,10 @@ export class UIHarness extends BaseHarness
         }
     }
 
-    /** Selects an option in the HeroUI Select whose trigger sits under the given label. */
+    /** Selects an option in the HeroUI Select whose trigger sits under the label.
+     *  Uses REAL mouse events on the option: synthetic element.click() double-fires
+     *  react-aria press handlers, which selects the value and then immediately
+     *  re-selects the previous one (observed with the accessibility theme switch). */
     async pickSelect(label: string, optionText: string): Promise<boolean>
     {
         const opened = await this.page.evaluate(lbl =>
@@ -328,7 +464,17 @@ export class UIHarness extends BaseHarness
         }, label);
         if (!opened) return false;
         await this.waitFor(`options for ${label}`, () => this.page.evaluate(() => !!document.querySelector("[role=option]")));
-        return this.clickTextContains(optionText, "[role=option]");
+        const box = await this.page.evaluate(t =>
+        {
+            const el = [...document.querySelectorAll("[role=option]")]
+                .find(e => (e.textContent ?? "").trim().toLowerCase().includes(t.toLowerCase())) as HTMLElement | undefined;
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return {x: r.left + r.width / 2, y: r.top + r.height / 2};
+        }, optionText);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y);
+        return true;
     }
 
     /** Opens the navbar account popover (user icon button) with a real mouse click. */
@@ -564,6 +710,17 @@ export class UIHarness extends BaseHarness
     /** Writes the spec report and returns the process exit code. */
     async finish(): Promise<number>
     {
+        // surface every page state with horizontal document overflow as a failed check
+        const overflowing = this.mobileAudits.filter(a => a.docOverflow);
+        const seen = new Set<string>();
+        for (const a of overflowing)
+        {
+            const key = `${a.path}|${a.offenders[0]?.selector ?? ""}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            this.check(`no horizontal overflow on ${a.path}`, false,
+                `scrollWidth=${a.scrollWidth} > innerWidth=${a.innerWidth}; worst: ${a.offenders.slice(0, 3).map(o => `${o.selector} +${o.overflowPx}px`).join(", ") || "?"}`);
+        }
         const failed = this.checks.filter(c => !c.pass);
         const report: SpecReport = {
             spec: this.spec,
@@ -573,10 +730,12 @@ export class UIHarness extends BaseHarness
             consoleErrors: this.consoleIssues.filter(i => i.type === "error" || i.type === "pageerror"),
             keyWarnings: this.keyWarningTexts,
             skipped: this.skipped,
-            allMessages: this.allMessages
+            allMessages: this.allMessages,
+            viewport: VIEWPORT,
+            mobileAudits: this.mobileAudits
         } as SpecReport;
         await this.writeReport("report", report);
-        console.log(`\n[${this.spec}] ${report.pass ? "PASS" : "FAIL"} - ${this.checks.length - failed.length}/${this.checks.length} checks, ${this.screenshots.length} screenshots, ${report.consoleErrors.length} console errors, ${report.keyWarnings.length} key warnings`);
+        console.log(`\n[${this.spec}] ${report.pass ? "PASS" : "FAIL"} - ${this.checks.length - failed.length}/${this.checks.length} checks, ${this.screenshots.length} screenshots, ${report.consoleErrors.length} console errors, ${report.keyWarnings.length} key warnings, ${overflowing.length} overflowing page states`);
         for (const f of failed) console.log(`  FAILED: ${f.name}${f.detail ? ` - ${f.detail}` : ""}`);
         return report.pass ? 0 : 1;
     }
