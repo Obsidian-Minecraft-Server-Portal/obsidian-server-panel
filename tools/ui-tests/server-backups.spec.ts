@@ -8,6 +8,26 @@ async function main(h: UIHarness)
     const fakeJava = await h.seedFakeJava();
     const serverId = await h.ensureServer({name: SERVER_NAME, javaExecutable: fakeJava, seedFiles: true});
 
+    // --- 0. Clean slate: purge backups left over from previous runs -------------------
+    // Row actions (restore/download/delete) always target the first row of the table,
+    // so the spec requires the created backup to be the ONLY entry; leftover state from
+    // earlier runs would otherwise make it operate on the wrong row.
+    let preExisting: {status: number, body: any} = {status: 0, body: null};
+    for (let attempt = 0; attempt < 5 && !Array.isArray(preExisting.body); attempt++)
+    {
+        // the admin session can race page boot; a 401 here means "not logged in yet"
+        preExisting = await h.api<any[]>("GET", `/api/server/${serverId}/backups`);
+        if (!Array.isArray(preExisting.body)) await new Promise(r => setTimeout(r, 2000));
+    }
+    if (Array.isArray(preExisting.body))
+    {
+        for (const stale of preExisting.body)
+        {
+            const staleId = stale?.id ?? stale?.commit_id;
+            if (staleId) await h.api("DELETE", `/api/server/${serverId}/backups/${staleId}`);
+        }
+    }
+
     // --- 1. Backups tab renders -----------------------------------------------------
     await h.goto(`/app/servers/${serverId}?tab=backups`);
     await h.waitFor("backups view", () => h.textVisible("Create Backup"), 30000);
