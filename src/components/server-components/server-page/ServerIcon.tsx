@@ -9,6 +9,7 @@ type ServerIconProperties = {
     id: string;
     isChangeEnabled?: boolean;
     size?: "tiny" | "sm" | "md" | "lg" | "xl";
+    className?: string;
 }
 
 
@@ -22,7 +23,7 @@ const sizeClasses = {
 
 export function ServerIcon(props: ServerIconProperties)
 {
-    const {id, isChangeEnabled, size} = props;
+    const {id, isChangeEnabled, size, className} = props;
     const [isEditing, setIsEditing] = useState(false);
     const [image, setImage] = useState<File | null>(null);
     const {uploadFile, loadServer} = useServer();
@@ -71,7 +72,7 @@ export function ServerIcon(props: ServerIconProperties)
                 }}
             />
             <div className={"relative shrink-0 grow-0"}>
-                <img src={`/api/server/${id}/icon?v=${Date.now()}`} alt={"server icon"} width={sizeClasses[size ?? "md"].size} height={sizeClasses[size ?? "md"].size}/>
+                <img src={`/api/server/${id}/icon?v=${Date.now()}`} alt={"server icon"} width={sizeClasses[size ?? "md"].size} height={sizeClasses[size ?? "md"].size} className={className}/>
                 {isChangeEnabled && (
                     <div className={"absolute inset-0 w-full h-full bg-black/50 backdrop-blur-sm z-10 flex justify-center items-center font-minecraft-body text-4xl border-1 border-primary opacity-0 hover:opacity-100 transition-all duration-200 cursor-pointer"} onClick={handleEditClick}>
                         <Icon icon={"pixelarticons:edit-box"}/>

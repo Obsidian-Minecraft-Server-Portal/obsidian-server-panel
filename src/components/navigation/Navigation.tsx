@@ -38,7 +38,11 @@ export default function Navigation()
     return (
         <>
             <AnimatePresence>
-                <Navbar maxWidth={"full"} className={"font-minecraft-body"}>
+                <Navbar
+                    maxWidth={"full"}
+                    className={"font-minecraft-body"}
+                    classNames={{wrapper: "gap-2 px-3 sm:gap-4 sm:px-6"}}
+                >
                     <motion.div
                         initial={{opacity: 0, y: -20}}
                         animate={{opacity: 1, y: 0}}
@@ -46,7 +50,7 @@ export default function Navigation()
                         transition={{duration: 0.2, delay: .1}}
                     >
                         <NavbarBrand>
-                            <Link className="text-3xl text-primary font-minecraft-header" href={"/app"}>obsidian</Link>
+                            <Link className="text-2xl sm:text-3xl text-primary font-minecraft-header" href={"/app"}>obsidian</Link>
                         </NavbarBrand>
                     </motion.div>
                     <motion.div
@@ -55,14 +59,14 @@ export default function Navigation()
                         exit={{opacity: 0, y: -20}}
                         transition={{duration: 0.2, delay: .2}}
                     >
-                        <NavbarContent justify={"center"}>
-                            <NavbarItem as={Link} href={"/app"} className={"text-foreground flex flex-row gap-1 hover:bg-default/40 py-2 px-4 transition-background duration-200 data-[active=true]:text-primary"} data-active={pathname === "/app"}>
-                                <Icon icon={"pixel:home-solid"}/> <span>Home</span>
+                        <NavbarContent justify={"center"} className={"gap-1 sm:gap-4"}>
+                            <NavbarItem as={Link} href={"/app"} className={"text-foreground flex flex-row gap-1 hover:bg-default/40 py-2 px-2 sm:px-4 transition-background duration-200 data-[active=true]:text-primary"} data-active={pathname === "/app"}>
+                                <Icon icon={"pixel:home-solid"}/> <span className={"hidden sm:inline"}>Home</span>
                             </NavbarItem>
                             <NavbarItem>
                                 <Dropdown showArrow>
                                     <DropdownTrigger>
-                                        <Button startContent={<Icon icon={"pixelarticons:map"}/>} variant={"light"}>Discover</Button>
+                                        <Button startContent={<Icon icon={"pixelarticons:map"}/>} variant={"light"} className={"px-2 sm:px-4"}><span className={"hidden sm:inline"}>Discover</span></Button>
                                     </DropdownTrigger>
                                     <DropdownMenu>
                                         <DropdownItem key={"packs"} as={Link} href={"/app/discover/packs"} className={"text-foreground"} startContent={<Icon icon={"pixelarticons:subscriptions"}/>}>Modpacks</DropdownItem>
@@ -79,7 +83,7 @@ export default function Navigation()
                         exit={{opacity: 0, y: -20}}
                         transition={{duration: 0.2, delay: .15}}
                     >
-                        <NavbarContent justify={"end"} className={"gap-2"}>
+                        <NavbarContent justify={"end"} className={"gap-1 sm:gap-2"}>
                             <NavbarItem>
                                 <ActionsDropdown/>
                             </NavbarItem>

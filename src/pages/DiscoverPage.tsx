@@ -330,9 +330,9 @@ export default function DiscoverPage()
                 </Tabs>
             </div>
 
-            <div className={"flex flex-row gap-4 h-full relative max-h-[calc(100dvh_-_170px)] min-h-[220px] z-20"}>
+            <div className={"flex flex-col sm:flex-row gap-4 h-full relative max-h-[calc(100dvh_-_170px)] min-h-[220px] z-20"}>
                 {/* Side Panel - Filters */}
-                <div className={"bg-default-100 min-w-64 w-64 max-w-64 h-full overflow-y-auto flex flex-col gap-2 p-2 pr-6"}>
+                <div className={"bg-default-100 w-full sm:w-64 min-w-0 sm:min-w-64 max-w-full sm:max-w-64 max-h-48 sm:max-h-none sm:h-full overflow-y-auto flex flex-col gap-2 p-2 sm:pr-6 shrink-0"}>
                     <ModpackFilters
                         selectedGameVersions={minecraftVersions}
                         selectedCategories={categories}
@@ -343,7 +343,7 @@ export default function DiscoverPage()
                 </div>
 
                 {/* Main Content - Modpack List with Carousel Animation */}
-                <div className={"h-full overflow-hidden flex flex-col gap-2 p-2 pr-6 grow relative"}>
+                <div className={"h-full min-h-0 overflow-hidden flex flex-col gap-2 p-2 sm:pr-6 grow relative"}>
                     <AnimatePresence initial={false} custom={direction} mode="wait">
                         <motion.div
                             key={selectedPlatform}

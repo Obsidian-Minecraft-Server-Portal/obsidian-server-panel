@@ -73,7 +73,7 @@ export default function ServerPage()
     if (!server || !id) return null;
     return (
         <AnimatePresence>
-            <div className={"flex flex-col gap-4 px-8 overflow-hidden max-h-[calc(100vh_-_100px)]"}>
+            <div className={"flex flex-col gap-4 px-4 sm:px-8 overflow-hidden max-h-[calc(100vh_-_100px)]"}>
                 <motion.div initial={{opacity: 0}} animate={{opacity: shouldCollapseHeader ? 0 : 1}}>
                     <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
                 </motion.div>

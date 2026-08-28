@@ -86,18 +86,18 @@ export function ServerHeader(props: ServerHeaderProps)
         };
     }, [status, id]);
     return (
-        <div className={"flex flex-row gap-4 mt-8"}>
+        <div className={"flex flex-col sm:flex-row gap-4 mt-4 sm:mt-8"}>
             <motion.div
                 initial={{opacity: 0, x: -20}}
                 animate={{opacity: 1, x: 0}}
                 exit={{opacity: 0, x: -40}}
                 transition={{duration: 0.3, ease: "easeInOut"}}
-                className={"flex flex-row gap-4 mt-8"}
+                className={"flex flex-row gap-3 sm:gap-4"}
             >
-                <ServerIcon id={id} isChangeEnabled={true} size={"md"}/>
-                <div className={"flex flex-col gap-4"}>
+                <ServerIcon id={id} isChangeEnabled={true} size={"md"} className={"size-16 sm:size-32"}/>
+                <div className={"flex flex-col gap-2 sm:gap-4 min-w-0"}>
                     <div className={"flex flex-col gap-1 h-full"}>
-                        <h1 className={"text-4xl"}>{name}</h1>
+                        <h1 className={"text-3xl sm:text-4xl break-words"}>{name}</h1>
                         {description && (
                             <div className={"text-normal text-gray-500 font-minecraft-body"}>
                                 <ReactMarkdown
@@ -141,7 +141,7 @@ export function ServerHeader(props: ServerHeaderProps)
                             </div>
                         )}
                     </div>
-                    <div className={"flex flex-row gap-4 font-minecraft-body items-center"}>
+                    <div className={"flex flex-row flex-wrap gap-x-4 gap-y-1 font-minecraft-body items-center"}>
                         <p className={"flex gap-2 p-2 hover:bg-default-50 transition-all duration-200 cursor-pointer"}><span className={"opacity-50 items-center flex gap-2"}> <Icon icon={"streamline:controller-1-remix"} className={"text-xl"}/>  Minecraft</span> <span className={"text-primary"}>{minecraft_version}</span></p>
                         {server_type.toLowerCase() !== "vanilla" && (
                             <>
@@ -197,7 +197,7 @@ export function ServerHeader(props: ServerHeaderProps)
                 </div>
             </motion.div>
             <motion.div
-                className={"flex flex-row ml-auto items-center gap-4 font-minecraft-body"}
+                className={"flex flex-row flex-wrap ml-auto items-center gap-2 sm:gap-4 font-minecraft-body"}
                 initial={{opacity: 0, x: 20}}
                 animate={{opacity: 1, x: 0}}
                 exit={{opacity: 0, x: 40}}
