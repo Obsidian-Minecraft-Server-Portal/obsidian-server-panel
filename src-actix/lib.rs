@@ -48,6 +48,20 @@ pub async fn run() -> Result<()> {
         if std::env::var("OBSIDIAN_SKIP_VITE").is_ok_and(|value| value == "1") {
             info!("OBSIDIAN_SKIP_VITE is set; not starting the Vite dev server");
         } else {
+            // vite-actix resolves the Vite binary with a bare `which vite`, which happily
+            // picks up a globally installed Vite of a different major version. Make sure
+            // the workspace-local install (node_modules/.bin) always wins.
+            let workspace_bin = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("node_modules/.bin");
+            if workspace_bin.join("vite").exists()
+                && let Ok(current_path) = std::env::var("PATH")
+            {
+                let mut paths = std::env::split_paths(&current_path).collect::<Vec<_>>();
+                paths.insert(0, workspace_bin);
+                let joined = std::env::join_paths(paths).expect("Failed to join PATH");
+                // SAFETY: no other threads exist yet; this only affects this process and the
+                // Vite child spawned below.
+                unsafe { std::env::set_var("PATH", joined) };
+            }
             std::thread::spawn(|| {
                 loop {
                     info!("Starting Vite server in development mode...");
