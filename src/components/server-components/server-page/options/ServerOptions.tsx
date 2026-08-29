@@ -1,5 +1,5 @@
 import "../../../../ts/string-ext.ts";
-import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea, Chip, addToast} from "@heroui-compat";
+import {Divider, Input,  SelectItem, Switch, Tab, Tabs, Textarea, Chip, addToast, toast} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LoaderType, useServer} from "../../../../providers/ServerProvider.tsx";
@@ -317,6 +317,27 @@ export function ServerOptions()
         }
     }, [server, rollbackServerUpdate, addToast, loadServer]);
 
+    const resetForm = useCallback(() =>
+    {
+        if (!server) return;
+        setName(server.name);
+        setDescription(server.description || "");
+        setJavaExecutable(server.java_executable);
+        setJavaArgs(server.java_args);
+        setMinecraftArgs(server.minecraft_args);
+        setMaxMemory(server.max_memory);
+        setMinMemory(server.min_memory);
+        setServerJar(server.server_jar);
+        setUpnpEnabled(server.upnp);
+        setAutoStart(server.auto_start);
+        setAutoRestart(server.auto_restart);
+
+        // Load loader configuration
+        setLoaderType(server.server_type);
+        setMinecraftVersion(server.minecraft_version);
+        setLoaderVersion(server.loader_version);
+    }, [server]);
+
     // Load server data when the component mounts or server changes
     useEffect(() =>
     {
@@ -325,24 +346,8 @@ export function ServerOptions()
             // Only load data once when the server is first set or when server ID changes
             if (!firstLoadStateRef.current)
             {
-                console.log("Options Server", server);
                 firstLoadStateRef.current = true;
-                setName(server.name);
-                setDescription(server.description || "");
-                setJavaExecutable(server.java_executable);
-                setJavaArgs(server.java_args);
-                setMinecraftArgs(server.minecraft_args);
-                setMaxMemory(server.max_memory);
-                setMinMemory(server.min_memory);
-                setServerJar(server.server_jar);
-                setUpnpEnabled(server.upnp);
-                setAutoStart(server.auto_start);
-                setAutoRestart(server.auto_restart);
-
-                // Load loader configuration
-                setLoaderType(server.server_type);
-                setMinecraftVersion(server.minecraft_version);
-                setLoaderVersion(server.loader_version);
+                resetForm();
             }
 
             // Always refresh a file list when server changes
@@ -352,7 +357,7 @@ export function ServerOptions()
             // Reset the ref when no server is selected
             firstLoadStateRef.current = false;
         }
-    }, [server, loadAvailableFiles, firstLoadStateRef]);
+    }, [server, loadAvailableFiles, firstLoadStateRef, resetForm]);
 
     if (!server)
     {
@@ -363,21 +368,79 @@ export function ServerOptions()
         );
     }
 
+    const canSave = !!server && hasChanges();
+
+    const unsavedToastKeyRef = useRef<string | null>(null);
+    const closeUnsavedToast = useCallback(() =>
+    {
+        if (unsavedToastKeyRef.current !== null)
+        {
+            toast.close(unsavedToastKeyRef.current);
+            unsavedToastKeyRef.current = null;
+        }
+    }, []);
+
+    const handleDiscard = useCallback(() =>
+    {
+        resetForm();
+        closeUnsavedToast();
+    }, [resetForm, closeUnsavedToast]);
+
+    // The toast's inline buttons live outside React's normal tree updates, so they
+    // reach the current handlers through refs instead of stale closures.
+    const saveRef = useRef(handleSave);
+    useEffect(() =>
+    {
+        saveRef.current = handleSave;
+    }, [handleSave]);
+    const discardRef = useRef(handleDiscard);
+    useEffect(() =>
+    {
+        discardRef.current = handleDiscard;
+    }, [handleDiscard]);
+    const savingRef = useRef(false);
+    useEffect(() =>
+    {
+        savingRef.current = isSaving || isUploadingLoader;
+    }, [isSaving, isUploadingLoader]);
+
+    useEffect(() =>
+    {
+        if (!canSave)
+        {
+            closeUnsavedToast();
+            return;
+        }
+        closeUnsavedToast();
+        unsavedToastKeyRef.current = toast("Unsaved changes", {
+            description: (
+                <div className="flex items-center gap-2">
+                    <Button
+                        color="primary"
+                        size="sm"
+                        variant="solid"
+                        onPress={() =>
+                        {
+                            if (!savingRef.current) saveRef.current();
+                        }}
+                    >
+                        Save Changes
+                    </Button>
+                    <Button size="sm" variant="light" onPress={() => discardRef.current()}>
+                        Discard
+                    </Button>
+                </div>
+            ),
+            variant: "accent"
+        });
+    }, [canSave, closeUnsavedToast]);
+
+    useEffect(() => () => closeUnsavedToast(), [closeUnsavedToast]);
+
     return (
         <div className="flex flex-col gap-4 p-6 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] overflow-y-auto">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-minecraft-header">Server Configuration</h2>
-                <Button
-                    color="primary"
-                    isLoading={isSaving || isUploadingLoader}
-                    isDisabled={!hasChanges()}
-                    onPress={handleSave}
-                    startContent={<Icon icon="pixelarticons:save"/>}
-                    className="shrink-0"
-                    data-has-changes={hasChanges()}
-                >
-                    {isUploadingLoader ? "Uploading Server..." : "Save Changes"}
-                </Button>
             </div>
 
             {/* Basic Information */}

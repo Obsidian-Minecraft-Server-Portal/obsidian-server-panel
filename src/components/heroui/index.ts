@@ -1,4 +1,4 @@
-export {cn, addToast, useDisclosure} from "./util.ts";
+export {cn, addToast, toast, useDisclosure} from "./util.ts";
 export type {Key, Selection, V2Color} from "./util.ts";
 export {Button, ButtonGroup} from "./button.tsx";
 export type {ButtonProps, ButtonGroupProps} from "./button.tsx";

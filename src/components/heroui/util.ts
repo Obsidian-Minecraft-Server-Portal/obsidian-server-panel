@@ -1,7 +1,7 @@
 import {Children, createContext, Fragment, isValidElement, ReactElement, ReactNode, useCallback} from "react";
-import {toast, useOverlayState} from "@heroui/react";
+import {ButtonProps, toast, useOverlayState} from "@heroui/react";
 
-export {cn} from "@heroui/react";
+export {cn, toast} from "@heroui/react";
 
 export type V2Color = "default" | "primary" | "secondary" | "success" | "warning" | "danger";
 export type Key = string | number;
@@ -113,15 +113,22 @@ export interface ToastOptions
     title?: ReactNode;
     description?: ReactNode;
     color?: V2Color;
-    timeout?: number;
+    /** Ms before auto-dismiss. 0 or null keeps the toast open until closed. Defaults to 3000. */
+    timeout?: number | null;
     endContent?: ReactNode;
     icon?: ReactNode;
+    /** HeroUI toast action button (rendered by the toast region). */
+    actionProps?: ButtonProps;
     promise?: Promise<unknown>;
 }
 
-export function addToast({title, description, color, timeout}: ToastOptions)
+export function addToast({title, description, color, timeout, actionProps}: ToastOptions)
 {
-    const opts = {description: typeof description === "string" ? description : undefined, timeout: timeout ?? 3000};
+    const opts: {description?: ReactNode; timeout?: number; actionProps?: ButtonProps} = {description, actionProps};
+    if (timeout !== null && timeout !== 0)
+    {
+        opts.timeout = timeout ?? 3000;
+    }
     const text = typeof title === "string" ? title : "";
     switch (color)
     {
