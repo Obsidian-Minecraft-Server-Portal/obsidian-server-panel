@@ -4,8 +4,15 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Ports default to the shared suite assignment; override via UI_BASE_URL/OBSIDIAN_VITE_PORT
+# when running against a private backend instance (e.g. a worktree-local dev-env).
 PORT=18104
-VITE_PORT=3174
+if [ -n "${UI_BASE_URL:-}" ]; then
+    PORT="${UI_BASE_URL#*://}"   # strip scheme
+    PORT="${PORT%%/*}"           # strip path
+    PORT="${PORT##*:}"           # keep the port
+fi
+VITE_PORT="${OBSIDIAN_VITE_PORT:-3174}"
 LOG="$ROOT/target/ui-tests/backend.log"
 PIDFILE="$ROOT/target/ui-tests/backend.pid"
 
