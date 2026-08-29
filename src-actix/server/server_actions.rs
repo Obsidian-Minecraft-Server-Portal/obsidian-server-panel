@@ -287,7 +287,9 @@ impl ServerData {
     }
 
     async fn spawn_direct(&self, args: Vec<String>, directory: &Path) -> Result<ServerHandle> {
-        let mut builder = AsynchronousInteractiveProcess::new(&self.java_executable)
+        let java_executable = Self::resolve_java_executable(&self.java_executable, directory);
+        debug!("Spawning java '{}' for server {}", java_executable, self.id);
+        let mut builder = AsynchronousInteractiveProcess::new(&java_executable)
             .with_arguments(args)
             .with_working_directory(directory)
             .process_exit_callback(self.exit_handler());

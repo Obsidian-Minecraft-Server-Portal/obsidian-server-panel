@@ -241,9 +241,12 @@ impl JavaVersion {
                 && !parent.exists() {
                     tokio::fs::create_dir_all(parent).await?;
                 }
+            let manifest_file = file.clone();
             let mut file = File::create(&path)?;
             let content = response.bytes().await?;
             file.write_all(&content)?;
+            drop(file);
+            apply_manifest_mode(&path, Some(&manifest_file)).await?;
         }
 
         callback(DownloadProgress { file: key.clone(), completed: true });
@@ -264,6 +267,28 @@ impl JavaVersion {
             .map(|(k, _)| k.clone())
             .collect::<Vec<_>>())
     }
+}
+
+async fn apply_manifest_mode(path: &std::path::Path, file: Option<&Value>) -> Result<()> {
+    // Mojang marks binaries with "executable": true (some manifests instead carry a decimal
+    // "mode" like 493 = 0o755); without this every extracted JVM binary is non-executable.
+    let Some(file) = file else { return Ok(()) };
+    let executable = file.get("executable").and_then(Value::as_bool).unwrap_or(false);
+    let mode = file.get("mode").and_then(Value::as_u64);
+    let new_mode = if executable {
+        Some(0o755)
+    } else {
+        mode.map(|m| m as u32)
+    };
+    let Some(new_mode) = new_mode else { return Ok(()) };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(new_mode)).await?;
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
 }
 
 fn get_current_os() -> Option<OS> {

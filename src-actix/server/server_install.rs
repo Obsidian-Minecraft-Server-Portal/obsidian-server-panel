@@ -12,6 +12,26 @@ impl ServerData {
         !self.server_jar.is_empty() && self.get_directory_path().join(&self.server_jar).is_file()
     }
 
+    /// Resolves the configured Java executable the way the spawn will: absolute paths and
+    /// bare names are used as-is (bare names go through `PATH`), relative paths are tried
+    /// against the server directory first and then against the panel's working directory,
+    /// where panel-managed JDKs live (e.g. `./meta/java/gamma-17.0.15/bin/java`).
+    pub(crate) fn resolve_java_executable(java_executable: &str, working_dir: &Path) -> String {
+        let is_pathy = java_executable.contains('/') || java_executable.contains('\\');
+        if !is_pathy || Path::new(java_executable).is_absolute() {
+            return java_executable.to_string();
+        }
+        if working_dir.join(java_executable).is_file() {
+            return working_dir.join(java_executable).to_string_lossy().into_owned();
+        }
+        if let Ok(panel_dir) = std::env::current_dir()
+            && panel_dir.join(java_executable).is_file()
+        {
+            return panel_dir.join(java_executable).to_string_lossy().into_owned();
+        }
+        java_executable.to_string()
+    }
+
     /// Checks that the configured Java executable can actually be spawned, mirroring how
     /// `tokio::process::Command` resolves it: a value containing a path separator is
     /// resolved against the child's working directory (the server directory), a bare name
@@ -19,12 +39,13 @@ impl ServerData {
     pub(crate) fn validate_java_executable(java_executable: &str, working_dir: &Path) -> Result<()> {
         ensure!(!java_executable.trim().is_empty(), "No Java executable is configured for this server; pick one in the server options");
         if java_executable.contains('/') || java_executable.contains('\\') {
-            let path = working_dir.join(java_executable);
+            let resolved = Self::resolve_java_executable(java_executable, working_dir);
+            let path = Path::new(&resolved);
             ensure!(path.is_file(), "Java executable '{java_executable}' is not a file");
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let mode = std::fs::metadata(&path)?.permissions().mode();
+                let mode = std::fs::metadata(path)?.permissions().mode();
                 ensure!(mode & 0o111 != 0, "Java executable '{java_executable}' is not executable");
             }
             return Ok(());
