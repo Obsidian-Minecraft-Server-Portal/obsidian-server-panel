@@ -209,6 +209,10 @@ export function ServerOptions()
             {
                 await loadAvailableFiles();
             }
+            // The save succeeded: the form must re-sync from the reloaded server and the
+            // unsaved-changes toast must go away, even if a field's saved representation
+            // differs subtly from the form state.
+            justSavedRef.current = true;
         } catch (error)
         {
             console.error("Failed to save server settings:", error);
@@ -338,26 +342,6 @@ export function ServerOptions()
         setLoaderVersion(server.loader_version);
     }, [server]);
 
-    // Load server data when the component mounts or server changes
-    useEffect(() =>
-    {
-        if (server)
-        {
-            // Only load data once when the server is first set or when server ID changes
-            if (!firstLoadStateRef.current)
-            {
-                firstLoadStateRef.current = true;
-                resetForm();
-            }
-
-            // Always refresh a file list when server changes
-            loadAvailableFiles();
-        } else
-        {
-            // Reset the ref when no server is selected
-            firstLoadStateRef.current = false;
-        }
-    }, [server, loadAvailableFiles, firstLoadStateRef, resetForm]);
 
     if (!server)
     {
@@ -371,6 +355,7 @@ export function ServerOptions()
     const canSave = !!server && hasChanges();
 
     const unsavedToastKeyRef = useRef<string | null>(null);
+    const justSavedRef = useRef(false);
     const closeUnsavedToast = useCallback(() =>
     {
         if (unsavedToastKeyRef.current !== null)
@@ -437,6 +422,34 @@ export function ServerOptions()
     }, [canSave, closeUnsavedToast]);
 
     useEffect(() => () => closeUnsavedToast(), [closeUnsavedToast]);
+
+    // Load server data when the component mounts or server changes
+    useEffect(() =>
+    {
+        if (server)
+        {
+            // Only load data once when the server is first set or when server ID changes,
+            // unless the change came from a successful save - then re-sync the form so the
+            // unsaved-changes toast reliably disappears.
+            if (!firstLoadStateRef.current)
+            {
+                firstLoadStateRef.current = true;
+                resetForm();
+            } else if (justSavedRef.current)
+            {
+                justSavedRef.current = false;
+                resetForm();
+                closeUnsavedToast();
+            }
+
+            // Always refresh a file list when server changes
+            loadAvailableFiles();
+        } else
+        {
+            // Reset the ref when no server is selected
+            firstLoadStateRef.current = false;
+        }
+    }, [server, loadAvailableFiles, firstLoadStateRef, resetForm, closeUnsavedToast]);
 
     return (
         <div className="flex flex-col gap-4 p-6 bg-default-50 max-h-[calc(100dvh_-_400px)] h-screen min-h-[300px] overflow-y-auto">
