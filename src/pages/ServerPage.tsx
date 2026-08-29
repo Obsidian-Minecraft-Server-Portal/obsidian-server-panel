@@ -81,7 +81,7 @@ export default function ServerPage()
                     className={"overflow-hidden"}
                     data-header-collapsed={shouldCollapseHeader}
                 >
-                    <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
+                    <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status} server_jar={server.server_jar}/>
                 </motion.div>
                 <motion.div
                     initial={{opacity: 0, y: 20}}

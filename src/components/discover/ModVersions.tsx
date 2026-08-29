@@ -6,6 +6,7 @@ import {useAsyncList} from "@react-stately/data";
 import {ModVersion, ServerInfo} from "../../types/ModTypes";
 import {Select} from "../extended/Select.tsx";
 import {Button} from "../extended/Button.tsx";
+import {useServer} from "../../providers/ServerProvider.tsx";
 
 interface ModVersionsProps
 {
@@ -25,6 +26,34 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
     const [hasMoreVersions, setHasMoreVersions] = useState(false);
     const [_isInstallingVersion, setIsInstallingVersion] = useState(false);
     const [_installedVersion, setInstalledVersion] = useState<ModVersion|undefined>(undefined);
+    const {getInstalledMods} = useServer();
+    const [installedFilenames, setInstalledFilenames] = useState<Set<string>>(new Set());
+
+    // Mark versions whose primary file is already installed on the target server.
+    useEffect(() =>
+    {
+        if (!serverId)
+        {
+            setInstalledFilenames(new Set());
+            return;
+        }
+        let cancelled = false;
+        getInstalledMods(serverId).then(mods =>
+        {
+            if (cancelled) return;
+            setInstalledFilenames(new Set(mods.map(mod => mod.filename)));
+        }).catch(error => console.error("Failed to load installed mods:", error));
+        return () =>
+        {
+            cancelled = true;
+        };
+    }, [serverId, getInstalledMods]);
+
+    const isVersionInstalled = (version: ModVersion) =>
+    {
+        const file = version.files.find(f => f.primary) || version.files[0];
+        return !!file && installedFilenames.has(file.filename);
+    };
 
     const versionsPerPage = 50;
 
@@ -242,6 +271,11 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                                         <div className="font-semibold">{version.version_number}</div>
                                         <div className="text-xs text-default-500">{version.name}</div>
                                     </div>
+                                    {isVersionInstalled(version) && (
+                                        <Chip size="sm" color="success" variant="flat" className="text-xs font-bold">
+                                            <Icon icon="pixelarticons:check"/> Installed
+                                        </Chip>
+                                    )}
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -269,6 +303,7 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                                 <Button
                                     size="sm"
                                     color="primary"
+                                    isDisabled={isVersionInstalled(version)}
                                     onPress={async () =>
                                     {
                                         setIsInstallingVersion(true)
@@ -276,10 +311,10 @@ export function ModVersions({modVersions, versionsLoading, server, serverId, onD
                                         setInstalledVersion(version)
                                         setIsInstallingVersion(false)
                                     }}
-                                    startContent={<Icon icon="pixelarticons:download"/>}
-                                    variant={"ghost"}
+                                    startContent={<Icon icon={isVersionInstalled(version) ? "pixelarticons:check" : "pixelarticons:download"}/>}
+                                    variant={isVersionInstalled(version) ? "flat" : "ghost"}
                                 >
-                                    Download
+                                    {isVersionInstalled(version) ? "Installed" : "Download"}
                                 </Button>
                             </TableCell>
                         </TableRow>

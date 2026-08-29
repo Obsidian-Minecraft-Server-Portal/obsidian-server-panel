@@ -6,7 +6,7 @@ import {MessageResponseType} from "../../../MessageModal.tsx";
 import {Button} from "../../../extended/Button.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {motion} from "framer-motion";
-import {useCallback, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import type {ModVersion} from "../../../../types/ModTypes.ts";
 import {fetchCurseForgeVersions, fetchModrinthVersions} from "../../../../pages/ContentPage.tsx";
 import {ModItemContentDrawer} from "./ModItemContentDrawer.tsx";
@@ -26,10 +26,11 @@ export type ModItemProps = {
 
 export function ModItem(props: ModItemProps)
 {
-    const {server, installMod} = useServer();
+    const {server, installMod, getInstalledMods} = useServer();
     const {open} = useMessage();
     const [latestVersion, setLatestVersion] = useState<ModVersion | undefined>(undefined);
     const [openDrawer, setOpenDrawer] = useState(false);
+    const [isInstalled, setIsInstalled] = useState(false);
 
     const {
         modId,
@@ -46,6 +47,28 @@ export function ModItem(props: ModItemProps)
 
     // Fetches the versions of this mod and returns the ones matching the server's
     // Minecraft version and loader, newest first.
+    // Marks the install button when this mod is already installed on the server;
+    // refreshed whenever the versions drawer closes so downloads update the label.
+    const refreshInstalledState = useCallback(async () =>
+    {
+        if (!server || !modId) return;
+        try
+        {
+            const mods = await getInstalledMods(server.id);
+            setIsInstalled(mods.some(mod =>
+                platform === "modrinth" ? mod.modrinth_id === modId : mod.curseforge_id === modId
+            ));
+        } catch (error)
+        {
+            console.error("Failed to load installed mods:", error);
+        }
+    }, [server, modId, platform, getInstalledMods]);
+
+    useEffect(() =>
+    {
+        void refreshInstalledState();
+    }, [refreshInstalledState]);
+
     const fetchCompatibleVersions = useCallback(async (): Promise<ModVersion[]> =>
     {
         if (!server || !modId || !platform || !server.minecraft_version || !server.server_type) return [];
@@ -120,7 +143,11 @@ export function ModItem(props: ModItemProps)
 
     return (
         <>
-            <ModItemContentDrawer modId={modId} platform={platform} isOpen={openDrawer} onClose={()=>setOpenDrawer(false)} />
+            <ModItemContentDrawer modId={modId} platform={platform} isOpen={openDrawer} onClose={() =>
+            {
+                setOpenDrawer(false);
+                void refreshInstalledState();
+            }} />
             <motion.div
                 key={modId}
                 className={"flex flex-row gap-2 bg-default-200/50 w-full h-[136px] p-4 font-minecraft-body relative"}
@@ -157,12 +184,12 @@ export function ModItem(props: ModItemProps)
                     <div className={"text-default-700 text-xl flex flex-row items-center gap-1"}><Icon icon={"pixelarticons:download"}/><Downloads count={downloadCount}/> <span className={"text-medium text-default-500"}>downloads</span></div>
                     <div className={"flex flex-row items-center gap-2"}><span className={"text-default-500 flex flex-row gap-1 items-center"}><Icon icon={"pixelarticons:repeat"}/>Updated</span> <LastUpdated date={lastUpdated}/></div>
                     <ButtonGroup className={"gap-2 z-30"}>
-                        <Tooltip content={<p>Install <span className={"text-primary"}>{name} {latestVersion?.version_number}</span></p>}>
+                        <Tooltip content={isInstalled ? <p><span className="text-success">{name} is installed</span></p> : <p>Install <span className={"text-primary"}>{name} {latestVersion?.version_number}</span></p>}>
                             <Button
-                                variant={"solid"}
+                                variant={isInstalled ? "flat" : "solid"}
+                                isDisabled={isInstalled}
                                 onPress={installLatestVersion}
-                                onMouseEnter={() => findLatestVersion()}
-
+                                onMouseEnter={() => !isInstalled && findLatestVersion()}
                                 className={
                                     cn(
                                         "data-[platform=curseforge]:bg-[#f16436]",
@@ -170,8 +197,9 @@ export function ModItem(props: ModItemProps)
                                     )
                                 }
                                 data-platform={platform}
+                                startContent={isInstalled ? <Icon icon={"pixelarticons:check"}/> : undefined}
                             >
-                                Install
+                                {isInstalled ? "Installed" : "Install"}
                             </Button>
                         </Tooltip>
                         <Tooltip content={`Open on ${platform === "modrinth" ? "Modrinth" : "CurseForge"}`}>

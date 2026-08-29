@@ -8,6 +8,7 @@ import {motion} from "framer-motion";
 import {ServerIcon} from "./ServerIcon.tsx";
 import ReactMarkdown from "react-markdown";
 import $ from "../../../ts/http.ts";
+import {serverNeedsInstall} from "../../../utils/server-install.ts";
 import {Tooltip} from "../../extended/Tooltip.tsx";
 
 type ServerHeaderProps = {
@@ -17,7 +18,8 @@ type ServerHeaderProps = {
     minecraft_version: string,
     server_type: string,
     loader_version: string,
-    status: string
+    status: string,
+    server_jar?: string
 }
 
 type Player =
@@ -34,11 +36,12 @@ type PingResponse = {
 
 export function ServerHeader(props: ServerHeaderProps)
 {
-    const {id, name, description, minecraft_version, server_type, loader_version, status} = props;
+    const {id, name, description, minecraft_version, server_type, loader_version, status, server_jar} = props;
     const {startServer, stopServer, restartServer, killServer, isServerRunning} = useServer();
     const [isServerStarting, setIsServerStarting] = useState<boolean>(false);
     const [ping, setPing] = useState<PingResponse>();
     const {open} = useMessage();
+    const needsInstall = serverNeedsInstall(server_jar, server_type);
 
     // "idle" | "running" | "stopped" | "error" | "starting" | "stopping" | "crashed" | "hanging"
     const state = status.toLowerCase();
@@ -203,7 +206,7 @@ export function ServerHeader(props: ServerHeaderProps)
                 exit={{opacity: 0, x: 40}}
                 transition={{duration: 0.3, ease: "easeInOut"}}
             >
-                {canStart && (
+                {canStart && !needsInstall && (
                     <Button radius={"none"} color={"primary"} variant={"solid"} isLoading={isServerStarting} startContent={<Icon icon={"pixelarticons:play"} className={"text-xl"}/>} onPress={async () =>
                     {
                         setIsServerStarting(true);
@@ -215,6 +218,26 @@ export function ServerHeader(props: ServerHeaderProps)
                             setIsServerStarting(false);
                         }
                     }}>Start</Button>
+                )}
+                {canStart && needsInstall && (
+                    <Button radius={"none"} color={"primary"} variant={"solid"} isLoading={isServerStarting} startContent={<Icon icon={"pixelarticons:download"} className={"text-xl"}/>} onPress={async () =>
+                    {
+                        const response = await open({
+                            title: "Install Loader",
+                            body: "The configured jar is a loader installer. Install it now? The server jar and arguments will be updated automatically once the installer finishes.",
+                            severity: "info",
+                            responseType: MessageResponseType.YesNo
+                        });
+                        if (!response) return;
+                        setIsServerStarting(true);
+                        try
+                        {
+                            await startServer(id);
+                        } finally
+                        {
+                            setIsServerStarting(false);
+                        }
+                    }}>Install</Button>
                 )}
                 {canStop && (
                     <Button radius={"none"} color={"danger"} variant={"light"} startContent={<Icon icon={"pixelarticons:checkbox-on"} className={"text-xl"}/>} onPress={() => stopServer(id)}>Stop</Button>
