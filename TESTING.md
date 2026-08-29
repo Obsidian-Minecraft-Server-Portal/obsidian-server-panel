@@ -128,10 +128,14 @@ screenshots every pathway at a mobile viewport of **360x760** (override with
 ```
 
 Specs: auth, dashboard (+ all 4 accessibility themes), server-create (all
-loaders), server-lifecycle (fake java start/stop/restart/kill), server-files
-(upload/Monaco edit/download), server-options, server-backups, discover,
-account, errors. Results aggregate to `target/ui-tests/report.json` with
-screenshots under `target/ui-tests/`.
+loaders), server-lifecycle (fake java start/stop/restart/kill), server-tabs,
+server-files (upload/Monaco edit/download/rename/archive/drag-move), server-options,
+server-backups, discover, account, errors. Results aggregate to
+`target/ui-tests/report.json` with screenshots under `target/ui-tests/`.
+
+The suite runs the backend against an isolated dev-env
+(`target/ui-tests/dev-env-root/target/dev-env`), so manual testing data and UI
+test fixtures never interfere; the fake java runtimes are seeded automatically.
 
 ## Frontend Tests
 

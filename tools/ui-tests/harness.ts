@@ -9,7 +9,7 @@ export const BASE_URL = process.env.UI_BASE_URL?.trim() || "http://127.0.0.1:181
 export const OUT_ROOT = resolve("target/ui-tests");
 export const ADMIN_USER = "uitest-admin";
 export const ADMIN_PASS = "UiTestAdmin!1";
-const DEV_ENV = resolve("target/dev-env");
+const DEV_ENV = resolve("target/ui-tests/dev-env-root/target/dev-env");
 
 /**
  * Viewport used for every pathway spec. Mobile-first: 360x760 is the default the owner
@@ -315,14 +315,17 @@ export class UIHarness extends BaseHarness
     async ensureAdminSession(): Promise<void>
     {
         await this.goto("/");
-        const info = await this.api<any>("GET", "/api/info");
-        if (info.body?.has_admin_user === false)
+        // Login first and only fall back to registration when needed: on a fresh suite
+        // dev-env the suite user becomes the first user (and therefore admin); after a
+        // re-registration attempt the retry login must still succeed.
+        const login = await this.api<any>("POST", "/api/auth", {username: ADMIN_USER, password: ADMIN_PASS, remember: true});
+        if (login.status >= 300)
         {
             const reg = await this.api("PUT", "/api/auth", {username: ADMIN_USER, password: ADMIN_PASS});
-            if (reg.status >= 300) throw new Error(`register failed: ${reg.status} ${JSON.stringify(reg.body)}`);
+            if (reg.status >= 300) throw new Error(`login (${login.status}) and registration (${reg.status}) both failed: ${JSON.stringify(reg.body)}`);
+            const retry = await this.api<any>("POST", "/api/auth", {username: ADMIN_USER, password: ADMIN_PASS, remember: true});
+            if (retry.status >= 300) throw new Error(`login after registration failed: ${retry.status} ${JSON.stringify(retry.body)}`);
         }
-        const login = await this.api("POST", "/api/auth", {username: ADMIN_USER, password: ADMIN_PASS, remember: true});
-        if (login.status >= 300) throw new Error(`login failed: ${login.status} ${JSON.stringify(login.body)}`);
         const who = await this.api<any>("GET", "/api/auth");
         if (!who.body?.user) throw new Error(`session check failed: ${JSON.stringify(who.body).slice(0, 200)}`);
     }
