@@ -708,8 +708,10 @@ export function ServerFiles()
             ? selectedEntries
             : [entry];
         draggedEntriesRef.current = dragging;
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", dragging.map(item => item.path).join("\n"));
+        // dataTransfer is null for synthetic DragEvents (Chrome's constructor ignores it);
+        // the payload itself rides in draggedEntriesRef, so it is only used for native UX
+        e.dataTransfer?.setData("text/plain", dragging.map(item => item.path).join("\n"));
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
     }, [selectedEntries]);
 
     const handleRowDragOver = useCallback((e: ReactDragEvent, entry: FilesystemEntry) =>
@@ -719,7 +721,7 @@ export function ServerFiles()
         if (entry.is_dir && !isWithinDraggedSubtree(entry))
         {
             e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
+            if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
             setRowDropTarget(entry.filename);
         }
     }, []);
@@ -905,20 +907,34 @@ export function ServerFiles()
         const closeIfOutside = (e: Event) =>
         {
             // Close the context menu when interacting outside of it
-            if (!(e.target instanceof Element && e.target.closest("#server-files-context-menu")))
+            if (e.target instanceof Element && e.target.closest("#server-files-context-menu"))
             {
-                setContextMenuOptions(prev => ({...prev, isOpen: false}));
+                return;
             }
+            // A captured focusout fires for the PREVIOUSLY focused element (e.g. the table
+            // row focused by the right-click that opened the menu). Pressing a menu item
+            // moves focus into the menu's focusable wrapper, which must NOT close the
+            // menu - otherwise the menu switches to pointer-events:none mid-press and the
+            // item's action never fires ("the menu options do nothing").
+            if (e.type === "focusout")
+            {
+                const related = (e as FocusEvent).relatedTarget;
+                if (related instanceof Element && related.closest("#server-files-context-menu"))
+                {
+                    return;
+                }
+            }
+            setContextMenuOptions(prev => ({...prev, isOpen: false}));
         };
         const closeOnScroll = () => setContextMenuOptions(prev => ({...prev, isOpen: false}));
         const scrollParent = document.getElementById("server-files-table")?.parentElement;
         document.addEventListener("click", closeIfOutside);
-        document.addEventListener("blur", closeIfOutside, true);
+        document.addEventListener("focusout", closeIfOutside, true);
         scrollParent?.addEventListener("scroll", closeOnScroll);
         return () =>
         {
             document.removeEventListener("click", closeIfOutside);
-            document.removeEventListener("blur", closeIfOutside, true);
+            document.removeEventListener("focusout", closeIfOutside, true);
             scrollParent?.removeEventListener("scroll", closeOnScroll);
         };
     }, []);
@@ -1141,8 +1157,6 @@ export function ServerFiles()
                                                 return (
                                                     <TableRow
                                                         key={entry.filename}
-                                                        data-drop-target={rowDropTarget === entry.filename || undefined}
-                                                        className={cn("data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10", "data-[drop-target=true]:bg-primary/15")}
                                                         onContextMenu={e =>
                                                         {
                                                             e.preventDefault();
@@ -1197,7 +1211,11 @@ export function ServerFiles()
                                                                 />
                                                             ) : (
                                                                 <div
-                                                                    className={"flex items-center gap-2 w-full h-full"}
+                                                                    className={cn(
+                                                                        "flex items-center gap-2 w-full h-full",
+                                                                        "data-[drop-target=true]:bg-primary/15 data-[drop-target=true]:outline data-[drop-target=true]:outline-1 data-[drop-target=true]:-outline-offset-1 data-[drop-target=true]:outline-primary"
+                                                                    )}
+                                                                    data-drop-target={rowDropTarget === entry.filename || undefined}
                                                                     draggable={!renamingEntry && !newItemCreationEntry}
                                                                     onDragStart={e => handleRowDragStart(e, entry)}
                                                                     onDragOver={e => handleRowDragOver(e, entry)}

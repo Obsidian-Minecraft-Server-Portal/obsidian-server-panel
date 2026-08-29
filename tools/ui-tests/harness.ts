@@ -621,6 +621,26 @@ export class UIHarness extends BaseHarness
         return true;
     }
 
+    /** Right-clicks (real mouse events) the last [role=row] in `scope` whose text contains
+     *  `text` - exercises the browser context menu path users actually take. */
+    async rightClickRow(scope: string, text: string): Promise<boolean>
+    {
+        const box = await this.page.evaluate((sc, t) =>
+        {
+            const rows = [...document.querySelectorAll(`${sc} [role=row]`)]
+                .filter(e => (e.textContent ?? "").includes(t));
+            const el = rows[rows.length - 1] as HTMLElement | undefined;
+            if (!el) return null;
+            el.scrollIntoView({block: "nearest", inline: "nearest"});
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) return null;
+            return {x: r.left + Math.min(120, r.width / 2), y: r.top + r.height / 2};
+        }, scope, text);
+        if (!box) return false;
+        await this.page.mouse.click((box as any).x, (box as any).y, {button: "right"});
+        return true;
+    }
+
     /** Clicks a visible button with the given exact label INSIDE a scope (e.g. a modal
      *  dialog that duplicates a page-level button label) with real mouse events -
      *  synthetic element.click() does not fire react-aria onPress handlers. */
