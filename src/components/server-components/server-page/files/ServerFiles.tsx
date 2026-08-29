@@ -743,9 +743,13 @@ export function ServerFiles()
         if (!dragged) return; // external drop: let the upload drop zone react
         e.preventDefault();
         e.stopPropagation();
+        // resolves the subtree check against the captured payload - the ref is cleared
+        // right after, and the check must still see what was being dragged
+        const dropsIntoDraggedSubtree = (t: FilesystemEntry) =>
+            dragged.some(d => d.path === t.path || t.path.startsWith(`${d.path}/`));
         draggedEntriesRef.current = null;
         setRowDropTarget(undefined);
-        if (!target.is_dir || isWithinDraggedSubtree(target)) return;
+        if (!target.is_dir || dropsIntoDraggedSubtree(target)) return;
         try
         {
             await moveEntry(dragged.map(entry => entry.path), target.path);
