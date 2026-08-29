@@ -2,7 +2,7 @@ use crate::broadcast;
 use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::server::server_data::ServerData;
 use crate::server::server_type::ServerType;
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{Result, anyhow, bail, ensure};
 use log::info;
 use std::path::Path;
 
@@ -13,27 +13,27 @@ impl ServerData {
     }
 
     /// Checks that the configured Java executable can actually be spawned, mirroring how
-    /// `tokio::process::Command` resolves it: a value containing a path separator is used
-    /// as-is, a bare name is looked up on `PATH`.
-    pub(crate) fn validate_java_executable(java_executable: &str) -> Result<()> {
-        let java = java_executable.trim();
-        ensure!(!java.is_empty(), "No Java executable is configured for this server; pick one in the server options");
-        if java.contains('/') || java.contains('\\') {
-            let path = Path::new(java);
-            ensure!(path.is_file(), "Java executable '{java}' is not a file");
+    /// `tokio::process::Command` resolves it: a value containing a path separator is
+    /// resolved against the child's working directory (the server directory), a bare name
+    /// is looked up on `PATH`. The value is used exactly as configured, like the spawn does.
+    pub(crate) fn validate_java_executable(java_executable: &str, working_dir: &Path) -> Result<()> {
+        ensure!(!java_executable.trim().is_empty(), "No Java executable is configured for this server; pick one in the server options");
+        if java_executable.contains('/') || java_executable.contains('\\') {
+            let path = working_dir.join(java_executable);
+            ensure!(path.is_file(), "Java executable '{java_executable}' is not a file");
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let mode = std::fs::metadata(path)?.permissions().mode();
-                ensure!(mode & 0o111 != 0, "Java executable '{java}' is not executable");
+                let mode = std::fs::metadata(&path)?.permissions().mode();
+                ensure!(mode & 0o111 != 0, "Java executable '{java_executable}' is not executable");
             }
             return Ok(());
         }
         let path_var = std::env::var("PATH").unwrap_or_default();
-        if std::env::split_paths(&path_var).any(|dir| dir.join(java).is_file()) {
+        if std::env::split_paths(&path_var).any(|dir| dir.join(java_executable).is_file()) {
             return Ok(());
         }
-        bail!("Java executable '{java}' was not found on PATH");
+        bail!("Java executable '{java_executable}' was not found on PATH");
     }
 
     /// Places a launchable server jar in the server directory, downloading the artifact for
@@ -110,32 +110,59 @@ impl ServerData {
 mod tests {
     use super::*;
 
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("{name}-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn java_validation_rejects_missing_paths() {
-        assert!(ServerData::validate_java_executable("").is_err());
-        assert!(ServerData::validate_java_executable("   ").is_err());
-        assert!(ServerData::validate_java_executable("/nonexistent/java-xyz").is_err());
-        assert!(ServerData::validate_java_executable("definitely-not-on-path-xyz").is_err());
+        let dir = temp_dir("osp-java-val");
+        assert!(ServerData::validate_java_executable("", &dir).is_err());
+        assert!(ServerData::validate_java_executable("   ", &dir).is_err());
+        assert!(ServerData::validate_java_executable("/nonexistent/java-xyz", &dir).is_err());
+        assert!(ServerData::validate_java_executable("definitely-not-on-path-xyz", &dir).is_err());
     }
 
     #[test]
     #[cfg(unix)]
     fn java_validation_accepts_resolvable_executables() {
-        assert!(ServerData::validate_java_executable("/bin/sh").is_ok());
-        assert!(ServerData::validate_java_executable(" sh ").is_ok());
+        let dir = temp_dir("osp-java-val");
+        assert!(ServerData::validate_java_executable("/bin/sh", &dir).is_ok());
+        assert!(ServerData::validate_java_executable("sh", &dir).is_ok());
     }
 
     #[test]
     #[cfg(unix)]
     fn java_validation_rejects_non_executable_files() {
-        let dir = std::env::temp_dir().join(format!("osp-java-val-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = temp_dir("osp-java-val");
         let path = dir.join("java");
         std::fs::write(&path, b"").unwrap();
-        assert!(ServerData::validate_java_executable(path.to_str().unwrap()).is_err());
+        assert!(ServerData::validate_java_executable(path.to_str().unwrap(), &dir).is_err());
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        assert!(ServerData::validate_java_executable(path.to_str().unwrap()).is_ok());
+        assert!(ServerData::validate_java_executable(path.to_str().unwrap(), &dir).is_ok());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn java_validation_resolves_relative_paths_against_the_server_directory() {
+        let dir = temp_dir("osp-java-val");
+        std::fs::write(dir.join("jre"), b"").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(dir.join("jre"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(ServerData::validate_java_executable("jre", &dir).is_err());
+        assert!(ServerData::validate_java_executable("./jre", &dir).is_ok());
+        assert!(ServerData::validate_java_executable("./jre", &temp_dir("osp-java-val-empty")).is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn java_validation_does_not_trim_the_value() {
+        let dir = temp_dir("osp-java-val");
+        assert!(ServerData::validate_java_executable(" sh ", &dir).is_err());
         std::fs::remove_dir_all(&dir).ok();
     }
 }

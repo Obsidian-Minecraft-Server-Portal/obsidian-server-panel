@@ -150,7 +150,7 @@ impl ServerData {
     }
 
     async fn start_server_inner(&mut self) -> Result<()> {
-        Self::validate_java_executable(&self.java_executable)?;
+        Self::validate_java_executable(&self.java_executable, &self.get_directory_path())?;
 
         if !self.has_launchable_jar() {
             self.download_server_artifact().await?;
@@ -317,7 +317,12 @@ impl ServerData {
     async fn settle_untracked_server(&mut self) -> Result<()> {
         if !matches!(
             self.status,
-            ServerStatus::Starting | ServerStatus::Stopping | ServerStatus::Error | ServerStatus::Crashed | ServerStatus::Running | ServerStatus::Hanging
+            ServerStatus::Starting
+                | ServerStatus::Stopping
+                | ServerStatus::Error
+                | ServerStatus::Crashed
+                | ServerStatus::Running
+                | ServerStatus::Hanging
         ) {
             return Err(anyhow::anyhow!("Server not running"));
         }

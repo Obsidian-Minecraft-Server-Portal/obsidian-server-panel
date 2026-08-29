@@ -290,7 +290,9 @@ async fn install_server_pack(server: &mut ServerData, url: &str) -> anyhow::Resu
 
     match detect_server_jar(&dir)? {
         Some(jar) => server.server_jar = jar,
-        None if matches!(server.server_type, Some(ServerType::Forge | ServerType::NeoForge | ServerType::Fabric | ServerType::Vanilla)) => install_loader(server).await?,
+        None if matches!(server.server_type, Some(ServerType::Forge | ServerType::NeoForge | ServerType::Fabric | ServerType::Vanilla)) => {
+            install_loader(server).await?
+        }
         None => warn!("No server jar detected in server pack for '{}'; configure it manually", server.name),
     }
     Ok(())
@@ -456,12 +458,22 @@ pub(crate) async fn download_file(client: &reqwest::Client, url: &str, dest: &Pa
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
-    let mut file = tokio::fs::File::create(dest).await?;
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        file.write_all(&chunk?).await?;
+    let file_name = dest.file_name().ok_or_else(|| anyhow!("Invalid download destination {}", dest.display()))?;
+    let part = dest.with_file_name(format!("{}.part", file_name.to_string_lossy()));
+    let write = async {
+        let mut file = tokio::fs::File::create(&part).await?;
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            file.write_all(&chunk?).await?;
+        }
+        file.flush().await?;
+        Ok::<(), anyhow::Error>(())
+    };
+    if let Err(e) = write.await {
+        tokio::fs::remove_file(&part).await.ok();
+        return Err(e);
     }
-    file.flush().await?;
+    tokio::fs::rename(&part, dest).await?;
     Ok(())
 }
 

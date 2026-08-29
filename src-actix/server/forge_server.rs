@@ -24,9 +24,7 @@ impl ServerData {
     /// Whether the server directory has neither a runnable server jar nor an installer jar,
     /// so starting it must first download and run the loader installer.
     pub(crate) fn needs_loader_install(&self) -> bool {
-        matches!(self.server_type, Some(ServerType::Forge | ServerType::NeoForge))
-            && !self.is_forge_installer()
-            && !self.has_launchable_jar()
+        matches!(self.server_type, Some(ServerType::Forge | ServerType::NeoForge)) && !self.is_forge_installer() && !self.has_launchable_jar()
     }
 
     /// Runs the Forge or NeoForge installer, delegating to the appropriate
