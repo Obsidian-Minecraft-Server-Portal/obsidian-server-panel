@@ -155,13 +155,26 @@ async fn prepare_modrinth(request: ModpackInstallRequest, user_id: u64) -> anyho
     let mut task_server = server.clone();
     tokio::spawn(async move {
         let result = match install_mrpack_files(&task_server, &index, mrpack).await {
-            Ok(()) => install_loader(&mut task_server).await,
+            Ok(()) => ensure_mrpack_server_jar(&mut task_server).await,
             Err(e) => Err(e),
         };
         finish(task_server, result).await;
     });
 
     Ok(server)
+}
+
+/// Uses a server jar bundled in the mrpack overrides when present, otherwise downloads and
+/// installs the loader (or the vanilla server jar) for the pack's Minecraft version.
+async fn ensure_mrpack_server_jar(server: &mut ServerData) -> anyhow::Result<()> {
+    match detect_server_jar(&server.get_directory_path())? {
+        Some(jar) => {
+            info!("Using server jar '{}' bundled with modpack '{}'", jar, server.name);
+            server.server_jar = jar;
+            Ok(())
+        }
+        None => install_loader(server).await,
+    }
 }
 
 async fn start_install(
@@ -277,7 +290,7 @@ async fn install_server_pack(server: &mut ServerData, url: &str) -> anyhow::Resu
 
     match detect_server_jar(&dir)? {
         Some(jar) => server.server_jar = jar,
-        None if matches!(server.server_type, Some(ServerType::Forge | ServerType::NeoForge | ServerType::Fabric)) => install_loader(server).await?,
+        None if matches!(server.server_type, Some(ServerType::Forge | ServerType::NeoForge | ServerType::Fabric | ServerType::Vanilla)) => install_loader(server).await?,
         None => warn!("No server jar detected in server pack for '{}'; configure it manually", server.name),
     }
     Ok(())
@@ -357,18 +370,24 @@ async fn read_mrpack_index(mrpack: Vec<u8>) -> anyhow::Result<MrpackIndex> {
     .await?
 }
 
-async fn install_mrpack_files(server: &ServerData, index: &MrpackIndex, mrpack: Vec<u8>) -> anyhow::Result<()> {
-    let dir = server.get_directory_path();
-    let client = platforms::http_client();
-
+/// Builds the download plan for a mrpack install: every file that is usable on the server
+/// side (env `required`/`optional` or unset), with URLs resolved against the server dir.
+fn mrpack_server_downloads(index: &MrpackIndex, dir: &Path) -> anyhow::Result<Vec<(String, PathBuf)>> {
     let mut downloads: Vec<(String, PathBuf)> = Vec::new();
     for file in &index.files {
         if file.env.as_ref().and_then(|e| e.server.as_deref()) == Some("unsupported") {
             continue;
         }
         let url = file.downloads.first().ok_or_else(|| anyhow!("'{}' has no download URL", file.path))?.clone();
-        downloads.push((url, ensure_path_within(&dir, &file.path)?));
+        downloads.push((url, ensure_path_within(dir, &file.path)?));
     }
+    Ok(downloads)
+}
+
+async fn install_mrpack_files(server: &ServerData, index: &MrpackIndex, mrpack: Vec<u8>) -> anyhow::Result<()> {
+    let dir = server.get_directory_path();
+    let client = platforms::http_client();
+    let downloads = mrpack_server_downloads(index, &dir)?;
 
     futures::stream::iter(downloads.into_iter().map(|(url, dest)| async move { download_file(client, &url, &dest).await }))
         .buffer_unordered(DOWNLOAD_CONCURRENCY)
@@ -431,7 +450,7 @@ async fn download_bytes(client: &reqwest::Client, url: &str) -> anyhow::Result<V
     Ok(response.bytes().await?.to_vec())
 }
 
-async fn download_file(client: &reqwest::Client, url: &str, dest: &Path) -> anyhow::Result<()> {
+pub(crate) async fn download_file(client: &reqwest::Client, url: &str, dest: &Path) -> anyhow::Result<()> {
     let response = client.get(url).send().await.with_context(|| format!("Failed to request {url}"))?;
     ensure!(response.status().is_success(), "HTTP {} while downloading {url}", response.status());
     if let Some(parent) = dest.parent() {
@@ -499,7 +518,7 @@ fn single_root<'a>(names: impl Iterator<Item = &'a str>) -> Option<String> {
     root.map(String::from)
 }
 
-fn detect_server_jar(dir: &Path) -> anyhow::Result<Option<String>> {
+pub(crate) fn detect_server_jar(dir: &Path) -> anyhow::Result<Option<String>> {
     let mut jars: Vec<(String, u64)> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().is_some_and(|ext| ext.eq_ignore_ascii_case("jar")))
@@ -562,6 +581,26 @@ mod tests {
         assert_eq!(server_files.len(), 2);
         assert_eq!(server_files[0].path, "mods/server-mod.jar");
         assert_eq!(server_files[1].path, "mods/no-env.jar");
+    }
+
+    #[test]
+    fn mrpack_download_plan_skips_client_only_files() {
+        let index = super::parse_mrpack_index(MRPACK_INDEX).unwrap();
+        let dir = std::env::temp_dir().join(format!("osp-mrpack-plan-{}", uuid::Uuid::new_v4()));
+        let plan = super::mrpack_server_downloads(&index, &dir).unwrap();
+
+        assert_eq!(plan.len(), 2);
+        assert_eq!(plan[0].0, "https://cdn.modrinth.com/data/abc/versions/1/server-mod.jar");
+        assert_eq!(plan[0].1, dir.join("mods/server-mod.jar"));
+        assert_eq!(plan[1].1, dir.join("mods/no-env.jar"));
+    }
+
+    #[test]
+    fn mrpack_download_plan_requires_urls() {
+        let index = super::parse_mrpack_index(r#"{"formatVersion": 1, "files": [{"path": "mods/x.jar"}]}"#).unwrap();
+        let dir = std::env::temp_dir().join(format!("osp-mrpack-plan-{}", uuid::Uuid::new_v4()));
+        let error = super::mrpack_server_downloads(&index, &dir).unwrap_err().to_string();
+        assert!(error.contains("mods/x.jar"), "{error}");
     }
 
     #[test]
