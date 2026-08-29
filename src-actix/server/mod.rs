@@ -7,6 +7,7 @@ mod server_actions;
 pub mod server_data;
 mod server_db;
 mod server_endpoint;
+mod server_install;
 mod server_ping;
 mod server_properties;
 pub mod server_status;

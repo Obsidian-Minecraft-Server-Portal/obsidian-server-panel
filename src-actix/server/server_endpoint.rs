@@ -3,7 +3,6 @@ use crate::authentication::auth_data::UserRequestExt;
 use crate::broadcast;
 use crate::broadcast::broadcast_data::BroadcastMessage;
 use crate::server::server_data::ServerData;
-use crate::server::server_status::ServerStatus;
 use crate::server::{backups, filesystem, updates};
 use crate::ICON;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
@@ -184,22 +183,10 @@ pub async fn start_server(server_id: web::Path<String>, req: HttpRequest) -> Res
     tokio::spawn(async move {
         if let Err(e) = server.start_server().await {
             error!("Failed to start server {}: {}", server.name, e);
-            mark_start_failed(&mut server).await;
         }
     });
 
     Ok(HttpResponse::Ok().finish())
-}
-
-/// Marks a failed start as crashed, unless the process was already torn down (stop/kill) and the
-/// status settled by the shutdown path.
-async fn mark_start_failed(server: &mut ServerData) {
-    if server.has_server_process().await {
-        server.status = ServerStatus::Crashed;
-        if let Err(e) = server.save().await {
-            error!("Failed to save server status after start failure: {}", e);
-        }
-    }
 }
 
 #[post("{server_id}/stop")]
@@ -241,7 +228,6 @@ pub async fn restart_server(server_id: web::Path<String>, req: HttpRequest) -> R
     tokio::spawn(async move {
         if let Err(e) = server.restart_server().await {
             error!("Failed to restart server {}: {}", server.name, e);
-            mark_start_failed(&mut server).await;
         }
     });
     Ok(HttpResponse::Ok().finish())

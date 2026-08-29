@@ -21,6 +21,14 @@ impl ServerData {
         false
     }
 
+    /// Whether the server directory has neither a runnable server jar nor an installer jar,
+    /// so starting it must first download and run the loader installer.
+    pub(crate) fn needs_loader_install(&self) -> bool {
+        matches!(self.server_type, Some(ServerType::Forge | ServerType::NeoForge))
+            && !self.is_forge_installer()
+            && !self.has_launchable_jar()
+    }
+
     /// Runs the Forge or NeoForge installer, delegating to the appropriate
     /// loader crate. Tracks the installation process in `ACTIVE_SERVERS`
     /// for status monitoring.
@@ -28,6 +36,14 @@ impl ServerData {
         self.status = ServerStatus::Starting;
         self.save().await?;
 
+        if let Err(e) = self.install_forge_server_inner().await {
+            self.settle_failed_start().await;
+            return Err(e);
+        }
+        Ok(())
+    }
+
+    async fn install_forge_server_inner(&mut self) -> Result<()> {
         let directory_path = self.get_directory_path().canonicalize()?;
         let server_id = self.id;
         let mut self_clone = self.clone();

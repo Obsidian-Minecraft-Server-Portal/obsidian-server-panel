@@ -126,9 +126,10 @@ impl ServerData {
             return Err(anyhow::anyhow!("Server is already running"));
         }
 
-        // Check if this is a forge installer that needs to be run first
-        if self.is_forge_installer() {
-            debug!("Detected forge installer for server {}", self.id);
+        // Check if this is a forge installer that needs to be run first, or a loader server
+        // whose artifact was never installed
+        if self.is_forge_installer() || self.needs_loader_install() {
+            debug!("Detected loader installation for server {}", self.id);
             self.install_forge_server().await?;
             return Ok(());
         }
@@ -141,34 +142,37 @@ impl ServerData {
             server: self.clone(),
         });
 
+        if let Err(e) = self.start_server_inner().await {
+            self.settle_failed_start().await;
+            return Err(e);
+        }
+        Ok(())
+    }
+
+    async fn start_server_inner(&mut self) -> Result<()> {
+        Self::validate_java_executable(&self.java_executable)?;
+
+        if !self.has_launchable_jar() {
+            self.download_server_artifact().await?;
+        }
+        anyhow::ensure!(self.has_launchable_jar(), "No server jar found for server {}", self.name);
+
         if self.upnp {
-            let properties = self.get_server_properties();
-            if let Err(e) = properties {
-                self.status = ServerStatus::Crashed;
-                self.save().await?;
+            let properties = self.get_server_properties()?;
+            let port = properties.server_port.unwrap_or(25565) as u16;
+            debug!("Opening port {} for server {}", port, self.id);
 
-                // Broadcast server status change
-                broadcast::broadcast(BroadcastMessage::ServerUpdate {
-                    server: self.clone(),
-                });
-
-                return Err(anyhow::anyhow!("Failed to get server properties: {}", e));
-            } else if let Ok(properties) = properties {
-                let port = properties.server_port.unwrap_or(25565) as u16;
-                debug!("Opening port {} for server {}", port, self.id);
-
-                if let Err(e) = UpnpManager::global()
-                    .add_port(
-                        port,
-                        format!("Minecraft Server {}", self.id),
-                        PortMappingProtocol::TCP,
-                    )
-                    .await
-                {
-                    error!("Failed to open UPnP port {} for server {}: {}", port, self.id, e);
-                } else {
-                    debug!("Successfully opened UPnP port {} for server {}", port, self.id);
-                }
+            if let Err(e) = UpnpManager::global()
+                .add_port(
+                    port,
+                    format!("Minecraft Server {}", self.id),
+                    PortMappingProtocol::TCP,
+                )
+                .await
+            {
+                error!("Failed to open UPnP port {} for server {}: {}", port, self.id, e);
+            } else {
+                debug!("Successfully opened UPnP port {} for server {}", port, self.id);
             }
         }
         debug!("Starting server {}", self.id);
@@ -292,7 +296,39 @@ impl ServerData {
         Ok(ServerHandle::Direct(pid))
     }
 
+    /// Settles a start attempt that failed after the status was set to `Starting`. Skipped
+    /// when a process is alive (its exit handler owns the status) or when the status was
+    /// already settled by a concurrent stop, kill or process exit, so `Starting` never sticks.
+    pub(crate) async fn settle_failed_start(&mut self) {
+        if self.status != ServerStatus::Starting || self.has_server_process().await {
+            return;
+        }
+        warn!("Server {} failed to start; marking it crashed", self.id);
+        self.status = ServerStatus::Crashed;
+        if let Err(e) = self.save().await {
+            error!("Failed to save server status after failed start: {}", e);
+        }
+        broadcast::broadcast(BroadcastMessage::ServerUpdate { server: self.clone() });
+    }
+
+    /// Recovers a server that sits in a transient status without an active process handle,
+    /// e.g. after a failed spawn or an app restart. Without this, stop/kill from the UI
+    /// could never clear such a state. Servers with a real handle are not affected.
+    async fn settle_untracked_server(&mut self) -> Result<()> {
+        if !matches!(
+            self.status,
+            ServerStatus::Starting | ServerStatus::Stopping | ServerStatus::Error | ServerStatus::Crashed | ServerStatus::Running | ServerStatus::Hanging
+        ) {
+            return Err(anyhow::anyhow!("Server not running"));
+        }
+        warn!("Server {} is marked '{}' but has no active process; settling it to stopped", self.id, self.status);
+        self.remove_server().await
+    }
+
     pub async fn stop_server(&mut self) -> Result<()> {
+        if !self.has_server_process().await {
+            return self.settle_untracked_server().await;
+        }
         self.status = ServerStatus::Stopping;
         self.save().await?;
 
@@ -301,14 +337,22 @@ impl ServerData {
             server: self.clone(),
         });
 
-        self.send_command("stop").await?;
+        if let Err(e) = self.send_command("stop").await {
+            // The process may have exited between the handle check and the command.
+            if !self.has_server_process().await {
+                return self.settle_untracked_server().await;
+            }
+            return Err(e);
+        }
         Ok(())
     }
 
     pub async fn kill_server(&mut self) -> Result<()> {
         // Take the handle first so the process exit callback treats this as an intentional stop,
         // but put it back if the kill fails so the server stays controllable.
-        let handle = active_servers().lock().await.remove(&self.id).ok_or_else(|| anyhow::anyhow!("Server not running"))?;
+        let Some(handle) = active_servers().lock().await.remove(&self.id) else {
+            return self.settle_untracked_server().await;
+        };
         let result = match &handle {
             ServerHandle::Direct(pid) => force_kill(*pid).await,
             #[cfg(target_os = "linux")]
