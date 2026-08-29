@@ -62,7 +62,7 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
         onClose();
         if (Array.isArray(entry)) onDelete(entry);
         else onDelete([entry]);
-    }, [entry, isOpen]);
+    }, [entry, isOpen, onDelete, onClose]);
 
     useEffect(() =>
     {
@@ -107,7 +107,6 @@ export function RowContextMenu({entry, y, x, isOpen, onClose, onRename, onDelete
             style={{top: position.y, left: position.x}}
             itemClasses={{base: "rounded-none font-minecraft-body"}}
             data-open={isOpen}
-            onSelectionChange={() => onClose()}
             tabIndex={1}
         >
             <ListboxSection title={Array.isArray(entry) ? `${entry.length} Items Selected` : entry?.filename ?? ""} itemClasses={{base: "rounded-none font-minecraft-body"}}>
