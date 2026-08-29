@@ -131,6 +131,11 @@ dev-postgres-down:
 run-postgres $DATABASE_CONNECTION_STRING="postgres://postgres:postgres@localhost:5433/obsidian-server-panel": dev-postgres install
     cargo run --no-default-features --features postgres
 
+# Run the opt-in real Minecraft lifecycle test (installs the real JDK via the panel and
+# boots a real vanilla server; first run downloads ~150 MB)
+test-real:
+    env OBSIDIAN_TEST_REAL_MC=1 cargo test --no-default-features --features sqlite --test api real_minecraft_vanilla_lifecycle -- --nocapture
+
 # Run the integration test suite against the ephemeral MySQL test database
 test-mysql: dev-mysql-test
     docker compose -f .docker/mysql-test.compose.yml exec -T db mysql -uroot -proot -e "DROP DATABASE IF EXISTS obsidian_test; CREATE DATABASE obsidian_test;"

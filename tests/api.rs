@@ -1449,3 +1449,57 @@ fn read_http_head(stream: &mut TcpStream) -> String {
     let n = stream.read(&mut buf).unwrap_or(0);
     String::from_utf8_lossy(&buf[..n]).to_string()
 }
+
+// --- Real Minecraft lifecycle (opt-in) ---------------------------------------------------
+// OBSIDIAN_TEST_REAL_MC=1 opts in: the panel's own java manager installs the real gamma
+// JDK (Mojang manifest, ~96 MB), the real vanilla server jar is downloaded from Mojang
+// and the server actually boots a real JVM. This is the only test that proves a real
+// Minecraft server starts; the other lifecycle tests use a driver stub on purpose so the
+// suite stays fast and offline-tolerant.
+#[tokio::test]
+async fn real_minecraft_vanilla_lifecycle() {
+    if std::env::var("OBSIDIAN_TEST_REAL_MC").ok().as_deref() != Some("1") {
+        return;
+    }
+    if !upstream_available("https://piston-meta.mojang.com/mc/game/version_manifest.json").await {
+        eprintln!("skipping: Mojang piston-meta unreachable");
+        return;
+    }
+    let client = admin_client();
+
+    // 1. Real JDK through the panel's java manager; kept installed between runs.
+    let versions: Value = client.get(format!("{BASE_URL}/api/java/versions")).send().await.unwrap().json().await.unwrap();
+    let gamma = versions.as_array().unwrap().iter().find(|v| v["runtime"] == "gamma").cloned();
+    let gamma = gamma.expect("gamma runtime missing from /api/java/versions");
+    if gamma["installed"] != json!(true) {
+        eprintln!("installing the real gamma JDK through the panel (this downloads ~96 MB)...");
+        let res = client.get(format!("{BASE_URL}/api/java/versions/gamma/install")).send().await.unwrap();
+        assert_eq!(res.status(), 200);
+        use futures::StreamExt;
+        let mut stream = res.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            chunk.expect("java install stream failed");
+        }
+    }
+    let versions: Value = client.get(format!("{BASE_URL}/api/java/versions")).send().await.unwrap().json().await.unwrap();
+    let gamma = versions.as_array().unwrap().iter().find(|v| v["runtime"] == "gamma").cloned().unwrap();
+    assert_eq!(gamma["installed"], json!(true), "panel-installed JDK must be reported installed");
+    assert!(gamma["executable"].as_str().is_some(), "panel-installed JDK must report an executable");
+
+    // 2. Real vanilla server using the panel-managed JDK exactly like the UI sends it
+    //    (dev-env-relative path) - regression-tests the java path resolution at spawn.
+    let server_id = create_server(&unique("realmc"), "vanilla", "./meta/java/gamma-17.0.15/bin/java").await;
+
+    // 3. Start: downloads the real piston server jar and boots the real JVM.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/start")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let server = poll_status(&server_id, "running", Duration::from_secs(600)).await;
+    assert!(!server["server_jar"].as_str().unwrap_or_default().is_empty(), "server jar must be set after the real download");
+
+    // 4. Graceful stop.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/stop")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    poll_status(&server_id, "stopped", Duration::from_secs(120)).await;
+
+    client.delete(format!("{BASE_URL}/api/server/{server_id}")).send().await.unwrap();
+}

@@ -73,6 +73,19 @@ The suite only compiles under the `sqlite` feature (the app builds exactly one
 database driver per feature flag); cross-engine coverage is provided by the
 database engine suite below.
 
+#### Real Minecraft Lifecycle Test (opt-in)
+
+The fast lifecycle tests use a driver stub so the suite stays quick and
+offline-tolerant — they prove the panel's control plumbing, not Minecraft
+itself. `just test-real` runs the real thing: the panel installs the actual
+gamma JDK through its own java manager, downloads the real vanilla server jar
+from Mojang, boots the real JVM, waits for `Done (`, then stops it gracefully
+(first run downloads ~150 MB; later runs reuse the cached JDK, ~40s).
+
+```bash
+just test-real
+```
+
 ### Database Engine Tests
 
 The backend compiles for three database engines via cargo features (`sqlite`,
