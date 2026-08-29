@@ -221,6 +221,10 @@ export function ServerOptions()
             setIsSaving(false);
             setIsUploadingLoader(false);
             await loadServer(server.id);
+            // Belt and braces: the server-change effect normally closes the toast after
+            // re-syncing the form; close it here too so a successful save always dismisses
+            // it even if the refresh doesn't replace the server object.
+            closeUnsavedToast();
         }
     }, [
         server, updateServer, name, description, javaExecutable, javaArgs,
