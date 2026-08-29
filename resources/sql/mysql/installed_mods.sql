@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS `installed_mods`
 	`curseforge_id` TEXT,
 	`filename`      VARCHAR(512),
 	`loader`        TEXT,
+	`path`          TEXT,
+	`hash`          TEXT,
 	`server_id`     BIGINT NOT NULL,
 	FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`) ON DELETE CASCADE,
 	INDEX `idx_installed_mods_server_id` (`server_id`)

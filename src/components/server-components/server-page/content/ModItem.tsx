@@ -1,7 +1,8 @@
 import {ButtonGroup, cn, Divider, Image, Link, Skeleton} from "@heroui-compat";
 import {Icon} from "@iconify-icon/react";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
-import {useLocation, useNavigate} from "react-router-dom";
+import {useMessage} from "../../../../providers/MessageProvider.tsx";
+import {MessageResponseType} from "../../../MessageModal.tsx";
 import {Button} from "../../../extended/Button.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {motion} from "framer-motion";
@@ -25,9 +26,8 @@ export type ModItemProps = {
 
 export function ModItem(props: ModItemProps)
 {
-    const {server} = useServer();
-    const location = useLocation();
-    const navigate = useNavigate();
+    const {server, installMod} = useServer();
+    const {open} = useMessage();
     const [latestVersion, setLatestVersion] = useState<ModVersion | undefined>(undefined);
     const [openDrawer, setOpenDrawer] = useState(false);
 
@@ -44,43 +44,78 @@ export function ModItem(props: ModItemProps)
         slug
     } = props;
 
-    // Build the discover URL with back parameter
-    const discoverUrl = `/app/discover/mods/${platform}/${modId}?sid=${server?.id}&back=${encodeURIComponent(location.pathname + location.search)}`;
-
-    // @ts-ignore
-    const installLatestVersion = useCallback(async () =>
+    // Fetches the versions of this mod and returns the ones matching the server's
+    // Minecraft version and loader, newest first.
+    const fetchCompatibleVersions = useCallback(async (): Promise<ModVersion[]> =>
     {
-
-
-    }, [server, modId, platform, location.pathname, location.search, navigate, discoverUrl]);
+        if (!server || !modId || !platform || !server.minecraft_version || !server.server_type) return [];
+        let versions: ModVersion[] = [];
+        if (platform === "modrinth")
+        {
+            versions = await fetchModrinthVersions(modId);
+        } else
+        {
+            versions = await fetchCurseForgeVersions(modId);
+        }
+        return versions.filter(version => version.game_versions.includes(server.minecraft_version) && version.loaders.includes(server.server_type.toLowerCase()));
+    }, [server, modId, platform]);
 
     const findLatestVersion = useCallback(async () =>
     {
-        let versions: ModVersion[] = [];
-        if (!server || !modId || !platform || !server.minecraft_version || !server.server_type) return;
         try
         {
-
-            if (platform === "modrinth")
-            {
-                versions = await fetchModrinthVersions(modId);
-            } else
-            {
-                versions = await fetchCurseForgeVersions(modId);
-            }
-            versions = versions.filter(version => version.game_versions.includes(server?.minecraft_version) && version.loaders.includes(server.server_type.toLowerCase()));
-            if (versions.length > 0)
-            {
-                setLatestVersion(versions[0]);
-            } else
-            {
-                setLatestVersion(undefined);
-            }
+            const compatible = await fetchCompatibleVersions();
+            setLatestVersion(compatible[0]);
         } catch (error)
         {
             console.error("Failed to fetch mod versions:", error);
         }
-    }, [server, modId, platform, location.pathname, location.search, navigate, discoverUrl]);
+    }, [fetchCompatibleVersions]);
+
+    const installLatestVersion = useCallback(async () =>
+    {
+        if (!server) return;
+        let version = latestVersion;
+        try
+        {
+            if (!version) version = (await fetchCompatibleVersions())[0];
+        } catch (error)
+        {
+            console.error("Failed to fetch mod versions:", error);
+        }
+        if (!version)
+        {
+            await open({
+                title: "No Compatible Version",
+                body: `No version of ${name} matches Minecraft ${server.minecraft_version} (${server.server_type}).`,
+                responseType: MessageResponseType.Close,
+                severity: "warning"
+            });
+            return;
+        }
+        const primaryFile = version.files.find(f => f.primary) || version.files[0];
+        if (!primaryFile) return;
+        try
+        {
+            await installMod({
+                downloadUrl: primaryFile.url,
+                filename: primaryFile.filename,
+                version: version.version_number,
+                loader: server.server_type?.toLowerCase(),
+                modrinthId: platform === "modrinth" ? modId : undefined,
+                curseforgeId: platform === "curseforge" ? modId : undefined
+            });
+        } catch (error)
+        {
+            console.error("Failed to download mod:", error);
+            await open({
+                title: "Download Failed",
+                body: "Failed to download the mod. Please try again.",
+                responseType: MessageResponseType.Close,
+                severity: "danger"
+            });
+        }
+    }, [server, latestVersion, fetchCompatibleVersions, installMod, open, name, platform, modId]);
 
 
     return (
@@ -125,6 +160,7 @@ export function ModItem(props: ModItemProps)
                         <Tooltip content={<p>Install <span className={"text-primary"}>{name} {latestVersion?.version_number}</span></p>}>
                             <Button
                                 variant={"solid"}
+                                onPress={installLatestVersion}
                                 onMouseEnter={() => findLatestVersion()}
 
                                 className={

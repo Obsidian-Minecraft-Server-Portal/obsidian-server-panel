@@ -11,5 +11,7 @@ CREATE TABLE IF NOT EXISTS installed_mods
 	curseforge_id TEXT,
 	filename      TEXT,
 	loader        TEXT,
+	path          TEXT,
+	hash          TEXT,
 	server_id     INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE
 );

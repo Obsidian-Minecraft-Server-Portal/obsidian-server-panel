@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 /// Get the servers directory from settings, with fallback to default
-fn get_servers_directory() -> PathBuf {
+pub(crate) fn get_servers_directory() -> PathBuf {
     if let Ok(settings) = crate::settings::load_settings() {
         settings.storage.servers_directory
     } else {
@@ -372,43 +372,92 @@ impl ServerData {
         if !response.status().is_success() {
             return Err(anyhow::anyhow!("Failed to download mod: HTTP {}", response.status()));
         }
+        let bytes = response.bytes().await?;
 
         // Ensure .jar extension
         let filename = if filename.ends_with(".jar") { filename } else { format!("{}.jar", filename) };
+        let target_path = mods_dir.join(&filename);
+        let path_string = target_path.to_string_lossy().into_owned();
+        use sha2::{Digest, Sha256};
+        let hash = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect::<String>();
+
+        let pool = crate::database::get_pool();
+
+        // A record for this exact file path already exists: identical content is a no-op,
+        // different content replaces the old file in place.
+        let existing = sqlx::query(&*sql("SELECT * FROM installed_mods WHERE server_id = ? AND path = ?"))
+            .bind(self.id as i64)
+            .bind(&path_string)
+            .fetch_optional(pool)
+            .await?;
+        let existing_id: Option<i64> = match &existing {
+            Some(row) => Some(row.try_get("id")?),
+            None => None,
+        };
+        if let Some(row) = &existing {
+            let existing_mod = crate::server::installed_mods::installed_mod_db::mod_data_from_row(row)?;
+            if existing_mod.hash.as_deref() == Some(hash.as_str()) {
+                return Ok(existing_mod);
+            }
+        }
+
         let temp_dir = get_temp_directory().join(format!("{}/mods/", self.id));
         tokio::fs::create_dir_all(&temp_dir).await?;
         let temp_file_path = temp_dir.join(&filename);
 
         // Write the file after inserting into the database to prevent against multiple inserts from the file watcher
-        let bytes = response.bytes().await?;
-        tokio::fs::write(&temp_file_path, bytes).await?;
+        tokio::fs::write(&temp_file_path, &bytes).await?;
 
         // Parse mod data from the downloaded file
-        let mod_data = ModData::from_path(&temp_file_path).await?.ok_or_else(|| anyhow::anyhow!("Failed to parse mod data from downloaded file"))?;
+        let mut mod_data = ModData::from_path(&temp_file_path).await?.ok_or_else(|| anyhow::anyhow!("Failed to parse mod data from downloaded file"))?;
+        mod_data.path = Some(path_string.clone());
+        mod_data.hash = Some(hash.clone());
+        if let Some(loader) = &loader {
+            mod_data.loader = Some(loader.clone());
+        }
 
-        // Save to database
-        let pool = crate::database::get_pool();
         let icon_base64 =
             if let Some(icon) = icon { &Some(icon) } else { &mod_data.icon.as_ref().map(|icon_bytes| general_purpose::STANDARD.encode(icon_bytes)) };
         let modrinth_id = if let Some(id) = modrinth_id { &Some(id) } else { &mod_data.modrinth_id };
         let curseforge_id = if let Some(id) = curseforge_id { &Some(id) } else { &mod_data.curseforge_id };
 
-        sqlx::query(&*sql(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, loader, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
+        if let Some(existing_id) = existing_id {
+            sqlx::query(&*sql(
+                r#"UPDATE installed_mods SET mod_id = ?, name = ?, version = ?, author = ?, description = ?, icon = ?, modrinth_id = ?, curseforge_id = ?, hash = ? WHERE id = ?"#,
+            ))
             .bind(&mod_data.mod_id)
             .bind(&mod_data.name)
-            .bind(version.unwrap_or(mod_data.version.clone()))
+            .bind(version.clone().unwrap_or(mod_data.version.clone()))
             .bind(mod_data.authors.join(","))
             .bind(&mod_data.description)
             .bind(icon_base64)
             .bind(modrinth_id)
             .bind(curseforge_id)
-            .bind(&filename)
-            .bind(loader.map(|l| l.to_lowercase()))
-            .bind(self.id as i64)
+            .bind(&hash)
+            .bind(existing_id)
             .execute(pool)
             .await?;
+        } else {
+            // Save to database
+            sqlx::query(&*sql(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, loader, path, hash, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
+                .bind(&mod_data.mod_id)
+                .bind(&mod_data.name)
+                .bind(version.unwrap_or(mod_data.version.clone()))
+                .bind(mod_data.authors.join(","))
+                .bind(&mod_data.description)
+                .bind(icon_base64)
+                .bind(modrinth_id)
+                .bind(curseforge_id)
+                .bind(&filename)
+                .bind(loader.map(|l| l.to_lowercase()))
+                .bind(&path_string)
+                .bind(&hash)
+                .bind(self.id as i64)
+                .execute(pool)
+                .await?;
+        }
 
-        tokio::fs::rename(temp_file_path, mods_dir.join(&filename)).await?;
+        tokio::fs::rename(temp_file_path, target_path).await?;
         Ok(mod_data)
     }
 

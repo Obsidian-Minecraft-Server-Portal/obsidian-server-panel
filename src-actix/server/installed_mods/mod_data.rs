@@ -19,6 +19,19 @@ pub struct ModData {
     pub filename: String,
     /// The loader this mod was downloaded for, normalized to lowercase ("fabric", "forge", ...).
     pub loader: Option<String>,
+    /// Absolute file path of the installed mod - unique per record.
+    pub path: Option<String>,
+    /// SHA-256 of the file contents.
+    pub hash: Option<String>,
+}
+
+/// SHA-256 of a file, hex encoded.
+pub fn file_sha256(path: &std::path::Path) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher).ok()?;
+    Some(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
 impl ModData {
@@ -99,7 +112,7 @@ impl ModData {
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None, path: Some(path.to_string_lossy().into_owned()), hash: file_sha256(path) }))
     }
 
     async fn parse_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
@@ -127,7 +140,7 @@ impl ModData {
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None, path: Some(path.to_string_lossy().into_owned()), hash: file_sha256(path) }))
     }
 
     async fn parse_legacy_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
@@ -156,7 +169,7 @@ impl ModData {
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None, path: Some(path.to_string_lossy().into_owned()), hash: file_sha256(path) }))
     }
 
     /// Normalizes a mod name for better matching by removing common prefixes/suffixes and special characters

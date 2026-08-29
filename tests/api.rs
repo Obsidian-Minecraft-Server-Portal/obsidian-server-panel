@@ -867,7 +867,25 @@ async fn mod_download_sync_delete_flow() {
     assert_eq!(list.len(), 1, "installed mods: {list:?}");
     assert_eq!(list[0]["name"], "testmod");
     assert_eq!(list[0]["loader"], "fabric", "the loader must be stored normalized to lowercase");
+    assert!(list[0]["path"].as_str().is_some_and(|p| p.ends_with("testmod.jar")), "the absolute file path must be recorded");
+    assert_eq!(list[0]["hash"].as_str().map(str::len), Some(64), "the sha256 content hash must be recorded");
     let mod_id = list[0]["mod_id"].as_str().unwrap().to_string();
+
+    // Downloading the same file again must not create a duplicate record.
+    let res = client
+        .post(format!("{BASE_URL}/api/server/{server_id}/download-mod"))
+        .json(&json!({
+            "download_url": fake.url("/testmod.jar"),
+            "filename": "testmod.jar",
+            "version": "1.0.0",
+            "loader": "fabric",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+    let mods: Value = client.get(format!("{BASE_URL}/api/server/{server_id}/installed-mods")).send().await.unwrap().json().await.unwrap();
+    assert_eq!(mods.as_array().unwrap().len(), 1, "re-downloading the same file must not duplicate its record");
 
     // Icon endpoint always answers with a PNG.
     let res = client.get(format!("{BASE_URL}/api/server/{server_id}/mod/{mod_id}/icon")).send().await.unwrap();
