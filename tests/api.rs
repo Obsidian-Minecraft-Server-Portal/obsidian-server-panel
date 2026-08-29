@@ -853,6 +853,7 @@ async fn mod_download_sync_delete_flow() {
             "download_url": fake.url("/testmod.jar"),
             "filename": "testmod.jar",
             "version": "1.0.0",
+            "loader": "Fabric",
         }))
         .send()
         .await
@@ -865,6 +866,7 @@ async fn mod_download_sync_delete_flow() {
     let list = mods.as_array().unwrap();
     assert_eq!(list.len(), 1, "installed mods: {list:?}");
     assert_eq!(list[0]["name"], "testmod");
+    assert_eq!(list[0]["loader"], "fabric", "the loader must be stored normalized to lowercase");
     let mod_id = list[0]["mod_id"].as_str().unwrap().to_string();
 
     // Icon endpoint always answers with a PNG.

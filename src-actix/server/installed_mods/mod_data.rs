@@ -17,6 +17,8 @@ pub struct ModData {
     pub modrinth_id: Option<String>,
     pub curseforge_id: Option<String>,
     pub filename: String,
+    /// The loader this mod was downloaded for, normalized to lowercase ("fabric", "forge", ...).
+    pub loader: Option<String>,
 }
 
 impl ModData {
@@ -97,7 +99,7 @@ impl ModData {
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string() }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None }))
     }
 
     async fn parse_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
@@ -125,7 +127,7 @@ impl ModData {
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string() }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None }))
     }
 
     async fn parse_legacy_forge_mod(contents: Vec<u8>, file_name: &str, path: &std::path::Path) -> Result<Option<Self>> {
@@ -154,7 +156,7 @@ impl ModData {
         let modrinth_id = Self::find_modrinth_project_from_project_name(&name).await?;
         let curseforge_id = Self::find_curseforge_project_from_project_name(&name).await?;
 
-        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string() }))
+        Ok(Some(Self { mod_id, name, description, version, authors, icon, modrinth_id, curseforge_id, filename: file_name.to_string(), loader: None }))
     }
 
     /// Normalizes a mod name for better matching by removing common prefixes/suffixes and special characters

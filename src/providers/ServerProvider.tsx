@@ -71,6 +71,8 @@ export type InstallModOptions = {
     modrinthId?: string;
     // The curseforgeId to use
     curseforgeId?: string;
+    // The loader the mod is downloaded for (normalized to lowercase)
+    loader?: string;
 }
 
 export type InstalledMod = {

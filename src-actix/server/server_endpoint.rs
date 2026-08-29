@@ -461,10 +461,11 @@ pub async fn download_mod(server_id: web::Path<String>, body: web::Json<serde_js
     let modrinth_id = body.get("modrinth_id").and_then(|v| v.as_str()).map(String::from);
     let curseforge_id = body.get("curseforge_id").and_then(|v| v.as_str()).map(String::from);
     let icon = body.get("icon").and_then(|v| v.as_str()).map(String::from);
+    let loader = body.get("loader").and_then(|v| v.as_str()).map(|l| l.to_lowercase());
 
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
-    match server.download_and_install_mod(download_url, filename, version, modrinth_id, curseforge_id, icon).await {
+    match server.download_and_install_mod(download_url, filename, version, modrinth_id, curseforge_id, icon, loader).await {
         Ok(mod_data) => Ok(HttpResponse::Ok().json(json!({
             "status": "success",
             "message": "Mod downloaded and installed successfully",

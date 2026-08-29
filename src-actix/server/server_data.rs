@@ -361,6 +361,7 @@ impl ServerData {
         modrinth_id: Option<String>,
         curseforge_id: Option<String>,
         icon: Option<String>,
+        loader: Option<String>,
     ) -> Result<ModData> {
         // Create mods directory if it doesn't exist
         let mods_dir = self.get_directory_path().join("mods");
@@ -392,7 +393,7 @@ impl ServerData {
         let modrinth_id = if let Some(id) = modrinth_id { &Some(id) } else { &mod_data.modrinth_id };
         let curseforge_id = if let Some(id) = curseforge_id { &Some(id) } else { &mod_data.curseforge_id };
 
-        sqlx::query(&*sql(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
+        sqlx::query(&*sql(r#"INSERT INTO installed_mods (mod_id, name, version, author, description, icon, modrinth_id, curseforge_id, filename, loader, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#))
             .bind(&mod_data.mod_id)
             .bind(&mod_data.name)
             .bind(version.unwrap_or(mod_data.version.clone()))
@@ -402,6 +403,7 @@ impl ServerData {
             .bind(modrinth_id)
             .bind(curseforge_id)
             .bind(&filename)
+            .bind(loader.map(|l| l.to_lowercase()))
             .bind(self.id as i64)
             .execute(pool)
             .await?;

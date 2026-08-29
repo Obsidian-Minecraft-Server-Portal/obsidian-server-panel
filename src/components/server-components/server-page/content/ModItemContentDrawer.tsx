@@ -163,6 +163,7 @@ export function ModItemContentDrawer(props: ModItemContentDrawerProps)
                 filename: primaryFile.filename,
                 icon: modDetails?.icon_url,
                 version: version.version_number,
+                loader: serverLoader?.toLowerCase(),
                 curseforgeId: platform === "curseforge" ? modDetails?.id : undefined,
                 modrinthId: platform === "modrinth" ? modDetails?.id : undefined
             });

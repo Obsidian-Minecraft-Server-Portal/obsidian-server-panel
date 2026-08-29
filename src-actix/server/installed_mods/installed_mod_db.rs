@@ -14,6 +14,11 @@ static CREATE_INSTALLED_MODS_TABLE_SQL: &str = include_str!("../../../resources/
 
 pub async fn initialize(pool: &Pool) -> Result<()> {
     pool.execute(CREATE_INSTALLED_MODS_TABLE_SQL).await?;
+    for statement in ["ALTER TABLE installed_mods ADD COLUMN loader TEXT"] {
+        if let Err(e) = pool.execute(statement).await {
+            log::debug!("Skipping installed_mods migration '{}': {}", statement, e);
+        }
+    }
     Ok(())
 }
 
@@ -90,6 +95,7 @@ impl ServerData {
                 modrinth_id: row.try_get("modrinth_id").ok(),
                 curseforge_id: row.try_get("curseforge_id").ok(),
                 filename: row.try_get("filename")?,
+                loader: row.try_get("loader").ok(),
             };
             mods.push(mod_data);
         }
