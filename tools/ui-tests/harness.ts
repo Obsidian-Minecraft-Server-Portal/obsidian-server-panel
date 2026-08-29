@@ -4,7 +4,7 @@ import {existsSync, readdirSync, statSync} from "node:fs";
 import type {ElementHandle, Page} from "puppeteer";
 import {Harness as BaseHarness} from "../screenshot-harness.ts";
 
-/** Backend base URL; override with UI_BASE_URL when running a private backend instance. */
+/** Backend the specs run against; override with UI_BASE_URL when running a private backend instance. */
 export const BASE_URL = process.env.UI_BASE_URL?.trim() || "http://127.0.0.1:18104";
 export const OUT_ROOT = resolve("target/ui-tests");
 export const ADMIN_USER = "uitest-admin";

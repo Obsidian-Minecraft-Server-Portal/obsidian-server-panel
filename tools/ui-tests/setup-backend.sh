@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Starts (or reuses) the Obsidian Server Panel backend for the UI test suite.
-# Exclusive ports: backend 18104, vite 3174 (Agent C).
+# Default ports: backend 18104, vite 3174 - override with UI_TEST_PORT / UI_TEST_VITE_PORT
+# for per-agent exclusivity (run-all.ts forwards the environment).
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# Ports default to the shared suite assignment; override via UI_BASE_URL/OBSIDIAN_VITE_PORT
-# when running against a private backend instance (e.g. a worktree-local dev-env).
-PORT=18104
+# Ports default to the shared suite assignment; override via UI_TEST_PORT/UI_TEST_VITE_PORT
+# (or UI_BASE_URL/OBSIDIAN_VITE_PORT) when running against a private backend instance.
+PORT="${UI_TEST_PORT:-18104}"
 if [ -n "${UI_BASE_URL:-}" ]; then
     PORT="${UI_BASE_URL#*://}"   # strip scheme
     PORT="${PORT%%/*}"           # strip path
     PORT="${PORT##*:}"           # keep the port
 fi
-VITE_PORT="${OBSIDIAN_VITE_PORT:-3174}"
+VITE_PORT="${UI_TEST_VITE_PORT:-${OBSIDIAN_VITE_PORT:-3174}}"
 LOG="$ROOT/target/ui-tests/backend.log"
 PIDFILE="$ROOT/target/ui-tests/backend.pid"
 

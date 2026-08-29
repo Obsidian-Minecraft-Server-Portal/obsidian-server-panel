@@ -82,7 +82,7 @@ export function ServerContent()
     }, [search, loaders, minecraftVersions, categories, selectedPlatform, queryParams, setQueryParams]);
 
     return (
-        <div className={"flex flex-col gap-2 p-4 bg-default-50 max-h-[calc(100dvh_-_150px)] h-screen min-h-[300px] relative"}>
+        <div className={"flex flex-col gap-2 p-4 bg-default-50 h-[calc(100dvh_-_240px)] min-h-[300px] relative"}>
 
             {/* Top Bar */}
             <div className={"flex flex-row gap-4 items-center justify-between z-20"}>
