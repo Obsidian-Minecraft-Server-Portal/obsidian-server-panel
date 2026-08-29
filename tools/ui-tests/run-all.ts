@@ -8,6 +8,7 @@ const SPECS = [
     "dashboard",
     "server-create",
     "server-lifecycle",
+    "server-tabs",
     "server-files",
     "server-options",
     "server-backups",

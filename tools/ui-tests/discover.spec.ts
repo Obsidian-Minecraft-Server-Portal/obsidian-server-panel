@@ -40,19 +40,23 @@ async function main(h: UIHarness)
             `clicked=${tabClicked} pathname=${await h.page.evaluate(() => location.pathname)}`);
     }
 
-    // mods discovery page
-    await h.goto("/app/discover/mods/modrinth", 6);
-    await new Promise(r => setTimeout(r, 5000));
-    const modsState = await h.page.evaluate(() =>
+    // mods + worlds discovery routes (unlinked from the navbar since the dropdown became a
+    // direct Modpacks link, but both must keep rendering)
+    for (const type of ["mods", "worlds"])
     {
-        const body = document.body.innerText;
-        return {
-            mounted: (document.getElementById("root")?.childElementCount ?? 0) > 0,
-            crashed: body.includes("Something went wrong") || body.includes("Error Boundary")
-        };
-    });
-    h.check("discover mods/modrinth renders without crash", modsState.mounted && !modsState.crashed);
-    await h.shot("discover-mods-modrinth");
+        await h.goto(`/app/discover/${type}/modrinth`, 6);
+        await new Promise(r => setTimeout(r, 5000));
+        const state = await h.page.evaluate(() =>
+        {
+            const body = document.body.innerText;
+            return {
+                mounted: (document.getElementById("root")?.childElementCount ?? 0) > 0,
+                crashed: body.includes("Something went wrong") || body.includes("Error Boundary")
+            };
+        });
+        h.check(`discover ${type}/modrinth renders without crash`, state.mounted && !state.crashed);
+        await h.shot(`discover-${type}-modrinth`);
+    }
 }
 
 const harness = new UIHarness("discover");

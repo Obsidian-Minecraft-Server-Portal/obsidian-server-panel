@@ -4,8 +4,8 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PORT=18104
-VITE_PORT=3174
+PORT="${UI_TEST_PORT:-18104}"
+VITE_PORT="${UI_TEST_VITE_PORT:-3174}"
 LOG="$ROOT/target/ui-tests/backend.log"
 PIDFILE="$ROOT/target/ui-tests/backend.pid"
 

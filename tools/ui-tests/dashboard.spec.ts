@@ -87,23 +87,19 @@ async function main(h: UIHarness)
     h.check("navbar Home -> /app", await h.page.evaluate(() => location.pathname === "/app"));
     await h.shot("nav-home");
 
-    // Discover dropdown items
-    for (const item of ["Modpacks", "Mods", "Worlds"])
-    {
-        await h.clickText("Discover", "button, [role=button]");
-        const openedMenu = await h.waitFor("discover menu", () => h.textVisible(item), 8000);
-        if (!openedMenu)
-        {
-            h.check(`navbar Discover -> ${item}`, false, "dropdown did not open");
-            continue;
-        }
-        await h.clickText(item, "a, [role=menuitem], [role=option], button");
-        await h.waitFor(`discover ${item} page`, () => h.page.evaluate(() => location.pathname.startsWith("/app/discover/")), 15000);
-        h.check(`navbar Discover -> ${item}`, await h.page.evaluate(p => location.pathname.startsWith(p), `/app/discover/`),
-            `pathname=${await h.page.evaluate(() => location.pathname)}`);
-        await new Promise(r => setTimeout(r, 2500));
-        await h.shot(`nav-discover-${item.toLowerCase()}`);
-    }
+    // Modpacks is a direct navbar link now (the Discover dropdown was removed);
+    // /app/discover/mods + /app/discover/worlds routes stay reachable by URL (covered in discover.spec)
+    const modpacksLink = await h.realClick("a[href='/app/discover/packs']");
+    h.check("navbar Modpacks link present", modpacksLink);
+    const dropdownTriggerGone = await h.page.evaluate(() =>
+        ![...document.querySelectorAll("button")].some(b => (b.textContent ?? "").trim() === "Discover"));
+    h.check("Discover dropdown removed from navbar", dropdownTriggerGone);
+    await h.waitFor("discover packs page", () => h.page.evaluate(() => location.pathname === "/app/discover/packs"), 15000);
+    h.check("navbar Modpacks -> /app/discover/packs", await h.page.evaluate(() => location.pathname === "/app/discover/packs"),
+        `pathname=${await h.page.evaluate(() => location.pathname)}`);
+    await new Promise(r => setTimeout(r, 2500));
+    await h.shot("nav-discover-modpacks");
+    await h.goto("/app");
 
     // Account via user menu
     await h.openUserMenu();
