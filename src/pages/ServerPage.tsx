@@ -2,7 +2,7 @@ import {useParams, useSearchParams} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {useServer} from "../providers/ServerProvider.tsx";
 import {ServerHeader} from "../components/server-components/server-page/ServerHeader.tsx";
-import {Tab, Tabs} from "@heroui-compat";
+import {Tab, Tabs, cn} from "@heroui-compat";
 import ServerConsole from "../components/server-components/server-page/console/ServerConsole.tsx";
 import {ServerFiles} from "../components/server-components/server-page/files/ServerFiles.tsx";
 import {ErrorBoundary} from "../components/ErrorBoundry.tsx";
@@ -74,16 +74,23 @@ export default function ServerPage()
     return (
         <AnimatePresence>
             <div className={"flex flex-col gap-4 px-4 sm:px-8 overflow-hidden max-h-[calc(100vh_-_100px)]"}>
-                <motion.div
-                    initial={false}
-                    animate={{height: shouldCollapseHeader ? 0 : "auto", opacity: shouldCollapseHeader ? 0 : 1}}
-                    transition={{duration: 0.3, ease: "easeInOut"}}
-                    className={"overflow-hidden"}
+                {/* grid-rows collapse keeps the header's measured height honest; framer's
+                    height:"auto" animation could settle short and clip the meta row.
+                    shrink-0 stops flex from squashing the header when a tall tab panel
+                    (e.g. Files) fills the max-h wrapper. */}
+                <div
+                    className={cn(
+                        "grid shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
+                        shouldCollapseHeader ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+                    )}
                     data-header-collapsed={shouldCollapseHeader}
                 >
-                    <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status} server_jar={server.server_jar}/>
-                </motion.div>
+                    <div className="min-h-0 overflow-hidden">
+                        <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status} server_jar={server.server_jar}/>
+                    </div>
+                </div>
                 <motion.div
+                    className="min-h-0"
                     initial={{opacity: 0, y: 20}}
                     animate={{opacity: 1, y: 0}}
                     exit={{opacity: 0, y: -20}}

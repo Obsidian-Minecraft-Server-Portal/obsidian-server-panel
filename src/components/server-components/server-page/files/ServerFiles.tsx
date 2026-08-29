@@ -463,9 +463,30 @@ export function ServerFiles()
     }, [collectFromEntry]);
 
 
-    const renameSelectedEntry = useCallback(async (newName: string) =>
+    // Renames from the file preview pane's name input (commit on Enter or blur).
+    const renameFromPreview = useCallback(async (entry: FilesystemEntry, newName: string) =>
     {
-        if (!renamingEntry || newName.trim() === "" || newName === renamingEntry.filename)
+        const trimmed = newName.trim();
+        if (trimmed === "" || trimmed === entry.filename) return;
+        const newPath = `${path}/${trimmed}`;
+        try
+        {
+            await renameEntry(entry.path, newPath);
+            await refresh();
+        } catch (error)
+        {
+            console.error("Failed to rename entry:", error);
+            await open({
+                title: "Rename Failed",
+                body: "An error occurred while renaming the entry. Please try again.",
+                responseType: MessageResponseType.Close,
+                severity: "danger"
+            });
+        }
+    }, [path, renameEntry, refresh, open]);
+
+    const renameSelectedEntry = useCallback(async (newName: string) =>
+    {        if (!renamingEntry || newName.trim() === "" || newName === renamingEntry.filename)
         {
             setRenamingEntry(undefined);
             return;
@@ -1349,11 +1370,22 @@ export function ServerFiles()
                     containerRef={containerRef}
                     isDragging={isDragging}
                     needsToSave={needsToSave}
+                    serverId={server?.id ?? ""}
                     onContentChange={handleContentChange}
                     onSave={saveContent}
                     onWidthChange={handleWidthChange}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
+                    onPreviewRename={renameFromPreview}
+                    onPreviewDelete={deleteSelected}
+                    onPreviewArchive={startArchiveCreation}
+                    onPreviewExtract={handleExtract}
+                    onPreviewAddToIgnore={handleAddToIgnore}
+                    onPreviewEdit={entry =>
+                    {
+                        setSelectedEntries([entry]);
+                        setIsEditingFile(true);
+                    }}
                 />
             </div>
 

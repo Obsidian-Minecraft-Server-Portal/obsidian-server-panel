@@ -888,8 +888,10 @@ pub async fn get_file_contents(server_id: web::Path<String>, query: web::Query<H
     if !filepath.exists() || !filepath.is_file() {
         return Err(anyhow::anyhow!("File not found").into());
     }
-    let content = tokio::fs::read_to_string(filepath).await?;
-    Ok(HttpResponse::Ok().content_type(ContentType::plaintext()).body(content))
+    // Raw bytes: binary files (e.g. image previews) must survive the round trip; text
+    // consumers decode UTF-8 on their side.
+    let content = tokio::fs::read(filepath).await?;
+    Ok(HttpResponse::Ok().content_type(ContentType::octet_stream()).body(content))
 }
 #[post("/contents")]
 pub async fn set_file_contents(

@@ -5,6 +5,7 @@ import {forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {FilesystemEntry} from "../../../../ts/filesystem.ts";
 import {getMonacoLanguage, isTextFile} from "../../../../ts/file-type-match.ts";
 import {registerMinecraftPropertiesLanguage} from "../../../../ts/minecraft-properties-language.ts";
+import {FilePreview} from "./FilePreview.tsx";
 
 // Define the theme outside the component
 const defineObsidianTheme = (monaco: any) =>
@@ -38,11 +39,18 @@ interface ServerFileEditorProps
     containerRef: React.RefObject<HTMLDivElement | null>;
     isDragging: boolean;
     needsToSave: boolean;
+    serverId: string;
     onContentChange: (content: string) => void;
     onSave: () => Promise<void>;
     onWidthChange: (width: number) => void;
     onDragStart: () => void;
     onDragEnd: () => void;
+    onPreviewRename: (entry: FilesystemEntry, newName: string) => Promise<void>;
+    onPreviewDelete: (entries: FilesystemEntry[]) => void;
+    onPreviewArchive: (entries: FilesystemEntry[]) => void;
+    onPreviewExtract: (entry: FilesystemEntry, outputPath?: string) => void;
+    onPreviewAddToIgnore: (entries: FilesystemEntry[]) => void;
+    onPreviewEdit: (entry: FilesystemEntry) => void;
 }
 
 export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditorProps>(
@@ -53,11 +61,18 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
          browserWidth,
          containerRef,
          isDragging,
+         serverId,
          onContentChange,
          onSave,
          onWidthChange,
          onDragStart,
-         onDragEnd
+         onDragEnd,
+         onPreviewRename,
+         onPreviewDelete,
+         onPreviewArchive,
+         onPreviewExtract,
+         onPreviewAddToIgnore,
+         onPreviewEdit
      }, ref) =>
     {
         const editorRef = useRef<any>(null);
@@ -151,8 +166,7 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                         display: isEditingFile && selectedEntries.length === 1 ? 'block' : 'none'
                     }}
                 >
-                    {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) ? (
-                        <Editor
+                    {isEditingFile && selectedEntries.length === 1 && isTextFile(selectedEntries[0].path) ? (                        <Editor
                             className={"w-full h-full"}
                             theme={"obsidian-editor-theme"}
                             value={selectedFileContents}
@@ -224,9 +238,19 @@ export const ServerFileEditor = forwardRef<ServerFileEditorRef, ServerFileEditor
                             }}
                         />
                     ) : selectedEntries.length === 1 && !isTextFile(selectedEntries[0].path) ? (
-                        <div className="flex items-center justify-center h-full">
-                            <span className="text-gray-500 font-minecraft-body">Select a text file to edit</span>
-                        </div>
+                        <FilePreview
+                            serverId={serverId}
+                            entry={selectedEntries[0]}
+                            onRename={onPreviewRename}
+                            onDelete={onPreviewDelete}
+                            onArchive={onPreviewArchive}
+                            onExtract={onPreviewExtract}
+                            onAddToIgnore={onPreviewAddToIgnore}
+                            onEdit={entry =>
+                            {
+                                onPreviewEdit(entry);
+                            }}
+                        />
                     ) : null}
 
                     {/* Resize Handle */}
