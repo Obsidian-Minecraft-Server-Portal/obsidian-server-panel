@@ -144,10 +144,12 @@ export default class Modrinth {
         const facets: string[][] = [];
 
         // Add project type filter for mods
-        facets.push(["project_type:mod"], ["server_side=required", "server_side=optional", "server_side=unknown"]);
+        facets.push(["project_type:mod"], ["server_side:required", "server_side:optional", "server_side:unknown"]);
 
+        // Modrinth slugs are lowercase; values derived from the server type (e.g. "Fabric")
+        // must be normalized before they are valid facets.
         if (categories && categories.length > 0) {
-            facets.push(categories.map(cat => `categories:${cat}`));
+            facets.push(categories.map(cat => `categories:${cat.toLowerCase()}`));
         }
 
         if (gameVersions && gameVersions.length > 0) {
@@ -155,7 +157,7 @@ export default class Modrinth {
         }
 
         if (loaders && loaders.length > 0) {
-            facets.push(loaders.map(loader => `categories:${loader}`));
+            facets.push(loaders.map(loader => `categories:${loader.toLowerCase()}`));
         }
 
         return facets;

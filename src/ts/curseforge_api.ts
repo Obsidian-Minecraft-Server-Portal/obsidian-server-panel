@@ -141,6 +141,16 @@ export type SearchOptions = {
     offset?: number,
 }
 
+// CurseForge filters by a numeric ModLoaderType enum, not by name.
+const CURSEFORGE_LOADER_TYPES: Record<string, number> = {
+    forge: 1,
+    cauldron: 2,
+    liteloader: 3,
+    fabric: 4,
+    quilt: 5,
+    neoforge: 6
+};
+
 export default class CurseForge
 {
     private readonly base_url: string;
@@ -162,8 +172,9 @@ export default class CurseForge
     async search(options: SearchOptions, abortSignal: AbortSignal): Promise<CurseforgeSearchResult>
     {
         const url = new URL(`${window.location.origin}${this.base_url}/search`);
-        if (options.loader)
-            url.searchParams.append(`modLoaderType`, options.loader);
+        const loaderTypeId = options.loader ? CURSEFORGE_LOADER_TYPES[options.loader.toLowerCase()] : undefined;
+        if (loaderTypeId !== undefined)
+            url.searchParams.append(`modLoaderType`, loaderTypeId.toString());
         if (options.query)
             url.searchParams.append("query", options.query);
         if (options.minecraftVersion)
