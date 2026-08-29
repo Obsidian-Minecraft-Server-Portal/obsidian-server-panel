@@ -74,12 +74,18 @@ export default function ServerPage()
     return (
         <AnimatePresence>
             <div className={"flex flex-col gap-4 px-4 sm:px-8 overflow-hidden max-h-[calc(100vh_-_100px)]"}>
-                <motion.div initial={{opacity: 0}} animate={{opacity: shouldCollapseHeader ? 0 : 1}}>
+                <motion.div
+                    initial={false}
+                    animate={{height: shouldCollapseHeader ? 0 : "auto", opacity: shouldCollapseHeader ? 0 : 1}}
+                    transition={{duration: 0.3, ease: "easeInOut"}}
+                    className={"overflow-hidden"}
+                    data-header-collapsed={shouldCollapseHeader}
+                >
                     <ServerHeader id={id} name={server.name} description={server.description ?? ""} minecraft_version={server.minecraft_version} server_type={server.server_type} loader_version={server.loader_version} status={server.status}/>
                 </motion.div>
                 <motion.div
                     initial={{opacity: 0, y: 20}}
-                    animate={{opacity: 1, y: shouldCollapseHeader ? -220 : 0}}
+                    animate={{opacity: 1, y: 0}}
                     exit={{opacity: 0, y: -20}}
                     transition={{duration: 0.3, ease: "easeInOut"}}
                 >
