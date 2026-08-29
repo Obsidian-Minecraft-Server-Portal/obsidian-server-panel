@@ -11,10 +11,13 @@ async function main(h: UIHarness)
     const info = await h.api<any>("GET", "/api/info");
     const freshInstall = info.body?.has_admin_user === false;
     h.check("auth page renders", await h.textVisible("Obsidian") || await h.textVisible("New User"));
+    // the login page flashes the signup form while hostInfo loads (and vice versa after
+    // logout); wait for the form to settle before asserting which one it shows
+    const settled = await h.waitFor("auth form settles", async () => await h.textVisible("New User") || await h.textVisible("Server panel"), 10000);
     if (freshInstall)
-        h.check("fresh install shows signup form", await h.textVisible("New User") && await h.textVisible("Register"));
+        h.check("fresh install shows signup form", settled && await h.textVisible("New User") && await h.textVisible("Register"));
     else
-        h.check("existing install shows login form", await h.textVisible("Server panel") && await h.textVisible("Login"));
+        h.check("existing install shows login form", settled && await h.textVisible("Server panel") && await h.textVisible("Login"));
     await h.shot("login-page");
 
     // --- 2. Signup via UI (only possible while no admin user exists) -----------
