@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Starts (or reuses) the Obsidian Server Panel backend for the UI test suite.
-# Exclusive ports: backend 18104, vite 3174 (Agent C).
+# Default ports: backend 18104, vite 3174 - override with UI_TEST_PORT / UI_TEST_VITE_PORT
+# for per-agent exclusivity (run-all.ts forwards the environment).
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
