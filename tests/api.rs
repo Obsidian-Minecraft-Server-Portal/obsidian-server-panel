@@ -1108,6 +1108,9 @@ async fn fake_java_lifecycle_start_console_stop_restart_kill() {
     let scratch = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/api-test-env");
     let fake_java = write_fake_java(&scratch, &format!("fake-java-{}.sh", uuid::Uuid::new_v4().simple()));
     let server_id = create_server(&unique("lifecycle"), "vanilla", fake_java.to_str().unwrap()).await;
+    // A vanilla server without a jar now downloads the real Mojang server jar on start;
+    // place a dummy jar so this test stays offline and instant.
+    put_file_contents(&server_id, "server.jar", "dummy jar - the fake java ignores -jar").await;
     let client = admin_client();
 
     // Start: returns 200 immediately, then transitions to running.
@@ -1168,6 +1171,71 @@ async fn fake_java_lifecycle_start_console_stop_restart_kill() {
     assert_eq!(res.status(), 400);
 
     // Cleanup.
+    client.delete(format!("{BASE_URL}/api/server/{server_id}")).send().await.unwrap();
+    let _ = tokio::fs::remove_file(&fake_java).await;
+}
+
+#[tokio::test]
+async fn invalid_java_start_settles_status_and_stop_kill_self_heal() {
+    server();
+    let server_id = create_server(&unique("badjava"), "vanilla", "/nonexistent/java").await;
+    let client = admin_client();
+
+    // Start is accepted, then the failed spawn must settle the status instead of
+    // leaving it on "starting" forever.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/start")).send().await.unwrap();
+    assert_eq!(res.status(), 200, "start failed: {}", res.text().await.unwrap_or_default());
+    poll_status(&server_id, "crashed", Duration::from_secs(30)).await;
+
+    // Stop self-heals a crashed server with no process into a clean stopped state.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/stop")).send().await.unwrap();
+    assert_eq!(res.status(), 200, "stop failed: {}", res.text().await.unwrap_or_default());
+    poll_status(&server_id, "stopped", Duration::from_secs(10)).await;
+
+    // Kill also self-heals after another failed start attempt.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/start")).send().await.unwrap();
+    assert_eq!(res.status(), 200, "second start failed: {}", res.text().await.unwrap_or_default());
+    poll_status(&server_id, "crashed", Duration::from_secs(30)).await;
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/kill")).send().await.unwrap();
+    assert_eq!(res.status(), 200, "kill failed: {}", res.text().await.unwrap_or_default());
+    poll_status(&server_id, "stopped", Duration::from_secs(10)).await;
+
+    // A stopped server still refuses stop/kill instead of pretending to stop.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/stop")).send().await.unwrap();
+    assert_eq!(res.status(), 400);
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/kill")).send().await.unwrap();
+    assert_eq!(res.status(), 400);
+
+    client.delete(format!("{BASE_URL}/api/server/{server_id}")).send().await.unwrap();
+}
+
+#[tokio::test]
+async fn vanilla_start_downloads_piston_server_jar() {
+    server();
+    if !upstream_available("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json").await {
+        eprintln!("piston-meta.mojang.com unreachable; skipping vanilla download test");
+        return;
+    }
+    let scratch = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/api-test-env");
+    let fake_java = write_fake_java(&scratch, &format!("fake-java-{}.sh", uuid::Uuid::new_v4().simple()));
+    // No jar is uploaded: start must fetch the real piston-meta server jar first.
+    let server_id = create_server(&unique("vanilladl"), "vanilla", fake_java.to_str().unwrap()).await;
+    let client = admin_client();
+
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/start")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let server = poll_status(&server_id, "running", Duration::from_secs(300)).await;
+    let jar = server["server_jar"].as_str().unwrap_or_default();
+    assert!(jar.contains("minecraft_server"), "expected the downloaded piston server jar, got '{jar}'");
+
+    // The downloaded jar survives a restart without a second download.
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/stop")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    poll_status(&server_id, "stopped", Duration::from_secs(30)).await;
+    let res = client.post(format!("{BASE_URL}/api/server/{server_id}/start")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    poll_status(&server_id, "running", Duration::from_secs(60)).await;
+
     client.delete(format!("{BASE_URL}/api/server/{server_id}")).send().await.unwrap();
     let _ = tokio::fs::remove_file(&fake_java).await;
 }

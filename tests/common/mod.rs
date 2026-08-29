@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 use futures::StreamExt;
 use serde_json::{Value, json};
 
-pub const PORT: u16 = 18101;
-pub const BASE_URL: &str = "http://127.0.0.1:18101";
+pub const PORT: u16 = 18110;
+pub const BASE_URL: &str = "http://127.0.0.1:18110";
 
 /// Sets up the same hashid options the server uses in debug builds so tests can
 /// encode/decode entity ids identically.
