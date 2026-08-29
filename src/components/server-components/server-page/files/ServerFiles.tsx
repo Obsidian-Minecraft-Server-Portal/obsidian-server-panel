@@ -1,6 +1,6 @@
 import {Button, cn, Input, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow} from "@heroui-compat";
 import {useServer} from "../../../../providers/ServerProvider.tsx";
-import React, {KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
+import React, {DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useRef, useState} from "react";
 import {FilesystemData, FilesystemEntry} from "../../../../ts/filesystem.ts";
 import "../../../../ts/math-ext.ts";
 import {ContextMenuOptions, RowContextMenu} from "./RowContextMenu.tsx";
@@ -12,6 +12,7 @@ import {isTextFile} from "../../../../ts/file-type-match.ts";
 import {ServerFileEditor, ServerFileEditorRef} from "./ServerFileEditor.tsx";
 import {AnimatePresence, motion} from "framer-motion";
 import {FileTableToolbar} from "./FileTableToolbar.tsx";
+import {ArchiveCreationModal} from "./ArchiveCreationModal.tsx";
 import {FileEntryIcon} from "./FileEntryIcon.tsx";
 import {Tooltip} from "../../../extended/Tooltip.tsx";
 import {Icon} from "@iconify-icon/react";
@@ -29,7 +30,7 @@ type FileWithRelPath = { file: File; relativePath: string };
 
 export function ServerFiles()
 {
-    const {server, getEntries, renameEntry, createEntry, deleteEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents, downloadEntry} = useServer();
+    const {server, getEntries, renameEntry, createEntry, deleteEntry, moveEntry, uploadFile, archiveFiles, extractArchive, getFileContents, setFileContents, downloadEntry} = useServer();
     // below md the browser/editor split pane cannot fit side by side (each pane needs
     // >= 300px), so the editor stacks under the file browser instead
     const {width: windowWidth} = useWindow();
@@ -54,6 +55,8 @@ export function ServerFiles()
     });
     const [needsToSave, setNeedsToSave] = useState(false);
     const [isExternallyModified, setIsExternallyModified] = useState(false);
+    const [archiveRequest, setArchiveRequest] = useState<{entries: FilesystemEntry[], defaultName: string} | undefined>(undefined);
+    const [rowDropTarget, setRowDropTarget] = useState<string | undefined>(undefined);
     const newContentRef = useRef<string>("");
     const originalContentHashRef = useRef<string>("");
     const serverFileEditorRef = useRef<ServerFileEditorRef>(null);
@@ -63,6 +66,7 @@ export function ServerFiles()
     const selectedEntriesRef = useRef<FilesystemEntry[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
     const loadedFilePathRef = useRef<string>(""); // Track which file is currently loaded
+    const draggedEntriesRef = useRef<FilesystemEntry[] | null>(null);
 
     // Simple hash function to detect content changes
     const hashString = useCallback((str: string) =>
@@ -77,12 +81,17 @@ export function ServerFiles()
         return hash.toString();
     }, []);
 
+    const scrollToTop = useCallback(() =>
+    {
+        document.getElementById("server-files-table")?.parentElement?.scrollTo({top: 0});
+    }, []);
+
     const refresh = useCallback(async () =>
     {
         scrollToTop();
         setIsLoading(true);
-        const data = await getEntries(path);
-        data.entries = data.entries.sort((a, b) =>
+        const listing = await getEntries(path);
+        listing.entries = listing.entries.sort((a, b) =>
         {
             if (a.is_dir && !b.is_dir) return -1; // Directories first
             if (!a.is_dir && b.is_dir) return 1; // Files after directories
@@ -91,15 +100,15 @@ export function ServerFiles()
         // A refresh must not wipe an in-progress inline entry creation: the temp entry only
         // lives in UI state, so dropping it would unmount the inline input mid-edit (and its
         // blur handler would then create an unwanted entry with the default name).
-        if (newItemCreationEntry && !data.entries.some(entry => entry.filename === newItemCreationEntry.filename))
+        if (newItemCreationEntry && !listing.entries.some(entry => entry.filename === newItemCreationEntry.filename))
         {
-            data.entries = [newItemCreationEntry, ...data.entries];
+            listing.entries = [newItemCreationEntry, ...listing.entries];
         }
-        setData(data);
+        setData(listing);
         setIsLoading(false);
         setSelectedEntries([]);
         setContextMenuOptions({entry: undefined, x: 0, y: 0, isOpen: false});
-    }, [path, data, newItemCreationEntry]);
+    }, [path, newItemCreationEntry, getEntries, scrollToTop]);
 
     useEffect(() =>
     {
@@ -124,11 +133,6 @@ export function ServerFiles()
     {
         localStorage.setItem("is-editing-file", isEditingFile.toString());
     }, [isEditingFile]);
-
-    const scrollToTop = useCallback(() =>
-    {
-        document.getElementById("server-files-table")?.parentElement?.scrollTo({top: 0});
-    }, [path]);
 
     const saveContent = useCallback(async () =>
     {
@@ -597,9 +601,10 @@ export function ServerFiles()
         return () => el.removeEventListener("keydown", onKeyDown);
     }, []);
 
-    const startArchiveCreation = useCallback(async () =>
+    const startArchiveCreation = useCallback((entries: FilesystemEntry[]) =>
     {
         setContextMenuOptions(prev => ({...prev, isOpen: false}));
+        if (!entries || entries.length === 0) return;
 
         let filename = "New Archive";
         let index = 0;
@@ -608,16 +613,21 @@ export function ServerFiles()
             index++;
             filename = `New Archive (${index})`;
         }
+        setArchiveRequest({entries, defaultName: filename});
+    }, [data]);
 
-        // Prompt user for archive name
-        const archiveName = prompt("Enter archive name:", filename);
-        if (!archiveName || archiveName.trim() === "") return;
-
+    const runArchiveCreation = useCallback(async (name: string) =>
+    {
+        if (!archiveRequest) return;
+        const trimmed = name.trim();
+        if (trimmed === "") return;
+        const filename = trimmed.toLowerCase().endsWith(".zip") ? trimmed : `${trimmed}.zip`;
+        setArchiveRequest(undefined);
         try
         {
             archiveFiles(
-                `${archiveName}.zip`,
-                selectedEntries.map(entry => entry.path),
+                filename,
+                archiveRequest.entries.map(entry => entry.path),
                 path,
                 () =>
                 {
@@ -643,7 +653,7 @@ export function ServerFiles()
                 severity: "danger"
             });
         }
-    }, [path, data, selectedEntries, archiveFiles, refresh, open]);
+    }, [path, archiveRequest, archiveFiles, refresh, open]);
 
 
     const handleExtract = useCallback(async (entry: FilesystemEntry, outputPath?: string) =>
@@ -683,6 +693,98 @@ export function ServerFiles()
             });
         }
     }, [path, extractArchive, open, refresh]);
+
+    // Row-to-row drag move: native HTML5 drag events on the name-cell wrapper. RAC filters
+    // non-data props off table rows, so the handlers live on a full-height div inside the
+    // first cell; the dragged selection is carried in a ref (not dataTransfer) so the flow
+    // also works with synthetic events.
+    const isWithinDraggedSubtree = (target: FilesystemEntry) =>
+        (draggedEntriesRef.current ?? []).some(dragged =>
+            dragged.path === target.path || target.path.startsWith(`${dragged.path}/`));
+
+    const handleRowDragStart = useCallback((e: ReactDragEvent, entry: FilesystemEntry) =>
+    {
+        const dragging = selectedEntries.length > 0 && selectedEntries.some(selected => selected.filename === entry.filename)
+            ? selectedEntries
+            : [entry];
+        draggedEntriesRef.current = dragging;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", dragging.map(item => item.path).join("\n"));
+    }, [selectedEntries]);
+
+    const handleRowDragOver = useCallback((e: ReactDragEvent, entry: FilesystemEntry) =>
+    {
+        if (!draggedEntriesRef.current) return; // external drag: let the upload drop zone react
+        e.stopPropagation();
+        if (entry.is_dir && !isWithinDraggedSubtree(entry))
+        {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setRowDropTarget(entry.filename);
+        }
+    }, []);
+
+    const handleRowDragLeave = useCallback((e: ReactDragEvent) =>
+    {
+        if (!draggedEntriesRef.current) return;
+        e.stopPropagation();
+        const related = e.relatedTarget as Node | null;
+        if (!related || !(e.currentTarget as HTMLElement).contains(related))
+        {
+            setRowDropTarget(undefined);
+        }
+    }, []);
+
+    const handleRowDrop = useCallback(async (e: ReactDragEvent, target: FilesystemEntry) =>
+    {
+        const dragged = draggedEntriesRef.current;
+        if (!dragged) return; // external drop: let the upload drop zone react
+        e.preventDefault();
+        e.stopPropagation();
+        draggedEntriesRef.current = null;
+        setRowDropTarget(undefined);
+        if (!target.is_dir || isWithinDraggedSubtree(target)) return;
+        try
+        {
+            await moveEntry(dragged.map(entry => entry.path), target.path);
+            await refresh();
+        } catch (error)
+        {
+            console.error("Failed to move entries:", error);
+            await open({
+                title: "Move Failed",
+                body: "An error occurred while moving the selected entries. Please try again.",
+                responseType: MessageResponseType.Close,
+                severity: "danger"
+            });
+        }
+    }, [moveEntry, refresh, open]);
+
+    const handleRowDragEnd = useCallback(() =>
+    {
+        draggedEntriesRef.current = null;
+        setRowDropTarget(undefined);
+    }, []);
+
+    const deleteSelected = useCallback(async (entries: FilesystemEntry[]) =>
+    {
+        // Handle the delete action for selected entries
+        if (entries.length > 0)
+        {
+            let response = await open({
+                title: "Delete Files",
+                body: `Are you sure you want to delete ${entries.length > 1 ? `${entries.length} files` : entries[0].filename}? This action cannot be undone.`,
+                responseType: MessageResponseType.OkayCancel,
+                severity: "danger"
+            });
+            if (response)
+            {
+                // Implement delete logic here
+                await deleteEntry(entries.map(entry => entry.path));
+                await refresh();
+            }
+        }
+    }, [open, deleteEntry, refresh]);
 
     const handleKeyDown = useCallback(async (e: ReactKeyboardEvent<HTMLTableElement>) =>
     {
@@ -727,27 +829,7 @@ export function ServerFiles()
         {
             await deleteSelected(selectedEntries);
         }
-    }, [renamingEntry, refresh, renameSelectedEntry, selectedEntries]);
-
-    const deleteSelected = useCallback(async (entries: FilesystemEntry[]) =>
-    {
-        // Handle the delete action for selected entries
-        if (entries.length > 0)
-        {
-            let response = await open({
-                title: "Delete Files",
-                body: `Are you sure you want to delete ${entries.length > 1 ? `${entries.length} files` : entries[0].filename}? This action cannot be undone.`,
-                responseType: MessageResponseType.OkayCancel,
-                severity: "danger"
-            });
-            if (response)
-            {
-                // Implement delete logic here
-                await deleteEntry(entries.map(entry => entry.path));
-                await refresh();
-            }
-        }
-    }, [path]);
+    }, [renamingEntry, selectedEntries, data, deleteSelected]);
 
     const handleAddToIgnore = useCallback(async (entries: FilesystemEntry[]) =>
     {
@@ -957,13 +1039,31 @@ export function ServerFiles()
                         width: isEditingFile && selectedEntries.length === 1 && editorSideBySide ? `${browserWidth}px` : "100%",
                         transition: isDragging ? "none" : "width 0.3s ease-in-out"
                     }}
-                    onDragStart={() => setIsDraggingOver(false)}
+                    onDragStart={() =>
+                    {
+                        // internal row-to-row drags are handled by the rows themselves
+                        if (draggedEntriesRef.current) return;
+                        setIsDraggingOver(false);
+                    }}
                     onDragEnd={() => setIsDraggingOver(false)}
-                    onDragEnter={() => setIsDraggingOver(true)}
-                    onDragExit={() => setIsDraggingOver(false)}
-                    onDragOver={e => e.preventDefault()}
+                    onDragEnter={() =>
+                    {
+                        if (draggedEntriesRef.current) return;
+                        setIsDraggingOver(true);
+                    }}
+                    onDragExit={() =>
+                    {
+                        if (draggedEntriesRef.current) return;
+                        setIsDraggingOver(false);
+                    }}
+                    onDragOver={e =>
+                    {
+                        if (draggedEntriesRef.current) return;
+                        e.preventDefault();
+                    }}
                     onDrop={async e =>
                     {
+                        if (draggedEntriesRef.current) return;
                         e.preventDefault();
                         setIsDraggingOver(false);
                         // Collect recursively if folders are dropped
@@ -1041,6 +1141,8 @@ export function ServerFiles()
                                                 return (
                                                     <TableRow
                                                         key={entry.filename}
+                                                        data-drop-target={rowDropTarget === entry.filename || undefined}
+                                                        className={cn("data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10", "data-[drop-target=true]:bg-primary/15")}
                                                         onContextMenu={e =>
                                                         {
                                                             e.preventDefault();
@@ -1051,8 +1153,6 @@ export function ServerFiles()
                                                                 isOpen: true
                                                             });
                                                         }}
-                                                        data-selected={contextMenuOptions.entry === entry && contextMenuOptions.isOpen}
-                                                        className={"data-[selected=true]:opacity-50 data-[selected=true]:bg-white/10"}
                                                         onDoubleClick={async () =>
                                                         {
                                                             if (renamingEntry || newItemCreationEntry) return;
@@ -1096,7 +1196,15 @@ export function ServerFiles()
                                                                     className={"font-minecraft-body"}
                                                                 />
                                                             ) : (
-                                                                <>
+                                                                <div
+                                                                    className={"flex items-center gap-2 w-full h-full"}
+                                                                    draggable={!renamingEntry && !newItemCreationEntry}
+                                                                    onDragStart={e => handleRowDragStart(e, entry)}
+                                                                    onDragOver={e => handleRowDragOver(e, entry)}
+                                                                    onDragLeave={handleRowDragLeave}
+                                                                    onDrop={e => void handleRowDrop(e, entry)}
+                                                                    onDragEnd={handleRowDragEnd}
+                                                                >
                                                                     <FileEntryIcon entry={entry}/>
                                                                     <span className="flex-1">{entry.filename}</span>
                                                                     {isEditingFile && isSelected && isTextFile(entry.path) && (
@@ -1149,7 +1257,7 @@ export function ServerFiles()
                                                                             </Tooltip>
                                                                         </div>
                                                                     )}
-                                                                </>
+                                                                </div>
                                                             )}
                                                         </TableCell>
                                                         <TableCell className={"text-gray-500"} hidden={isEditingFile && selectedEntries.length === 1}>
@@ -1200,6 +1308,13 @@ export function ServerFiles()
                     }}
                     onAddToIgnore={handleAddToIgnore}
                     onClose={() => setContextMenuOptions(prev => ({...prev, isOpen: false}))}
+                />
+                <ArchiveCreationModal
+                    isOpen={archiveRequest !== undefined}
+                    defaultName={archiveRequest?.defaultName ?? ""}
+                    entryCount={archiveRequest?.entries.length ?? 0}
+                    onCreate={name => void runArchiveCreation(name)}
+                    onCancel={() => setArchiveRequest(undefined)}
                 />
             </div>
 
