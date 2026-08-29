@@ -124,11 +124,13 @@ export interface ToastOptions
 
 export function addToast({title, description, color, timeout, actionProps}: ToastOptions)
 {
-    const opts: {description?: ReactNode; timeout?: number; actionProps?: ButtonProps} = {description, actionProps};
-    if (timeout !== null && timeout !== 0)
-    {
-        opts.timeout = timeout ?? 3000;
-    }
+    // HeroUI defaults to 4000ms when timeout is undefined; per the docs, an explicit
+    // 0 marks the toast as persistent (no auto-dismiss).
+    const opts: {description?: ReactNode; timeout?: number; actionProps?: ButtonProps} = {
+        description,
+        actionProps,
+        timeout: timeout === null || timeout === 0 ? 0 : timeout ?? 3000
+    };
     const text = typeof title === "string" ? title : "";
     switch (color)
     {

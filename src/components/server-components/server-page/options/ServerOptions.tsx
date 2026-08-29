@@ -431,7 +431,8 @@ export function ServerOptions()
                     </Button>
                 </div>
             ),
-            variant: "accent"
+            variant: "accent",
+            timeout: 0
         });
     }, [canSave, closeUnsavedToast]);
 
