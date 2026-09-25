@@ -85,11 +85,11 @@ export function ServerContent()
         <div className={"flex flex-col gap-2 p-4 bg-default-50 h-[calc(100dvh_-_240px)] min-h-[300px] relative"}>
 
             {/* Top Bar */}
-            <div className={"flex flex-row gap-4 items-center justify-between z-20"}>
+            <div className={"flex flex-row gap-4 items-end justify-between z-20"}>
                 <Input
                     label={"Search"}
                     radius={"none"}
-                    className={"font-minecraft-body"}
+                    className={"font-minecraft-body min-w-0 flex-1"}
                     placeholder={"Ex: AE2, Applied Energistics 2, Ender IO, etc."}
                     autoComplete={"off"}
                     autoCorrect={"off"}
