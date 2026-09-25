@@ -31,6 +31,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/minecraft_server/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/neoforge_loader/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/neoforge_loader/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
