@@ -427,55 +427,76 @@ fn handle_connection(stream: &mut TcpStream, f: &dyn Fn(&str) -> Option<&'static
 
 /// Builds a minimal valid zip archive (single stored entry) so the backend's jar parser can read it.
 pub fn fake_fabric_jar(mod_id: &str) -> Vec<u8> {
-    let content = format!(
-        r#"{{"schemaVersion":1,"id":"{mod_id}","version":"1.0.0","name":"{mod_id}","description":"fake mod for tests","authors":["tester"]}}"#
-    )
-    .into_bytes();
-    let name = b"fabric.mod.json".to_vec();
-    let crc = crc32(&content);
-    let mut out = Vec::new();
+    fake_fabric_jar_with_icon(mod_id, None)
+}
 
-    let local_header_offset = 0u32;
-    out.extend_from_slice(&0x04034b50u32.to_le_bytes());
-    out.extend_from_slice(&20u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&crc.to_le_bytes());
-    out.extend_from_slice(&(content.len() as u32).to_le_bytes());
-    out.extend_from_slice(&(content.len() as u32).to_le_bytes());
-    out.extend_from_slice(&(name.len() as u16).to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&name);
-    out.extend_from_slice(&content);
+/// Same as [`fake_fabric_jar`], optionally embedding a PNG icon referenced from `fabric.mod.json`.
+pub fn fake_fabric_jar_with_icon(mod_id: &str, icon_png: Option<&[u8]>) -> Vec<u8> {
+    let mut metadata = format!(
+        r#"{{"schemaVersion":1,"id":"{mod_id}","version":"1.0.0","name":"{mod_id}","description":"fake mod for tests","authors":["tester"]"#
+    );
+    if icon_png.is_some() {
+        metadata.push_str(r#","icon":"assets/icon.png""#);
+    }
+    metadata.push('}');
+
+    let mut entries = vec![(b"fabric.mod.json".to_vec(), metadata.into_bytes())];
+    if let Some(icon) = icon_png {
+        entries.push((b"assets/icon.png".to_vec(), icon.to_vec()));
+    }
+    build_stored_zip(entries)
+}
+
+/// Serializes name/content pairs as a zip archive of stored (uncompressed) entries.
+fn build_stored_zip(entries: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut central_directory = Vec::new();
+
+    for (name, content) in &entries {
+        let local_header_offset = out.len() as u32;
+        let crc = crc32(content);
+        out.extend_from_slice(&0x04034b50u32.to_le_bytes());
+        out.extend_from_slice(&20u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(&crc.to_le_bytes());
+        out.extend_from_slice(&(content.len() as u32).to_le_bytes());
+        out.extend_from_slice(&(content.len() as u32).to_le_bytes());
+        out.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        out.extend_from_slice(&0u16.to_le_bytes());
+        out.extend_from_slice(name);
+        out.extend_from_slice(content);
+
+        central_directory.extend_from_slice(&0x02014b50u32.to_le_bytes());
+        central_directory.extend_from_slice(&20u16.to_le_bytes());
+        central_directory.extend_from_slice(&20u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&crc.to_le_bytes());
+        central_directory.extend_from_slice(&(content.len() as u32).to_le_bytes());
+        central_directory.extend_from_slice(&(content.len() as u32).to_le_bytes());
+        central_directory.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u16.to_le_bytes());
+        central_directory.extend_from_slice(&0u32.to_le_bytes());
+        central_directory.extend_from_slice(&local_header_offset.to_le_bytes());
+        central_directory.extend_from_slice(name);
+    }
 
     let central_directory_offset = out.len() as u32;
-    out.extend_from_slice(&0x02014b50u32.to_le_bytes());
-    out.extend_from_slice(&20u16.to_le_bytes());
-    out.extend_from_slice(&20u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&crc.to_le_bytes());
-    out.extend_from_slice(&(content.len() as u32).to_le_bytes());
-    out.extend_from_slice(&(content.len() as u32).to_le_bytes());
-    out.extend_from_slice(&(name.len() as u16).to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u32.to_le_bytes());
-    out.extend_from_slice(&local_header_offset.to_le_bytes());
-    out.extend_from_slice(&name);
-
+    out.extend_from_slice(&central_directory);
     let central_directory_size = (out.len() as u32) - central_directory_offset;
     out.extend_from_slice(&0x06054b50u32.to_le_bytes());
     out.extend_from_slice(&0u16.to_le_bytes());
     out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&(entries.len() as u16).to_le_bytes());
+    out.extend_from_slice(&(entries.len() as u16).to_le_bytes());
     out.extend_from_slice(&central_directory_size.to_le_bytes());
     out.extend_from_slice(&central_directory_offset.to_le_bytes());
     out.extend_from_slice(&0u16.to_le_bytes());

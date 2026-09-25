@@ -12,7 +12,6 @@ use flate2::read::GzDecoder;
 use log::error;
 use serde_hash::hashids::{decode_single, encode_single};
 use serde_json::json;
-use sqlx::Row as _;
 use crate::database::sql;
 use std::collections::HashMap;
 use std::io::Read;
@@ -533,29 +532,37 @@ pub async fn get_mod_icon(path: web::Path<(String, String)>, req: HttpRequest) -
     let server = ServerData::get(server_id, user_id).await?.ok_or(anyhow!("Server not found"))?;
 
     let pool = crate::database::get_pool();
-    let row = sqlx::query(&*sql("SELECT icon FROM installed_mods WHERE mod_id = ? AND server_id = ?"))
+    // COALESCE keeps NULL handling inside SQLite; an empty result means "no icon".
+    let row: Option<(String,)> = sqlx::query_as(&*sql("SELECT COALESCE(icon, '') FROM installed_mods WHERE mod_id = ? AND server_id = ?"))
         .bind(&mod_id)
         .bind(server.id as i64)
         .fetch_optional(pool)
         .await?;
 
-    if let Some(row) = row {
-        let icon_data: Option<String> = row.try_get("icon").ok();
+    if let Some((icon,)) = row
+        && !icon.is_empty()
+    {
+        // Remote icons are redirected to; base64 payloads are decoded and served.
+        // The mod scanner writes raw base64 without a data-URI header, so the
+        // header is only stripped when actually present.
+        if icon.starts_with("http://") || icon.starts_with("https://") {
+            return Ok(HttpResponse::PermanentRedirect().append_header((actix_web::http::header::LOCATION, icon)).finish());
+        }
 
-        if let Some(icon) = icon_data {
-            let is_icon_base64 = icon.starts_with("data:image/png;base64,");
-            let is_icon_url = icon.starts_with("http://") || icon.starts_with("https://");
-            if is_icon_base64 {
-                if let Ok(icon_bytes) = base64::engine::general_purpose::STANDARD.decode(icon) {
-                    return Ok(HttpResponse::Ok().content_type("image/png").body(icon_bytes));
-                }
-            } else if is_icon_url {
-                return Ok(HttpResponse::PermanentRedirect().append_header((actix_web::http::header::LOCATION, icon.to_string())).finish());
-            }
+        let encoded = match icon.split_once(";base64,") {
+            Some((header, encoded)) if header.starts_with("data:image/") => encoded,
+            _ => icon.as_str(),
+        };
+
+        if let Ok(icon_bytes) = base64::engine::general_purpose::STANDARD.decode(encoded)
+            && !icon_bytes.is_empty()
+        {
+            return Ok(HttpResponse::Ok().content_type("image/png").body(icon_bytes));
         }
     }
 
-    Ok(HttpResponse::Ok().content_type("image/png").body(ICON))
+    // No icon stored (or undecodable): let the client fall back to its default icon.
+    Ok(HttpResponse::NotFound().finish())
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {

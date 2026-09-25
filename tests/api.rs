@@ -5,6 +5,7 @@
 mod common;
 
 use common::*;
+use base64::Engine as _;
 use serde_json::{Value, json};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -887,10 +888,9 @@ async fn mod_download_sync_delete_flow() {
     let mods: Value = client.get(format!("{BASE_URL}/api/server/{server_id}/installed-mods")).send().await.unwrap().json().await.unwrap();
     assert_eq!(mods.as_array().unwrap().len(), 1, "re-downloading the same file must not duplicate its record");
 
-    // Icon endpoint always answers with a PNG.
+    // A jar without an embedded icon answers 404 so clients can use their default icon.
     let res = client.get(format!("{BASE_URL}/api/server/{server_id}/mod/{mod_id}/icon")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    assert!(res.headers()["content-type"].to_str().unwrap().starts_with("image/png"));
+    assert_eq!(res.status(), 404);
 
     // Sync keeps things consistent.
     let res = client.post(format!("{BASE_URL}/api/server/{server_id}/sync-mods")).send().await.unwrap();
@@ -917,6 +917,46 @@ async fn download_mod_requires_filename_400() {
     assert_eq!(res.status(), 400, "missing filename must 400, not panic");
     let body: Value = res.json().await.unwrap();
     assert!(body["message"].as_str().unwrap().contains("filename"));
+}
+
+/// Regression test: jar-scanned icons are stored as raw base64 without a data-URI
+/// prefix, and the icon endpoint must decode and serve them instead of falling back.
+#[tokio::test]
+async fn mod_icon_serves_raw_base64_from_jar() {
+    let server_id = fresh_fs_server().await;
+    let client = admin_client();
+
+    // 1x1 transparent PNG.
+    let icon = base64::engine::general_purpose::STANDARD
+        .decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==")
+        .unwrap();
+    let jar: &'static [u8] = Box::leak(fake_fabric_jar_with_icon("iconmod", Some(&icon)).into_boxed_slice());
+    let fake = FakeFileServer::serve_all(jar);
+
+    let res = client
+        .post(format!("{BASE_URL}/api/server/{server_id}/download-mod"))
+        .json(&json!({
+            "download_url": fake.url("/iconmod.jar"),
+            "filename": "iconmod.jar",
+            "version": "1.0.0",
+            "loader": "fabric",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200, "download-mod must succeed");
+
+    let mods: Value = client.get(format!("{BASE_URL}/api/server/{server_id}/installed-mods")).send().await.unwrap().json().await.unwrap();
+    let mod_id = mods.as_array().unwrap()[0]["mod_id"].as_str().unwrap().to_string();
+
+    let res = client.get(format!("{BASE_URL}/api/server/{server_id}/mod/{mod_id}/icon")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    assert!(res.headers()["content-type"].to_str().unwrap().starts_with("image/png"));
+    assert_eq!(res.bytes().await.unwrap().as_ref(), icon, "the served icon must be the decoded jar icon");
+
+    // Unknown mods answer 404 as well.
+    let res = client.get(format!("{BASE_URL}/api/server/{server_id}/mod/{}/icon", unique("nomod"))).send().await.unwrap();
+    assert_eq!(res.status(), 404);
 }
 
 // ---------------------------------------------------------------------------
