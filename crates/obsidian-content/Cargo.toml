@@ -1,0 +1,31 @@
+[package]
+name = "obsidian-content"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+ferinth = { workspace = true }
+flate2 = { workspace = true }
+futures-util = { workspace = true }
+hex = { workspace = true }
+moka = { workspace = true, features = ["sync"] }
+obsidian-common = { workspace = true }
+obsidian-db = { workspace = true }
+obsidian-instances = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_repr = { workspace = true }
+sha1 = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
