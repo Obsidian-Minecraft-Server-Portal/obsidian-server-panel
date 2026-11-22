@@ -98,6 +98,7 @@ export interface CreateInstanceInput {
   mc_version: string;
   loader_version?: string | null;
   java_runtime_id?: number | null;
+  java_component?: string | null;
   port?: number | null;
   upnp_enabled?: boolean | null;
   accept_eula: boolean;

@@ -5,7 +5,7 @@ import { Panel } from "../../ui/Panel";
 import { PrimaryButton } from "../../ui/PrimaryButton";
 import { FormField } from "../FormField";
 import { SwitchRow } from "../../ui/SwitchRow";
-import { isMemoryRange, isPortValid } from "../wizard/draft";
+import { isMemoryRange, isPortValid } from "../create/draft";
 
 interface Form {
   name: string;
@@ -80,7 +80,12 @@ export function GeneralSettings({ view }: { view: InstanceView }) {
             onChange={(value) => set("port", value)}
             hint={portOk ? "Applies the next time the server starts." : "Enter a port between 1 and 65535."}
           />
-          <JavaSelect value={form.javaRuntimeId} onChange={(id) => id !== null && set("javaRuntimeId", id)} isDisabled={update.isPending} />
+          <JavaSelect
+            value={form.javaRuntimeId === null ? { kind: "auto" } : { kind: "runtime", id: form.javaRuntimeId }}
+            onChange={(choice) => choice.kind === "runtime" && set("javaRuntimeId", choice.id)}
+            allowAuto={form.javaRuntimeId === null}
+            isDisabled={update.isPending}
+          />
           <FormField
             label="Memory min (MB)"
             type="number"

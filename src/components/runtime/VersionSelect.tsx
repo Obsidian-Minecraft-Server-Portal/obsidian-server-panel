@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useMinecraftVersions, type LoaderKind } from "../../api/loaders";
-import { OptionSelect } from "./OptionSelect";
+import { SearchSelect } from "../ui/SearchSelect";
 
 interface VersionSelectProps {
   loader: LoaderKind | null;
@@ -11,7 +11,7 @@ interface VersionSelectProps {
 
 export function VersionSelect({ loader, value, onChange, isDisabled }: VersionSelectProps) {
   const { data, isLoading, isError } = useMinecraftVersions(loader);
-  const options = useMemo(() => (data ?? []).map((version) => ({ id: version, label: version })), [data]);
+  const options = useMemo(() => (data ?? []).map((version, index) => ({ id: version, label: version, detail: index === 0 ? "Latest" : undefined })), [data]);
   const empty = data !== undefined && data.length === 0;
 
   const placeholder = !loader
@@ -22,11 +22,12 @@ export function VersionSelect({ loader, value, onChange, isDisabled }: VersionSe
         ? "Versions could not be loaded"
         : empty
           ? "No versions listed"
-          : "Select a version";
+          : "Search versions";
 
   return (
-    <OptionSelect
+    <SearchSelect
       label="Minecraft version"
+      emptyText="No version matches"
       options={options}
       value={value}
       onChange={onChange}

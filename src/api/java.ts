@@ -57,3 +57,17 @@ export function useRemoveJava() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: javaKey }),
   });
 }
+
+export interface AvailableJava {
+  component: string;
+  version: string;
+  installed: boolean;
+}
+
+export function useAvailableJava() {
+  return useQuery({
+    queryKey: [...javaKey, "available"],
+    queryFn: () => api.get<AvailableJava[]>("/java/available"),
+    staleTime: 60 * 60 * 1000,
+  });
+}

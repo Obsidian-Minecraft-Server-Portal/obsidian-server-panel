@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type ApiError } from "../../../api/client";
 import { putInstance, type InstanceView } from "../../../api/instances";
 import { uploadFile } from "../../files/uploadFile";
-import { createBody, isCustom, settingsPatch, type WizardDraft } from "./draft";
+import { createBody, isCustom, settingsPatch, type CreateDraft } from "./draft";
 
 const CUSTOM_JAR_PATH = "server.jar";
 
@@ -28,9 +28,9 @@ async function installCustomJar(instanceId: number, jar: File | null): Promise<I
   return api.post<InstanceView>(`/instances/${instanceId}/install`);
 }
 
-export function useCreateWizard() {
+export function useCreateInstance() {
   const queryClient = useQueryClient();
-  return useMutation<CreatedInstance, ApiError, WizardDraft>({
+  return useMutation<CreatedInstance, ApiError, CreateDraft>({
     mutationFn: async (draft) => {
       let view = await api.post<InstanceView>("/instances", createBody(draft));
       putInstance(queryClient, view);
