@@ -71,7 +71,7 @@ export function PixelBanner({ seed, className }: PixelBannerProps) {
         <linearGradient id={skyId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={scene.palette.sky[0]} />
           <stop offset="0.55" stopColor={scene.palette.sky[1]} />
-          <stop offset="1" stopColor="#0a0609" />
+          <stop offset="1" stopColor="#111113" />
         </linearGradient>
       </defs>
       <rect width={WIDTH} height={HEIGHT} fill={`url(#${skyId})`} />

@@ -25,6 +25,9 @@
   --color-accent-tint: var(--accent-tint);
   --color-accent-glow: var(--accent-glow);
   --color-accent-ink: var(--accent-ink);
+  --color-secondary: var(--secondary);
+  --color-secondary-tint: var(--secondary-tint);
+  --color-secondary-soft: var(--secondary-soft);
   --color-ember: var(--ember);
   --color-cyan: var(--cyan);
   --color-amber: var(--amber);
@@ -36,6 +39,7 @@
   --radius-hero: 24px;
 
   --shadow-glow: 0 12px 32px -6px var(--accent-glow);
+  --shadow-lift: 0 16px 40px -12px rgba(0, 0, 0, 0.6);
 
   --animate-aurora-float: aurora-float 18s ease-in-out infinite;
   --animate-pulse-ring: pulse-ring 2s ease-out infinite;
@@ -46,11 +50,11 @@
 }
 
 :root {
-  --bg-0: #0a0609;
-  --bg-1: #110b12;
-  --bg-2: #190f18;
-  --bg-3: #231623;
-  --bg-4: #2f1e30;
+  --bg-0: #111113;
+  --bg-1: #151517;
+  --bg-2: #1b1b1e;
+  --bg-3: #232327;
+  --bg-4: #2c2c31;
 
   --line: rgba(255, 255, 255, 0.07);
   --line-strong: rgba(255, 255, 255, 0.12);
@@ -67,6 +71,10 @@
   --accent-glow: rgba(178, 75, 255, 0.35);
   --accent-tint: rgba(178, 75, 255, 0.12);
   --accent-ink: #1a0629;
+
+  --secondary: #8b9dd6;
+  --secondary-tint: rgba(139, 157, 214, 0.12);
+  --secondary-soft: #b8c4ea;
 
   --ember: #ff6b3a;
   --cyan: #47d9ff;
