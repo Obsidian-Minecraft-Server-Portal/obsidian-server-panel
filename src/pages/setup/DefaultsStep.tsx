@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { OptionSelect } from "../../components/runtime/OptionSelect";
 import { FormField } from "../account/FormField";
 import { ToggleField } from "../account/ToggleField";
@@ -18,32 +19,33 @@ interface DefaultsStepProps {
 const TIMEZONES = timezoneOptions();
 
 export function DefaultsStep({ value, onChange }: DefaultsStepProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <OptionSelect
-        label="Timezone"
+        label={t("setup.timezone")}
         options={TIMEZONES}
         value={value.timezone}
         onChange={(timezone) => timezone && onChange({ ...value, timezone })}
       />
       <FormField
-        label="Public URL"
+        label={t("setup.publicUrl")}
         type="url"
         inputMode="url"
         value={value.publicUrl}
         onChange={(publicUrl) => onChange({ ...value, publicUrl })}
-        description="Used in invite and password reset links."
+        description={t("setup.publicUrlHint")}
       />
       <FormField
-        label="Graceful stop timeout (seconds)"
+        label={t("setup.stopTimeout")}
         inputMode="numeric"
         value={value.stopTimeout}
         onChange={(stopTimeout) => onChange({ ...value, stopTimeout })}
-        description="How long a server gets to shut down after `stop` before it is killed."
+        description={t("setup.stopTimeoutHint")}
       />
       <ToggleField
-        label="Forward server ports with UPnP by default"
-        description="New instances start with UPnP port forwarding switched on."
+        label={t("setup.upnp")}
+        description={t("setup.upnpHint")}
         value={value.upnp}
         onChange={(upnp) => onChange({ ...value, upnp })}
       />

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Chip } from "../../components/ui/Chip";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
@@ -11,10 +12,11 @@ import { AdminStep, type AdminDraft } from "./AdminStep";
 import { DefaultsStep, type DefaultsDraft } from "./DefaultsStep";
 import { EmailStep, emptySmtpDraft, type SmtpDraft } from "./EmailStep";
 
-const STEPS = ["Administrator", "Email", "Defaults"] as const;
+const STEPS = ["admin", "email", "defaults"] as const;
 const LAST = STEPS.length - 1;
 
 export function SetupPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const setup = useCompleteSetup();
   const [step, setStep] = useState(0);
@@ -30,18 +32,18 @@ export function SetupPage() {
 
   const stepError = (): string | null => {
     if (step === 0) {
-      if (!admin.username.trim()) return "Choose a username for the administrator.";
-      if (!admin.password) return "Choose a password.";
-      if (admin.password !== admin.confirm) return "The passwords do not match.";
+      if (!admin.username.trim()) return t("setup.errors.username");
+      if (!admin.password) return t("setup.errors.password");
+      if (admin.password !== admin.confirm) return t("common.passwordsMismatch");
     }
     if (step === 2) {
       const secs = Number(defaults.stopTimeout);
       if (!(Number.isInteger(secs) && secs >= 5 && secs <= 600)) {
-        return "Graceful stop timeout must be a whole number of seconds between 5 and 600.";
+        return t("setup.errors.stopTimeout");
       }
     }
     if (step === 1 && smtp.enabled && (!smtp.host.trim() || !smtp.from.trim())) {
-      return "Enter the SMTP host and the sender address, or turn email off.";
+      return t("setup.errors.smtp");
     }
     return null;
   };
@@ -85,15 +87,19 @@ export function SetupPage() {
 
   return (
     <AuthCard
-      headline="Set up Obsidian"
-      subtitle="Create the administrator account. You can change everything here later in Settings."
-      footer={<span className="font-mono text-[11px] uppercase tracking-widest">Step {step + 1} of {STEPS.length}</span>}
+      headline={t("setup.headline")}
+      subtitle={t("setup.subtitle")}
+      footer={
+        <span className="font-mono text-[11px] uppercase tracking-widest">
+          {t("setup.stepOf", { step: step + 1, total: STEPS.length })}
+        </span>
+      }
     >
-      <ol className="flex flex-wrap gap-2" aria-label="Setup progress">
-        {STEPS.map((title, index) => (
-          <li key={title}>
+      <ol className="flex flex-wrap gap-2" aria-label={t("setup.progress")}>
+        {STEPS.map((key, index) => (
+          <li key={key}>
             <Chip tone={index === step ? "accent" : index < step ? "cyan" : "neutral"}>
-              {index + 1} {title}
+              {index + 1} {t(`setup.steps.${key}`)}
             </Chip>
           </li>
         ))}
@@ -113,11 +119,11 @@ export function SetupPage() {
         <div className="flex gap-3">
           {step > 0 && (
             <GhostButton className="h-11" onPress={() => setStep(step - 1)} isDisabled={setup.isPending}>
-              Back
+              {t("common.back")}
             </GhostButton>
           )}
           <PrimaryButton type="submit" className="h-11 flex-1" isPending={setup.isPending}>
-            {step === LAST ? "Finish setup" : "Continue"}
+            {step === LAST ? t("setup.finish") : t("common.continue")}
           </PrimaryButton>
         </div>
       </form>

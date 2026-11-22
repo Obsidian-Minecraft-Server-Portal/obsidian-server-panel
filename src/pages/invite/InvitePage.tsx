@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAcceptInvite, useInviteStatus } from "../../api/users";
@@ -8,12 +9,13 @@ import { FormField } from "../account/FormField";
 import { errorMessage } from "../account/errorMessage";
 
 export function InvitePage() {
+  const { t } = useTranslation();
   const { token = "" } = useParams();
   const status = useInviteStatus(token);
 
   if (status.isPending) {
     return (
-      <AuthCard headline="Checking your invite" subtitle="One moment while we verify the link.">
+      <AuthCard headline={t("invite.checkingHeadline")} subtitle={t("invite.checkingSubtitle")}>
         <div className="h-1.5 w-full animate-shimmer rounded-full bg-raised" />
       </AuthCard>
     );
@@ -21,14 +23,14 @@ export function InvitePage() {
 
   if (status.isError || !status.data?.valid) {
     return (
-      <AuthCard headline="Invite unavailable">
+      <AuthCard headline={t("invite.unavailableHeadline")}>
         <EmptyState
           icon="lucide:link-2-off"
-          title="This invite has expired"
-          description="Invites can be used once and expire after a few days. Ask an administrator for a new link."
+          title={t("invite.expiredTitle")}
+          description={t("invite.expiredBody")}
           action={
             <Link to="/login" className="text-accent hover:underline">
-              Back to sign in
+              {t("common.backToSignIn")}
             </Link>
           }
         />
@@ -40,6 +42,7 @@ export function InvitePage() {
 }
 
 function AcceptInviteForm({ token }: { token: string }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const accept = useAcceptInvite(token);
   const [username, setUsername] = useState("");
@@ -51,7 +54,7 @@ function AcceptInviteForm({ token }: { token: string }) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (password !== confirm) {
-      setError("The passwords do not match.");
+      setError(t("common.passwordsMismatch"));
       return;
     }
     setError(null);
@@ -68,19 +71,19 @@ function AcceptInviteForm({ token }: { token: string }) {
   };
 
   return (
-    <AuthCard headline="Join the panel" subtitle="Create your account to start managing servers.">
+    <AuthCard headline={t("invite.headline")} subtitle={t("invite.subtitle")}>
       <form onSubmit={submit} className="space-y-5">
-        <FormField label="Username" value={username} onChange={setUsername} autoComplete="username" autoFocus isRequired />
+        <FormField label={t("common.username")} value={username} onChange={setUsername} autoComplete="username" autoFocus isRequired />
         <FormField
-          label="Email"
+          label={t("common.email")}
           type="email"
           value={email}
           onChange={setEmail}
           autoComplete="email"
-          description="Optional. Used for password resets and sign-in codes."
+          description={t("invite.emailHint")}
         />
         <FormField
-          label="Password"
+          label={t("common.password")}
           type="password"
           value={password}
           onChange={setPassword}
@@ -88,7 +91,7 @@ function AcceptInviteForm({ token }: { token: string }) {
           isRequired
         />
         <FormField
-          label="Confirm password"
+          label={t("common.confirmPassword")}
           type="password"
           value={confirm}
           onChange={setConfirm}
@@ -101,7 +104,7 @@ function AcceptInviteForm({ token }: { token: string }) {
           </p>
         )}
         <PrimaryButton type="submit" className="h-11 w-full" isPending={accept.isPending}>
-          Create account
+          {t("invite.create")}
         </PrimaryButton>
       </form>
     </AuthCard>

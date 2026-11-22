@@ -26,5 +26,77 @@
     "emailCode": "Email code",
     "authCodePlaceholder": "123456 or recovery code",
     "emailCodePlaceholder": "123456"
+  },
+  "common": {
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "passwordsMismatch": "The passwords do not match.",
+    "backToSignIn": "Back to sign in",
+    "retry": "Retry",
+    "back": "Back",
+    "continue": "Continue"
+  },
+  "gate": {
+    "unreachableTitle": "Panel unreachable",
+    "unreachableBody": "Obsidian's API did not answer. Check that the server is running, then try again.",
+    "sessionErrorTitle": "Could not load your session"
+  },
+  "setup": {
+    "headline": "Set up Obsidian",
+    "subtitle": "Create the administrator account. You can change everything here later in Settings.",
+    "stepOf": "Step {{step}} of {{total}}",
+    "progress": "Setup progress",
+    "steps": {
+      "admin": "Administrator",
+      "email": "Email",
+      "defaults": "Defaults"
+    },
+    "finish": "Finish setup",
+    "errors": {
+      "username": "Choose a username for the administrator.",
+      "password": "Choose a password.",
+      "stopTimeout": "Graceful stop timeout must be a whole number of seconds between 5 and 600.",
+      "smtp": "Enter the SMTP host and the sender address, or turn email off."
+    },
+    "adminEmailHint": "Optional. Needed for password resets and email sign-in codes.",
+    "smtpToggle": "Set up outgoing email",
+    "smtpToggleHint": "Enables password resets and emailed sign-in codes. You can skip this and add it later.",
+    "smtpHost": "SMTP host",
+    "port": "Port",
+    "sender": "Sender address",
+    "encryption": "Encryption",
+    "smtpTestHint": "Send a test message from Settings after setup, once an administrator email is on the account.",
+    "timezone": "Timezone",
+    "publicUrl": "Public URL",
+    "publicUrlHint": "Used in invite and password reset links.",
+    "stopTimeout": "Graceful stop timeout (seconds)",
+    "stopTimeoutHint": "How long a server gets to shut down after `stop` before it is killed.",
+    "upnp": "Forward server ports with UPnP by default",
+    "upnpHint": "New instances start with UPnP port forwarding switched on."
+  },
+  "reset": {
+    "requestHeadline": "Reset your password",
+    "requestSubtitle": "Enter the email address on your account and we will send a reset link.",
+    "requestSent": "If an account matches that address, a reset link is on its way. The link expires after a short time.",
+    "send": "Send reset link",
+    "chooseHeadline": "Choose a new password",
+    "chooseSubtitle": "Setting a new password signs you out everywhere.",
+    "done": "Your password has been updated. You can sign in with it now.",
+    "continue": "Continue to sign in",
+    "newPassword": "New password",
+    "update": "Update password"
+  },
+  "invite": {
+    "checkingHeadline": "Checking your invite",
+    "checkingSubtitle": "One moment while we verify the link.",
+    "unavailableHeadline": "Invite unavailable",
+    "expiredTitle": "This invite has expired",
+    "expiredBody": "Invites can be used once and expire after a few days. Ask an administrator for a new link.",
+    "headline": "Join the panel",
+    "subtitle": "Create your account to start managing servers.",
+    "emailHint": "Optional. Used for password resets and sign-in codes.",
+    "create": "Create account"
   }
 }

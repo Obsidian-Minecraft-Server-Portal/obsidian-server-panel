@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Button } from "@heroui/react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { ApiError } from "../../api/client";
@@ -25,6 +26,7 @@ function Splash() {
 }
 
 export function AuthGate() {
+  const { t } = useTranslation();
   const location = useLocation();
   const { pathname } = location;
   const health = useHealth();
@@ -41,11 +43,11 @@ export function AuthGate() {
         <div className="w-full max-w-lg">
           <EmptyState
             icon="lucide:plug-zap"
-            title="Panel unreachable"
-            description="Obsidian's API did not answer. Check that the server is running, then try again."
+            title={t("gate.unreachableTitle")}
+            description={t("gate.unreachableBody")}
             action={
               <Button variant="secondary" onPress={() => void health.refetch()}>
-                Retry
+                {t("common.retry")}
               </Button>
             }
           />
@@ -71,11 +73,11 @@ export function AuthGate() {
         <div className="w-full max-w-lg">
           <EmptyState
             icon="lucide:triangle-alert"
-            title="Could not load your session"
+            title={t("gate.sessionErrorTitle")}
             description={me.error.message}
             action={
               <Button variant="secondary" onPress={() => void me.refetch()}>
-                Retry
+                {t("common.retry")}
               </Button>
             }
           />

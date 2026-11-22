@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useForgotPassword, useResetPassword } from "../../api/auth";
@@ -6,11 +7,14 @@ import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { FormField } from "../account/FormField";
 import { errorMessage } from "../account/errorMessage";
 
-const BACK_TO_SIGN_IN = (
-  <Link to="/login" className="text-accent hover:underline">
-    Back to sign in
-  </Link>
-);
+function BackToSignIn() {
+  const { t } = useTranslation();
+  return (
+    <Link to="/login" className="text-accent hover:underline">
+      {t("common.backToSignIn")}
+    </Link>
+  );
+}
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams();
@@ -19,6 +23,7 @@ export function ResetPasswordPage() {
 }
 
 function RequestReset() {
+  const { t } = useTranslation();
   const forgot = useForgotPassword();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,18 +36,18 @@ function RequestReset() {
 
   return (
     <AuthCard
-      headline="Reset your password"
-      subtitle="Enter the email address on your account and we will send a reset link."
-      footer={BACK_TO_SIGN_IN}
+      headline={t("reset.requestHeadline")}
+      subtitle={t("reset.requestSubtitle")}
+      footer={<BackToSignIn />}
     >
       {forgot.isSuccess ? (
         <p className="text-sm text-ink-2">
-          If an account matches that address, a reset link is on its way. The link expires after a short time.
+          {t("reset.requestSent")}
         </p>
       ) : (
         <form onSubmit={submit} className="space-y-5">
           <FormField
-            label="Email"
+            label={t("common.email")}
             type="email"
             value={email}
             onChange={setEmail}
@@ -56,7 +61,7 @@ function RequestReset() {
             </p>
           )}
           <PrimaryButton type="submit" className="h-11 w-full" isPending={forgot.isPending}>
-            Send reset link
+            {t("reset.send")}
           </PrimaryButton>
         </form>
       )}
@@ -65,6 +70,7 @@ function RequestReset() {
 }
 
 function ChooseNewPassword({ token }: { token: string }) {
+  const { t } = useTranslation();
   const reset = useResetPassword();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -73,7 +79,7 @@ function ChooseNewPassword({ token }: { token: string }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (password !== confirm) {
-      setError("The passwords do not match.");
+      setError(t("common.passwordsMismatch"));
       return;
     }
     setError(null);
@@ -82,21 +88,21 @@ function ChooseNewPassword({ token }: { token: string }) {
 
   return (
     <AuthCard
-      headline="Choose a new password"
-      subtitle="Setting a new password signs you out everywhere."
-      footer={BACK_TO_SIGN_IN}
+      headline={t("reset.chooseHeadline")}
+      subtitle={t("reset.chooseSubtitle")}
+      footer={<BackToSignIn />}
     >
       {reset.isSuccess ? (
         <div className="space-y-4">
-          <p className="text-sm text-ink-2">Your password has been updated. You can sign in with it now.</p>
+          <p className="text-sm text-ink-2">{t("reset.done")}</p>
           <Link to="/login" className="inline-flex text-accent hover:underline">
-            Continue to sign in
+            {t("reset.continue")}
           </Link>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-5">
           <FormField
-            label="New password"
+            label={t("reset.newPassword")}
             type="password"
             value={password}
             onChange={setPassword}
@@ -105,7 +111,7 @@ function ChooseNewPassword({ token }: { token: string }) {
             isRequired
           />
           <FormField
-            label="Confirm password"
+            label={t("common.confirmPassword")}
             type="password"
             value={confirm}
             onChange={setConfirm}
@@ -118,7 +124,7 @@ function ChooseNewPassword({ token }: { token: string }) {
             </p>
           )}
           <PrimaryButton type="submit" className="h-11 w-full" isPending={reset.isPending}>
-            Update password
+            {t("reset.update")}
           </PrimaryButton>
         </form>
       )}

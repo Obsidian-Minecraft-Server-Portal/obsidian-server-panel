@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { FormField } from "../account/FormField";
 
 export interface AdminDraft {
@@ -13,12 +14,13 @@ interface AdminStepProps {
 }
 
 export function AdminStep({ value, onChange }: AdminStepProps) {
+  const { t } = useTranslation();
   const set = (field: keyof AdminDraft) => (next: string) => onChange({ ...value, [field]: next });
 
   return (
     <div className="space-y-5">
       <FormField
-        label="Username"
+        label={t("common.username")}
         value={value.username}
         onChange={set("username")}
         autoComplete="username"
@@ -26,15 +28,15 @@ export function AdminStep({ value, onChange }: AdminStepProps) {
         isRequired
       />
       <FormField
-        label="Email"
+        label={t("common.email")}
         type="email"
         value={value.email}
         onChange={set("email")}
         autoComplete="email"
-        description="Optional. Needed for password resets and email sign-in codes."
+        description={t("setup.adminEmailHint")}
       />
       <FormField
-        label="Password"
+        label={t("common.password")}
         type="password"
         value={value.password}
         onChange={set("password")}
@@ -42,7 +44,7 @@ export function AdminStep({ value, onChange }: AdminStepProps) {
         isRequired
       />
       <FormField
-        label="Confirm password"
+        label={t("common.confirmPassword")}
         type="password"
         value={value.confirm}
         onChange={set("confirm")}

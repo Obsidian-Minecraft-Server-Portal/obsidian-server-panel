@@ -26,5 +26,77 @@
     "emailCode": "E-Mail-Code",
     "authCodePlaceholder": "123456 oder Wiederherstellungscode",
     "emailCodePlaceholder": "123456"
+  },
+  "common": {
+    "username": "Benutzername",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "passwordsMismatch": "Die Passwörter stimmen nicht überein.",
+    "backToSignIn": "Zurück zur Anmeldung",
+    "retry": "Erneut versuchen",
+    "back": "Zurück",
+    "continue": "Weiter"
+  },
+  "gate": {
+    "unreachableTitle": "Panel nicht erreichbar",
+    "unreachableBody": "Die Obsidian-API hat nicht geantwortet. Prüfe, ob der Server läuft, und versuche es erneut.",
+    "sessionErrorTitle": "Sitzung konnte nicht geladen werden"
+  },
+  "setup": {
+    "headline": "Obsidian einrichten",
+    "subtitle": "Lege das Administratorkonto an. Alles hier lässt sich später in den Einstellungen ändern.",
+    "stepOf": "Schritt {{step}} von {{total}}",
+    "progress": "Einrichtungsfortschritt",
+    "steps": {
+      "admin": "Administrator",
+      "email": "E-Mail",
+      "defaults": "Standards"
+    },
+    "finish": "Einrichtung abschließen",
+    "errors": {
+      "username": "Wähle einen Benutzernamen für den Administrator.",
+      "password": "Wähle ein Passwort.",
+      "stopTimeout": "Das Stopp-Zeitlimit muss eine ganze Zahl zwischen 5 und 600 Sekunden sein.",
+      "smtp": "Gib den SMTP-Host und die Absenderadresse ein oder schalte E-Mail aus."
+    },
+    "adminEmailHint": "Optional. Wird für Passwort-Resets und Anmeldecodes per E-Mail benötigt.",
+    "smtpToggle": "Ausgehende E-Mail einrichten",
+    "smtpToggleHint": "Aktiviert Passwort-Resets und Anmeldecodes per E-Mail. Du kannst das überspringen und später hinzufügen.",
+    "smtpHost": "SMTP-Host",
+    "port": "Port",
+    "sender": "Absenderadresse",
+    "encryption": "Verschlüsselung",
+    "smtpTestHint": "Sende nach der Einrichtung eine Testnachricht aus den Einstellungen, sobald das Administratorkonto eine E-Mail hat.",
+    "timezone": "Zeitzone",
+    "publicUrl": "Öffentliche URL",
+    "publicUrlHint": "Wird in Einladungs- und Passwort-Reset-Links verwendet.",
+    "stopTimeout": "Stopp-Zeitlimit (Sekunden)",
+    "stopTimeoutHint": "Wie lange ein Server nach `stop` zum Herunterfahren hat, bevor er beendet wird.",
+    "upnp": "Server-Ports standardmäßig per UPnP weiterleiten",
+    "upnpHint": "Neue Instanzen starten mit aktivierter UPnP-Portweiterleitung."
+  },
+  "reset": {
+    "requestHeadline": "Passwort zurücksetzen",
+    "requestSubtitle": "Gib die E-Mail-Adresse deines Kontos ein, dann senden wir dir einen Link.",
+    "requestSent": "Falls ein Konto zu dieser Adresse passt, ist ein Link unterwegs. Er läuft nach kurzer Zeit ab.",
+    "send": "Link senden",
+    "chooseHeadline": "Neues Passwort wählen",
+    "chooseSubtitle": "Ein neues Passwort meldet dich überall ab.",
+    "done": "Dein Passwort wurde geändert. Du kannst dich jetzt damit anmelden.",
+    "continue": "Weiter zur Anmeldung",
+    "newPassword": "Neues Passwort",
+    "update": "Passwort ändern"
+  },
+  "invite": {
+    "checkingHeadline": "Einladung wird geprüft",
+    "checkingSubtitle": "Einen Moment, wir prüfen den Link.",
+    "unavailableHeadline": "Einladung nicht verfügbar",
+    "expiredTitle": "Diese Einladung ist abgelaufen",
+    "expiredBody": "Einladungen sind einmalig und laufen nach wenigen Tagen ab. Bitte einen Administrator um einen neuen Link.",
+    "headline": "Dem Panel beitreten",
+    "subtitle": "Erstelle dein Konto, um Server zu verwalten.",
+    "emailHint": "Optional. Für Passwort-Resets und Anmeldecodes.",
+    "create": "Konto erstellen"
   }
 }

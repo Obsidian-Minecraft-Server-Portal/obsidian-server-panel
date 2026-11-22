@@ -26,5 +26,77 @@
     "emailCode": "Código del correo",
     "authCodePlaceholder": "123456 o código de recuperación",
     "emailCodePlaceholder": "123456"
+  },
+  "common": {
+    "username": "Usuario",
+    "email": "Correo",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "passwordsMismatch": "Las contraseñas no coinciden.",
+    "backToSignIn": "Volver a iniciar sesión",
+    "retry": "Reintentar",
+    "back": "Atrás",
+    "continue": "Continuar"
+  },
+  "gate": {
+    "unreachableTitle": "Panel inaccesible",
+    "unreachableBody": "La API de Obsidian no respondió. Comprueba que el servidor esté en marcha e inténtalo de nuevo.",
+    "sessionErrorTitle": "No se pudo cargar tu sesión"
+  },
+  "setup": {
+    "headline": "Configurar Obsidian",
+    "subtitle": "Crea la cuenta de administrador. Puedes cambiar todo esto más tarde en Ajustes.",
+    "stepOf": "Paso {{step}} de {{total}}",
+    "progress": "Progreso de configuración",
+    "steps": {
+      "admin": "Administrador",
+      "email": "Correo",
+      "defaults": "Valores predeterminados"
+    },
+    "finish": "Terminar configuración",
+    "errors": {
+      "username": "Elige un nombre de usuario para el administrador.",
+      "password": "Elige una contraseña.",
+      "stopTimeout": "El tiempo de parada debe ser un número entero de segundos entre 5 y 600.",
+      "smtp": "Introduce el host SMTP y la dirección del remitente, o desactiva el correo."
+    },
+    "adminEmailHint": "Opcional. Necesario para restablecer contraseñas y para códigos de acceso por correo.",
+    "smtpToggle": "Configurar correo saliente",
+    "smtpToggleHint": "Permite restablecer contraseñas y enviar códigos de acceso por correo. Puedes omitirlo y añadirlo después.",
+    "smtpHost": "Host SMTP",
+    "port": "Puerto",
+    "sender": "Dirección del remitente",
+    "encryption": "Cifrado",
+    "smtpTestHint": "Envía un mensaje de prueba desde Ajustes tras la configuración, cuando la cuenta de administrador tenga correo.",
+    "timezone": "Zona horaria",
+    "publicUrl": "URL pública",
+    "publicUrlHint": "Se usa en enlaces de invitación y de restablecimiento.",
+    "stopTimeout": "Tiempo de parada (segundos)",
+    "stopTimeoutHint": "Cuánto tiempo tiene un servidor para apagarse tras `stop` antes de forzar su cierre.",
+    "upnp": "Redirigir puertos con UPnP por defecto",
+    "upnpHint": "Las nuevas instancias empiezan con la redirección UPnP activada."
+  },
+  "reset": {
+    "requestHeadline": "Restablecer contraseña",
+    "requestSubtitle": "Introduce el correo de tu cuenta y te enviaremos un enlace.",
+    "requestSent": "Si alguna cuenta coincide con esa dirección, el enlace va en camino. Caduca en poco tiempo.",
+    "send": "Enviar enlace",
+    "chooseHeadline": "Elige una nueva contraseña",
+    "chooseSubtitle": "Al cambiar la contraseña se cierra tu sesión en todas partes.",
+    "done": "Tu contraseña se ha actualizado. Ya puedes iniciar sesión con ella.",
+    "continue": "Continuar a iniciar sesión",
+    "newPassword": "Nueva contraseña",
+    "update": "Actualizar contraseña"
+  },
+  "invite": {
+    "checkingHeadline": "Comprobando tu invitación",
+    "checkingSubtitle": "Un momento mientras verificamos el enlace.",
+    "unavailableHeadline": "Invitación no disponible",
+    "expiredTitle": "Esta invitación ha caducado",
+    "expiredBody": "Las invitaciones son de un solo uso y caducan en pocos días. Pide un nuevo enlace a un administrador.",
+    "headline": "Únete al panel",
+    "subtitle": "Crea tu cuenta para empezar a gestionar servidores.",
+    "emailHint": "Opcional. Para restablecer contraseñas y códigos de acceso.",
+    "create": "Crear cuenta"
   }
 }
