@@ -92,7 +92,8 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 	let setup = auth.totp_setup(&user).await.unwrap();
 	assert!(setup.otpauth_url.starts_with("otpauth://totp/"));
 	assert!(setup.qr_svg.contains("<svg"));
-	let codes = auth.totp_confirm(&user, &current_code(&setup.secret)).await.unwrap();
+	let confirmed_code = current_code(&setup.secret);
+	let codes = auth.totp_confirm(&user, &confirmed_code).await.unwrap();
 	assert_eq!(codes.len(), 10);
 
 	let pending = auth
@@ -110,7 +111,7 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 	assert!(matches!(wrong, Err(CommonError::Unauthorized(_))));
 	let replayed = auth
 		.login(
-			&login("admin", "correct horse", Some(&current_code(&setup.secret))),
+			&login("admin", "correct horse", Some(&confirmed_code)),
 			&client("10.0.0.2"),
 			false,
 		)
