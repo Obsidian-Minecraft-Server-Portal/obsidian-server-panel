@@ -50,18 +50,17 @@ export function SourceChips({ kind, platform, platforms, onPlatform }: SourceChi
       {SOURCE_ORDER.map((id) => {
         const available = isPlatformAvailable(id, platforms);
         const offered = platformOffersKind(platforms, id, kind);
-        const usable = available && offered;
         const selected = id === platform;
         const reason = !available
           ? "Not configured in this build"
           : !offered
-            ? `${PLATFORM_NAMES[id]} has no ${KIND_LABELS[kind].toLowerCase()}`
+            ? `Switches to `
             : undefined;
         return (
           <span key={id} title={reason} className="inline-flex">
             <Button
               variant="ghost"
-              isDisabled={!usable}
+              isDisabled={!available}
               onPress={() => onPlatform(id)}
               aria-pressed={selected}
               className={cn(
@@ -69,7 +68,7 @@ export function SourceChips({ kind, platform, platforms, onPlatform }: SourceChi
                 selected
                   ? "border-accent/50 bg-accent-tint text-accent"
                   : "border-line-strong bg-transparent text-ink-2 hover:bg-raised hover:text-ink-0",
-                !usable && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-ink-2",
+                !available && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-ink-2",
               )}
             >
               <Icon icon={PLATFORM_ICONS[id]} width={15} height={15} />

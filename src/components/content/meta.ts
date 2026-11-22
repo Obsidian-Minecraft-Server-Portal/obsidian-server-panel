@@ -5,7 +5,7 @@ export const PLATFORM_NAMES: Record<PlatformId, string> = {
   0: "CurseForge",
   1: "Modrinth",
   2: "Hangar",
-  3: "Spiget",
+  3: "Spigot",
 };
 
 export const PLATFORM_ICONS: Record<PlatformId, string> = {

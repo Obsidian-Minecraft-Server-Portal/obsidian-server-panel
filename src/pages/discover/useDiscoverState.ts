@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ContentFilters, ContentKind, PlatformId, PlatformInfo, SideFilter } from "../../api/content";
 import type { LoaderKind } from "../../api/loaders";
-import { KIND_ORDER, LOADERS_BY_KIND, platformsForKind } from "../../components/content/meta";
+import { KIND_ORDER, LOADERS_BY_KIND, platformOffersKind, platformsForKind } from "../../components/content/meta";
 import type { ResultView } from "../../components/content/ProjectResults";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -103,7 +103,12 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
     setQuery,
     setView,
     setKind: (next: ContentKind) => update({ kind: next, ...CLEARED_FILTERS }),
-    setPlatform: (next: PlatformId) => update({ platform: String(next), ...CLEARED_FILTERS }),
+    setPlatform: (next: PlatformId) =>
+      update({
+        platform: String(next),
+        kind: platformOffersKind(platforms, next, kind) ? null : "plugin",
+        ...CLEARED_FILTERS,
+      }),
     setLoader: (next: LoaderKind | null) => update({ loader: next }),
     setMcVersion: (next: string | null) => update({ mc_version: next }),
     toggleCategory,
