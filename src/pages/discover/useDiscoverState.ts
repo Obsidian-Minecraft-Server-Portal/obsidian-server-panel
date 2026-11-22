@@ -106,7 +106,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
     setPlatform: (next: PlatformId) =>
       update({
         platform: String(next),
-        kind: platformOffersKind(platforms, next, kind) ? null : "plugin",
+        kind: platformOffersKind(platforms, next, kind) ? kind : "plugin",
         ...CLEARED_FILTERS,
       }),
     setLoader: (next: LoaderKind | null) => update({ loader: next }),
