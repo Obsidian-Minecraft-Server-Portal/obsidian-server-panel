@@ -110,12 +110,15 @@ export interface VersionFilter {
   kind?: ContentKind;
 }
 
+export type PackSource = "client" | "server_pack";
+
 export interface ModpackInput {
   platform: PlatformId;
   projectId: string;
   versionId: string;
   name: string | null;
   acceptEula: boolean;
+  source: PackSource;
 }
 
 export const SEARCH_PAGE_SIZE = 20;
@@ -307,6 +310,7 @@ export function useInstallModpack() {
         version_id: input.versionId,
         name: input.name,
         accept_eula: input.acceptEula,
+        source: input.source,
       }),
   });
 }

@@ -35,6 +35,7 @@ export function VersionRow({ version, kind, onAction }: VersionRowProps) {
               {loader}
             </Chip>
           ))}
+          {version.has_server_pack && <Chip tone="secondary">Server pack</Chip>}
         </div>
       </div>
       {version.download_url === null ? (
