@@ -11,7 +11,7 @@ macro_rules! instance_select {
 	($tail:literal) => {
 		concat!(
 			"SELECT id, owner_id, name, loader, mc_version, loader_version, java_runtime_id, jvm_args, ",
-			"memory_min, memory_max, port, upnp_enabled, auto_start, icon_path, directory, created_at, updated_at ",
+			"memory_min, memory_max, port, upnp_enabled, auto_start, icon_path, banner_path, directory, created_at, updated_at ",
 			"FROM instances ",
 			$tail
 		)
@@ -35,6 +35,7 @@ pub struct InstanceRow {
 	upnp_enabled: bool,
 	auto_start: bool,
 	icon_path: Option<String>,
+	banner_path: Option<String>,
 	directory: String,
 	created_at: i64,
 	updated_at: i64,
@@ -61,6 +62,7 @@ impl TryFrom<InstanceRow> for Instance {
 			upnp_enabled: row.upnp_enabled,
 			auto_start: row.auto_start,
 			icon_path: row.icon_path.map(PathBuf::from),
+			banner_path: row.banner_path.map(PathBuf::from),
 			directory: PathBuf::from(row.directory),
 			created_at: DateTime::from_timestamp(row.created_at, 0).unwrap_or_default(),
 			updated_at: DateTime::from_timestamp(row.updated_at, 0).unwrap_or_default(),

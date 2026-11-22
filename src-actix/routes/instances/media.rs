@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, get, put, web};
 use futures_util::TryStreamExt;
@@ -52,6 +54,16 @@ pub async fn upload_icon(
 	Ok(HttpResponse::NoContent().finish())
 }
 
+async fn serve_image(path: Option<PathBuf>, content_type: &'static str, id: InstanceId, kind: &str) -> ApiResult<HttpResponse> {
+	let missing = || ApiError::from(CommonError::NotFound(format!("{kind} for instance {id}")));
+	let path = path.ok_or_else(missing)?;
+	match tokio::fs::read(path).await {
+		Ok(bytes) => Ok(HttpResponse::Ok().content_type(content_type).body(bytes)),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(missing()),
+		Err(error) => Err(CommonError::from(error).into()),
+	}
+}
+
 #[utoipa::path(
 	get,
 	path = "/api/v1/instances/{id}/icon",
@@ -66,11 +78,22 @@ pub async fn get_icon(state: web::Data<AppState>, user: AuthUser, path: web::Pat
 	let id = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::CONSOLE_READ).await?;
 	let instance = state.instances.get(id).await?;
-	let missing = || ApiError::from(CommonError::NotFound(format!("icon for instance {id}")));
-	let icon = instance.icon_path.ok_or_else(missing)?;
-	match tokio::fs::read(icon).await {
-		Ok(bytes) => Ok(HttpResponse::Ok().content_type("image/png").body(bytes)),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(missing()),
-		Err(error) => Err(CommonError::from(error).into()),
-	}
+	serve_image(instance.icon_path, "image/png", id, "icon").await
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/{id}/banner",
+	tag = "instances",
+	responses(
+		(status = 200, description = "Server banner as JPEG", content_type = "image/jpeg"),
+		(status = 404, description = "No banner set"),
+	)
+)]
+#[get("/instances/{id}/banner")]
+pub async fn get_banner(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>) -> ApiResult<HttpResponse> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::CONSOLE_READ).await?;
+	let instance = state.instances.get(id).await?;
+	serve_image(instance.banner_path, "image/jpeg", id, "banner").await
 }

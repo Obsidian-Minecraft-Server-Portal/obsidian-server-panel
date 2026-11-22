@@ -190,6 +190,7 @@ impl InstanceManager {
 		sqlx::query("DELETE FROM instances WHERE id = ?").bind(id).execute(self.db.pool()).await?;
 		self.live().remove(&id);
 		let _ = tokio::fs::remove_file(obsidian_runner::RunnerConfig::path(&self.paths, id)).await;
+		self.remove_banner(id).await;
 		match tokio::fs::remove_dir_all(&instance.directory).await {
 			Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),
 			_ => Ok(()),

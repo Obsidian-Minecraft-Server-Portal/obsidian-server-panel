@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+mod branding;
 mod manifest;
 mod mrpack;
 #[cfg(test)]
@@ -122,6 +123,9 @@ impl ContentManager {
 			)
 			.await?;
 		let (instance_id, directory) = (instance.id, instance.directory);
+		let warnings = self
+			.apply_branding(instances, instance_id, provider.as_ref(), &request.project_id)
+			.await;
 		let total = files.len().max(1);
 		let mut completed = 0usize;
 		let mut installed = 0usize;
@@ -145,7 +149,7 @@ impl ContentManager {
 		tokio::task::spawn_blocking(move || archive::extract_prefixes(&archive_bytes, &overrides, &target))
 			.await
 			.map_err(|error| CommonError::Other(error.to_string()))??;
-		Ok(json!({ "instance_id": instance_id, "installed": installed, "failed": failed }))
+		Ok(json!({ "instance_id": instance_id, "installed": installed, "failed": failed, "warnings": warnings }))
 	}
 
 	async fn fetch_pack_file(&self, instance_id: i64, directory: &Path, file: PackFile) -> (String, Result<()>) {

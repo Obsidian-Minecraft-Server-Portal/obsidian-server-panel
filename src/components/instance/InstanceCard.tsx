@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router";
 import type { InstanceView } from "../../api/instances";
 import { GlassCard } from "../ui/GlassCard";
-import { PixelBanner } from "../ui/PixelBanner";
+import { InstanceBanner } from "./InstanceBanner";
 import { InstanceIcon } from "./InstanceIcon";
 import { LoaderChip, StatusChip, VersionChip } from "./InstanceChips";
 import { PowerControls } from "./PowerControls";
@@ -18,7 +18,7 @@ export function InstanceCard({ view }: { view: InstanceView }) {
       className="group flex cursor-pointer flex-col transition-colors duration-150 hover:border-line-strong"
     >
       <div className="relative h-24 overflow-hidden">
-        <PixelBanner seed={String(view.id)} className="transition-transform duration-500 group-hover:scale-105" />
+        <InstanceBanner view={view} className="absolute inset-0" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-panel" />
       </div>
       <div className="relative z-10 flex flex-1 flex-col gap-4 p-5 pt-0">

@@ -24,6 +24,8 @@ pub struct Instance {
 	pub auto_start: bool,
 	#[schema(value_type = Option<String>)]
 	pub icon_path: Option<PathBuf>,
+	#[schema(value_type = Option<String>)]
+	pub banner_path: Option<PathBuf>,
 	#[schema(value_type = String)]
 	pub directory: PathBuf,
 	pub created_at: DateTime<Utc>,

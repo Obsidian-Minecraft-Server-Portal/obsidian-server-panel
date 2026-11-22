@@ -27,6 +27,7 @@ export interface Instance {
   upnp_enabled: boolean;
   auto_start: boolean;
   icon_path: string | null;
+  banner_path: string | null;
   directory: string;
   created_at: string;
   updated_at: string;
@@ -131,6 +132,10 @@ export function isInstanceId(id: number): boolean {
 
 export function iconUrl(id: number, version: string): string {
   return `/api/v1/instances/${id}/icon?v=${encodeURIComponent(version)}`;
+}
+
+export function bannerUrl(id: number, version: string): string {
+  return `/api/v1/instances/${id}/banner?v=${encodeURIComponent(version)}`;
 }
 
 export function putInstance(queryClient: QueryClient, view: InstanceView) {

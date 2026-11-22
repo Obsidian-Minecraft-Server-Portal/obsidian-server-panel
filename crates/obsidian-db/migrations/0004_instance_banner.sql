@@ -1,0 +1,1 @@
+ALTER TABLE instances ADD COLUMN banner_path TEXT DEFAULT NULL;

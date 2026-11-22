@@ -6,7 +6,7 @@ import { hasPermission, type InstanceView } from "../../api/instances";
 import { useSnapshots, type SnapshotInfo } from "../../api/backups";
 import { formatBytes } from "../backups/format";
 import { GhostButton } from "../ui/GhostButton";
-import { PixelBanner } from "../ui/PixelBanner";
+import { InstanceBanner } from "./InstanceBanner";
 import { InstanceIcon } from "./InstanceIcon";
 import { ContentChip, LoaderChip, StatusChip, VersionChip } from "./InstanceChips";
 import { PowerControls } from "./PowerControls";
@@ -21,7 +21,7 @@ export function InstanceHero({ view }: { view: InstanceView }) {
   return (
     <section className="relative overflow-hidden border-b border-line">
       <div aria-hidden className="absolute inset-x-0 top-0 h-64">
-        <PixelBanner seed={String(view.id)} />
+        <InstanceBanner view={view} className="absolute inset-0" />
         <div className="grid-faint absolute inset-0 opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent from-35% to-canvas" />
       </div>

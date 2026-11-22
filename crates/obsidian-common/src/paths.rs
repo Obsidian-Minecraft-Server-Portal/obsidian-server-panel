@@ -11,6 +11,7 @@ pub struct Paths {
 	pub backups_dir: PathBuf,
 	pub runners_dir: PathBuf,
 	pub uploads_dir: PathBuf,
+	pub banners_dir: PathBuf,
 }
 
 impl Paths {
@@ -23,6 +24,7 @@ impl Paths {
 			backups_dir: data_dir.join("backups"),
 			runners_dir: data_dir.join("runners"),
 			uploads_dir: data_dir.join("uploads"),
+			banners_dir: data_dir.join("banners"),
 			data_dir,
 		};
 		for dir in [
@@ -33,6 +35,7 @@ impl Paths {
 			&paths.backups_dir,
 			&paths.runners_dir,
 			&paths.uploads_dir,
+			&paths.banners_dir,
 		] {
 			std::fs::create_dir_all(dir)?;
 		}

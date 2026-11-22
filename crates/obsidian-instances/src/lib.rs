@@ -1,3 +1,4 @@
+mod banner;
 mod crash;
 mod icon;
 mod install;

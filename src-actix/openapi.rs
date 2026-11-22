@@ -69,6 +69,7 @@ const SPEC_PATH: &str = "/api/docs/openapi.json";
 		crate::routes::instances::properties::set_properties,
 		crate::routes::instances::media::upload_icon,
 		crate::routes::instances::media::get_icon,
+		crate::routes::instances::media::get_banner,
 		crate::routes::instances::upnp::upnp_status,
 		crate::routes::instances::players::list_players,
 		crate::routes::instances::players::player_action,
