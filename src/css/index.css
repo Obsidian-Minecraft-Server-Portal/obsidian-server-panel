@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* Expose Roboto as the default sans font for Tailwind utilities */
+@theme {
+  --font-sans: 'Roboto', sans-serif;
+}
+
+/* Brand theme overrides (HeroUI v3 uses `accent` where v2 used `primary`).
+   Un-layered :root declarations win over HeroUI's layered defaults. */
+:root,
+[data-theme="light"] {
+  --accent: #f13848;
+  --accent-foreground: #ffffff;
+  --background: #e3e3ea;
+}
+
+.dark,
+[data-theme="dark"] {
+  --accent: #ff3247;
+  --background: #18181b;
+}
+
+:root {
+  --scrollbar-background-color: transparent;
+  --scrollbar-thumb-color: var(--accent);
+  --scrollbar-thumb-hover-color: var(--accent);
+  overflow: auto;
+  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background-color);
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-background-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover-color);
+}
+
+::selection {
+  background-color: var(--accent);
+  color: var(--background);
+}
+
+input:focus-visible, textarea:focus-visible {
+  outline: none !important;
+}

@@ -1,0 +1,45 @@
+[package]
+name = "obsidian_minecraft_server_panel"
+version = "0.0.0"
+edition = "2024"
+authors = ["Drew Chase <dcmanproductions@gmail.com>"]
+
+[[bin]]
+name = "obsidian_minecraft_server_panel"
+path = "src-actix/main.rs"
+
+[lib]
+name = "obsidian_minecraft_server_panel_lib"
+path = "src-actix/lib.rs"
+crate-type = ["lib"]
+
+[dependencies]
+actix-web = { version = ">=4.9.0" }
+actix-files = { version = ">=0.6.6" }
+serde = { version = ">=1.0.208", features = ["derive"] }
+serde_json = { version = ">=1.0.125" }
+include_dir = ">=0.7.4"
+walkdir = ">=2.5.0"
+thiserror = ">=2.0.11"
+vite-actix = ">=0.2.5"
+
+tracing = { version = "0.1.44", features = ["max_level_trace"] }
+tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter"] }
+color-eyre = { version = "0.6.5", features = ["tracing-error", "track-caller"] }
+
+chrono = { version = "0.4.45" }
+tar = "0.4.43"
+xz2 = "0.1.7"
+
+
+[build-dependencies]
+include_dir = "0.7.4"
+walkdir = "2.5.0"
+chrono = { version = "0.4.45" }
+
+
+[profile.release]
+lto = true
+panic = "abort"
+opt-level = "z"
+codegen-units = 1

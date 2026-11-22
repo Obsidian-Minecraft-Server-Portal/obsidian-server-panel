@@ -1,0 +1,39 @@
+{
+  "name": "obsidian_minecraft_server_panel",
+  "private": true,
+  "version": "0.0.0",
+  "description": "",
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "repository": "",
+  "type": "module",
+  "scripts": {
+    "build:api": "cargo build --release",
+    "dev": "cargo run --bin obsidian_minecraft_server_panel --profile dev",
+    "build:frontend": "tsc && vite build",
+    "build": "npm run \"build:frontend\" && npm run \"build:api\""
+  },
+  "dependencies": {
+    "@heroui/react": "^3.2.1",
+    "@heroui/styles": "^3.2.1",
+    "@iconify-icon/react": "^3.0.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-router-dom": "7.1.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.1",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "@typescript-eslint/eslint-plugin": "8.21.0",
+    "@typescript-eslint/parser": "8.21.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "eslint-plugin-react-refresh": "0.4.18",
+    "sass": "1.83.4",
+    "sass-loader": "16.0.4",
+    "tailwindcss": "4.3.1",
+    "typescript": "6.0.3",
+    "vite": "^8.0.16"
+  }
+}
