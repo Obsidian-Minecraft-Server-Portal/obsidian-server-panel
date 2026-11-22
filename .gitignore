@@ -134,3 +134,5 @@ target/
 
 # InteliJ
 .idea/workspace.xml
+
+.claude
