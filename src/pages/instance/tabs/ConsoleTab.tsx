@@ -26,7 +26,7 @@ export function ConsoleTab() {
   const history = useStatsHistory(id, running);
 
   return (
-    <div className="grid h-[calc(100dvh-17.5rem)] min-h-[30rem] grid-rows-1 items-stretch gap-5 px-8 pb-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
+    <div className="grid items-stretch gap-5 px-8 pb-8 xl:h-[calc(100dvh-17.5rem)] xl:min-h-[30rem] xl:grid-cols-[20rem_minmax(0,1fr)]">
       <aside className="flex min-h-0 min-w-0 flex-col">
         <PlayersPanels />
       </aside>
