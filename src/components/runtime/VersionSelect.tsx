@@ -27,6 +27,7 @@ export function VersionSelect({ loader, value, onChange, isDisabled }: VersionSe
   return (
     <SearchSelect
       label="Minecraft version"
+      isRequired
       emptyText="No version matches"
       options={options}
       value={value}

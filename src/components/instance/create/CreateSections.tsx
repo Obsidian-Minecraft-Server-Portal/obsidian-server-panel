@@ -1,4 +1,6 @@
 import { FormField } from "../FormField";
+import { useMemoryLimits, useNextPort } from "../../../api/system";
+import { MemoryRange } from "../../ui/MemoryRange";
 import { JavaSelect } from "../../runtime/JavaSelect";
 import { LoaderPicker } from "../../runtime/LoaderPicker";
 import { LoaderVersionSelect } from "../../runtime/LoaderVersionSelect";
@@ -17,7 +19,7 @@ const FILE_INPUT =
 
 export function ServerTypeSection({ draft, patch }: SectionProps) {
   return (
-    <FormSection index={1} title="Server type" description="The software your server runs. Mod loaders and plugin servers are installed for you.">
+    <FormSection index={1} title={<>Server type <span className="text-rose">*</span></>} description="The software your server runs. Mod loaders and plugin servers are installed for you.">
       <LoaderPicker value={draft.loader} onChange={(loader) => patch({ loader })} />
     </FormSection>
   );
@@ -65,6 +67,7 @@ export function VersionSection({ draft, patch }: SectionProps) {
             value={draft.java}
             onChange={(java) => patch({ java })}
             allowDownload
+            mcVersion={draft.mcVersion}
             description="Runtimes under “Download from Mojang” are installed with the server."
           />
         </div>
@@ -75,11 +78,15 @@ export function VersionSection({ draft, patch }: SectionProps) {
 
 export function DetailsSection({ draft, patch }: SectionProps) {
   const memoryOk = isMemoryRange(draft.memoryMinMb, draft.memoryMaxMb);
+  const nextPort = useNextPort(true);
+  const memory = useMemoryLimits();
+  const suggested = nextPort.data?.port;
   return (
     <FormSection index={3} title="Details">
       <div className="grid gap-5 md:grid-cols-3">
         <FormField
           label="Name"
+          required
           value={draft.name}
           onChange={(name) => patch({ name })}
           placeholder="Survival SMP"
@@ -90,22 +97,25 @@ export function DetailsSection({ draft, patch }: SectionProps) {
           type="number"
           value={draft.port}
           onChange={(port) => patch({ port })}
-          placeholder="Automatic"
-          hint={isPortValid(draft.port) ? "Empty picks the next free port." : "Enter a port between 1 and 65535."}
+          placeholder={suggested ? String(suggested) : "Loading…"}
+          hint={isPortValid(draft.port) ? (draft.port === "" && suggested ? `Empty uses port ${suggested}, the next free port.` : "Leave empty to use the next free port.") : "Enter a port between 1 and 65535."}
         />
-        <FormField
-          label="Minimum memory (MB)"
-          type="number"
-          value={String(draft.memoryMinMb)}
-          onChange={(value) => patch({ memoryMinMb: Number(value) })}
-        />
-        <FormField
-          label="Maximum memory (MB)"
-          type="number"
-          value={String(draft.memoryMaxMb)}
-          onChange={(value) => patch({ memoryMaxMb: Number(value) })}
-          hint={memoryOk ? undefined : "Must be at least the minimum."}
-        />
+        <div className="space-y-2 md:col-span-3">
+          <p className="text-sm font-medium text-ink-2">
+            Memory <span className="text-rose">*</span>
+          </p>
+          {memory.data ? (
+            <MemoryRange
+              limits={memory.data}
+              min={draft.memoryMinMb}
+              max={draft.memoryMaxMb}
+              onChange={(memoryMinMb, memoryMaxMb) => patch({ memoryMinMb, memoryMaxMb })}
+            />
+          ) : (
+            <div className="h-16 animate-pulse rounded-control bg-input/60" />
+          )}
+          {!memoryOk && <p className="text-xs text-rose">The minimum must be at least 1 MB and not above the maximum.</p>}
+        </div>
       </div>
     </FormSection>
   );

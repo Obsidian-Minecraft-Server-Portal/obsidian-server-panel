@@ -1,6 +1,7 @@
 import { Checkbox } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { useAvailableJava, useJavaRuntimes } from "../../../api/java";
+import { useAvailableJava, useJavaRequirement, useJavaRuntimes } from "../../../api/java";
+import { useNextPort } from "../../../api/system";
 import { LOADER_META } from "../../runtime/loaderMeta";
 import { PrimaryButton } from "../../ui/PrimaryButton";
 import { missingField, type CreateDraft } from "./draft";
@@ -14,9 +15,13 @@ interface CreateSummaryProps {
 }
 
 function useJavaLabel(draft: CreateDraft): string {
+  const requirement = useJavaRequirement(draft.mcVersion);
   const installed = useJavaRuntimes();
   const available = useAvailableJava();
   const { java } = draft;
+  if (java.kind === "auto") {
+    return requirement.data ? `Java ${requirement.data.major_version} (automatic)` : "Automatic";
+  }
   if (java.kind === "runtime") {
     const runtime = installed.data?.find((entry) => entry.id === java.id);
     return runtime ? `Java ${runtime.version}` : "Installed runtime";
@@ -34,6 +39,7 @@ function formatMemory(mb: number): string {
 
 export function CreateSummary({ draft, onEula, onCreate, isPending, error }: CreateSummaryProps) {
   const java = useJavaLabel(draft);
+  const nextPort = useNextPort(true).data?.port;
   const meta = draft.loader ? LOADER_META[draft.loader] : null;
   const missing = missingField(draft);
   const rows: [string, string][] = [
@@ -41,7 +47,7 @@ export function CreateSummary({ draft, onEula, onCreate, isPending, error }: Cre
     ["Loader", draft.loaderVersion ?? (draft.loader === "vanilla" ? "None" : "Latest")],
     ["Java", java],
     ["Memory", `${formatMemory(draft.memoryMinMb)} – ${formatMemory(draft.memoryMaxMb)}`],
-    ["Port", draft.port || "Automatic"],
+    ["Port", draft.port || (nextPort ? String(nextPort) : "…")],
   ];
 
   return (
@@ -67,18 +73,22 @@ export function CreateSummary({ draft, onEula, onCreate, isPending, error }: Cre
       </dl>
 
       <div className="relative flex items-start gap-3">
-        <Checkbox isSelected={draft.acceptEula} onChange={onEula} aria-label="Accept the Minecraft EULA" className="mt-0.5">
-          <Checkbox.Control className="size-5 border-ink-4 bg-input">
+        <Checkbox
+          isSelected={draft.acceptEula}
+          onChange={onEula}
+          className="relative flex items-start gap-3 rounded-control p-1 text-left"
+        >
+          <Checkbox.Control className="mt-0.5 size-5 shrink-0 border-ink-4 bg-input">
             <Checkbox.Indicator />
           </Checkbox.Control>
+          <Checkbox.Content className="text-sm leading-snug text-ink-2">
+            I accept the{" "}
+            <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+              Minecraft EULA
+            </a>
+            , which every server must agree to. <span className="text-rose">*</span>
+          </Checkbox.Content>
         </Checkbox>
-        <p className="text-sm leading-snug text-ink-2">
-          I accept the{" "}
-          <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer" className="text-accent hover:underline">
-            Minecraft EULA
-          </a>
-          , which every server must agree to.
-        </p>
       </div>
 
       <div className="relative space-y-2">

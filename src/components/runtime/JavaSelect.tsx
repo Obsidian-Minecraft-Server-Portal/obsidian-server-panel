@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useAvailableJava, useJavaRuntimes, type AvailableJava, type JavaRuntime } from "../../api/java";
+import { useAvailableJava, useJavaRequirement, useJavaRuntimes, type AvailableJava, type JavaRuntime } from "../../api/java";
 import { SearchSelect, type SearchOption } from "../ui/SearchSelect";
 
 export type JavaChoice = { kind: "auto" } | { kind: "runtime"; id: number } | { kind: "download"; component: string };
@@ -46,17 +46,28 @@ interface JavaSelectProps {
   onChange: (choice: JavaChoice) => void;
   allowAuto?: boolean;
   allowDownload?: boolean;
+  mcVersion?: string | null;
   isDisabled?: boolean;
   description?: string;
 }
 
-export function JavaSelect({ value, onChange, allowAuto = true, allowDownload = false, isDisabled, description }: JavaSelectProps) {
+export function JavaSelect({
+  value,
+  onChange,
+  allowAuto = true,
+  allowDownload = false,
+  mcVersion = null,
+  isDisabled,
+  description,
+}: JavaSelectProps) {
   const installed = useJavaRuntimes();
   const available = useAvailableJava();
+  const requirement = useJavaRequirement(mcVersion);
+  const recommended = requirement.data ? `Java ${requirement.data.major_version}` : "Java";
 
   const options = useMemo(() => {
     const list: SearchOption[] = [];
-    if (allowAuto) list.push({ id: AUTO, label: "Automatic", detail: "From Minecraft version", section: "Recommended" });
+    if (allowAuto) list.push({ id: AUTO, label: `Automatic · ${recommended}`, detail: "Recommended", section: "Recommended" });
     list.push(...(installed.data ?? []).map(runtimeOption));
     if (allowDownload) {
       list.push(
@@ -70,7 +81,7 @@ export function JavaSelect({ value, onChange, allowAuto = true, allowDownload = 
       );
     }
     return list;
-  }, [allowAuto, allowDownload, installed.data, available.data]);
+  }, [allowAuto, allowDownload, installed.data, available.data, recommended]);
 
   const loading = installed.isPending || (allowDownload && available.isPending);
 

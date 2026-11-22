@@ -6,6 +6,8 @@ import { PrimaryButton } from "../../ui/PrimaryButton";
 import { FormField } from "../FormField";
 import { SwitchRow } from "../../ui/SwitchRow";
 import { isMemoryRange, isPortValid } from "../create/draft";
+import { useMemoryLimits } from "../../../api/system";
+import { MemoryRange } from "../../ui/MemoryRange";
 
 interface Form {
   name: string;
@@ -62,6 +64,9 @@ export function GeneralSettings({ view }: { view: InstanceView }) {
   const portOk = form.port !== "" && isPortValid(form.port);
   const valid = form.name.trim().length > 0 && portOk && memoryOk;
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
+  const memory = useMemoryLimits();
+  const memoryMin = Number(form.memoryMinMb);
+  const memoryMax = Number(form.memoryMaxMb);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -84,21 +89,24 @@ export function GeneralSettings({ view }: { view: InstanceView }) {
             value={form.javaRuntimeId === null ? { kind: "auto" } : { kind: "runtime", id: form.javaRuntimeId }}
             onChange={(choice) => choice.kind === "runtime" && set("javaRuntimeId", choice.id)}
             allowAuto={form.javaRuntimeId === null}
+            mcVersion={view.mc_version}
             isDisabled={update.isPending}
           />
-          <FormField
-            label="Memory min (MB)"
-            type="number"
-            value={form.memoryMinMb}
-            onChange={(value) => set("memoryMinMb", value)}
-          />
-          <FormField
-            label="Memory max (MB)"
-            type="number"
-            value={form.memoryMaxMb}
-            onChange={(value) => set("memoryMaxMb", value)}
-            hint={memoryOk ? undefined : "Whole numbers; min must be positive and not above max."}
-          />
+          <div className="space-y-2 md:col-span-2">
+            <p className="text-sm font-medium text-ink-2">Memory</p>
+            {memory.data ? (
+              <MemoryRange
+                limits={memory.data}
+                min={memoryMin}
+                max={memoryMax}
+                isDisabled={update.isPending}
+                onChange={(min, max) => setForm((current) => ({ ...current, memoryMinMb: String(min), memoryMaxMb: String(max) }))}
+              />
+            ) : (
+              <div className="h-16 animate-pulse rounded-control bg-input/60" />
+            )}
+            {!memoryOk && <p className="text-xs text-rose">Min must be positive and not above max.</p>}
+          </div>
         </div>
         <FormField
           label="JVM arguments"

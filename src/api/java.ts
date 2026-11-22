@@ -71,3 +71,17 @@ export function useAvailableJava() {
     staleTime: 60 * 60 * 1000,
   });
 }
+
+export interface JavaRequirement {
+  component: string;
+  major_version: number;
+}
+
+export function useJavaRequirement(mcVersion: string | null) {
+  return useQuery({
+    queryKey: [...javaKey, "requirement", mcVersion],
+    queryFn: () => api.get<JavaRequirement>(`/java/requirement?mc_version=${encodeURIComponent(mcVersion ?? "")}`),
+    enabled: mcVersion !== null && mcVersion !== "",
+    staleTime: Infinity,
+  });
+}

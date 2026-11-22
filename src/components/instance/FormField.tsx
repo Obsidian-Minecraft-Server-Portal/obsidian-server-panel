@@ -13,6 +13,7 @@ interface FormFieldProps {
   isDisabled?: boolean;
   multiline?: boolean;
   rows?: number;
+  required?: boolean;
   className?: string;
 }
 
@@ -26,11 +27,15 @@ export function FormField({
   isDisabled,
   multiline,
   rows = 4,
+  required,
   className,
 }: FormFieldProps) {
   return (
     <TextField value={value} onChange={onChange} isDisabled={isDisabled} className={cn("flex flex-col gap-1.5", className)}>
-      <Label className="text-sm font-medium text-ink-2">{label}</Label>
+      <Label className="text-sm font-medium text-ink-2">
+        {label}
+        {required && <span className="ml-0.5 text-rose">*</span>}
+      </Label>
       {multiline ? (
         <TextArea rows={rows} className={cn(FIELD, "h-auto py-2 font-mono")} />
       ) : (

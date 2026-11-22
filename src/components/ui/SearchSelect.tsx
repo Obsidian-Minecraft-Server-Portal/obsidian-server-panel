@@ -17,6 +17,7 @@ interface SearchSelectProps {
   description?: ReactNode;
   emptyText?: string;
   isDisabled?: boolean;
+  isRequired?: boolean;
   className?: string;
 }
 
@@ -48,6 +49,7 @@ export function SearchSelect({
   description,
   emptyText = "No matches",
   isDisabled,
+  isRequired,
   className,
 }: SearchSelectProps) {
   const selected = options.find((option) => option.id === value);
@@ -81,7 +83,10 @@ export function SearchSelect({
       isDisabled={isDisabled}
       className={cn("flex w-full flex-col gap-1.5", className)}
     >
-      <Label className="text-sm font-medium text-ink-2">{label}</Label>
+      <Label className="text-sm font-medium text-ink-2">
+        {label}
+        {isRequired && <span className="ml-0.5 text-rose">*</span>}
+      </Label>
       <ComboBox.InputGroup>
         <Input placeholder={placeholder} />
         <ComboBox.Trigger />
