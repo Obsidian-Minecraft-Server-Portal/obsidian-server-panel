@@ -1,3 +1,4 @@
+use obsidian_instances::settings::{DEFAULT_STOP_TIMEOUT_SECS, STOP_TIMEOUT_KEY, UPNP_DEFAULT_KEY};
 use actix_web::{HttpResponse, web};
 use std::ops::RangeInclusive;
 
@@ -14,9 +15,6 @@ use crate::routes::auth::support::{PUBLIC_URL_KEY, normalize_public_url};
 use crate::state::AppState;
 
 pub const TIMEZONE_KEY: &str = "timezone";
-pub const UPNP_DEFAULT_KEY: &str = "upnp_default";
-pub const STOP_TIMEOUT_KEY: &str = "stop_timeout_secs";
-const DEFAULT_STOP_TIMEOUT_SECS: u64 = 30;
 const STOP_TIMEOUT_RANGE: RangeInclusive<u64> = 5..=600;
 const ENV_SOURCE: &str = "env";
 const PANEL_SOURCE: &str = "panel";

@@ -17,9 +17,8 @@ use crate::live::{self, console_topic, status_topic};
 use crate::manager::InstanceManager;
 use crate::model::{Instance, InstanceStats, InstanceStatus};
 use crate::monitor;
+use crate::settings::{DEFAULT_STOP_TIMEOUT_SECS, STOP_TIMEOUT_KEY};
 
-const DEFAULT_STOP_TIMEOUT_SECS: u64 = 30;
-const STOP_TIMEOUT_KEY: &str = "stop_timeout_secs";
 const CONNECT_ATTEMPTS: usize = 50;
 const CONNECT_RETRY: Duration = Duration::from_millis(100);
 const WAIT_POLL: Duration = Duration::from_millis(250);

@@ -8,6 +8,7 @@ mod model;
 mod monitor;
 mod players;
 mod properties;
+pub mod settings;
 mod store;
 
 pub use manager::InstanceManager;

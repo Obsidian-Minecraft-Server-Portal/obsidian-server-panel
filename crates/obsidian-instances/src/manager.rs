@@ -9,6 +9,7 @@ use obsidian_java::JavaManager;
 use obsidian_net::UpnpManager;
 
 use crate::live::Live;
+use crate::settings::UPNP_DEFAULT_KEY;
 use crate::model::{CreateInstance, Instance, UpdateInstance};
 use crate::store::{self, instance_select};
 
@@ -16,7 +17,6 @@ const DEFAULT_PORT: u16 = 25565;
 const DEFAULT_MEMORY_MIN_MB: u32 = 1024;
 const DEFAULT_MEMORY_MAX_MB: u32 = 2048;
 const MAX_NAME_CHARS: usize = 64;
-const UPNP_DEFAULT_KEY: &str = "upnp_default";
 
 #[derive(Clone)]
 pub struct InstanceManager {
