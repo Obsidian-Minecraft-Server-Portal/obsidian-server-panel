@@ -90,6 +90,7 @@ impl ContentManager {
 		let old_path = self.file_path(item.instance_id, item.kind, &item.filename);
 		let new_path = self.file_path(item.instance_id, item.kind, &filename);
 		let staging = self.file_path(item.instance_id, item.kind, &format!("{filename}.part"));
+		let _files = self.files.lock().await;
 		tokio::fs::write(&staging, &download.bytes).await?;
 		if let Err(error) =
 			store::replace_version(self.db.pool(), item.id, &filename, version_id, download.icon.as_deref()).await

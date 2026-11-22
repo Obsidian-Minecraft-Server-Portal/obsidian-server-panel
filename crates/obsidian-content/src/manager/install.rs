@@ -71,6 +71,7 @@ impl ContentManager {
 	}
 
 	pub(crate) async fn add_file(&self, record: &NewRecord<'_>, bytes: &[u8]) -> Result<InstalledContent> {
+		let _files = self.files.lock().await;
 		let pool = self.db.pool();
 		let id = store::insert(pool, record).await?;
 		let path = self.file_path(record.instance_id, record.kind, record.filename);
