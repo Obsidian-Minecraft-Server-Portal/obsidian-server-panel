@@ -20,7 +20,7 @@ export function ServerPackPage() {
 
   if (draft.isError) {
     return (
-      <div className="space-y-4 px-8 py-6">
+      <div className="space-y-4 px-4 py-5 md:px-8 md:py-6">
         <p className="text-sm text-rose">{draft.error.message}</p>
         <p className="text-sm text-ink-3">This server pack draft may have expired. Start again from Discover.</p>
         <Link to="/discover" className="text-sm font-medium text-accent hover:underline">
@@ -30,11 +30,11 @@ export function ServerPackPage() {
     );
   }
 
-  if (!draft.data) return <p className="px-8 py-6 text-sm text-ink-3">Loading the modpack…</p>;
+  if (!draft.data) return <p className="px-4 py-5 text-sm text-ink-3 md:px-8 md:py-6">Loading the modpack…</p>;
 
   const data = draft.data;
   return (
-    <div className="space-y-6 px-8 py-6">
+    <div className="space-y-6 px-4 py-5 md:px-8 md:py-6">
       <header className="flex flex-wrap items-center gap-4">
         <GhostButton isIconOnly aria-label="Back to Discover" onPress={() => navigate("/discover")} className="size-10">
           <Icon icon="lucide:chevron-left" width={18} height={18} />
@@ -45,7 +45,7 @@ export function ServerPackPage() {
             {data.pack_name} · {LOADER_META[data.loader].label} {data.mc_version}
           </p>
         </div>
-        <ol aria-label="Steps" className="flex items-center gap-4 font-mono text-[11px] tracking-wider text-ink-3 uppercase">
+        <ol aria-label="Steps" className="flex w-full items-center gap-4 font-mono text-[11px] tracking-wider text-ink-3 uppercase md:w-auto">
           {STEPS.map((label, index) => (
             <li
               key={label}
