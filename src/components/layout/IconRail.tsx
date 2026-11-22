@@ -1,3 +1,4 @@
+import { initialsOf } from "../ui/UserAvatar";
 import { Button, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { NavLink, useNavigate } from "react-router";
@@ -44,7 +45,7 @@ export function IconRail() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
   const items = PRIMARY_ITEMS.filter((item) => !item.adminOnly || user?.is_admin);
-  const initials = user?.username.slice(0, 2).toUpperCase() ?? "?";
+  const initials = user ? initialsOf(user.username) : "?";
 
   return (
     <nav className="flex w-[68px] shrink-0 flex-col items-center gap-2 border-r border-line bg-rail py-4">

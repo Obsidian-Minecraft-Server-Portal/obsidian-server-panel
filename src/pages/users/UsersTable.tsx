@@ -1,3 +1,4 @@
+import { UserAvatar } from "../../components/ui/UserAvatar";
 import { Button } from "@heroui/react";
 import { format } from "date-fns";
 import type { UserProfile } from "../../api/auth";
@@ -21,8 +22,9 @@ export function UsersTable({ onEdit }: UsersTableProps) {
   return (
     <ul className="divide-y divide-line">
       {users.data.map((user) => (
-        <li key={user.id} className="flex flex-wrap items-center justify-between gap-4 py-3">
-          <div className="min-w-0 space-y-1">
+        <li key={user.id} className="flex flex-wrap items-center gap-4 py-3">
+          <UserAvatar name={user.username} />
+          <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-ink-0">{user.username}</span>
               {user.is_admin && <Chip tone="accent">Admin</Chip>}
