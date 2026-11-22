@@ -4,22 +4,19 @@ import { Icon } from "@iconify-icon/react";
 import { NavLink, useNavigate } from "react-router";
 import { useCurrentUser } from "../../api/session";
 import { Logo } from "../ui/Logo";
-import { NotificationsBell } from "./NotificationsBell";
+import { ActivityMenu } from "../activity/ActivityMenu";
 
 interface RailItem {
   to: string;
   icon: string;
   label: string;
   end?: boolean;
-  adminOnly?: boolean;
 }
 
 const PRIMARY_ITEMS: RailItem[] = [
   { to: "/", icon: "lucide:layout-dashboard", label: "Dashboard", end: true },
   { to: "/instances", icon: "lucide:box", label: "Instances" },
   { to: "/discover", icon: "lucide:compass", label: "Discover" },
-  { to: "/tasks", icon: "lucide:download", label: "Tasks" },
-  { to: "/users", icon: "lucide:users", label: "Users", adminOnly: true },
 ];
 
 function RailLink({ item }: { item: RailItem }) {
@@ -44,7 +41,6 @@ function RailLink({ item }: { item: RailItem }) {
 export function IconRail() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
-  const items = PRIMARY_ITEMS.filter((item) => !item.adminOnly || user?.is_admin);
   const initials = user ? initialsOf(user.username) : "?";
 
   return (
@@ -57,17 +53,17 @@ export function IconRail() {
         <Logo size={28} />
       </NavLink>
       <span className="my-2 h-px w-8 bg-line-strong" />
-      {items.map((item) => (
+      {PRIMARY_ITEMS.map((item) => (
         <RailLink key={item.to} item={item} />
       ))}
       <div className="mt-auto flex flex-col items-center gap-2">
-        <NotificationsBell />
+        <ActivityMenu />
         <RailLink item={{ to: "/settings", icon: "lucide:settings", label: "Settings" }} />
         <Button
           variant="ghost"
           isIconOnly
           aria-label="Account"
-          onPress={() => navigate("/account")}
+          onPress={() => navigate("/settings/account")}
           className="relative mt-1 size-11 rounded-control bg-gradient-to-b from-accent to-accent-dim font-mono text-sm font-semibold text-accent-ink"
         >
           {initials}

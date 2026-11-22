@@ -6,7 +6,6 @@ import { Panel } from "../../components/ui/Panel";
 const ACTIONS = [
   { label: "New instance", icon: "lucide:plus", to: "/instances/new" },
   { label: "Browse modpacks", icon: "lucide:package-search", to: "/discover" },
-  { label: "Background tasks", icon: "lucide:list-checks", to: "/tasks" },
   { label: "Panel settings", icon: "lucide:settings-2", to: "/settings" },
 ] as const;
 

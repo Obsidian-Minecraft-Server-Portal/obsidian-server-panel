@@ -23,24 +23,25 @@ interface TaskCardProps {
   task: TaskView;
   dismissing: boolean;
   onDismiss: () => void;
+  onNavigate: () => void;
 }
 
-export function TaskCard({ task, dismissing, onDismiss }: TaskCardProps) {
+export function TaskCard({ task, dismissing, onDismiss, onNavigate }: TaskCardProps) {
   const status = STATUS[task.status];
   const running = task.status === "running";
   const link = instanceLink(task);
   const detail = running ? task.message : task.status === "finished" ? "Completed" : null;
 
   return (
-    <article className="flex animate-tick-in gap-4 rounded-panel border border-line bg-gradient-to-b from-panel to-rail p-5 glass-hairline">
-      <span className={cn("grid size-10 shrink-0 place-items-center rounded-control", status.badge)}>
-        <Icon icon={status.icon} width={18} height={18} className={running ? "animate-spin" : undefined} />
+    <article className="flex animate-tick-in gap-3">
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-control", status.badge)}>
+        <Icon icon={status.icon} width={16} height={16} className={running ? "animate-spin" : undefined} />
       </span>
-      <div className="min-w-0 flex-1 space-y-3">
-        <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0 flex-1 space-y-2">
+        <header className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1.5">
-            <h3 className="truncate text-base font-semibold text-ink-0">{task.title}</h3>
-            <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-ink-0">{task.title}</h3>
+            <div className="flex flex-wrap items-center gap-1.5">
               <Chip tone={status.tone} pulse={running}>
                 {status.label}
               </Chip>
@@ -48,9 +49,13 @@ export function TaskCard({ task, dismissing, onDismiss }: TaskCardProps) {
               {task.owner === null && <Chip tone="ember">Global</Chip>}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
             {link && !running && (
-              <Link to={link} className="rounded-control px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent-tint">
+              <Link
+                to={link}
+                onClick={onNavigate}
+                className="rounded-control px-2 py-1 text-xs font-medium text-accent hover:bg-accent-tint"
+              >
                 Open
               </Link>
             )}
@@ -70,11 +75,11 @@ export function TaskCard({ task, dismissing, onDismiss }: TaskCardProps) {
         )}
         {detail && <p className="text-sm text-ink-2">{detail}</p>}
         {task.error && (
-          <pre className="rounded-control border border-rose/30 bg-rose/10 p-3 font-mono text-xs whitespace-pre-wrap text-rose">
+          <pre className="rounded-control border border-rose/30 bg-rose/10 p-2.5 font-mono text-xs whitespace-pre-wrap text-rose">
             {task.error}
           </pre>
         )}
-        <p className="font-mono text-[11px] text-ink-4 uppercase">
+        <p className="font-mono text-[10px] text-ink-4 uppercase">
           #{task.id} · updated {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true })}
         </p>
       </div>
