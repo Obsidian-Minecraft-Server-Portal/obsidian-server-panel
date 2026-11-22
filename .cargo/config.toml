@@ -2,3 +2,5 @@
 # A dev run keeps its database, instances, Java runtimes, backups and logs here instead of the installed panel's data dir.
 # `relative` resolves it against the workspace root whatever the working directory; an exported OBSIDIAN_DATA_DIR wins.
 OBSIDIAN_DATA_DIR = { value = "target/dev-env", relative = true }
+# CurseForge API key, read at build time. Empty leaves CurseForge disabled. An exported CURSEFORGE_API_KEY wins.
+CURSEFORGE_API_KEY = ""
