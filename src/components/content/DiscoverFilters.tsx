@@ -56,11 +56,9 @@ export function DiscoverSelects({
 }: DiscoverSelectsProps) {
   const { data: versions } = useMinecraftVersions("vanilla");
 
-  const platformOptions: SelectOption[] = PLATFORMS_BY_KIND[kind].map((id) => {
-    const info = platforms.find((entry) => entry.id === id);
-    const available = info?.available ?? true;
-    return { id: String(id), label: available ? PLATFORM_NAMES[id] : `${PLATFORM_NAMES[id]} (not configured)` };
-  });
+  const platformOptions: SelectOption[] = PLATFORMS_BY_KIND[kind]
+    .filter((id) => platforms.find((entry) => entry.id === id)?.available ?? true)
+    .map((id) => ({ id: String(id), label: PLATFORM_NAMES[id] }));
   const loaderOptions: SelectOption[] = [
     { id: ANY, label: "Any loader" },
     ...LOADERS_BY_KIND[kind].map((id) => ({ id, label: LOADER_META[id].label })),

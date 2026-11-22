@@ -42,8 +42,9 @@ export function useDiscoverState() {
   const debouncedQuery = useDebounced(query, SEARCH_DEBOUNCE_MS);
 
   const kind = KIND_ORDER.find((entry) => entry === params.get("kind")) ?? "mod";
-  const requestedPlatform = Number(params.get("platform")) as PlatformId;
-  const platform = PLATFORMS_BY_KIND[kind].includes(requestedPlatform) ? requestedPlatform : PLATFORMS_BY_KIND[kind][0];
+  const rawPlatform = params.get("platform");
+  const requestedPlatform = rawPlatform === null ? null : (Number(rawPlatform) as PlatformId);
+  const platform = requestedPlatform !== null && PLATFORMS_BY_KIND[kind].includes(requestedPlatform) ? requestedPlatform : PLATFORMS_BY_KIND[kind][0];
   const loader = LOADERS_BY_KIND[kind].find((entry) => entry === params.get("loader")) ?? null;
   const mcVersion = params.get("mc_version");
   const instanceId = Number.parseInt(params.get("instance") ?? "", 10) || null;
