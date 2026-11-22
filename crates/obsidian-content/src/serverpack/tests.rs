@@ -6,7 +6,7 @@ use zip::write::SimpleFileOptions;
 
 use super::classes;
 use super::evidence;
-use super::score::Lean;
+use super::model::Lean;
 use crate::archive;
 
 fn jar(entries: &[(&str, &[u8])]) -> Vec<u8> {

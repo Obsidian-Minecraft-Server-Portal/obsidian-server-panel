@@ -14,7 +14,7 @@ use obsidian_common::{CommonError, Result, UserId};
 pub(crate) use draft::DraftStore;
 use draft::Draft;
 pub use model::{
-	AnalysisResult, AnalyzeRequest, AnalyzedMod, DetectedSide, ExportRequest, FolderChoice, FolderDecision, ModDecision,
+	AnalysisResult, AnalyzeRequest, AnalyzedMod, DetectedSide, ExportRequest, FolderChoice, FolderDecision, Lean, ModDecision,
 };
 
 use crate::manager::ContentManager;

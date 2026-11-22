@@ -13,6 +13,24 @@ pub enum DetectedSide {
 	Unsure,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Lean {
+	Client,
+	Server,
+	Both,
+}
+
+impl From<Lean> for DetectedSide {
+	fn from(lean: Lean) -> Self {
+		match lean {
+			Lean::Client => Self::Client,
+			Lean::Server => Self::Server,
+			Lean::Both => Self::Both,
+		}
+	}
+}
+
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct AnalyzedMod {
 	pub index: usize,
@@ -20,6 +38,7 @@ pub struct AnalyzedMod {
 	pub name: String,
 	pub kind: Kind,
 	pub side: DetectedSide,
+	pub leaning: Option<Lean>,
 	pub confidence: f32,
 	pub evidence: Vec<String>,
 	pub downloadable: bool,

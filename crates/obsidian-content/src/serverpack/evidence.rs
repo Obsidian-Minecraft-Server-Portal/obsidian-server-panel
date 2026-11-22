@@ -3,7 +3,8 @@ use std::path::Path;
 use sievemc::{ModDetection, Side};
 
 use super::classes::{self, ClassRefs};
-use super::score::{Lean, Signal};
+use super::model::Lean;
+use super::score::Signal;
 use crate::archive;
 use crate::icon;
 

@@ -172,6 +172,7 @@ const SPEC_PATH: &str = "/api/docs/openapi.json";
 			obsidian_content::ModDecision,
 			obsidian_content::FolderDecision,
 			obsidian_content::DetectedSide,
+			obsidian_content::Lean,
 		obsidian_content::ServerResourcePack,
 		obsidian_content::InstalledWorld,
 		crate::routes::content_targets::VersionRef,

@@ -184,6 +184,7 @@ impl ContentManager {
 				name,
 				kind: jar_kind(&jar.relative).unwrap_or(Kind::Mod),
 				side: verdict.side,
+				leaning: verdict.leaning,
 				confidence: verdict.confidence,
 				evidence: evidence_lines,
 				downloadable: path.is_some(),

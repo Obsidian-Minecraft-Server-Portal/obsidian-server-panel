@@ -18,7 +18,7 @@ pub use model::{
 };
 pub use platform::{ContentPlatform, Kind, Platform};
 pub use serverpack::{
-	AnalysisResult, AnalyzeRequest, AnalyzedMod, DetectedSide, ExportRequest, FolderChoice, FolderDecision, ModDecision,
+	AnalysisResult, AnalyzeRequest, AnalyzedMod, DetectedSide, ExportRequest, FolderChoice, FolderDecision, Lean, ModDecision,
 };
 
 pub const CURSEFORGE_API_KEY: Option<&str> = option_env!("CURSEFORGE_API_KEY");
