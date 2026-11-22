@@ -1,4 +1,4 @@
-import { Checkbox } from "@heroui/react";
+import { Checkbox, cn } from "@heroui/react";
 import { useMemo } from "react";
 import { groupPermissions, permissionLabel } from "./format";
 
@@ -21,27 +21,28 @@ export function PermissionMatrix({ catalog, value, onChange, disabled }: Permiss
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {groups.map((group) => (
-        <div key={group.key} className="rounded-control border border-line bg-input/60 p-4">
-          <h4 className="mb-3 font-mono text-[11px] font-medium tracking-wider text-ink-3 uppercase">{group.label}</h4>
-          <div className="space-y-2.5">
+        <section key={group.key} className="rounded-control border border-line bg-input/50 px-4 py-3">
+          <h4 className="mb-1 font-mono text-[10px] font-medium tracking-widest text-ink-3 uppercase">{group.label}</h4>
+          <ul className="divide-y divide-line">
             {group.permissions.map((name) => (
-              <Checkbox
-                key={name}
-                isSelected={selected.has(name)}
-                isDisabled={disabled}
-                onChange={(on: boolean) => toggle(name, on)}
-                className="flex items-center gap-3"
-              >
-                <Checkbox.Control className="size-4 shrink-0 border-ink-4 bg-input">
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <Checkbox.Content className="text-sm text-ink-1">{permissionLabel(name)}</Checkbox.Content>
-              </Checkbox>
+              <li key={name}>
+                <Checkbox
+                  isSelected={selected.has(name)}
+                  isDisabled={disabled}
+                  onChange={(on: boolean) => toggle(name, on)}
+                  className={cn("!flex !flex-row !items-center gap-3 py-2.5", disabled ? "opacity-60" : "cursor-pointer")}
+                >
+                  <Checkbox.Control className="size-4 shrink-0 rounded-[5px] border border-ink-4 bg-input data-[selected=true]:border-accent data-[selected=true]:bg-accent">
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Checkbox.Content className="text-sm text-ink-1">{permissionLabel(name)}</Checkbox.Content>
+                </Checkbox>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       ))}
     </div>
   );
