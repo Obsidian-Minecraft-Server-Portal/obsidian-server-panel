@@ -20,12 +20,13 @@ export function QuickActions() {
             key={to}
             type="button"
             onPress={() => navigate(to)}
-            className="flex items-center gap-3 rounded-control border border-line bg-input px-4 py-3 text-left text-sm font-medium text-ink-1 transition-colors hover:border-line-strong hover:bg-raised"
+            className="group h-auto w-full justify-start gap-3 rounded-control border border-line bg-input px-4 py-3 text-left text-sm font-medium text-ink-1 transition-colors hover:border-accent/40 hover:bg-raised"
           >
             <span className="grid size-8 place-items-center rounded-control bg-accent-tint text-accent">
               <Icon icon={icon} width={16} height={16} />
             </span>
             {label}
+            <Icon icon="lucide:chevron-right" width={14} height={14} className="ml-auto text-ink-4 transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
           </Button>
         ))}
       </div>
