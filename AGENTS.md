@@ -528,9 +528,9 @@ Port those designs to HeroUI v3 tokens and Tailwind v4 in `src/css/index.css`.
 
 - Glass cards: a `bg-2` → `bg-1` gradient, a 1px hairline border, a deep
   shadow, and a soft accent glow in one corner.
-- Primary buttons: a vertical gradient from accent to accent-dim with an inset
-  top highlight. On hover they lift by 1px, gain a
-  `0 12px 32px -6px var(--accent-glow)` shadow, and get a 1px accent ring.
+- Buttons are flat: primary is solid accent with `--accent-hover` on hover
+  and a slight press scale; ghost is transparent with a hairline border. No
+  gradients, inset highlights, lifts, or glow shadows.
 - Uppercase mono chips with pulse dots, e.g. `● RUNNING`, `FABRIC 0.16.9`,
   `MC 1.21.4`, `87 MODS`.
 - Procedural pixel-art landscape banners for instances.

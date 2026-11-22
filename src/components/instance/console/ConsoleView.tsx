@@ -55,7 +55,7 @@ export function ConsoleView({ lines }: { lines: string[] }) {
         <Button
           type="button"
           onPress={jumpToLatest}
-          className="absolute right-4 bottom-4 flex items-center gap-1.5 rounded-control border border-line-strong bg-raised px-3 py-1.5 font-mono text-[11px] tracking-wider text-ink-1 uppercase shadow-glow"
+          className="absolute right-4 bottom-4 flex items-center gap-1.5 rounded-control border border-line-strong bg-raised px-3 py-1.5 font-mono text-[11px] tracking-wider text-ink-1 uppercase shadow-lift"
         >
           <Icon icon="lucide:arrow-down" width={14} height={14} />
           Latest

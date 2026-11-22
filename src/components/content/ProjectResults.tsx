@@ -33,7 +33,7 @@ function ProjectCard({ project, onOpen }: ProjectItemProps) {
   return (
     <Button
       onPress={() => onOpen(project)}
-      className="group h-full w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden rounded-panel border border-line bg-panel p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-glow"
+      className="group h-full w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden rounded-panel border border-line bg-panel p-0 text-left transition-colors duration-150 hover:border-line-strong hover:bg-raised/40"
     >
       <ProjectBanner src={project.banner_url} seed={projectKey(project)} className="h-36 shrink-0">
         <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent" />

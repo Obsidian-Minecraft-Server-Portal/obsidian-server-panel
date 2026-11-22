@@ -38,7 +38,6 @@
   --radius-card: 20px;
   --radius-hero: 24px;
 
-  --shadow-glow: 0 12px 32px -6px var(--accent-glow);
   --shadow-lift: 0 16px 40px -12px rgba(0, 0, 0, 0.6);
 
   --animate-aurora-float: aurora-float 18s ease-in-out infinite;

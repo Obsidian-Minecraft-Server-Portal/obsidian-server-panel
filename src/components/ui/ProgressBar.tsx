@@ -16,7 +16,7 @@ export function ProgressBar({ value, className }: ProgressBarProps) {
       className={cn("h-1.5 w-full overflow-hidden rounded-full bg-raised", className)}
     >
       <div
-        className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-accent-dim to-accent transition-[width] duration-300 ease-out"
+        className="relative h-full overflow-hidden rounded-full bg-accent transition-[width] duration-300 ease-out"
         style={{ width: `${percent}%` }}
       >
         <span className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent" />

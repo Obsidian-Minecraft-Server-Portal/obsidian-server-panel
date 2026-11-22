@@ -6,7 +6,7 @@ export function GhostButton({ className, ...props }: ComponentProps<typeof Butto
     <Button
       variant="ghost"
       className={cn(
-        "rounded-control border border-line-strong bg-input text-ink-1 font-medium hover:bg-raised",
+        "rounded-control border border-line-strong bg-transparent font-medium text-ink-1 transition-colors duration-150 hover:bg-raised",
         className,
       )}
       {...props}

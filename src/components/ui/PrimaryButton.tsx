@@ -6,9 +6,8 @@ export function PrimaryButton({ className, ...props }: ComponentProps<typeof But
     <Button
       variant="primary"
       className={cn(
-        "rounded-control bg-gradient-to-b from-accent to-accent-dim text-accent-ink font-semibold",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition duration-200 ease-out",
-        "hover:-translate-y-px hover:shadow-glow hover:ring-1 hover:ring-accent",
+        "rounded-control bg-accent font-semibold text-accent-ink transition-colors duration-150",
+        "hover:bg-accent-hover active:scale-[0.98] data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-accent/50",
         className,
       )}
       {...props}

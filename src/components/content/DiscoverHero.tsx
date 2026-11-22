@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { PrimaryButton } from "../ui/PrimaryButton";
 import { Icon } from "@iconify-icon/react";
 import type { Project } from "../../api/content";
 import { PlatformChip } from "./ProjectResults";
@@ -24,13 +24,13 @@ export function DiscoverHero({ project, onOpen }: DiscoverHeroProps) {
         <h2 className="max-w-3xl truncate text-3xl font-extrabold text-ink-0">{project.name}</h2>
         <p className="line-clamp-2 max-w-2xl text-sm text-ink-2">{project.summary}</p>
         <div className="flex flex-wrap items-center gap-4">
-          <Button
+          <PrimaryButton
             onPress={() => onOpen(project)}
-            className="gap-2 rounded-control bg-gradient-to-b from-accent to-accent-dim px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition hover:-translate-y-px hover:shadow-glow"
+            className="gap-2 px-5"
           >
             <Icon icon="lucide:book-open" width={14} height={14} />
             View
-          </Button>
+          </PrimaryButton>
           <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-3">
             <Icon icon="lucide:download" width={12} height={12} />
             {formatDownloads(project.downloads)} downloads

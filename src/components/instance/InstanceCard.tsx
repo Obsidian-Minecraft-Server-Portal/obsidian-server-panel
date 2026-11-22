@@ -15,7 +15,7 @@ export function InstanceCard({ view }: { view: InstanceView }) {
       onClick={(event) => {
         if (!event.defaultPrevented) navigate(path);
       }}
-      className="group flex cursor-pointer flex-col transition duration-200 hover:-translate-y-0.5 hover:border-line-strong"
+      className="group flex cursor-pointer flex-col transition-colors duration-150 hover:border-line-strong"
     >
       <div className="relative h-24 overflow-hidden">
         <PixelBanner seed={String(view.id)} className="transition-transform duration-500 group-hover:scale-105" />
