@@ -93,8 +93,8 @@
   --field-background: var(--bg-3);
   --field-foreground: var(--ink-1);
   --field-placeholder: var(--ink-4);
-  --field-border: var(--line);
-  --field-border-hover: var(--line-strong);
+  --field-border: var(--line-strong);
+  --field-border-hover: rgba(255, 255, 255, 0.2);
   --field-border-focus: var(--accent);
   --field-hover: var(--bg-4);
   --field-focus: var(--bg-3);
