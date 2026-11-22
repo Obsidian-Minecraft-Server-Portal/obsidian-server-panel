@@ -99,28 +99,31 @@ export function FilesTab() {
 
   if (editing) {
     return (
-      <div className="grid items-start gap-5 px-8 pb-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
-        <section className="overflow-hidden rounded-panel border border-line bg-panel">
-          <div className="border-b border-line p-3">
+      <div className="grid min-h-[30rem] flex-1 items-start gap-5 px-8 pb-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-1 lg:items-stretch">
+        <section className="flex max-h-[50vh] min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-panel lg:max-h-none">
+          <div className="shrink-0 border-b border-line p-3">
             <Breadcrumbs path={dir} onNavigate={navigate} />
           </div>
-          <Listing
-            isPending={listing.isPending}
-            error={listing.isError ? errorMessage(listing.error) : null}
-            isEmpty={listing.isSuccess && entries.length === 0}
-            parent={dir ? parentPath(dir) : null}
-            onNavigate={navigate}
-          >
-            <FileTable
-              entries={entries}
-              selected={new Set([editing])}
-              onPick={pick}
-              onOpen={onOpen}
-              onContextMenu={onContextMenu}
-            />
-          </Listing>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Listing
+              isPending={listing.isPending}
+              error={listing.isError ? errorMessage(listing.error) : null}
+              isEmpty={listing.isSuccess && entries.length === 0}
+              parent={dir ? parentPath(dir) : null}
+              onNavigate={navigate}
+            >
+              <FileTable
+                entries={entries}
+                selected={new Set([editing])}
+                onPick={pick}
+                onOpen={onOpen}
+                onContextMenu={onContextMenu}
+                compact
+              />
+            </Listing>
+          </div>
         </section>
-        <div className="min-w-0 space-y-5">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <FileEditor key={editing} instanceId={id} path={editing} ops={ops} onClose={() => setEditing(null)} />
         </div>
         {dialog && <FileDialogs dialog={dialog} dir={dir} entries={entries} ops={ops} onOpenFile={openFile} onClose={closeDialog} />}

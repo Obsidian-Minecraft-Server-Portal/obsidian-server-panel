@@ -117,7 +117,7 @@ function EditorBody({ path, initial, ops, onClose, onDownload }: EditorBodyProps
         onSave={() => void save()}
         error={error}
       >
-        <div className="h-[68vh] min-h-80">
+        <div className="h-[68vh] min-h-80 lg:h-auto lg:min-h-0 lg:flex-1">
           <Suspense fallback={<p className="p-6 text-sm text-ink-3">Loading editor…</p>}>
             <MonacoEditor
               height="100%"
@@ -158,8 +158,8 @@ interface FrameProps {
 
 function Frame({ path, onClose, onDownload, dirty = false, saving = false, onSave, error, children }: FrameProps) {
   return (
-    <section className="overflow-hidden rounded-panel border border-line bg-panel">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <Icon icon="lucide:file-code-2" className="shrink-0 text-accent" width={18} height={18} />
           <div className="min-w-0">

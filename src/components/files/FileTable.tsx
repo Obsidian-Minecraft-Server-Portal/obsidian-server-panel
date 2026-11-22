@@ -16,17 +16,22 @@ interface FileTableProps {
   onPick: (path: string, modifiers: Modifiers) => void;
   onOpen: (entry: FileEntry) => void;
   onContextMenu: (entry: FileEntry, x: number, y: number) => void;
+  compact?: boolean;
 }
 
-export function FileTable({ entries, selected, onPick, onOpen, onContextMenu }: FileTableProps) {
+export function FileTable({ entries, selected, onPick, onOpen, onContextMenu, compact = false }: FileTableProps) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[32rem] border-collapse text-left text-sm" aria-multiselectable="true">
+    <div className={compact ? undefined : "overflow-x-auto"}>
+      <table className={cn("w-full border-collapse text-left text-sm", compact ? "table-fixed" : "min-w-[32rem]")} aria-multiselectable="true">
         <thead>
           <tr className="border-b border-line font-mono text-[11px] tracking-wider text-ink-3 uppercase">
             <th scope="col" className="px-4 py-2.5 font-medium">Name</th>
-            <th scope="col" className="w-28 px-4 py-2.5 text-right font-medium">Size</th>
-            <th scope="col" className="w-48 px-4 py-2.5 font-medium">Modified</th>
+            {!compact && (
+              <>
+                <th scope="col" className="w-28 px-4 py-2.5 text-right font-medium">Size</th>
+                <th scope="col" className="w-48 px-4 py-2.5 font-medium">Modified</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -38,6 +43,7 @@ export function FileTable({ entries, selected, onPick, onOpen, onContextMenu }: 
               onPick={onPick}
               onOpen={onOpen}
               onContextMenu={onContextMenu}
+              compact={compact}
             />
           ))}
         </tbody>
@@ -46,12 +52,13 @@ export function FileTable({ entries, selected, onPick, onOpen, onContextMenu }: 
   );
 }
 
-interface FileRowProps extends Omit<FileTableProps, "entries" | "selected"> {
+interface FileRowProps extends Omit<FileTableProps, "entries" | "selected" | "compact"> {
   entry: FileEntry;
   selected: boolean;
+  compact: boolean;
 }
 
-const FileRow = memo(function FileRow({ entry, selected, onPick, onOpen, onContextMenu }: FileRowProps) {
+const FileRow = memo(function FileRow({ entry, selected, onPick, onOpen, onContextMenu, compact }: FileRowProps) {
   const handleClick = (event: MouseEvent) => onPick(entry.path, event);
   const handleContext = (event: MouseEvent) => {
     event.preventDefault();
@@ -78,10 +85,14 @@ const FileRow = memo(function FileRow({ entry, selected, onPick, onOpen, onConte
           {entry.is_symlink && <span className="font-mono text-[10px] text-ink-4 uppercase">link</span>}
         </span>
       </td>
-      <td className="px-4 py-2.5 text-right font-mono text-xs text-ink-3 tabular-nums">
-        {entry.is_dir ? "—" : formatBytes(entry.size)}
-      </td>
-      <td className="px-4 py-2.5 font-mono text-xs text-ink-3">{formatModified(entry.modified)}</td>
+      {!compact && (
+        <>
+          <td className="px-4 py-2.5 text-right font-mono text-xs text-ink-3 tabular-nums">
+            {entry.is_dir ? "—" : formatBytes(entry.size)}
+          </td>
+          <td className="px-4 py-2.5 font-mono text-xs text-ink-3">{formatModified(entry.modified)}</td>
+        </>
+      )}
     </tr>
   );
 });
