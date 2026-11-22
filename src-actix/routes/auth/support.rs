@@ -126,15 +126,23 @@ pub fn request_origin(req: &HttpRequest) -> String {
 		let info = req.connection_info();
 		return format!("{}://{}", info.scheme(), info.host());
 	}
-	let config = req.app_config();
-	let scheme = if config.secure() { "https" } else { "http" };
-	let host = req
-		.headers()
+	let scheme = if req.app_config().secure() { "https" } else { "http" };
+	format!("{scheme}://{}", direct_host(req))
+}
+
+pub fn request_host(req: &HttpRequest) -> String {
+	if from_trusted_proxy(req, trusted_proxies(req)) {
+		return req.connection_info().host().to_owned();
+	}
+	direct_host(req).to_owned()
+}
+
+fn direct_host(req: &HttpRequest) -> &str {
+	req.headers()
 		.get(HOST)
 		.and_then(|value| value.to_str().ok())
 		.or_else(|| req.uri().authority().map(|authority| authority.as_str()))
-		.unwrap_or_else(|| config.host());
-	format!("{scheme}://{host}")
+		.unwrap_or_else(|| req.app_config().host())
 }
 
 pub fn normalize_public_url(value: &str) -> ApiResult<String> {

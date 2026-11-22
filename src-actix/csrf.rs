@@ -8,6 +8,7 @@ use actix_web::{Error, web};
 use obsidian_common::CommonError;
 
 use crate::error::ApiError;
+use crate::routes::auth::support::request_host;
 use crate::state::AppState;
 
 pub async fn verify_origin(
@@ -33,7 +34,7 @@ fn trusted_origin(req: &ServiceRequest) -> bool {
 	let Some(source) = authority(source) else {
 		return false;
 	};
-	if source.as_str().eq_ignore_ascii_case(req.connection_info().host()) {
+	if source.as_str().eq_ignore_ascii_case(&request_host(req.request())) {
 		return true;
 	}
 	req.app_data::<web::Data<AppState>>()
