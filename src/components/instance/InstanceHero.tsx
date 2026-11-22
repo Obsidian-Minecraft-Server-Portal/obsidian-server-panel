@@ -1,4 +1,3 @@
-import { Dropdown } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router";
@@ -12,21 +11,12 @@ import { InstanceIcon } from "./InstanceIcon";
 import { ContentChip, LoaderChip, StatusChip, VersionChip } from "./InstanceChips";
 import { PowerControls } from "./PowerControls";
 
-const MENU_TRIGGER =
-  "inline-flex size-10 items-center justify-center rounded-control border border-line-strong bg-input text-ink-1 transition-colors hover:bg-raised";
-
 export function InstanceHero({ view }: { view: InstanceView }) {
   const navigate = useNavigate();
   const canReadFiles = hasPermission(view, "files.read");
-  const canEditSettings = hasPermission(view, "settings.edit");
   const canDownloadBackups = hasPermission(view, "backups.download");
   const content = useInstalledContent(view.id, canReadFiles);
   const snapshots = useSnapshots(view.id, canDownloadBackups);
-
-  const menuItems = [
-    ...(canEditSettings ? [{ key: "settings", label: "Settings", icon: "lucide:settings" }] : []),
-    ...(canReadFiles ? [{ key: "files", label: "Files", icon: "lucide:folder" }] : []),
-  ];
 
   return (
     <section className="relative overflow-hidden border-b border-line">
@@ -40,23 +30,6 @@ export function InstanceHero({ view }: { view: InstanceView }) {
           <GhostButton isIconOnly aria-label="Back to instances" onPress={() => navigate("/instances")} className="size-10">
             <Icon icon="lucide:chevron-left" width={18} height={18} />
           </GhostButton>
-          {menuItems.length > 0 && (
-            <Dropdown>
-              <Dropdown.Trigger aria-label="Instance actions" className={MENU_TRIGGER}>
-                <Icon icon="lucide:ellipsis" width={18} height={18} />
-              </Dropdown.Trigger>
-              <Dropdown.Popover placement="bottom start">
-                <Dropdown.Menu aria-label="Instance actions" onAction={(key) => navigate(`/instances/${view.id}/${key}`)}>
-                  {menuItems.map((item) => (
-                    <Dropdown.Item key={item.key} id={item.key} textValue={item.label}>
-                      <Icon icon={item.icon} width={16} height={16} />
-                      {item.label}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-          )}
         </div>
         <div className="flex flex-wrap items-end gap-6 pt-16 pb-2">
           <InstanceIcon instance={view} className="size-28 rounded-panel shadow-glow" />

@@ -76,12 +76,12 @@ export function CreateSummary({ draft, onEula, onCreate, isPending, error }: Cre
         <Checkbox
           isSelected={draft.acceptEula}
           onChange={onEula}
-          className="relative flex items-start gap-3 rounded-control p-1 text-left"
+          className="relative flex w-full items-start gap-3 rounded-control p-1 text-left"
         >
           <Checkbox.Control className="mt-0.5 size-5 shrink-0 border-ink-4 bg-input">
             <Checkbox.Indicator />
           </Checkbox.Control>
-          <Checkbox.Content className="text-sm leading-snug text-ink-2">
+          <Checkbox.Content className="min-w-0 flex-1 text-sm leading-snug text-ink-2">
             I accept the{" "}
             <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer" className="text-accent hover:underline">
               Minecraft EULA
