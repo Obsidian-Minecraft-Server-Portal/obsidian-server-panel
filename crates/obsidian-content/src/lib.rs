@@ -12,8 +12,8 @@ mod tests;
 pub use icon::mime as icon_mime;
 pub use manager::ContentManager;
 pub use model::{
-	ContentUpdate, InstallRequest, InstalledContent, ModpackRequest, Project, ProjectVersion, SearchPage, SearchQuery,
-	VersionFilter,
+	Category, CategoryGroup, ContentUpdate, Facets, InstallRequest, InstalledContent, ModpackRequest, Project, ProjectVersion,
+	SearchPage, SearchQuery, Side, VersionFilter,
 };
 pub use platform::{ContentPlatform, Kind, Platform};
 

@@ -12,7 +12,7 @@ use obsidian_common::{CommonError, Paths, Result, TaskRegistry, UserId};
 use obsidian_db::Db;
 use tokio::sync::Mutex;
 
-use crate::model::{InstalledContent, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Facets, InstalledContent, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 use crate::platforms::{CurseForge, Hangar, Modrinth, Spiget};
 use crate::{CURSEFORGE_API_KEY, http, icon};
@@ -42,7 +42,7 @@ impl ContentManager {
 			Arc::new(Hangar::new(http.clone())),
 			Arc::new(Spiget::new(http.clone())),
 		];
-		if let Some(key) = CURSEFORGE_API_KEY {
+		if let Some(key) = CURSEFORGE_API_KEY.filter(|key| !key.is_empty()) {
 			platforms.push(Arc::new(CurseForge::new(http.clone(), key)));
 		}
 		Self {
@@ -83,6 +83,14 @@ impl ContentManager {
 			});
 		}
 		provider.search(query).await
+	}
+
+	pub async fn facets(&self, platform: Platform, kind: Kind) -> Result<Facets> {
+		let provider = self.provider(platform)?;
+		if !provider.supports(kind) {
+			return Ok(Facets::default());
+		}
+		provider.facets(kind).await
 	}
 
 	pub async fn project(&self, platform: Platform, id: &str) -> Result<Project> {

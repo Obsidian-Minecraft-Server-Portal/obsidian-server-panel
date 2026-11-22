@@ -5,7 +5,7 @@ use reqwest::RequestBuilder;
 use serde::Deserialize;
 
 use crate::http::{self, segment};
-use crate::model::{Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
 const BASE_URL: &str = "https://api.curseforge.com/v1";
@@ -58,6 +58,9 @@ impl ContentPlatform for CurseForge {
 		if let Some(version) = &query.mc_version {
 			params.push(("gameVersion", version.clone()));
 		}
+		if let Some(category) = query.categories.first() {
+			params.push(("categoryId", numeric(category)?.to_owned()));
+		}
 		if let Some(loader_type) = query.loader.and_then(loader_type) {
 			params.push(("modLoaderType", loader_type.to_string()));
 		}
@@ -65,6 +68,32 @@ impl ContentPlatform for CurseForge {
 		Ok(SearchPage {
 			total: page.pagination.total_count,
 			items: page.data.into_iter().map(to_project).collect(),
+		})
+	}
+
+	async fn facets(&self, kind: Kind) -> Result<Facets> {
+		let query = [("gameId", MINECRAFT_GAME_ID.to_string()), ("classId", class_id(kind).to_string())];
+		let listed: Listed<CategoryItem> = http::json(self.get("categories").query(&query)).await?;
+		let categories = listed
+			.data
+			.into_iter()
+			.filter(|category| !category.is_class)
+			.map(|category| Category {
+				id: category.id.to_string(),
+				name: category.name,
+			})
+			.collect();
+		Ok(Facets {
+			categories: vec![CategoryGroup {
+				header: "categories".to_owned(),
+				categories,
+			}],
+			game_versions: true,
+			loaders: true,
+			environments: false,
+			open_source: false,
+			exclusions: false,
+			multiple: false,
 		})
 	}
 
@@ -107,6 +136,19 @@ struct Pagination {
 }
 
 #[derive(Deserialize)]
+struct Listed<T> {
+	data: Vec<T>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CategoryItem {
+	id: u64,
+	name: String,
+	is_class: bool,
+}
+
+#[derive(Deserialize)]
 struct Single<T> {
 	data: T,
 }
@@ -121,6 +163,13 @@ struct Mod {
 	download_count: f64,
 	class_id: u32,
 	logo: Option<Logo>,
+	#[serde(default)]
+	screenshots: Vec<Screenshot>,
+}
+
+#[derive(Deserialize)]
+struct Screenshot {
+	url: String,
 }
 
 #[derive(Deserialize)]
@@ -190,6 +239,7 @@ fn to_project(item: Mod) -> Project {
 		name: item.name,
 		summary: item.summary,
 		icon_url: item.logo.map(|logo| logo.url),
+		banner_url: item.screenshots.into_iter().next().map(|screenshot| screenshot.url),
 		downloads: item.download_count as u64,
 		kind: kind_of(item.class_id),
 	}

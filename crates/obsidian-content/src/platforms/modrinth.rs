@@ -3,12 +3,13 @@ use ferinth::Ferinth;
 use ferinth::structures::project::ProjectType;
 use ferinth::structures::search::SearchHit;
 use ferinth::structures::search::{Facet, Sort};
+use ferinth::structures::tag::Category as ModrinthCategory;
 use ferinth::structures::version::{Version, VersionFile};
 use obsidian_common::{CommonError, Loader, Result};
 use reqwest::StatusCode;
 
 use crate::http::{segment, upstream};
-use crate::model::{Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, Side, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
 pub struct Modrinth {
@@ -38,14 +39,21 @@ impl ContentPlatform for Modrinth {
 		if let Some(version) = &query.mc_version {
 			facets.push(vec![Facet::Versions(version.clone())]);
 		}
-		let categories = query.loader.map(loader_categories).unwrap_or_default();
-		if !categories.is_empty() {
-			facets.push(
-				categories
-					.iter()
-					.map(|category| Facet::Categories((*category).to_owned()))
-					.collect(),
-			);
+		let loader_facets = query.loader.map(loader_categories).unwrap_or_default();
+		if !loader_facets.is_empty() {
+			facets.push(loader_facets.iter().map(|category| Facet::Categories((*category).to_owned())).collect());
+		}
+		for category in &query.categories {
+			facets.push(vec![Facet::Categories(category.clone())]);
+		}
+		for category in &query.excluded_categories {
+			facets.push(vec![custom("categories", "!=", category)]);
+		}
+		for side in &query.environments {
+			facets.push(vec![custom(side_facet(*side), ":", "required")]);
+		}
+		if query.open_source {
+			facets.push(vec![Facet::OpenSource(true)]);
 		}
 		let sort = if query.text.is_empty() {
 			Sort::Downloads
@@ -72,8 +80,37 @@ impl ContentPlatform for Modrinth {
 			name: project.title,
 			summary: project.description,
 			icon_url: project.icon_url.map(|url| url.to_string()),
+			banner_url: project.gallery.first().map(|item| item.url.to_string()),
 			downloads: project.downloads as u64,
 			kind: kind_of(project.project_type),
+		})
+	}
+
+	async fn facets(&self, kind: Kind) -> Result<Facets> {
+		let project_type = project_type_of(kind);
+		let loader_names: Vec<String> = self
+			.api
+			.tag_list_loaders()
+			.await
+			.map_err(map_error)?
+			.into_iter()
+			.map(|loader| loader.name)
+			.collect();
+		let categories = self.api.tag_list_categories().await.map_err(map_error)?;
+		let mut groups: Vec<CategoryGroup> = Vec::new();
+		for category in categories {
+			if category.project_type == project_type && !loader_names.contains(&category.name) {
+				push_category(&mut groups, category);
+			}
+		}
+		Ok(Facets {
+			categories: groups,
+			game_versions: true,
+			loaders: true,
+			environments: true,
+			open_source: true,
+			exclusions: true,
+			multiple: true,
 		})
 	}
 
@@ -97,6 +134,43 @@ impl ContentPlatform for Modrinth {
 			return Err(CommonError::NotFound("version does not belong to this project".into()));
 		}
 		to_version(version).ok_or_else(|| CommonError::NotFound("version has no downloadable file".into()))
+	}
+}
+
+fn custom(_type: &str, operation: &str, value: &str) -> Facet {
+	Facet::Custom {
+		_type: _type.to_owned(),
+		operation: operation.to_owned(),
+		value: value.to_owned(),
+	}
+}
+
+fn side_facet(side: Side) -> &'static str {
+	match side {
+		Side::Client => "client_side",
+		Side::Server => "server_side",
+	}
+}
+
+fn project_type_of(kind: Kind) -> ProjectType {
+	match kind {
+		Kind::Mod => ProjectType::Mod,
+		Kind::Plugin => ProjectType::Plugin,
+		Kind::Modpack => ProjectType::Modpack,
+	}
+}
+
+fn push_category(groups: &mut Vec<CategoryGroup>, category: ModrinthCategory) {
+	let entry = Category {
+		id: category.name.clone(),
+		name: category.name,
+	};
+	match groups.iter_mut().find(|group| group.header == category.header) {
+		Some(group) => group.categories.push(entry),
+		None => groups.push(CategoryGroup {
+			header: category.header,
+			categories: vec![entry],
+		}),
 	}
 }
 
@@ -143,6 +217,7 @@ fn hit_to_project(hit: SearchHit) -> Project {
 		name: hit.title,
 		summary: hit.description,
 		icon_url: hit.icon_url.map(|url| url.to_string()),
+		banner_url: hit.gallery.first().map(|url| url.to_string()),
 		downloads: hit.downloads as u64,
 		kind: kind_of(hit.project_type),
 	}

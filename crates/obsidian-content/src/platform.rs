@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use utoipa::ToSchema;
 
-use crate::model::{Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Facets, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -79,6 +79,9 @@ pub trait ContentPlatform: Send + Sync {
 	fn id(&self) -> Platform;
 	fn supports(&self, kind: Kind) -> bool;
 	async fn search(&self, query: &SearchQuery) -> Result<SearchPage>;
+	async fn facets(&self, _kind: Kind) -> Result<Facets> {
+		Ok(Facets::default())
+	}
 	async fn project(&self, id: &str) -> Result<Project>;
 	async fn versions(&self, id: &str, filter: &VersionFilter) -> Result<Vec<ProjectVersion>>;
 	async fn version(&self, project_id: &str, version_id: &str) -> Result<ProjectVersion>;

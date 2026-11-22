@@ -127,6 +127,7 @@ fn to_project(resource: Resource) -> Project {
 			.icon
 			.filter(|icon| !icon.url.is_empty())
 			.map(|icon| format!("{ICON_BASE}{}", icon.url)),
+		banner_url: None,
 		downloads: resource.downloads,
 		kind: Kind::Plugin,
 	}

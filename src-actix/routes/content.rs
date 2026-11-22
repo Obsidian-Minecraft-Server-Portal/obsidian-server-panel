@@ -4,8 +4,8 @@ use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, Loader};
 use obsidian_content::{
-	ContentUpdate, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectVersion, SearchPage, SearchQuery,
-	VersionFilter, icon_mime,
+	ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectVersion, SearchPage,
+	SearchQuery, Side, VersionFilter, icon_mime,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -21,6 +21,7 @@ const MAX_UPLOAD_BYTES: usize = 512 << 20;
 pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(platforms)
 		.service(search)
+		.service(facets)
 		.service(project)
 		.service(project_versions)
 		.service(list_content)
@@ -49,9 +50,18 @@ pub struct SearchParams {
 	query: String,
 	loader: Option<Loader>,
 	mc_version: Option<String>,
+	categories: Option<String>,
+	excluded_categories: Option<String>,
+	environments: Option<String>,
+	open_source: Option<bool>,
 	#[serde(default)]
 	page: u32,
 	limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FacetsParams {
+	kind: Option<Kind>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -127,10 +137,62 @@ pub async fn search(
 		kind: params.kind.unwrap_or(Kind::Mod),
 		mc_version: params.mc_version,
 		loader: params.loader,
+		categories: split_list(params.categories),
+		excluded_categories: split_list(params.excluded_categories),
+		environments: parse_sides(params.environments.as_deref())?,
+		open_source: params.open_source.unwrap_or(false),
 		offset: params.page.saturating_mul(limit),
 		limit,
 	};
 	Ok(web::Json(state.content.search(platform, &query).await?))
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/content/{platform}/facets",
+	tag = "content",
+	params(
+		("platform" = String, Path, description = "Platform name or numeric id"),
+		("kind" = Option<String>, Query, description = "mod, plugin or modpack"),
+	),
+	responses(
+		(status = 200, description = "Filters the platform offers for this kind", body = Facets),
+		(status = 400, description = "Unknown platform"),
+	)
+)]
+#[get("/content/{platform}/facets")]
+pub async fn facets(
+	state: web::Data<AppState>,
+	_user: AuthUser,
+	path: web::Path<String>,
+	web::Query(params): web::Query<FacetsParams>,
+) -> ApiResult<web::Json<Facets>> {
+	let platform: Platform = path.parse()?;
+	Ok(web::Json(state.content.facets(platform, params.kind.unwrap_or(Kind::Mod)).await?))
+}
+
+fn split_list(value: Option<String>) -> Vec<String> {
+	value
+		.unwrap_or_default()
+		.split(',')
+		.map(str::trim)
+		.filter(|item| !item.is_empty())
+		.map(str::to_owned)
+		.collect()
+}
+
+fn parse_sides(value: Option<&str>) -> ApiResult<Vec<Side>> {
+	value
+		.unwrap_or_default()
+		.split(',')
+		.map(str::trim)
+		.filter(|item| !item.is_empty())
+		.map(|item| match item {
+			"client" => Ok(Side::Client),
+			"server" => Ok(Side::Server),
+			other => Err(CommonError::Invalid(format!("unknown side '{other}'")).into()),
+		})
+		.collect()
 }
 
 #[utoipa::path(

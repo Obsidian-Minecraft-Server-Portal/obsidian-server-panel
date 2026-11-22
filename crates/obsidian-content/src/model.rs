@@ -11,8 +11,42 @@ pub struct SearchQuery {
 	pub kind: Kind,
 	pub mc_version: Option<String>,
 	pub loader: Option<Loader>,
+	pub categories: Vec<String>,
+	pub excluded_categories: Vec<String>,
+	pub environments: Vec<Side>,
+	pub open_source: bool,
 	pub offset: u32,
 	pub limit: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Side {
+	Client,
+	Server,
+}
+
+#[derive(Debug, Clone, Default, Serialize, ToSchema)]
+pub struct Facets {
+	pub categories: Vec<CategoryGroup>,
+	pub game_versions: bool,
+	pub loaders: bool,
+	pub environments: bool,
+	pub open_source: bool,
+	pub exclusions: bool,
+	pub multiple: bool,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct CategoryGroup {
+	pub header: String,
+	pub categories: Vec<Category>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct Category {
+	pub id: String,
+	pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -30,6 +64,7 @@ pub struct Project {
 	pub name: String,
 	pub summary: String,
 	pub icon_url: Option<String>,
+	pub banner_url: Option<String>,
 	pub downloads: u64,
 	pub kind: Kind,
 }
