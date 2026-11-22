@@ -142,7 +142,7 @@ impl ContentManager {
 		}
 		task.progress(0.95, "Applying overrides");
 		let target = directory.clone();
-		tokio::task::spawn_blocking(move || apply_overrides(&archive_bytes, &overrides, &target))
+		tokio::task::spawn_blocking(move || archive::extract_prefixes(&archive_bytes, &overrides, &target))
 			.await
 			.map_err(|error| CommonError::Other(error.to_string()))??;
 		Ok(json!({ "instance_id": instance_id, "installed": installed, "failed": failed }))
@@ -228,36 +228,6 @@ fn join_relative(root: &Path, relative: &str) -> Result<PathBuf> {
 		return Err(CommonError::Invalid(format!("unsafe path in modpack: {relative}")));
 	}
 	Ok(root.join(path))
-}
-
-fn apply_overrides(archive_bytes: &[u8], prefixes: &[String], directory: &Path) -> Result<()> {
-	let mut archive = archive::open(archive_bytes)?;
-	for prefix in prefixes {
-		for index in 0..archive.len() {
-			let mut entry = archive
-				.by_index(index)
-				.map_err(|error| CommonError::Invalid(format!("corrupt modpack entry: {error}")))?;
-			let Some(name) = entry.enclosed_name() else {
-				continue;
-			};
-			let Ok(relative) = name.strip_prefix(prefix) else {
-				continue;
-			};
-			if relative.as_os_str().is_empty() {
-				continue;
-			}
-			let target = directory.join(relative);
-			if entry.is_dir() {
-				std::fs::create_dir_all(&target)?;
-				continue;
-			}
-			if let Some(parent) = target.parent() {
-				std::fs::create_dir_all(parent)?;
-			}
-			std::io::copy(&mut entry, &mut std::fs::File::create(&target)?)?;
-		}
-	}
-	Ok(())
 }
 
 fn loader_named(name: &str) -> Option<Loader> {

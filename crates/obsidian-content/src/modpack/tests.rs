@@ -3,7 +3,8 @@ use std::io::{Cursor, Write};
 use obsidian_common::Loader;
 use zip::write::SimpleFileOptions;
 
-use super::{Source, apply_overrides, manifest, mrpack};
+use super::{Source, manifest, mrpack};
+use crate::archive::extract_prefixes as apply_overrides;
 
 fn archive(entries: &[(&str, &[u8])]) -> Vec<u8> {
 	let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));

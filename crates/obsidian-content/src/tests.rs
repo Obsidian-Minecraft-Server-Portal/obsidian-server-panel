@@ -5,7 +5,8 @@ use obsidian_db::Db;
 use zip::write::SimpleFileOptions;
 
 use crate::icon;
-use crate::manager::{NewRecord, jar_filename, safe_filename, store, verify_checksums};
+use crate::manager::targets::world_root;
+use crate::manager::{NewRecord, content_filename, jar_filename, safe_filename, store, verify_checksums};
 use crate::platform::{Kind, Platform};
 use crate::{ContentManager, http, modpack};
 
@@ -133,4 +134,47 @@ async fn list_reconciles_jars_dropped_on_disk() {
 	tokio::fs::remove_file(mods.join("manual.jar")).await.unwrap();
 	manager.scanned.invalidate(&instance_id);
 	assert_eq!(manager.list(instance_id).await.unwrap().len(), 2);
+}
+
+#[test]
+fn kinds_round_trip_through_the_database_and_json() {
+	assert_eq!(Kind::from_db(Kind::DataPack.db_value()), Kind::DataPack);
+	assert_eq!(Kind::from_db(Kind::Plugin.db_value()), Kind::Plugin);
+	assert_eq!(serde_json::to_string(&Kind::ResourcePack).unwrap(), "\"resourcepack\"");
+	assert_eq!(serde_json::from_str::<Kind>("\"datapack\"").unwrap(), Kind::DataPack);
+}
+
+#[test]
+fn datapacks_must_be_zips() {
+	assert_eq!(content_filename(Kind::DataPack, "terralith.zip").unwrap(), "terralith.zip");
+	assert!(content_filename(Kind::DataPack, "terralith.jar").is_err());
+	assert!(content_filename(Kind::Mod, "sodium.zip").is_err());
+}
+
+#[test]
+fn world_root_finds_the_shallowest_level_dat() {
+	let nested = jar(&[
+		("Skyblock/level.dat", b"nbt"),
+		("Skyblock/region/r.0.0.mca", b"mca"),
+		("Skyblock/backup/level.dat", b"old"),
+	]);
+	assert_eq!(world_root(&nested).unwrap(), "Skyblock/");
+	assert_eq!(world_root(&jar(&[("level.dat", b"nbt")])).unwrap(), "");
+	assert!(world_root(&jar(&[("readme.txt", b"hi")])).is_err());
+}
+
+#[tokio::test]
+async fn datapacks_resolve_into_the_configured_level() {
+	let dir = tempfile::tempdir().unwrap();
+	let paths = Paths::new(dir.path()).unwrap();
+	let db = Db::open(&paths).await.unwrap();
+	let manager = ContentManager::new(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()));
+	let instance_id = seed_instance(&db).await;
+	let root = paths.instance_dir(instance_id);
+	tokio::fs::create_dir_all(&root).await.unwrap();
+	let default = manager.file_path(instance_id, Kind::DataPack, "a.zip").await.unwrap();
+	assert_eq!(default, root.join("world/datapacks/a.zip"));
+	tokio::fs::write(root.join("server.properties"), "level-name=skyblock\n").await.unwrap();
+	let custom = manager.file_path(instance_id, Kind::DataPack, "a.zip").await.unwrap();
+	assert_eq!(custom, root.join("skyblock/datapacks/a.zip"));
 }

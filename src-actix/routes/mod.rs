@@ -2,6 +2,7 @@ pub mod account;
 pub mod auth;
 pub mod backups;
 pub mod content;
+pub mod content_targets;
 pub mod files;
 pub mod health;
 pub mod instances;
@@ -38,6 +39,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(instances::configure)
 			.configure(files::configure)
 			.configure(content::configure)
+			.configure(content_targets::configure)
 			.configure(modpacks::configure)
 			.configure(backups::configure)
 			.configure(schedules::configure)

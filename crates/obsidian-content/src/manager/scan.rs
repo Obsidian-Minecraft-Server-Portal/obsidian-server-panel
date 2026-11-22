@@ -1,14 +1,21 @@
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use futures_util::{StreamExt, stream};
 use obsidian_common::Result;
 use tokio::fs;
 
 use super::store::{self, DISABLED_SUFFIX};
-use super::{ContentManager, jar_filename, kind_for_loader, subdirectory};
+use super::{ContentManager, content_filename, kind_for_loader, subdirectory};
+use crate::platform::Kind;
 
 const ICON_CONCURRENCY: usize = 4;
+
+struct Folder {
+	kind: Kind,
+	dir: PathBuf,
+	names: HashSet<String>,
+}
 
 impl ContentManager {
 	pub(crate) async fn refresh(&self, instance_id: i64) -> Result<()> {
@@ -27,39 +34,43 @@ impl ContentManager {
 	async fn sync_disk(&self, instance_id: i64) -> Result<()> {
 		let pool = self.db.pool();
 		let (loader, _) = store::instance(pool, instance_id).await?;
-		let kind = kind_for_loader(loader);
 		let rows = store::list(pool, instance_id).await?;
-		let dir = self.paths.instance_dir(instance_id).join(subdirectory(kind));
-		let mut fresh = content_files(&dir).await?;
+		let mut folders = Vec::with_capacity(2);
+		for kind in [kind_for_loader(loader), Kind::DataPack] {
+			let dir = self.content_dir(instance_id, kind).await?;
+			let names = content_files(&dir, kind).await?;
+			folders.push(Folder { kind, dir, names });
+		}
 
 		let mut missing = Vec::new();
 		for row in rows {
-			let present = if subdirectory(row.kind) == subdirectory(kind) {
-				fresh.remove(&row.filename)
-			} else {
-				fs::try_exists(self.file_path(instance_id, row.kind, &row.filename)).await?
+			let folder = folders
+				.iter_mut()
+				.find(|folder| subdirectory(folder.kind) == subdirectory(row.kind));
+			let present = match folder {
+				Some(folder) => folder.names.remove(&row.filename),
+				None => fs::try_exists(self.file_path(instance_id, row.kind, &row.filename).await?).await?,
 			};
 			if !present {
 				missing.push(row);
 			}
 		}
-		if missing.is_empty() && fresh.is_empty() {
+		if missing.is_empty() && folders.iter().all(|folder| folder.names.is_empty()) {
 			return Ok(());
 		}
 
-		let dir = &dir;
-		let found: Vec<(String, Option<Vec<u8>>)> = stream::iter(fresh)
-			.map(|name| async move {
-				let icon = self.extract_icon(&dir.join(&name)).await;
-				(name, icon)
-			})
+		let fresh = folders
+			.iter()
+			.flat_map(|folder| folder.names.iter().map(move |name| (folder.kind, folder.dir.join(name), name.clone())));
+		let found: Vec<(Kind, String, Option<Vec<u8>>)> = stream::iter(fresh)
+			.map(|(kind, path, name)| async move { (kind, name, self.extract_icon(&path).await) })
 			.buffer_unordered(ICON_CONCURRENCY)
 			.collect()
 			.await;
 
 		let mut stale = Vec::with_capacity(missing.len());
 		for row in missing {
-			if !fs::try_exists(self.file_path(instance_id, row.kind, &row.filename)).await? {
+			if !fs::try_exists(self.file_path(instance_id, row.kind, &row.filename).await?).await? {
 				stale.push(row.id);
 			}
 		}
@@ -68,15 +79,15 @@ impl ContentManager {
 		for id in stale {
 			store::delete(&mut *tx, id).await?;
 		}
-		for (filename, icon) in &found {
-			store::insert_untracked(&mut *tx, instance_id, filename, kind, icon.as_deref()).await?;
+		for (kind, filename, icon) in &found {
+			store::insert_untracked(&mut *tx, instance_id, filename, *kind, icon.as_deref()).await?;
 		}
 		tx.commit().await?;
 		Ok(())
 	}
 }
 
-async fn content_files(dir: &Path) -> Result<HashSet<String>> {
+async fn content_files(dir: &Path, kind: Kind) -> Result<HashSet<String>> {
 	let mut entries = match fs::read_dir(dir).await {
 		Ok(entries) => entries,
 		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(HashSet::new()),
@@ -87,14 +98,14 @@ async fn content_files(dir: &Path) -> Result<HashSet<String>> {
 		let Ok(name) = entry.file_name().into_string() else {
 			continue;
 		};
-		if is_content_file(&name) && entry.file_type().await?.is_file() {
+		if is_content_file(kind, &name) && entry.file_type().await?.is_file() {
 			names.insert(name);
 		}
 	}
 	Ok(names)
 }
 
-fn is_content_file(name: &str) -> bool {
+fn is_content_file(kind: Kind, name: &str) -> bool {
 	let stem = name.strip_suffix(DISABLED_SUFFIX).unwrap_or(name);
-	jar_filename(stem).is_ok_and(|base| base == stem)
+	content_filename(kind, stem).is_ok_and(|base| base == stem)
 }

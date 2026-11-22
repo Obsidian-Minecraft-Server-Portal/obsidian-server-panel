@@ -40,6 +40,7 @@ pub struct PlatformInfo {
 	pub id: u8,
 	pub name: &'static str,
 	pub available: bool,
+	pub kinds: Vec<Kind>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,6 +69,7 @@ pub struct FacetsParams {
 pub struct VersionParams {
 	loader: Option<Loader>,
 	mc_version: Option<String>,
+	kind: Option<Kind>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -100,6 +102,7 @@ pub async fn platforms(state: web::Data<AppState>, _user: AuthUser) -> web::Json
 				id: *platform as u8,
 				name: platform.name(),
 				available: state.content.is_available(*platform),
+				kinds: state.content.kinds(*platform),
 			})
 			.collect(),
 	)
@@ -111,7 +114,7 @@ pub async fn platforms(state: web::Data<AppState>, _user: AuthUser) -> web::Json
 	tag = "content",
 	params(
 		("platform" = String, Query, description = "Platform name or numeric id"),
-		("kind" = Option<String>, Query, description = "mod, plugin or modpack"),
+		("kind" = Option<String>, Query, description = "mod, plugin, modpack, datapack, resourcepack or world"),
 		("query" = Option<String>, Query, description = "Free-text search"),
 		("loader" = Option<String>, Query, description = "Mod loader filter"),
 		("mc_version" = Option<String>, Query, description = "Minecraft version filter"),
@@ -153,7 +156,7 @@ pub async fn search(
 	tag = "content",
 	params(
 		("platform" = String, Path, description = "Platform name or numeric id"),
-		("kind" = Option<String>, Query, description = "mod, plugin or modpack"),
+		("kind" = Option<String>, Query, description = "mod, plugin, modpack, datapack, resourcepack or world"),
 	),
 	responses(
 		(status = 200, description = "Filters the platform offers for this kind", body = Facets),
@@ -228,6 +231,7 @@ pub async fn project(
 		("id" = String, Path, description = "Project id on the platform"),
 		("loader" = Option<String>, Query, description = "Mod loader filter"),
 		("mc_version" = Option<String>, Query, description = "Minecraft version filter"),
+		("kind" = Option<String>, Query, description = "Content kind, narrows files such as datapack zips"),
 	),
 	responses(
 		(status = 200, description = "Versions, newest first where the platform reports order", body = Vec<ProjectVersion>),
@@ -246,6 +250,7 @@ pub async fn project_versions(
 	let filter = VersionFilter {
 		mc_version: params.mc_version,
 		loader: params.loader,
+		kind: params.kind,
 	};
 	Ok(web::Json(state.content.versions(platform, &id, &filter).await?))
 }
@@ -299,6 +304,7 @@ pub async fn install_content(
 			request.platform,
 			&request.project_id,
 			&request.version_id,
+			request.kind.unwrap_or(Kind::Mod),
 			Some(user.id),
 		)
 		.await?;

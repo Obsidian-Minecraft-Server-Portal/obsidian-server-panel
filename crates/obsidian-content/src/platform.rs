@@ -59,18 +59,37 @@ pub enum Kind {
 	Mod,
 	Plugin,
 	Modpack,
+	#[serde(rename = "datapack")]
+	DataPack,
+	#[serde(rename = "resourcepack")]
+	ResourcePack,
+	World,
 }
 
 impl Kind {
+	pub const ALL: [Kind; 6] = [
+		Kind::Modpack,
+		Kind::Mod,
+		Kind::Plugin,
+		Kind::DataPack,
+		Kind::ResourcePack,
+		Kind::World,
+	];
+
 	pub const fn db_value(self) -> i64 {
 		match self {
 			Self::Plugin => 1,
-			Self::Mod | Self::Modpack => 0,
+			Self::DataPack => 2,
+			Self::Mod | Self::Modpack | Self::ResourcePack | Self::World => 0,
 		}
 	}
 
 	pub const fn from_db(value: i64) -> Self {
-		if value == 1 { Self::Plugin } else { Self::Mod }
+		match value {
+			1 => Self::Plugin,
+			2 => Self::DataPack,
+			_ => Self::Mod,
+		}
 	}
 }
 

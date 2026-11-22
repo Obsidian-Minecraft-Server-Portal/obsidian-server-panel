@@ -73,6 +73,7 @@ pub struct Project {
 pub struct VersionFilter {
 	pub mc_version: Option<String>,
 	pub loader: Option<Loader>,
+	pub kind: Option<Kind>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -117,6 +118,7 @@ pub struct InstallRequest {
 	pub platform: Platform,
 	pub project_id: String,
 	pub version_id: String,
+	pub kind: Option<Kind>,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]

@@ -210,6 +210,9 @@ fn class_id(kind: Kind) -> u32 {
 		Kind::Mod => 6,
 		Kind::Plugin => 5,
 		Kind::Modpack => 4471,
+		Kind::ResourcePack => 12,
+		Kind::World => 17,
+		Kind::DataPack => 6945,
 	}
 }
 
@@ -217,6 +220,9 @@ fn kind_of(class_id: u32) -> Kind {
 	match class_id {
 		5 => Kind::Plugin,
 		4471 => Kind::Modpack,
+		12 => Kind::ResourcePack,
+		17 => Kind::World,
+		6945 => Kind::DataPack,
 		_ => Kind::Mod,
 	}
 }

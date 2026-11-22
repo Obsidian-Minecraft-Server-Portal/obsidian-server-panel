@@ -196,7 +196,7 @@ impl InstanceManager {
 		Ok(())
 	}
 
-	pub(crate) fn is_active_instance(&self, id: InstanceId) -> bool {
+	pub fn is_active_instance(&self, id: InstanceId) -> bool {
 		self.live().get(&id).is_some_and(|live| live::is_active(live.status.state))
 	}
 

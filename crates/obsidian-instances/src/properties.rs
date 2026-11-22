@@ -16,7 +16,7 @@ fn invalid(error: PropertiesError) -> CommonError {
 	CommonError::Other(format!("server.properties: {error}"))
 }
 
-pub(crate) async fn read(dir: &Path) -> Result<BTreeMap<String, String>> {
+pub async fn read(dir: &Path) -> Result<BTreeMap<String, String>> {
 	let bytes = match tokio::fs::read(dir.join(FILE)).await {
 		Ok(bytes) => bytes,
 		Err(error) if error.kind() == ErrorKind::NotFound => return Ok(BTreeMap::new()),
@@ -25,7 +25,7 @@ pub(crate) async fn read(dir: &Path) -> Result<BTreeMap<String, String>> {
 	Ok(java_properties::read(bytes.as_slice()).map_err(invalid)?.into_iter().collect())
 }
 
-pub(crate) async fn write(dir: &Path, properties: &BTreeMap<String, String>) -> Result<()> {
+pub async fn write(dir: &Path, properties: &BTreeMap<String, String>) -> Result<()> {
 	let mut buffer = Vec::new();
 	let mut writer = PropertiesWriter::new(&mut buffer);
 	writer.write_comment(HEADER).map_err(invalid)?;

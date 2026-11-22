@@ -4,9 +4,10 @@ use futures_util::{StreamExt, stream};
 use obsidian_common::{CommonError, Result, TaskHandle, UserId};
 use tracing::warn;
 
-use super::install::jar_filename;
+use super::install::content_filename;
 use super::{ContentManager, DISABLED_SUFFIX, store};
 use crate::model::{ContentUpdate, InstalledContent, VersionFilter};
+use crate::platform::Kind;
 
 const UPDATE_CONCURRENCY: usize = 4;
 
@@ -16,6 +17,7 @@ impl ContentManager {
 		let filter = VersionFilter {
 			mc_version: Some(mc_version),
 			loader: Some(loader),
+			kind: None,
 		};
 		let tracked: Vec<InstalledContent> = store::list(self.db.pool(), instance_id)
 			.await?
@@ -81,15 +83,15 @@ impl ContentManager {
 		let download = self
 			.fetch_version(provider.as_ref(), project_id, version_id, task)
 			.await?;
-		let base = jar_filename(&download.version.file_name)?;
+		let base = content_filename(item.kind, &download.version.file_name)?;
 		let filename = if item.enabled {
 			base.to_owned()
 		} else {
 			format!("{base}{DISABLED_SUFFIX}")
 		};
-		let old_path = self.file_path(item.instance_id, item.kind, &item.filename);
-		let new_path = self.file_path(item.instance_id, item.kind, &filename);
-		let staging = self.file_path(item.instance_id, item.kind, &format!("{filename}.part"));
+		let old_path = self.file_path(item.instance_id, item.kind, &item.filename).await?;
+		let new_path = self.file_path(item.instance_id, item.kind, &filename).await?;
+		let staging = self.file_path(item.instance_id, item.kind, &format!("{filename}.part")).await?;
 		let _files = self.files.lock().await;
 		tokio::fs::write(&staging, &download.bytes).await?;
 		if let Err(error) =
@@ -118,7 +120,12 @@ impl ContentManager {
 		let platform = item.platform?;
 		let project_id = item.project_id.as_deref()?;
 		let current = item.version_id.clone()?;
-		let versions = match self.versions(platform, project_id, filter).await {
+		let filter = VersionFilter {
+			mc_version: filter.mc_version.clone(),
+			loader: filter.loader.filter(|_| item.kind != Kind::DataPack),
+			kind: Some(item.kind),
+		};
+		let versions = match self.versions(platform, project_id, &filter).await {
 			Ok(versions) => versions,
 			Err(error) => {
 				warn!(filename = %item.filename, %error, "update check failed");

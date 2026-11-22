@@ -1,9 +1,13 @@
 mod install;
 mod scan;
 pub(crate) mod store;
+pub(crate) mod targets;
+
+pub use targets::{InstalledWorld, ServerResourcePack};
 mod update;
 
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,9 +21,11 @@ use crate::platform::{ContentPlatform, Kind, Platform};
 use crate::platforms::{CurseForge, Hangar, Modrinth, Spiget};
 use crate::{CURSEFORGE_API_KEY, http, icon};
 
-pub(crate) use install::{jar_filename, safe_filename, verify_checksums};
+pub(crate) use install::{content_filename, jar_filename, safe_filename, verify_checksums};
 pub(crate) use store::{DISABLED_SUFFIX, NewRecord};
 
+pub(crate) const LEVEL_NAME_KEY: &str = "level-name";
+const DEFAULT_LEVEL_NAME: &str = "world";
 const SCAN_INTERVAL: Duration = Duration::from_secs(3);
 const SCANNED_INSTANCES: u64 = 1024;
 
@@ -61,6 +67,13 @@ impl ContentManager {
 
 	pub fn platforms(&self) -> &'static [Platform] {
 		&Platform::ALL
+	}
+
+	pub fn kinds(&self, platform: Platform) -> Vec<Kind> {
+		self.provider(platform).map_or_else(
+			|_| Vec::new(),
+			|provider| Kind::ALL.into_iter().filter(|kind| provider.supports(*kind)).collect(),
+		)
 	}
 
 	pub fn is_available(&self, platform: Platform) -> bool {
@@ -119,7 +132,7 @@ impl ContentManager {
 	pub async fn remove(&self, instance_id: i64, filename: &str) -> Result<()> {
 		let _files = self.files.lock().await;
 		let item = self.by_filename(instance_id, filename).await?;
-		match tokio::fs::remove_file(self.file_path(instance_id, item.kind, filename)).await {
+		match tokio::fs::remove_file(self.file_path(instance_id, item.kind, filename).await?).await {
 			Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error.into()),
 			_ => {}
 		}
@@ -138,8 +151,8 @@ impl ContentManager {
 		if target == filename {
 			return Ok(item);
 		}
-		let from = self.file_path(instance_id, item.kind, filename);
-		let to = self.file_path(instance_id, item.kind, &target);
+		let from = self.file_path(instance_id, item.kind, filename).await?;
+		let to = self.file_path(instance_id, item.kind, &target).await?;
 		if tokio::fs::try_exists(&to).await? {
 			return Err(CommonError::Conflict(format!("'{target}' already exists")));
 		}
@@ -176,6 +189,7 @@ impl ContentManager {
 		platform: Platform,
 		project_id: &str,
 		version_id: &str,
+		kind: Kind,
 		owner: Option<UserId>,
 	) -> Result<InstalledContent> {
 		let provider = self.provider(platform)?.clone();
@@ -183,7 +197,7 @@ impl ContentManager {
 			.tasks
 			.create("content.install", format!("Installing {project_id}"), owner);
 		let outcome = self
-			.install_version(instance_id, provider.as_ref(), project_id, version_id, &task)
+			.install_version(instance_id, provider.as_ref(), project_id, version_id, kind, &task)
 			.await;
 		match &outcome {
 			Ok(installed) => task.finish(serde_json::to_value(installed).unwrap_or_default()),
@@ -206,18 +220,25 @@ impl ContentManager {
 			.ok_or_else(|| CommonError::NotFound(format!("content '{filename}'")))
 	}
 
-	pub(crate) fn file_path(&self, instance_id: i64, kind: Kind, filename: &str) -> std::path::PathBuf {
-		self.paths
-			.instance_dir(instance_id)
-			.join(subdirectory(kind))
-			.join(filename)
+	pub(crate) async fn content_dir(&self, instance_id: i64, kind: Kind) -> Result<PathBuf> {
+		let root = self.paths.instance_dir(instance_id);
+		if kind != Kind::DataPack {
+			return Ok(root.join(subdirectory(kind)));
+		}
+		let level = level_name(&obsidian_instances::read_server_properties(&root).await?);
+		Ok(root.join(safe_filename(&level)?).join(subdirectory(kind)))
+	}
+
+	pub(crate) async fn file_path(&self, instance_id: i64, kind: Kind, filename: &str) -> Result<PathBuf> {
+		Ok(self.content_dir(instance_id, kind).await?.join(filename))
 	}
 }
 
 pub(crate) fn subdirectory(kind: Kind) -> &'static str {
 	match kind {
 		Kind::Plugin => "plugins",
-		Kind::Mod | Kind::Modpack => "mods",
+		Kind::DataPack => "datapacks",
+		Kind::Mod | Kind::Modpack | Kind::ResourcePack | Kind::World => "mods",
 	}
 }
 
@@ -227,4 +248,13 @@ pub(crate) fn kind_for_loader(loader: obsidian_common::Loader) -> Kind {
 		Loader::Paper | Loader::Purpur | Loader::Spigot | Loader::CraftBukkit => Kind::Plugin,
 		_ => Kind::Mod,
 	}
+}
+
+pub(crate) fn level_name(properties: &BTreeMap<String, String>) -> String {
+	properties
+		.get(LEVEL_NAME_KEY)
+		.map(|name| name.trim())
+		.filter(|name| !name.is_empty())
+		.unwrap_or(DEFAULT_LEVEL_NAME)
+		.to_owned()
 }

@@ -12,6 +12,8 @@ use crate::http::{segment, upstream};
 use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, Side, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
+const DATAPACK_LOADER: &[&str] = &["datapack"];
+
 pub struct Modrinth {
 	api: Ferinth<()>,
 }
@@ -30,8 +32,8 @@ impl ContentPlatform for Modrinth {
 		Platform::Modrinth
 	}
 
-	fn supports(&self, _kind: Kind) -> bool {
-		true
+	fn supports(&self, kind: Kind) -> bool {
+		kind != Kind::World
 	}
 
 	async fn search(&self, query: &SearchQuery) -> Result<SearchPage> {
@@ -67,7 +69,7 @@ impl ContentPlatform for Modrinth {
 			.map_err(map_error)?;
 		Ok(SearchPage {
 			total: page.total_hits as u64,
-			items: page.hits.into_iter().map(hit_to_project).collect(),
+			items: page.hits.into_iter().map(|hit| hit_to_project(hit, query.kind)).collect(),
 		})
 	}
 
@@ -87,7 +89,8 @@ impl ContentPlatform for Modrinth {
 	}
 
 	async fn facets(&self, kind: Kind) -> Result<Facets> {
-		let project_type = project_type_of(kind);
+		let project_type = category_type_of(kind);
+		let code_content = matches!(kind, Kind::Mod | Kind::Plugin | Kind::Modpack);
 		let loader_names: Vec<String> = self
 			.api
 			.tag_list_loaders()
@@ -106,8 +109,8 @@ impl ContentPlatform for Modrinth {
 		Ok(Facets {
 			categories: groups,
 			game_versions: true,
-			loaders: true,
-			environments: true,
+			loaders: code_content,
+			environments: code_content,
 			open_source: true,
 			exclusions: true,
 			multiple: true,
@@ -115,10 +118,14 @@ impl ContentPlatform for Modrinth {
 	}
 
 	async fn versions(&self, id: &str, filter: &VersionFilter) -> Result<Vec<ProjectVersion>> {
-		let loaders = filter
-			.loader
-			.map(loader_categories)
-			.filter(|categories| !categories.is_empty());
+		let loaders = match filter.kind {
+			Some(Kind::DataPack) => Some(DATAPACK_LOADER),
+			Some(Kind::ResourcePack) => None,
+			_ => filter
+				.loader
+				.map(loader_categories)
+				.filter(|categories| !categories.is_empty()),
+		};
 		let game_versions = filter.mc_version.as_deref().map(|version| vec![version]);
 		let versions = self
 			.api
@@ -152,11 +159,12 @@ fn side_facet(side: Side) -> &'static str {
 	}
 }
 
-fn project_type_of(kind: Kind) -> ProjectType {
+fn category_type_of(kind: Kind) -> ProjectType {
 	match kind {
-		Kind::Mod => ProjectType::Mod,
 		Kind::Plugin => ProjectType::Plugin,
 		Kind::Modpack => ProjectType::Modpack,
+		Kind::ResourcePack => ProjectType::Resourcepack,
+		Kind::Mod | Kind::DataPack | Kind::World => ProjectType::Mod,
 	}
 }
 
@@ -179,6 +187,9 @@ fn project_type(kind: Kind) -> Facet {
 		Kind::Mod => "mod",
 		Kind::Plugin => "plugin",
 		Kind::Modpack => "modpack",
+		Kind::DataPack => "datapack",
+		Kind::ResourcePack => "resourcepack",
+		Kind::World => "world",
 	};
 	Facet::Custom {
 		_type: "project_type".to_owned(),
@@ -191,6 +202,8 @@ fn kind_of(project_type: ProjectType) -> Kind {
 	match project_type {
 		ProjectType::Plugin => Kind::Plugin,
 		ProjectType::Modpack => Kind::Modpack,
+		ProjectType::Datapack => Kind::DataPack,
+		ProjectType::Resourcepack => Kind::ResourcePack,
 		_ => Kind::Mod,
 	}
 }
@@ -209,7 +222,7 @@ fn loader_categories(loader: Loader) -> &'static [&'static str] {
 	}
 }
 
-fn hit_to_project(hit: SearchHit) -> Project {
+fn hit_to_project(hit: SearchHit, kind: Kind) -> Project {
 	Project {
 		platform: Platform::Modrinth,
 		slug: hit.slug.unwrap_or_else(|| hit.project_id.clone()),
@@ -219,7 +232,7 @@ fn hit_to_project(hit: SearchHit) -> Project {
 		icon_url: hit.icon_url.map(|url| url.to_string()),
 		banner_url: hit.gallery.first().map(|url| url.to_string()),
 		downloads: hit.downloads as u64,
-		kind: kind_of(hit.project_type),
+		kind,
 	}
 }
 

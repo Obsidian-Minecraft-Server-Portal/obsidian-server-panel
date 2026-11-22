@@ -10,7 +10,7 @@ mod platforms;
 mod tests;
 
 pub use icon::mime as icon_mime;
-pub use manager::ContentManager;
+pub use manager::{ContentManager, InstalledWorld, ServerResourcePack};
 pub use model::{
 	Category, CategoryGroup, ContentUpdate, Facets, InstallRequest, InstalledContent, ModpackRequest, Project, ProjectVersion,
 	SearchPage, SearchQuery, Side, VersionFilter,
