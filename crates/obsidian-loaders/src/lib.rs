@@ -9,6 +9,7 @@ mod progress;
 mod purpur;
 mod vanilla;
 mod versions;
+mod zlib;
 
 use std::fmt::Display;
 use std::path::{Path, PathBuf};

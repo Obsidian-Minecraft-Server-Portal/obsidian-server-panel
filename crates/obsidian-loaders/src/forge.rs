@@ -7,6 +7,7 @@ use tokio::process::Command;
 use crate::http::{download, get_text};
 use crate::progress::{Stage, run_observed};
 use crate::versions::{neoforge_minecraft_version, parse_maven_versions, sort_newest_first, validate_version};
+use crate::zlib;
 use crate::{InstallRequest, LaunchSpec, ServerLoader, cache, finalize, is_file};
 
 pub const FORGE: Installer = Installer {
@@ -149,7 +150,9 @@ impl ServerLoader for Installer {
 		tokio::fs::create_dir_all(&request.instance_dir).await?;
 		let mut command = Command::new(&request.java);
 		command.arg("-jar").arg(&installer_jar).arg("--installServer").current_dir(&request.instance_dir);
-		run_observed(command, stage.part(0.4, 0.6)).await?;
+		if let Err(error) = run_observed(command, stage.part(0.4, 0.6)).await {
+			return Err(zlib::explain_failure(&request.java, error).await);
+		}
 
 		let spec = self.launch_spec(request, &version).await?;
 		finalize(request, spec).await
