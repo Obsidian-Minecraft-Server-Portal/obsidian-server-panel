@@ -1,0 +1,1 @@
+ALTER TABLE instances ADD COLUMN java_component TEXT DEFAULT NULL;

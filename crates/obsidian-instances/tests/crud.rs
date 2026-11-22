@@ -14,6 +14,7 @@ fn request(name: &str, port: Option<u16>) -> CreateInstance {
 		mc_version: "1.21.4".into(),
 		loader_version: None,
 		java_runtime_id: None,
+		java_component: None,
 		port,
 		upnp_enabled: None,
 		accept_eula: true,

@@ -209,7 +209,17 @@ impl InstanceManager {
 				.into_iter()
 				.find(|runtime| runtime.id == id)
 				.ok_or_else(|| CommonError::NotFound(format!("java runtime {id}"))),
-			None => self.java.runtime_for_mc(&instance.mc_version).await,
+			None => {
+				let component: Option<String> = sqlx::query_scalar("SELECT java_component FROM instances WHERE id = ?")
+					.bind(instance.id)
+					.fetch_optional(self.db.pool())
+					.await?
+					.flatten();
+				match component {
+					Some(component) => self.java.runtime_for_component(&component).await,
+					None => self.java.runtime_for_mc(&instance.mc_version).await,
+				}
+			}
 		}
 	}
 

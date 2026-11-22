@@ -114,6 +114,7 @@ impl ContentManager {
 					mc_version,
 					loader_version,
 					java_runtime_id: None,
+					java_component: None,
 					port: None,
 					upnp_enabled: None,
 				},

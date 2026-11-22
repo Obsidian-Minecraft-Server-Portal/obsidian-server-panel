@@ -72,6 +72,10 @@ impl InstanceManager {
 		if let Some(runtime) = request.java_runtime_id {
 			self.ensure_java(runtime).await?;
 		}
+		let java_component = request.java_component.as_deref().map(str::trim).filter(|component| !component.is_empty());
+		if let Some(component) = java_component.filter(|component| !obsidian_java::is_component(component)) {
+			return Err(CommonError::Invalid(format!("unknown java component '{component}'")));
+		}
 		let upnp_enabled = match request.upnp_enabled {
 			Some(enabled) => enabled,
 			None => self.upnp_default().await?,
@@ -79,8 +83,8 @@ impl InstanceManager {
 
 		let mut tx = self.db.pool().begin().await?;
 		let id: i64 = sqlx::query_scalar(
-			"INSERT INTO instances (owner_id, name, loader, mc_version, loader_version, java_runtime_id, jvm_args, \
-			 memory_min, memory_max, port, upnp_enabled, directory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '') RETURNING id",
+			"INSERT INTO instances (owner_id, name, loader, mc_version, loader_version, java_runtime_id, java_component, jvm_args, \
+			 memory_min, memory_max, port, upnp_enabled, directory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '') RETURNING id",
 		)
 		.bind(owner)
 		.bind(&name)
@@ -88,6 +92,7 @@ impl InstanceManager {
 		.bind(request.mc_version.trim())
 		.bind(request.loader_version.as_deref().filter(|v| !v.is_empty()))
 		.bind(request.java_runtime_id)
+		.bind(java_component.filter(|_| request.java_runtime_id.is_none()))
 		.bind(String::new())
 		.bind(i64::from(DEFAULT_MEMORY_MIN_MB))
 		.bind(i64::from(DEFAULT_MEMORY_MAX_MB))

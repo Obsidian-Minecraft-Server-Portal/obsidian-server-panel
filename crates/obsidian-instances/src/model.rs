@@ -38,6 +38,8 @@ pub struct CreateInstance {
 	pub mc_version: String,
 	pub loader_version: Option<String>,
 	pub java_runtime_id: Option<i64>,
+	#[serde(default)]
+	pub java_component: Option<String>,
 	pub port: Option<u16>,
 	#[serde(default)]
 	pub upnp_enabled: Option<bool>,
