@@ -30,7 +30,7 @@ export function DiscoverPage() {
 
   const isModpack = discover.kind === "modpack";
   const loader = isModpack ? null : discover.loader;
-  const mcVersion = isModpack ? null : discover.mcVersion;
+  const mcVersion = discover.mcVersion;
   const platformName = PLATFORM_NAMES[discover.platform];
 
   const search = useContentSearch({

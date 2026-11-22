@@ -146,6 +146,7 @@ struct Listed<T> {
 struct CategoryItem {
 	id: u64,
 	name: String,
+	#[serde(default)]
 	is_class: bool,
 }
 

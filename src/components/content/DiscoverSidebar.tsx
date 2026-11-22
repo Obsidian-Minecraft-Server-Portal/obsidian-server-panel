@@ -29,7 +29,6 @@ const SectionDisabled = createContext(false);
 
 export function DiscoverSidebar(props: DiscoverSidebarProps) {
   const { kind, facets, filters, loader, mcVersion, platformName } = props;
-  const isModpack = kind === "modpack";
   const hasPicks =
     loader !== null ||
     mcVersion !== null ||
@@ -44,8 +43,8 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
     <aside className="flex w-60 shrink-0 flex-col gap-2.5">
       <Section
         title="Game version"
-        disabled={isModpack || !facets?.game_versions}
-        hint={isModpack ? "Modpacks are not filtered by version" : loading ? "Loading…" : `Not offered by ${platformName}`}
+        disabled={!facets?.game_versions}
+        hint={loading ? "Loading…" : `Not offered by ${platformName}`}
       >
         <VersionList selected={mcVersion} onSelect={props.onMcVersion} />
       </Section>
