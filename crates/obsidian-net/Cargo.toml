@@ -1,0 +1,13 @@
+[package]
+name = "obsidian-net"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+igd-next = { workspace = true }
+local-ip-address = { workspace = true }
+obsidian-common = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
