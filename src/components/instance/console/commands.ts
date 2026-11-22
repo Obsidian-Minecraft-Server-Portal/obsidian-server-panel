@@ -1,0 +1,56 @@
+export const COMMANDS = [
+  "advancement",
+  "ban",
+  "ban-ip",
+  "clear",
+  "defaultgamemode",
+  "deop",
+  "difficulty",
+  "effect give",
+  "execute",
+  "experience add",
+  "gamemode",
+  "gamerule",
+  "give",
+  "help",
+  "kick",
+  "kill",
+  "list",
+  "locate",
+  "op",
+  "pardon",
+  "pardon-ip",
+  "particle",
+  "playsound",
+  "reload",
+  "say",
+  "save-all",
+  "save-off",
+  "save-on",
+  "scoreboard",
+  "seed",
+  "setworldspawn",
+  "spreadplayers",
+  "stop",
+  "summon",
+  "tellraw",
+  "time set",
+  "title",
+  "tp",
+  "weather",
+  "whitelist add",
+  "whitelist list",
+  "whitelist off",
+  "whitelist on",
+  "whitelist remove",
+  "worldborder",
+  "xp add",
+];
+
+const MAX_SUGGESTIONS = 6;
+
+export function suggestCommands(input: string): string[] {
+  const text = input.trimStart();
+  if (!text) return [];
+  return COMMANDS.filter((command) => command.startsWith(text) && command !== text).slice(0, MAX_SUGGESTIONS);
+}
