@@ -3,7 +3,8 @@ import type { Project } from "../../api/content";
 import { PLATFORM_NAMES, formatDownloads, projectKey } from "./meta";
 import { ProjectIcon } from "./ProjectIcon";
 
-export type ResultView = "grid" | "compact" | "table";
+export type { ViewMode as ResultView } from "../ui/ViewToggle";
+import type { ViewMode as ResultView } from "../ui/ViewToggle";
 
 interface ProjectResultsProps {
   projects: Project[];

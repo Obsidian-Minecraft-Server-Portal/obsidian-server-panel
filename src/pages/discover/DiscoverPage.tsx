@@ -4,7 +4,8 @@ import { Link } from "react-router";
 import type { Project, ProjectVersion } from "../../api/content";
 import { useContentSearch, usePlatforms } from "../../api/content";
 import { useInstance } from "../../api/instances";
-import { DiscoverSelects, DiscoverTabs, ViewToggle } from "../../components/content/DiscoverFilters";
+import { DiscoverSelects, DiscoverTabs } from "../../components/content/DiscoverFilters";
+import { ViewToggle } from "../../components/ui/ViewToggle";
 import { InstallTargetModal, type InstallAction } from "../../components/content/InstallTargetModal";
 import { ModpackModal, type ModpackAction } from "../../components/content/ModpackModal";
 import { ProjectDrawer } from "../../components/content/ProjectDrawer";
@@ -48,7 +49,7 @@ export function DiscoverPage() {
         title="Discover"
         subtitle="Modpacks, mods and plugins from Modrinth, CurseForge, Hangar and Spiget."
         search={{ value: discover.query, onChange: discover.setQuery, placeholder: "Search content" }}
-        actions={<ViewToggle view={discover.view} onView={discover.setView} />}
+        actions={<ViewToggle label="Result view" value={discover.view} onChange={discover.setView} />}
       />
       <div className="space-y-6 px-8 pb-8">
         <div className="flex flex-wrap items-center justify-between gap-4">

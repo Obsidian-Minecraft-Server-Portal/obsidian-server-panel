@@ -11,7 +11,7 @@ import { InstanceCard } from "../../components/instance/InstanceCard";
 import { InstanceRow } from "../../components/instance/InstanceRow";
 import { InstanceTable } from "../../components/instance/InstanceTable";
 import { LOADER_META } from "../../components/runtime/loaderMeta";
-import { ViewModeSwitch } from "./ViewModeSwitch";
+import { ViewToggle } from "../../components/ui/ViewToggle";
 import { useViewMode, type ViewMode } from "./useViewMode";
 
 function matches(view: InstanceView, query: string): boolean {
@@ -45,7 +45,7 @@ export function InstancesPage() {
         search={{ value: search, onChange: setSearch, placeholder: "Search instances" }}
         actions={
           <>
-            <ViewModeSwitch value={mode} onChange={setMode} />
+            <ViewToggle label="Instance view" value={mode} onChange={setMode} />
             <GhostButton onPress={() => navigate("/discover")}>Browse modpacks</GhostButton>
             <PrimaryButton onPress={() => navigate("/instances/new")}>
               <Icon icon="lucide:plus" width={16} height={16} />

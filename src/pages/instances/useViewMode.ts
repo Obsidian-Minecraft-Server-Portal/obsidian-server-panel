@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-export type ViewMode = "grid" | "compact" | "table";
+import type { ViewMode } from "../../components/ui/ViewToggle";
+
+export type { ViewMode };
 
 const STORAGE_KEY = "obsidian.instances.view";
 const MODES: readonly ViewMode[] = ["grid", "compact", "table"];
