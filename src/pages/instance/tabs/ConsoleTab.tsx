@@ -26,33 +26,33 @@ export function ConsoleTab() {
   const history = useStatsHistory(id, running);
 
   return (
-    <div className="grid items-start gap-5 px-8 pb-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
-      <aside className="min-w-0">
+    <div className="grid h-[calc(100dvh-13.5rem)] min-h-[34rem] grid-rows-1 items-stretch gap-5 px-8 pb-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
+      <aside className="flex min-h-0 min-w-0 flex-col">
         <PlayersPanels />
       </aside>
-      <div className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {instance.data && <StatusChip instance={instance.data} />}
-          <span className="font-mono text-xs text-ink-3">{lines.length} lines</span>
+      <div className="flex min-h-0 min-w-0 flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {instance.data && <StatusChip instance={instance.data} />}
+            <span className="font-mono text-xs text-ink-3">{lines.length} lines</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {send.error && <span className="text-xs text-rose">{send.error.message}</span>}
+            <GhostButton size="sm" onPress={() => queryClient.setQueryData(consoleKey(id), [])}>
+              Clear
+            </GhostButton>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {send.error && <span className="text-xs text-rose">{send.error.message}</span>}
-          <GhostButton size="sm" onPress={() => queryClient.setQueryData(consoleKey(id), [])}>
-            Clear
-          </GhostButton>
-        </div>
-      </div>
-      <StatsStrip
-        running={running}
-        stats={history.stats}
-        cpu={history.cpu}
-        memory={history.memory}
-        memoryMaxMb={instance.data?.memory_max_mb ?? 0}
-      />
-      {backlog.isError && <p className="text-sm text-rose">{backlog.error.message}</p>}
-      <ConsoleView lines={lines} />
-      <CommandInput disabled={!active} onSubmit={(line) => send.mutate(line)} />
+        <StatsStrip
+          running={running}
+          stats={history.stats}
+          cpu={history.cpu}
+          memory={history.memory}
+          memoryMaxMb={instance.data?.memory_max_mb ?? 0}
+        />
+        {backlog.isError && <p className="text-sm text-rose">{backlog.error.message}</p>}
+        <ConsoleView lines={lines} />
+        <CommandInput disabled={!active} onSubmit={(line) => send.mutate(line)} />
       </div>
     </div>
   );

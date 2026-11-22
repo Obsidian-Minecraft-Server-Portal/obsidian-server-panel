@@ -26,8 +26,9 @@ export function PlayersPanels() {
   const error = players.error ?? action.error;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex h-full min-h-0 flex-col gap-5">
       <Panel
+        className="flex min-h-0 flex-1 flex-col"
         title={`Players${players.data ? ` · ${players.data.length}` : ""}`}
         actions={
           <input
@@ -42,21 +43,24 @@ export function PlayersPanels() {
       >
         {error && <p className="mb-4 text-sm text-rose">{error.message}</p>}
         {players.isPending && <p className="text-sm text-ink-3">Loading players…</p>}
-        {players.data && visible.length === 0 && (
-          <EmptyState
-            icon="lucide:users"
-            title="No players yet"
-            description="Players appear once they join, or when you add them by name."
-          />
-        )}
-        {visible.map((player) => (
-          <PlayerRow
-            key={player.name}
-            player={player}
-            disabled={!canManage || action.isPending}
-            onAction={(next) => action.mutate({ name: player.name, action: next })}
-          />
-        ))}
+        <div className="flex min-h-0 flex-1 flex-col">
+          {players.data && visible.length === 0 && (
+            <EmptyState
+              className="flex-1 py-0"
+              icon="lucide:users"
+              title="No players yet"
+              description="Players appear once they join, or when you add them by name."
+            />
+          )}
+          {visible.map((player) => (
+            <PlayerRow
+              key={player.name}
+              player={player}
+              disabled={!canManage || action.isPending}
+              onAction={(next) => action.mutate({ name: player.name, action: next })}
+            />
+          ))}
+        </div>
       </Panel>
       {canManage && (
         <Panel title="Add player">

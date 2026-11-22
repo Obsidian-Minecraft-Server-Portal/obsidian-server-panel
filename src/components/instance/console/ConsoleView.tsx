@@ -37,13 +37,13 @@ export function ConsoleView({ lines }: { lines: string[] }) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={viewport}
         onScroll={onScroll}
         role="log"
         aria-live="polite"
-        className="h-[58vh] min-h-80 overflow-y-auto rounded-panel border border-line bg-canvas p-4 font-mono text-[12.5px] leading-relaxed text-ink-1 [scrollbar-color:var(--line-strong)_transparent]"
+        className="min-h-0 flex-1 overflow-y-auto rounded-panel border border-line bg-canvas p-4 font-mono text-[12.5px] leading-relaxed text-ink-1 [scrollbar-color:var(--line-strong)_transparent]"
       >
         {lines.length === 0 ? (
           <p className="text-ink-4">No output yet. Start the server to see its console.</p>
