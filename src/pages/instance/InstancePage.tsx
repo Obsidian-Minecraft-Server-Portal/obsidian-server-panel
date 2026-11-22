@@ -68,7 +68,7 @@ export function InstancePage() {
   const ActiveTab = active.component;
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full min-h-full flex-col">
       <InstanceHero view={view} />
       <CrashHints status={view.status} />
       <nav className="flex gap-7 overflow-x-auto border-b border-line px-8 [scrollbar-width:none]" aria-label="Instance sections">
@@ -86,7 +86,7 @@ export function InstancePage() {
           </Link>
         ))}
       </nav>
-      <div className="flex-1 pt-6">
+      <div className="flex min-h-0 flex-1 flex-col pt-6">
         <ActiveTab />
       </div>
     </div>
