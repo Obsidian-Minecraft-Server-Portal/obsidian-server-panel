@@ -72,6 +72,7 @@ impl ContentPlatform for CurseForge {
 	}
 
 	async fn facets(&self, kind: Kind) -> Result<Facets> {
+		let code_content = matches!(kind, Kind::Mod | Kind::Plugin);
 		let query = [("gameId", MINECRAFT_GAME_ID.to_string()), ("classId", class_id(kind).to_string())];
 		let listed: Listed<CategoryItem> = http::json(self.get("categories").query(&query)).await?;
 		let categories = listed
@@ -89,7 +90,7 @@ impl ContentPlatform for CurseForge {
 				categories,
 			}],
 			game_versions: true,
-			loaders: true,
+			loaders: code_content,
 			environments: false,
 			open_source: false,
 			exclusions: false,
