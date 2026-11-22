@@ -315,3 +315,7 @@
 .memory-range:disabled::-webkit-slider-thumb {
   opacity: 0.5;
 }
+
+[data-entering="true"] {
+  animation: none !important;
+}

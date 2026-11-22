@@ -32,8 +32,9 @@ export function PermissionMatrix({ catalog, value, onChange, disabled }: Permiss
                 isSelected={selected.has(name)}
                 isDisabled={disabled}
                 onChange={(on: boolean) => toggle(name, on)}
+                className="flex items-center gap-3"
               >
-                <Checkbox.Control>
+                <Checkbox.Control className="size-4 shrink-0 border-ink-4 bg-input">
                   <Checkbox.Indicator />
                 </Checkbox.Control>
                 <Checkbox.Content className="text-sm text-ink-1">{permissionLabel(name)}</Checkbox.Content>

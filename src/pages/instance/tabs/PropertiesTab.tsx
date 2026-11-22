@@ -53,11 +53,14 @@ export function PropertiesTab() {
             <Button
               key={label}
               type="button"
+              variant="ghost"
               aria-pressed={rawMode === (label === "Raw")}
               onPress={() => setRawMode(label === "Raw")}
               className={cn(
                 "flex items-center gap-2 rounded-[9px] px-3 py-1.5 text-sm transition-colors",
-                rawMode === (label === "Raw") ? "bg-accent-tint text-ink-0" : "text-ink-3 hover:text-ink-1",
+                rawMode === (label === "Raw")
+                  ? "bg-gradient-to-b from-accent to-accent-dim font-medium text-accent-ink shadow-glow"
+                  : "bg-transparent text-ink-3 hover:bg-raised hover:text-ink-1",
               )}
             >
               <Icon icon={label === "Form" ? "lucide:sliders-horizontal" : "lucide:code"} width={14} height={14} />
