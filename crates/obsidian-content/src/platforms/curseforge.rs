@@ -112,7 +112,13 @@ impl ContentPlatform for CurseForge {
 			params.push(("modLoaderType", loader_type.to_string()));
 		}
 		let page: Page<File> = http::json(self.get(&format!("mods/{}/files", numeric(id)?)).query(&params)).await?;
-		let mut versions: Vec<ProjectVersion> = page.data.into_iter().map(to_version).collect();
+		let modpack = filter.kind == Some(Kind::Modpack);
+		let mut versions: Vec<ProjectVersion> = page
+			.data
+			.into_iter()
+			.filter(|file| !(modpack && file.is_server_pack == Some(true)))
+			.map(to_version)
+			.collect();
 		versions.sort_by_key(|version| std::cmp::Reverse(version.published_at));
 		Ok(versions)
 	}
@@ -190,6 +196,8 @@ struct File {
 	game_versions: Vec<String>,
 	download_url: Option<String>,
 	hashes: Vec<Hash>,
+	is_server_pack: Option<bool>,
+	server_pack_file_id: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -250,6 +258,8 @@ fn to_project(item: Mod) -> Project {
 		banner_url: item.screenshots.into_iter().next().map(|screenshot| screenshot.url),
 		downloads: item.download_count as u64,
 		kind: kind_of(item.class_id),
+		client_side: None,
+		server_side: None,
 	}
 }
 
@@ -280,5 +290,6 @@ fn to_version(file: File) -> ProjectVersion {
 		sha1,
 		sha256: None,
 		published_at: file.file_date,
+		has_server_pack: file.server_pack_file_id.is_some(),
 	}
 }

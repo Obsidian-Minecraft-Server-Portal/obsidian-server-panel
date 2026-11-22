@@ -130,6 +130,8 @@ fn to_project(resource: Resource) -> Project {
 		banner_url: None,
 		downloads: resource.downloads,
 		kind: Kind::Plugin,
+		client_side: None,
+		server_side: None,
 	}
 }
 
@@ -149,6 +151,7 @@ fn to_version(resource: &Resource, version: SpigetVersion) -> ProjectVersion {
 		sha1: None,
 		sha256: None,
 		published_at: DateTime::<Utc>::from_timestamp(version.release_date, 0).unwrap_or_default(),
+		has_server_pack: false,
 	}
 }
 

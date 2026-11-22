@@ -22,7 +22,11 @@ export interface Project {
   banner_url: string | null;
   downloads: number;
   kind: ContentKind;
+  client_side: SideSupport | null;
+  server_side: SideSupport | null;
 }
+
+export type SideSupport = "required" | "optional" | "unsupported" | "unknown";
 
 export type SideFilter = "client" | "server";
 
@@ -70,6 +74,7 @@ export interface ProjectVersion {
   sha1: string | null;
   sha256: string | null;
   published_at: string;
+  has_server_pack: boolean;
 }
 
 export interface InstalledContent {

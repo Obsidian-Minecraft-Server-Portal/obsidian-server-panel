@@ -195,6 +195,8 @@ fn to_project(project: HangarProject) -> Project {
 		banner_url: None,
 		downloads: project.stats.downloads,
 		kind: Kind::Plugin,
+		client_side: None,
+		server_side: None,
 	}
 }
 
@@ -229,5 +231,6 @@ fn to_version(project_id: &str, version: HangarVersion) -> Option<ProjectVersion
 		sha1: None,
 		sha256: file_info.sha256_hash.clone(),
 		published_at: version.created_at,
+		has_server_pack: false,
 	})
 }

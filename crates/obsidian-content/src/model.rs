@@ -55,6 +55,15 @@ pub struct SearchPage {
 	pub items: Vec<Project>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SideSupport {
+	Required,
+	Optional,
+	Unsupported,
+	Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct Project {
 	#[schema(value_type = u8)]
@@ -67,6 +76,8 @@ pub struct Project {
 	pub banner_url: Option<String>,
 	pub downloads: u64,
 	pub kind: Kind,
+	pub client_side: Option<SideSupport>,
+	pub server_side: Option<SideSupport>,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +100,7 @@ pub struct ProjectVersion {
 	pub sha1: Option<String>,
 	pub sha256: Option<String>,
 	pub published_at: DateTime<Utc>,
+	pub has_server_pack: bool,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]

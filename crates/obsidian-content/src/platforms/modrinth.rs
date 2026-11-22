@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use ferinth::Ferinth;
-use ferinth::structures::project::ProjectType;
+use ferinth::structures::project::{ProjectType, SideType};
 use ferinth::structures::search::SearchHit;
 use ferinth::structures::search::{Facet, Sort};
 use ferinth::structures::tag::Category as ModrinthCategory;
@@ -9,7 +9,7 @@ use obsidian_common::{CommonError, Loader, Result};
 use reqwest::StatusCode;
 
 use crate::http::{segment, upstream};
-use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, Side, VersionFilter};
+use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, Side, SideSupport, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
 const DATAPACK_LOADER: &[&str] = &["datapack"];
@@ -85,6 +85,8 @@ impl ContentPlatform for Modrinth {
 			banner_url: project.gallery.first().map(|item| item.url.to_string()),
 			downloads: project.downloads as u64,
 			kind: kind_of(project.project_type),
+			client_side: Some(side_support(project.client_side)),
+			server_side: Some(side_support(project.server_side)),
 		})
 	}
 
@@ -233,7 +235,23 @@ fn hit_to_project(hit: SearchHit, kind: Kind) -> Project {
 		banner_url: hit.gallery.first().map(|url| url.to_string()),
 		downloads: hit.downloads as u64,
 		kind,
+		client_side: Some(side_support(hit.client_side)),
+		server_side: Some(side_support(hit.server_side)),
 	}
+}
+
+fn side_support(side: SideType) -> SideSupport {
+	match side {
+		SideType::Required => SideSupport::Required,
+		SideType::Optional => SideSupport::Optional,
+		SideType::Unsupported => SideSupport::Unsupported,
+		SideType::Unknown => SideSupport::Unknown,
+	}
+}
+
+fn is_server_pack_name(name: &str) -> bool {
+	let lower = name.to_ascii_lowercase();
+	lower.contains("server") && (lower.ends_with(".zip") || lower.ends_with(".mrpack"))
 }
 
 fn to_version(version: Version) -> Option<ProjectVersion> {
@@ -257,6 +275,10 @@ fn to_version(version: Version) -> Option<ProjectVersion> {
 		sha1,
 		sha256: None,
 		published_at: version.date_published,
+		has_server_pack: version
+			.files
+			.iter()
+			.any(|file| !file.primary && is_server_pack_name(&file.filename)),
 	})
 }
 
