@@ -39,6 +39,7 @@ pub fn spawn(manager: InstanceManager) {
 				return;
 			}
 		};
+		let cores = std::thread::available_parallelism().map_or(1.0, |n| n.get() as f32);
 		let mut interval = tokio::time::interval(SAMPLE_EVERY);
 		let mut tick: u64 = 0;
 		loop {
@@ -71,7 +72,7 @@ pub fn spawn(manager: InstanceManager) {
 			for target in targets {
 				let (cpu, memory) = system
 					.process(Pid::from_u32(target.pid))
-					.map_or((0.0, 0), |process| (process.cpu_usage(), process.memory()));
+					.map_or((0.0, 0), |process| (process.cpu_usage() / cores, process.memory()));
 				let probed = results.remove(&target.id);
 				let stats = manager.update_stats(target.id, |stats| {
 					stats.cpu_percent = cpu;
