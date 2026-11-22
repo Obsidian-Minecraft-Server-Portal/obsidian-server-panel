@@ -41,7 +41,7 @@ pub struct JavaRuntime {
 	pub installed_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct JavaRequirement {
 	pub component: String,
 	pub major_version: u8,

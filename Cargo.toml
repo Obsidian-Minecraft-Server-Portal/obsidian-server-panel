@@ -104,6 +104,7 @@ process-wrap = { version = "10", default-features = false, features = ["std", "p
 sysinfo = "0.40"
 
 [dependencies]
+sysinfo = { workspace = true }
 obsidian-common = { workspace = true }
 obsidian-db = { workspace = true }
 obsidian-auth = { workspace = true }

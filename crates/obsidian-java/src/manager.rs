@@ -60,6 +60,10 @@ impl JavaManager {
 			.collect())
 	}
 
+	pub async fn requirement(&self, mc_version: &str) -> Result<JavaRequirement> {
+		self.requirement_for_mc(mc_version).await
+	}
+
 	pub async fn runtime_for_component(&self, component: &str) -> Result<JavaRuntime> {
 		self.ensure(component, None).await
 	}

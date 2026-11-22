@@ -7,6 +7,7 @@ pub mod health;
 pub mod instances;
 pub mod invites;
 pub mod java;
+pub mod system;
 pub mod loaders;
 pub mod members;
 pub mod modpacks;
@@ -32,6 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(settings::configure)
 			.configure(notifications::configure)
 			.configure(java::configure)
+			.configure(system::configure)
 			.configure(loaders::configure)
 			.configure(instances::configure)
 			.configure(files::configure)

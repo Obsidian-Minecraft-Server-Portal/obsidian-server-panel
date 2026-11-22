@@ -148,3 +148,20 @@ pub async fn reinstall_instance(
 	state.instances.reinstall(id).await?;
 	Ok(HttpResponse::Accepted().json(view(&state, state.instances.get(id).await?, permissions).await?))
 }
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+pub struct NextPort {
+	pub port: u16,
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/next-port",
+	tag = "instances",
+	responses((status = 200, description = "The port a new instance gets when none is requested", body = NextPort))
+)]
+#[get("/instances/next-port")]
+pub async fn next_port(_user: AuthUser, state: web::Data<AppState>) -> ApiResult<HttpResponse> {
+	let port = state.instances.next_free_port().await?;
+	Ok(HttpResponse::Ok().json(NextPort { port }))
+}

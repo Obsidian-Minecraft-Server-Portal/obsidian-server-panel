@@ -2,13 +2,18 @@ use std::sync::Arc;
 
 use actix_web::{HttpResponse, delete, get, post, web};
 use obsidian_common::CommonError;
-use obsidian_java::{AvailableJava, JavaRuntime, is_component};
+use obsidian_java::{AvailableJava, JavaRequirement, JavaRuntime, is_component};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::auth::{AdminUser, AuthUser};
 use crate::error::ApiResult;
 use crate::state::AppState;
+
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct RequirementQuery {
+	pub mc_version: String,
+}
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct InstallJavaRequest {
@@ -29,6 +34,22 @@ pub struct TaskStarted {
 #[get("/java")]
 pub async fn list_runtimes(_user: AuthUser, state: web::Data<AppState>) -> ApiResult<HttpResponse> {
 	Ok(HttpResponse::Ok().json(state.java.list().await?))
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/java/requirement",
+	tag = "java",
+	params(RequirementQuery),
+	responses((status = 200, description = "Java runtime a Minecraft version needs", body = JavaRequirement))
+)]
+#[get("/java/requirement")]
+pub async fn requirement(
+	_user: AuthUser,
+	state: web::Data<AppState>,
+	query: web::Query<RequirementQuery>,
+) -> ApiResult<HttpResponse> {
+	Ok(HttpResponse::Ok().json(state.java.requirement(&query.mc_version).await?))
 }
 
 #[utoipa::path(
@@ -107,6 +128,7 @@ pub async fn remove_runtime(
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(list_runtimes)
+		.service(requirement)
 		.service(available_runtimes)
 		.service(install_runtime)
 		.service(detect_runtimes)

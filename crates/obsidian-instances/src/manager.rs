@@ -255,7 +255,7 @@ impl InstanceManager {
 		}
 	}
 
-	async fn next_free_port(&self) -> Result<u16> {
+	pub async fn next_free_port(&self) -> Result<u16> {
 		let used: Vec<i64> = sqlx::query_scalar("SELECT port FROM instances").fetch_all(self.db.pool()).await?;
 		(DEFAULT_PORT..=u16::MAX)
 			.find(|port| !used.contains(&i64::from(*port)))

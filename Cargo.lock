@@ -4145,6 +4145,7 @@ dependencies = [
  "serde_json",
  "service-manager",
  "sqlx",
+ "sysinfo",
  "tao",
  "tar",
  "tempfile",

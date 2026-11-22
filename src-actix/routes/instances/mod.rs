@@ -10,6 +10,7 @@ use actix_web::web;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(crud::list_instances)
+		.service(crud::next_port)
 		.service(crud::create_instance)
 		.service(crud::get_instance)
 		.service(crud::update_instance)
