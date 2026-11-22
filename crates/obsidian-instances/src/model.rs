@@ -60,6 +60,12 @@ pub struct UpdateInstance {
 	pub port: Option<u16>,
 	pub upnp_enabled: Option<bool>,
 	pub auto_start: Option<bool>,
+	#[schema(value_type = Option<String>)]
+	pub loader: Option<Loader>,
+	pub mc_version: Option<String>,
+	#[serde(default, deserialize_with = "present")]
+	#[schema(value_type = Option<String>)]
+	pub loader_version: Option<Option<String>>,
 }
 
 fn present<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(deserializer: D) -> Result<Option<T>, D::Error> {

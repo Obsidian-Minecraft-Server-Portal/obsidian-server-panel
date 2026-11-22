@@ -108,7 +108,17 @@ export interface CreateInstanceInput {
 export type UpdateInstanceInput = Partial<
   Pick<
     Instance,
-    "name" | "jvm_args" | "memory_min_mb" | "memory_max_mb" | "java_runtime_id" | "port" | "upnp_enabled" | "auto_start"
+    | "name"
+    | "jvm_args"
+    | "memory_min_mb"
+    | "memory_max_mb"
+    | "java_runtime_id"
+    | "port"
+    | "upnp_enabled"
+    | "auto_start"
+    | "loader"
+    | "mc_version"
+    | "loader_version"
   >
 >;
 

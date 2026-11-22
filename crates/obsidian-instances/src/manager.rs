@@ -10,6 +10,7 @@ use obsidian_net::UpnpManager;
 
 use crate::live::Live;
 use crate::settings::UPNP_DEFAULT_KEY;
+use crate::software::software_change;
 use crate::model::{CreateInstance, Instance, UpdateInstance};
 use crate::store::{self, instance_select};
 
@@ -144,6 +145,10 @@ impl InstanceManager {
 
 	pub async fn update(&self, id: InstanceId, patch: UpdateInstance) -> Result<Instance> {
 		let current = self.get(id).await?;
+		let software = software_change(&current, &patch)?;
+		if software.is_some() && (self.is_active_instance(id) || self.is_installing(id)) {
+			return Err(CommonError::Conflict("stop the server before changing its software".into()));
+		}
 		let port = patch.port.unwrap_or(current.port);
 		if port != current.port {
 			self.ensure_port_free(port, Some(id)).await?;
@@ -151,7 +156,15 @@ impl InstanceManager {
 		let memory_min = patch.memory_min_mb.unwrap_or(current.memory_min_mb);
 		let memory_max = patch.memory_max_mb.unwrap_or(current.memory_max_mb);
 		validate_memory(memory_min, memory_max)?;
-		let java_runtime_id = patch.java_runtime_id.unwrap_or(current.java_runtime_id);
+		let reset_java = software
+			.as_ref()
+			.is_some_and(|change| change.mc_version != current.mc_version)
+			&& patch.java_runtime_id.is_none();
+		let java_runtime_id = if reset_java {
+			None
+		} else {
+			patch.java_runtime_id.unwrap_or(current.java_runtime_id)
+		};
 		if let Some(Some(runtime)) = patch.java_runtime_id {
 			self.ensure_java(runtime).await?;
 		}
@@ -161,7 +174,8 @@ impl InstanceManager {
 		};
 		sqlx::query(
 			"UPDATE instances SET name = ?, jvm_args = ?, memory_min = ?, memory_max = ?, java_runtime_id = ?, \
-			 port = ?, upnp_enabled = ?, auto_start = ?, updated_at = unixepoch() WHERE id = ?",
+			 port = ?, upnp_enabled = ?, auto_start = ?, loader = ?, mc_version = ?, loader_version = ?, \
+			 java_component = CASE WHEN ? THEN NULL ELSE java_component END, updated_at = unixepoch() WHERE id = ?",
 		)
 		.bind(name)
 		.bind(patch.jvm_args.unwrap_or_else(|| current.jvm_args.clone()))
@@ -171,6 +185,10 @@ impl InstanceManager {
 		.bind(i64::from(port))
 		.bind(patch.upnp_enabled.unwrap_or(current.upnp_enabled))
 		.bind(patch.auto_start.unwrap_or(current.auto_start))
+		.bind(software.as_ref().map_or(current.loader, |change| change.loader).to_string())
+		.bind(software.as_ref().map_or_else(|| current.mc_version.clone(), |change| change.mc_version.clone()))
+		.bind(software.as_ref().map_or_else(|| current.loader_version.clone(), |change| change.loader_version.clone()))
+		.bind(reset_java)
 		.bind(id)
 		.execute(self.db.pool())
 		.await?;
@@ -179,6 +197,9 @@ impl InstanceManager {
 			crate::properties::sync_port(&updated.directory, port).await?;
 		}
 		self.refresh_upnp(&current, &updated).await;
+		if software.is_some() && !self.spawn_install(updated.clone()) {
+			return Err(CommonError::Conflict("the server is already installing".into()));
+		}
 		Ok(updated)
 	}
 

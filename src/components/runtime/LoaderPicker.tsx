@@ -7,9 +7,10 @@ interface LoaderPickerProps {
   value: LoaderKind | null;
   onChange: (kind: LoaderKind) => void;
   isDisabled?: boolean;
+  exclude?: LoaderKind[];
 }
 
-export function LoaderPicker({ value, onChange, isDisabled }: LoaderPickerProps) {
+export function LoaderPicker({ value, onChange, isDisabled, exclude }: LoaderPickerProps) {
   const { data: kinds, isError } = useLoaderKinds();
 
   if (isError) return <p className="text-sm text-rose">Server types could not be loaded.</p>;
@@ -23,7 +24,7 @@ export function LoaderPicker({ value, onChange, isDisabled }: LoaderPickerProps)
       isDisabled={isDisabled}
       className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
     >
-      {kinds.map((kind) => {
+      {kinds.filter((kind) => !exclude?.includes(kind)).map((kind) => {
         const meta = LOADER_META[kind];
         const active = kind === value;
         return (

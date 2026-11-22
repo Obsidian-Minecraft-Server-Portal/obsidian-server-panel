@@ -10,6 +10,7 @@ mod monitor;
 mod players;
 mod properties;
 pub mod settings;
+mod software;
 mod store;
 
 pub use manager::InstanceManager;
