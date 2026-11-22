@@ -4,12 +4,6 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
     plugins: [react(), tailwindcss()],
-    esbuild: {
-        legalComments: "none",
-        supported: {
-            "top-level-await": true // browsers can handle top-level-await features
-        }
-    },
     clearScreen: false,
     server: {
         host: true,
@@ -27,6 +21,18 @@ export default defineConfig({
         }
     },
     build: {
-        outDir: "target/wwwroot"
+        outDir: "target/wwwroot",
+        rolldownOptions: {
+            output: {
+                codeSplitting: {
+                    groups: [
+                        {name: "heroui", test: /node_modules[\\/](@heroui|@react-aria|react-aria|@react-stately|@internationalized)/},
+                        {name: "preload", test: /vite[\\/]preload-helper/, priority: 1},
+                        {name: "monaco", test: /node_modules[\\/](monaco-editor|@monaco-editor)/},
+                        {name: "vendor", test: /node_modules/}
+                    ]
+                }
+            }
+        }
     }
 });

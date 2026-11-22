@@ -1,45 +1,186 @@
 [package]
-name = "obsidian_minecraft_server_panel"
+name = "obsidian"
 version = "0.0.0"
 edition = "2024"
 authors = ["Drew Chase <dcmanproductions@gmail.com>"]
+default-run = "obsidian"
 
 [[bin]]
-name = "obsidian_minecraft_server_panel"
+name = "obsidian"
 path = "src-actix/main.rs"
 
 [lib]
-name = "obsidian_minecraft_server_panel_lib"
+name = "obsidian_lib"
 path = "src-actix/lib.rs"
-crate-type = ["lib"]
+
+[features]
+default = ["desktop"]
+desktop = ["updater", "tray", "service"]
+updater = ["dep:self_update"]
+tray = ["dep:tray-icon", "dep:tao", "dep:open", "dep:dirs"]
+service = ["dep:service-manager", "dep:windows-service"]
+docker = []
+
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.dependencies]
+obsidian-common = { path = "crates/obsidian-common" }
+obsidian-db = { path = "crates/obsidian-db" }
+obsidian-auth = { path = "crates/obsidian-auth" }
+obsidian-java = { path = "crates/obsidian-java" }
+obsidian-loaders = { path = "crates/obsidian-loaders" }
+obsidian-content = { path = "crates/obsidian-content" }
+obsidian-runner = { path = "crates/obsidian-runner" }
+obsidian-instances = { path = "crates/obsidian-instances" }
+obsidian-backups = { path = "crates/obsidian-backups" }
+obsidian-scheduler = { path = "crates/obsidian-scheduler" }
+obsidian-net = { path = "crates/obsidian-net" }
+obsidian-sftp = { path = "crates/obsidian-sftp" }
+
+actix-web = "4.20"
+actix-files = "0.7"
+actix-governor = "0.10"
+actix-ws = "0.4"
+async-trait = "0.1"
+argon2 = "0.6"
+bitflags = { version = "2", features = ["serde"] }
+blake3 = "1"
+chacha20poly1305 = { version = "0.11", features = ["alloc", "getrandom"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = { version = "0.10", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+color-eyre = { version = "0.6", features = ["tracing-error", "track-caller"] }
+figment = { version = "0.10", features = ["env", "toml"] }
+hex = "0.4"
+lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1-rustls-tls"] }
+qrcode = { version = "0.15", default-features = false, features = ["svg"] }
+totp-rs = { version = "6", features = ["gen_secret", "otpauth"] }
+include_dir = "0.7.4"
+ipnet = { version = "2", features = ["serde"] }
+piston-mc = "0.1.5-beta"
+moka = { version = "0.12", features = ["future"] }
+reqwest = { version = "0.13", features = ["json", "stream", "query"] }
+rand = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_repr = "0.1"
+futures-util = "0.3"
+flate2 = "1"
+russh = "0.65"
+russh-sftp = "4"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+ferinth = "2.13"
+sha1 = "0.11"
+sha2 = "0.11"
+toml = "0.8"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros", "json"] }
+strum = { version = "0.28", features = ["derive"] }
+tar = "0.4"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "process", "io-util", "signal", "net"] }
+tracing = { version = "0.1", features = ["max_level_trace"] }
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+utoipa = { version = "6", features = ["chrono"] }
+utoipa-scalar = { version = "0.4", features = ["actix-web"] }
+walkdir = "2.5"
+xz2 = "0.1"
+vite-actix = "0.2"
+self_update = { version = "1.3", default-features = false, features = ["reqwest", "rustls", "github", "archive-zip", "compression-zip-deflate", "compression-tar-gz"] }
+tray-icon = "0.26"
+tao = { version = "0.37", default-features = false, features = ["rwh_06"] }
+open = "5"
+service-manager = "0.11"
+windows-service = "0.8"
+actix-multipart = "0.8"
+craftping = { version = "0.8", features = ["async-tokio"] }
+igd-next = { version = "0.18", features = ["aio_tokio"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+interprocess = { version = "2.4", features = ["tokio"] }
+java-properties = "2"
+local-ip-address = "0.6"
+process-wrap = { version = "10", default-features = false, features = ["std", "process-session"] }
+sysinfo = "0.40"
 
 [dependencies]
-actix-web = { version = ">=4.9.0" }
-actix-files = { version = ">=0.6.6" }
-serde = { version = ">=1.0.208", features = ["derive"] }
-serde_json = { version = ">=1.0.125" }
-include_dir = ">=0.7.4"
-walkdir = ">=2.5.0"
-thiserror = ">=2.0.11"
-vite-actix = ">=0.2.5"
+obsidian-common = { workspace = true }
+obsidian-db = { workspace = true }
+obsidian-auth = { workspace = true }
+obsidian-java = { workspace = true }
+obsidian-loaders = { workspace = true }
+obsidian-content = { workspace = true }
+obsidian-runner = { workspace = true }
+obsidian-instances = { workspace = true }
+obsidian-backups = { workspace = true }
+obsidian-scheduler = { workspace = true }
+async-trait = { workspace = true }
+obsidian-net = { workspace = true }
+obsidian-sftp = { workspace = true }
+actix-web = { workspace = true }
+actix-files = { workspace = true }
+actix-governor = { workspace = true }
+lettre = { workspace = true }
+chrono-tz = { workspace = true }
+ipnet = { workspace = true }
+actix-ws = { workspace = true }
+actix-multipart = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+color-eyre = { workspace = true }
+figment = { workspace = true }
+include_dir = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+futures-util = { workspace = true }
+flate2 = { workspace = true }
+sqlx = { workspace = true }
+tar = { workspace = true }
+zip = { workspace = true }
+walkdir = { workspace = true }
+tempfile = "3"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+utoipa = { workspace = true }
+utoipa-scalar = { workspace = true }
+vite-actix = { workspace = true }
+xz2 = { workspace = true }
+self_update = { workspace = true, optional = true }
+tray-icon = { workspace = true, optional = true }
+tao = { workspace = true, optional = true }
+open = { workspace = true, optional = true }
+dirs = { version = "7", optional = true }
+service-manager = { workspace = true, optional = true }
 
-tracing = { version = "0.1.44", features = ["max_level_trace"] }
-tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter"] }
-color-eyre = { version = "0.6.5", features = ["tracing-error", "track-caller"] }
+[target.'cfg(windows)'.dependencies]
+windows-service = { workspace = true, optional = true }
 
-chrono = { version = "0.4.45" }
-tar = "0.4.43"
-xz2 = "0.1.7"
-
+[dev-dependencies]
+figment = { workspace = true, features = ["test"] }
 
 [build-dependencies]
-include_dir = "0.7.4"
-walkdir = "2.5.0"
-chrono = { version = "0.4.45" }
-
+chrono = { workspace = true }
 
 [profile.release]
 lto = true
 panic = "abort"
 opt-level = "z"
 codegen-units = 1
+
+[package.metadata.wix]
+upgrade-guid = "11858BE8-284E-43C1-B11A-ADE49EDB325B"
+path-guid = "CE8E22E4-622D-4545-90F1-7A952EE01059"
+license = false
+eula = false
+
+[package.metadata.bundle]
+name = "Obsidian"
+identifier = "com.obsidian.server-panel"
+icon = ["packaging/icons/obsidian.png"]
+category = "Developer Tool"
+short_description = "Minecraft server panel"
+long_description = "Self-hostable Minecraft server panel with a web UI, backups, schedules and an open API."
+copyright = "Copyright (c) 2026 Drew Chase"
+osx_minimum_system_version = "11.0"

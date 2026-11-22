@@ -1,16 +1,27 @@
 set windows-shell := ["powershell.exe", "-NoProfile", "-NoLogo", "-Command"]
 set shell := ["bash", "-c"]
 
-@defualt:
+@default:
     @just --list
 
 install:
     @pnpm i
 
-build: install
+dev: install
+    @cargo run
+
+check:
+    @cargo check --workspace
+
+clippy:
+    @cargo clippy --workspace --all-targets
+
+test:
+    @cargo test --workspace
+
+build-frontend: install
     @pnpm tsc
     @pnpm vite build
-    @cargo build --workspace --release
 
-dev: install
-    @cargo run --profile dev
+build: build-frontend
+    @cargo build --workspace --release

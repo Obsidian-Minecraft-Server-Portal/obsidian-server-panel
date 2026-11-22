@@ -131,7 +131,6 @@ dist
 
 # Rust
 target/
-Cargo.lock
 
 # InteliJ
 .idea/workspace.xml
