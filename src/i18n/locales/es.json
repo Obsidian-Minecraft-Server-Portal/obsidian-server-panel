@@ -1,0 +1,30 @@
+{
+  "language": {
+    "label": "Idioma"
+  },
+  "auth": {
+    "serverPanel": "Panel de servidor",
+    "notAffiliated": "No estamos afiliados a Mojang ni a Microsoft",
+    "panelOnline_one": "Panel en línea · {{count}} instancia en ejecución",
+    "panelOnline_other": "Panel en línea · {{count}} instancias en ejecución",
+    "back": "Atrás",
+    "verify": "Verificar",
+    "signIn": "Iniciar sesión",
+    "forgotPassword": "¿Olvidaste la contraseña?",
+    "unreachable": "No se pudo conectar con el panel."
+  },
+  "login": {
+    "welcome": "Bienvenido de nuevo, <accent>guardián</accent>",
+    "signInSubtitle": "Inicia sesión para gestionar tus servidores de Minecraft.",
+    "totpTitle": "Verificación en dos pasos",
+    "totpSubtitle": "Introduce el código de tu aplicación de autenticación o uno de tus códigos de recuperación.",
+    "emailTitle": "Revisa tu correo",
+    "emailSubtitle": "Enviamos un código de seis dígitos a tu dirección. Caduca en breve.",
+    "username": "Nombre de usuario",
+    "password": "Contraseña",
+    "authCode": "Código de autenticación",
+    "emailCode": "Código del correo",
+    "authCodePlaceholder": "123456 o código de recuperación",
+    "emailCodePlaceholder": "123456"
+  }
+}

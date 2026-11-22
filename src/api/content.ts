@@ -1,0 +1,252 @@
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, upload } from "./client";
+import type { LoaderKind } from "./loaders";
+
+export type PlatformId = 0 | 1 | 2 | 3;
+export type ContentKind = "mod" | "plugin" | "modpack";
+
+export interface PlatformInfo {
+  id: PlatformId;
+  name: string;
+  available: boolean;
+}
+
+export interface Project {
+  platform: PlatformId;
+  id: string;
+  slug: string;
+  name: string;
+  summary: string;
+  icon_url: string | null;
+  downloads: number;
+  kind: ContentKind;
+}
+
+export interface SearchPage {
+  total: number;
+  items: Project[];
+}
+
+export interface ProjectVersion {
+  id: string;
+  project_id: string;
+  name: string;
+  version_number: string;
+  mc_versions: string[];
+  loaders: string[];
+  file_name: string;
+  download_url: string | null;
+  sha1: string | null;
+  sha256: string | null;
+  published_at: string;
+}
+
+export interface InstalledContent {
+  id: number;
+  filename: string;
+  project_id: string | null;
+  version_id: string | null;
+  platform: PlatformId | null;
+  kind: ContentKind;
+  enabled: boolean;
+  instance_id: number;
+}
+
+export interface ContentUpdate {
+  mod_id: number;
+  filename: string;
+  current_version_id: string;
+  latest: ProjectVersion;
+}
+
+export interface SearchParams {
+  platform: PlatformId;
+  kind: ContentKind;
+  query: string;
+  loader: LoaderKind | null;
+  mcVersion: string | null;
+}
+
+export interface VersionFilter {
+  loader: LoaderKind | null;
+  mcVersion: string | null;
+}
+
+export interface ModpackInput {
+  platform: PlatformId;
+  projectId: string;
+  versionId: string;
+  name: string | null;
+  acceptEula: boolean;
+}
+
+export const SEARCH_PAGE_SIZE = 20;
+
+export const contentKeys = {
+  platforms: ["content", "platforms"] as const,
+  search: (params: SearchParams) => ["content", "search", params] as const,
+  versions: (platform: PlatformId, projectId: string, filter: VersionFilter) =>
+    ["content", "versions", platform, projectId, filter] as const,
+  installed: (instanceId: number) => ["instances", instanceId, "content"] as const,
+  updates: (instanceId: number) => ["instances", instanceId, "content", "updates"] as const,
+};
+
+export function contentIconUrl(instanceId: number, modId: number): string {
+  return `/api/v1/instances/${instanceId}/content/${modId}/icon`;
+}
+
+function filterQuery(filter: { loader: LoaderKind | null; mcVersion: string | null }): string {
+  const params = new URLSearchParams();
+  if (filter.loader) params.set("loader", filter.loader);
+  if (filter.mcVersion) params.set("mc_version", filter.mcVersion);
+  return params.toString();
+}
+
+export function usePlatforms() {
+  return useQuery({
+    queryKey: contentKeys.platforms,
+    queryFn: () => api.get<PlatformInfo[]>("/content/platforms"),
+    staleTime: Infinity,
+  });
+}
+
+export function useContentSearch(params: SearchParams) {
+  return useInfiniteQuery({
+    queryKey: contentKeys.search(params),
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams({
+        platform: String(params.platform),
+        kind: params.kind,
+        query: params.query,
+        page: String(pageParam),
+        limit: String(SEARCH_PAGE_SIZE),
+      });
+      if (params.loader) query.set("loader", params.loader);
+      if (params.mcVersion) query.set("mc_version", params.mcVersion);
+      return api.get<SearchPage>(`/content/search?${query}`);
+    },
+    placeholderData: keepPreviousData,
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) =>
+      pages.reduce((count, page) => count + page.items.length, 0) < last.total ? pages.length : undefined,
+  });
+}
+
+export function useProjectVersions(platform: PlatformId, projectId: string | null, filter: VersionFilter) {
+  return useQuery({
+    queryKey: contentKeys.versions(platform, projectId ?? "", filter),
+    queryFn: () => {
+      const query = filterQuery(filter);
+      return api.get<ProjectVersion[]>(`/content/${platform}/projects/${encodeURIComponent(projectId ?? "")}/versions${query ? `?${query}` : ""}`);
+    },
+    enabled: projectId !== null,
+  });
+}
+
+export function useInstalledContent(instanceId: number, enabled = true) {
+  return useQuery({
+    queryKey: contentKeys.installed(instanceId),
+    queryFn: () => api.get<InstalledContent[]>(`/instances/${instanceId}/content`),
+    enabled,
+  });
+}
+
+const UPDATE_CHECK_STALE_MS = 5 * 60_000;
+
+export function useContentUpdates(instanceId: number) {
+  return useQuery({
+    queryKey: contentKeys.updates(instanceId),
+    queryFn: () => api.get<ContentUpdate[]>(`/instances/${instanceId}/content/updates`),
+    staleTime: UPDATE_CHECK_STALE_MS,
+  });
+}
+
+function useInvalidateInstalled(instanceId: number, includeUpdates: boolean) {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.invalidateQueries({ queryKey: contentKeys.installed(instanceId), exact: !includeUpdates });
+}
+
+export function useInstallContent(instanceId: number) {
+  const invalidate = useInvalidateInstalled(instanceId, true);
+  return useMutation({
+    mutationFn: (input: { platform: PlatformId; projectId: string; versionId: string }) =>
+      api.post<InstalledContent>(`/instances/${instanceId}/content`, {
+        platform: input.platform,
+        project_id: input.projectId,
+        version_id: input.versionId,
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useApplyContentUpdate(instanceId: number) {
+  const invalidate = useInvalidateInstalled(instanceId, true);
+  return useMutation({
+    mutationFn: (input: { modId: number; versionId: string }) =>
+      api.post<InstalledContent>(`/instances/${instanceId}/content/${input.modId}/update`, {
+        version_id: input.versionId,
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateAllContent(instanceId: number) {
+  const invalidate = useInvalidateInstalled(instanceId, true);
+  return useMutation({
+    mutationFn: () => api.post<InstalledContent[]>(`/instances/${instanceId}/content/updates`),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUploadContent(instanceId: number) {
+  const invalidate = useInvalidateInstalled(instanceId, false);
+  return useMutation({
+    mutationFn: (input: { file: File; onProgress?: (fraction: number) => void }) => {
+      const form = new FormData();
+      form.append("file", input.file, input.file.name);
+      return upload<InstalledContent>(`/instances/${instanceId}/content/upload`, form, input.onProgress);
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useRemoveContent(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (modId: number) => api.delete(`/instances/${instanceId}/content/${modId}`),
+    onSuccess: (_, modId) => {
+      queryClient.setQueryData<InstalledContent[]>(contentKeys.installed(instanceId), (list) =>
+        list?.filter((item) => item.id !== modId),
+      );
+      queryClient.setQueryData<ContentUpdate[]>(contentKeys.updates(instanceId), (list) =>
+        list?.filter((entry) => entry.mod_id !== modId),
+      );
+    },
+  });
+}
+
+export function useToggleContent(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { modId: number; enabled: boolean }) =>
+      api.post<InstalledContent>(`/instances/${instanceId}/content/${input.modId}/toggle`, { enabled: input.enabled }),
+    onSuccess: (item) =>
+      queryClient.setQueryData<InstalledContent[]>(contentKeys.installed(instanceId), (list) =>
+        list?.map((entry) => (entry.id === item.id ? item : entry)),
+      ),
+  });
+}
+
+export function useInstallModpack() {
+  return useMutation({
+    mutationFn: (input: ModpackInput) =>
+      api.post<{ task_id: number }>("/modpacks/install", {
+        platform: input.platform,
+        project_id: input.projectId,
+        version_id: input.versionId,
+        name: input.name,
+        accept_eula: input.acceptEula,
+      }),
+  });
+}

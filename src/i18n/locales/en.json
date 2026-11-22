@@ -1,0 +1,30 @@
+{
+  "language": {
+    "label": "Language"
+  },
+  "auth": {
+    "serverPanel": "Server Panel",
+    "notAffiliated": "Not affiliated with Mojang or Microsoft",
+    "panelOnline_one": "Panel online · {{count}} instance running",
+    "panelOnline_other": "Panel online · {{count}} instances running",
+    "back": "Back",
+    "verify": "Verify",
+    "signIn": "Sign in",
+    "forgotPassword": "Forgot password?",
+    "unreachable": "Could not reach the panel."
+  },
+  "login": {
+    "welcome": "Welcome back, <accent>keeper</accent>",
+    "signInSubtitle": "Sign in to manage your Minecraft servers.",
+    "totpTitle": "Two-factor check",
+    "totpSubtitle": "Enter the code from your authenticator app, or one of your recovery codes.",
+    "emailTitle": "Check your inbox",
+    "emailSubtitle": "We sent a six-digit code to your address. It expires shortly.",
+    "username": "Username",
+    "password": "Password",
+    "authCode": "Authentication code",
+    "emailCode": "Email code",
+    "authCodePlaceholder": "123456 or recovery code",
+    "emailCodePlaceholder": "123456"
+  }
+}

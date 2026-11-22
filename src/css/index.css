@@ -1,64 +1,211 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..600&family=Noto+Serif:wght@500..700&display=swap");
 
 @import "tailwindcss";
 @import "@heroui/styles";
 
-/* Expose Roboto as the default sans font for Tailwind utilities */
-@theme {
-  --font-sans: 'Roboto', sans-serif;
-}
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: "Noto Serif", Georgia, serif;
 
-/* Brand theme overrides (HeroUI v3 uses `accent` where v2 used `primary`).
-   Un-layered :root declarations win over HeroUI's layered defaults. */
-:root,
-[data-theme="light"] {
-  --accent: #f13848;
-  --accent-foreground: #ffffff;
-  --background: #e3e3ea;
-}
+  --color-canvas: var(--bg-0);
+  --color-rail: var(--bg-1);
+  --color-panel: var(--bg-2);
+  --color-input: var(--bg-3);
+  --color-raised: var(--bg-4);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink-0: var(--ink-0);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-glow: var(--accent-glow);
+  --color-accent-ink: var(--accent-ink);
+  --color-ember: var(--ember);
+  --color-cyan: var(--cyan);
+  --color-amber: var(--amber);
+  --color-rose: var(--rose);
 
-.dark,
-[data-theme="dark"] {
-  --accent: #ff3247;
-  --background: #18181b;
+  --radius-control: 12px;
+  --radius-panel: 18px;
+  --radius-card: 20px;
+  --radius-hero: 24px;
+
+  --shadow-glow: 0 12px 32px -6px var(--accent-glow);
+
+  --animate-aurora-float: aurora-float 18s ease-in-out infinite;
+  --animate-pulse-ring: pulse-ring 2s ease-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-tick-in: tick-in 0.4s ease-out both;
+  --animate-blink-cursor: blink-cursor 1s steps(1) infinite;
 }
 
 :root {
-  --scrollbar-background-color: transparent;
-  --scrollbar-thumb-color: var(--accent);
-  --scrollbar-thumb-hover-color: var(--accent);
-  overflow: auto;
-  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background-color);
-  scrollbar-width: thin;
-  scrollbar-gutter: stable;
+  --bg-0: #0a0609;
+  --bg-1: #110b12;
+  --bg-2: #190f18;
+  --bg-3: #231623;
+  --bg-4: #2f1e30;
+
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+
+  --ink-0: #ffffff;
+  --ink-1: rgba(255, 255, 255, 0.92);
+  --ink-2: rgba(255, 255, 255, 0.68);
+  --ink-3: rgba(255, 255, 255, 0.45);
+  --ink-4: rgba(255, 255, 255, 0.28);
+
+  --accent: #b24bff;
+  --accent-dim: #8a2be2;
+  --accent-deep: #3b0a66;
+  --accent-glow: rgba(178, 75, 255, 0.35);
+  --accent-tint: rgba(178, 75, 255, 0.12);
+  --accent-ink: #1a0629;
+
+  --ember: #ff6b3a;
+  --cyan: #47d9ff;
+  --amber: #ffb545;
+  --rose: #ff5a7a;
+
+  color-scheme: dark;
+  --radius: 8px;
+  --field-radius: 12px;
+  --background: var(--bg-0);
+  --foreground: var(--ink-1);
+  --surface: var(--bg-2);
+  --surface-foreground: var(--ink-1);
+  --surface-secondary: var(--bg-3);
+  --surface-secondary-foreground: var(--ink-1);
+  --surface-tertiary: var(--bg-4);
+  --surface-tertiary-foreground: var(--ink-1);
+  --surface-hover: var(--bg-4);
+  --overlay: var(--bg-2);
+  --overlay-foreground: var(--ink-1);
+  --default: var(--bg-3);
+  --default-foreground: var(--ink-1);
+  --default-hover: var(--bg-4);
+  --field-background: var(--bg-3);
+  --field-foreground: var(--ink-1);
+  --field-placeholder: var(--ink-4);
+  --field-border: var(--line);
+  --field-border-hover: var(--line-strong);
+  --field-border-focus: var(--accent);
+  --field-hover: var(--bg-4);
+  --field-focus: var(--bg-3);
+  --muted: var(--ink-3);
+  --border: var(--line-strong);
+  --separator: var(--line);
+  --focus: var(--accent);
+  --accent-foreground: var(--accent-ink);
+  --accent-hover: #c27aff;
+  --accent-soft: var(--accent-tint);
+  --accent-soft-foreground: #d9a8ff;
+  --danger: var(--rose);
+  --danger-foreground: #ffffff;
+  --danger-soft: rgba(255, 90, 122, 0.12);
+  --danger-soft-foreground: var(--rose);
+  --success: var(--cyan);
+  --success-foreground: #04131a;
+  --warning: var(--amber);
+  --warning-foreground: #1a1204;
 }
 
-body {
-  font-family: 'Roboto', sans-serif;
+@utility grid-faint {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
 }
 
-::-webkit-scrollbar {
-  width: 12px;
+@utility glass-hairline {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-::-webkit-scrollbar-track {
-  background: var(--scrollbar-background-color);
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg-0);
+    color: var(--ink-1);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb-color);
-  border-radius: 10px;
+@keyframes aurora-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3%, -2%, 0) scale(1.06);
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scrollbar-thumb-hover-color);
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 
-::selection {
-  background-color: var(--accent);
-  color: var(--background);
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
 }
 
-input:focus-visible, textarea:focus-visible {
-  outline: none !important;
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes blink-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
