@@ -42,6 +42,7 @@
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-tick-in: tick-in 0.4s ease-out both;
   --animate-blink-cursor: blink-cursor 1s steps(1) infinite;
+  --animate-ember-rise: ember-rise 10s linear infinite;
 }
 
 :root {
@@ -157,10 +158,68 @@
   100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
-  50% {
-    transform: translate3d(3%, -2%, 0) scale(1.06);
+  33% {
+    transform: translate3d(60px, -40px, 0) scale(1.1);
+  }
+  66% {
+    transform: translate3d(-40px, 50px, 0) scale(0.95);
   }
 }
+
+@keyframes ember-rise {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  10%,
+  85% {
+    opacity: var(--ember-opacity, 0.75);
+  }
+  100% {
+    transform: translate3d(var(--ember-sway, 30px), -110vh, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes ember-flicker {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.6);
+  }
+}
+
+@keyframes portal-flow {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(12px, 0, 0);
+  }
+}
+
+@keyframes portal-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+.portal-logo__swirl {
+  animation: portal-flow 3.2s linear infinite;
+}
+
+.portal-logo__speck {
+  animation: portal-twinkle 2.6s ease-in-out infinite;
+}
+
 
 @keyframes pulse-ring {
   0% {
