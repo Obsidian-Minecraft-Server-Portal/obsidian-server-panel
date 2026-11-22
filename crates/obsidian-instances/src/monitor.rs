@@ -28,6 +28,7 @@ struct Probe {
 	online: u32,
 	max: u32,
 	motd: String,
+	names: Vec<String>,
 }
 
 pub fn spawn(manager: InstanceManager) {
@@ -78,13 +79,14 @@ pub fn spawn(manager: InstanceManager) {
 					stats.cpu_percent = cpu;
 					stats.memory_bytes = memory;
 					if let Some(result) = probed {
-						let (online, max, motd) = match result {
-							Some(probe) => (Some(probe.online), Some(probe.max), Some(probe.motd)),
-							None => (None, None, None),
+						let (online, max, motd, names) = match result {
+							Some(probe) => (Some(probe.online), Some(probe.max), Some(probe.motd), Some(probe.names)),
+							None => (None, None, None, None),
 						};
 						stats.players_online = online;
 						stats.max_players = max;
 						stats.motd = motd;
+						stats.player_names = names;
 					}
 				});
 				if let Some(stats) = stats {
@@ -104,6 +106,7 @@ async fn probe_server(port: u16) -> Option<Probe> {
 			online: response.online_players as u32,
 			max: response.max_players as u32,
 			motd: response.description.as_ref().map(plain_text).unwrap_or_default(),
+			names: response.sample.unwrap_or_default().into_iter().map(|player| player.name).collect(),
 		})
 	};
 	tokio::time::timeout(PROBE_TIMEOUT, attempt).await.ok().flatten()

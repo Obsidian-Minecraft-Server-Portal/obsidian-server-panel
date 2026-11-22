@@ -86,6 +86,7 @@ pub struct InstanceStats {
 	pub cpu_percent: f32,
 	pub memory_bytes: u64,
 	pub players_online: Option<u32>,
+	pub player_names: Option<Vec<String>>,
 	pub max_players: Option<u32>,
 	pub motd: Option<String>,
 	pub tps: Option<f32>,

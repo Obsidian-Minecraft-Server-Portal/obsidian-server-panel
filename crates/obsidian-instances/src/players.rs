@@ -1,14 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::time::Duration;
 
 use chrono::Utc;
 use obsidian_common::{CommonError, InstanceId, Result};
 use obsidian_runner::RunState;
 use serde_json::{Value, json};
-use tokio::sync::broadcast::error::RecvError;
 
-use crate::live::console_topic;
 use crate::manager::InstanceManager;
 use crate::model::{Player, PlayerAction};
 
@@ -16,8 +13,6 @@ const OPS: &str = "ops.json";
 const WHITELIST: &str = "whitelist.json";
 const BANNED: &str = "banned-players.json";
 const USERCACHE: &str = "usercache.json";
-const ONLINE_TIMEOUT: Duration = Duration::from_secs(3);
-const ONLINE_MARKER: &str = "players online:";
 const MAX_NAME_LEN: usize = 16;
 
 fn validate_name(name: &str) -> Result<()> {
@@ -29,11 +24,6 @@ fn validate_name(name: &str) -> Result<()> {
 	} else {
 		Err(CommonError::Invalid(format!("'{name}' is not a valid player name")))
 	}
-}
-
-fn parse_online(line: &str) -> Option<Vec<String>> {
-	let (_, names) = line.split_once(ONLINE_MARKER)?;
-	Some(names.split(',').map(str::trim).filter(|name| !name.is_empty()).map(str::to_owned).collect())
 }
 
 fn matches_entry(entry: &Value, uuid: Option<&str>, name: &str) -> bool {
@@ -170,36 +160,13 @@ impl InstanceManager {
 		if self.current_status(id).state != RunState::Running {
 			return Ok(Vec::new());
 		}
-		let mut events = self.bus.subscribe();
-		self.send_command(id, "list").await?;
-		let topic = console_topic(id);
-		let response = async {
-			loop {
-				match events.recv().await {
-					Ok(event) if event.topic == topic => {
-						if let Some(names) = event.data["line"].as_str().and_then(parse_online) {
-							return names;
-						}
-					}
-					Ok(_) | Err(RecvError::Lagged(_)) => {}
-					Err(RecvError::Closed) => return Vec::new(),
-				}
-			}
-		};
-		Ok(tokio::time::timeout(ONLINE_TIMEOUT, response).await.unwrap_or_default())
+		Ok(self.live().get(&id).and_then(|live| live.stats.player_names.clone()).unwrap_or_default())
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{parse_online, validate_name};
-
-	#[test]
-	fn parses_list_output() {
-		let line = "[Server thread/INFO]: There are 2 of a max of 20 players online: Alex, Steve";
-		assert_eq!(parse_online(line), Some(vec!["Alex".to_owned(), "Steve".to_owned()]));
-		assert_eq!(parse_online("There are 0 of a max of 20 players online: "), Some(Vec::new()));
-	}
+	use super::validate_name;
 
 	#[test]
 	fn rejects_unsafe_names() {
