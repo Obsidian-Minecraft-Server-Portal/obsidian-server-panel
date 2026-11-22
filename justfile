@@ -19,6 +19,10 @@ install:
 dev: install
     cargo run --bin obsidian -- serve --headless
 
+[group('dev')]
+dev-watch: install
+    cargo watch -x "run --bin obsidian -- serve --headless" --why
+
 # Run the panel with the tray icon
 [group('dev')]
 dev-tray: install
