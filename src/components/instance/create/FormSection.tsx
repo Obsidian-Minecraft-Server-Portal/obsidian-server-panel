@@ -11,7 +11,7 @@ export function FormSection({ index, title, description, children }: FormSection
   return (
     <section className="rounded-panel border border-line bg-gradient-to-b from-panel to-rail p-6 glass-hairline">
       <header className="mb-5 flex items-start gap-4">
-        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-accent/40 bg-accent-tint font-mono text-xs font-semibold text-accent">
+        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-secondary/30 bg-secondary-tint font-mono text-xs font-semibold text-secondary-soft">
           {String(index).padStart(2, "0")}
         </span>
         <div className="space-y-0.5">

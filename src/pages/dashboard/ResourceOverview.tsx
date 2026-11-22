@@ -25,7 +25,7 @@ export function ResourceOverview({ running, statsById }: ResourceOverviewProps) 
             return (
               <div key={view.id} className="space-y-2.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <Link to={`/instances/${view.id}`} className="font-semibold text-ink-0 hover:text-accent">
+                  <Link to={`/instances/${view.id}`} className="font-semibold text-ink-0 hover:underline">
                     {view.name}
                   </Link>
                   <span className="font-mono text-xs text-ink-3">

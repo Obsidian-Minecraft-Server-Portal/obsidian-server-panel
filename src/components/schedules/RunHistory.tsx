@@ -5,7 +5,7 @@ import type { Tone } from "../ui/tone";
 
 const RUN_TONE: Record<RunStatus, Tone> = {
   running: "cyan",
-  succeeded: "accent",
+  succeeded: "cyan",
   failed: "rose",
 };
 

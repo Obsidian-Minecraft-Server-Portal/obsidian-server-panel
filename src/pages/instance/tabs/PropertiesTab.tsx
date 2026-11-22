@@ -59,7 +59,7 @@ export function PropertiesTab() {
               className={cn(
                 "flex items-center gap-2 rounded-[9px] px-3 py-1.5 text-sm transition-colors",
                 rawMode === (label === "Raw")
-                  ? "bg-gradient-to-b from-accent to-accent-dim font-medium text-accent-ink shadow-glow"
+                  ? "bg-raised font-medium text-ink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                   : "bg-transparent text-ink-3 hover:bg-raised hover:text-ink-1",
               )}
             >

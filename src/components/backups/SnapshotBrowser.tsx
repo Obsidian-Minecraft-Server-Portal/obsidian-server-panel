@@ -92,7 +92,7 @@ function EntryRow({ entry, disabled, onOpen, onRestore }: EntryRowProps) {
         icon={entry.is_dir ? "lucide:folder" : "lucide:file"}
         width={16}
         height={16}
-        className={entry.is_dir ? "shrink-0 text-accent" : "shrink-0 text-ink-3"}
+        className={entry.is_dir ? "shrink-0 text-secondary" : "shrink-0 text-ink-3"}
       />
       {entry.is_dir ? (
         <Button variant="ghost" size="sm" onPress={onOpen} className="h-7 min-w-0 flex-1 justify-start truncate px-1 text-sm text-ink-1">

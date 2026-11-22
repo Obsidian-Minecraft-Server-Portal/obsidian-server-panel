@@ -64,7 +64,7 @@ function ModpackForm({ action, onClose }: { action: ModpackAction; onClose: () =
   return (
     <>
       <Modal.Header className="flex items-start gap-3">
-        <span className="grid size-10 place-items-center rounded-control bg-accent-tint text-accent">
+        <span className="grid size-10 place-items-center rounded-control bg-secondary-tint text-secondary">
           <Icon icon="lucide:package-plus" width={18} height={18} />
         </span>
         <div className="min-w-0 space-y-1">

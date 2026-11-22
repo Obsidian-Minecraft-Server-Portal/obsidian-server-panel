@@ -44,7 +44,7 @@ export function NameDialog({ title, icon, label, initialValue, submitLabel, vali
         <Modal.Dialog className="bg-panel text-ink-1">
           <form onSubmit={submit}>
             <Modal.Header className="flex items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-control bg-accent-tint text-accent">
+              <span className="grid size-10 place-items-center rounded-control bg-secondary-tint text-secondary">
                 <Icon icon={icon} width={18} height={18} />
               </span>
               <Modal.Heading className="text-lg font-semibold text-ink-0">{title}</Modal.Heading>

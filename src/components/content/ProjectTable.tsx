@@ -27,7 +27,7 @@ export function ProjectTable({ projects, onOpen }: ProjectTableProps) {
                 <Button
                   variant="ghost"
                   onPress={() => onOpen(project)}
-                  className="h-auto min-w-0 justify-start p-0 text-left font-medium text-ink-0 hover:text-accent"
+                  className="h-auto min-w-0 justify-start p-0 text-left font-medium text-ink-0 hover:underline"
                 >
                   {project.name}
                 </Button>

@@ -35,7 +35,7 @@ export function ViewToggle({ value, onChange, label = "View" }: ViewToggleProps)
           variant="ghost"
           isIconOnly
           aria-label={entry.label}
-          className="size-8 min-w-0 rounded-[9px] bg-transparent text-ink-3 transition-colors hover:bg-raised hover:text-ink-1 data-[selected=true]:bg-gradient-to-b data-[selected=true]:from-accent data-[selected=true]:to-accent-dim data-[selected=true]:text-accent-ink data-[selected=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_14px_-4px_var(--accent-glow)]"
+          className="size-8 min-w-0 rounded-[9px] bg-transparent text-ink-3 transition-colors hover:bg-raised hover:text-ink-1 data-[selected=true]:bg-raised data-[selected=true]:text-ink-0 data-[selected=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
         >
           <Icon icon={entry.icon} width={16} height={16} />
         </ToggleButton>

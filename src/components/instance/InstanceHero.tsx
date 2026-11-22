@@ -32,7 +32,7 @@ export function InstanceHero({ view }: { view: InstanceView }) {
           </GhostButton>
         </div>
         <div className="flex flex-wrap items-end gap-6 pt-16 pb-2">
-          <InstanceIcon instance={view} className="size-28 rounded-panel shadow-glow" />
+          <InstanceIcon instance={view} className="size-28 rounded-panel shadow-lift" />
           <div className="min-w-0 flex-1 space-y-3">
             <div className="flex flex-wrap gap-2">
               <StatusChip instance={view} />

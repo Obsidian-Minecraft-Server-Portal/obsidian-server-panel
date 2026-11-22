@@ -88,7 +88,7 @@ function TotpEnroll({ onCodes }: { onCodes: (codes: string[]) => void }) {
 function TotpManage({ onCodes }: { onCodes: (codes: string[]) => void }) {
   return (
     <div className="space-y-6">
-      <Chip tone="accent" pulse>
+      <Chip tone="cyan" pulse>
         Enabled
       </Chip>
       <RegenerateCodes onCodes={onCodes} />
@@ -151,7 +151,7 @@ function DisableTotp() {
 
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   return (
-    <div className="space-y-4 rounded-panel border border-accent/40 bg-accent-tint p-5">
+    <div className="space-y-4 rounded-panel border border-secondary/30 bg-secondary-tint p-5">
       <div className="space-y-1">
         <p className="text-sm font-semibold text-ink-0">Save these recovery codes</p>
         <p className="text-xs text-ink-2">Each code works once, and they will not be shown again.</p>

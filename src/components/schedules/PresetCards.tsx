@@ -14,9 +14,9 @@ export function PresetCards({ onPick }: PresetCardsProps) {
           key={preset.id}
           variant="ghost"
           onPress={() => onPick(preset)}
-          className="h-auto flex-col items-start gap-1.5 whitespace-normal rounded-panel border border-line bg-raised/30 p-4 text-left hover:border-accent"
+          className="h-auto flex-col items-start gap-1.5 whitespace-normal rounded-panel border border-line bg-raised/30 p-4 text-left hover:border-line-strong"
         >
-          <Icon icon={preset.icon} width={20} height={20} className="text-accent" />
+          <Icon icon={preset.icon} width={20} height={20} className="text-secondary" />
           <span className="text-sm font-semibold text-ink-0">{preset.title}</span>
           <span className="text-xs text-ink-3">{preset.description}</span>
         </Button>

@@ -40,9 +40,9 @@ function segmentsOf(text: string): Segment[] {
   const tag = rest.match(TAG);
   if (tag?.index !== undefined) {
     if (tag.index > 0) segments.push({ text: rest.slice(0, tag.index), className: tone });
-    segments.push({ text: `[${tag[1]}/`, className: "text-accent" });
+    segments.push({ text: `[${tag[1]}/`, className: "text-secondary" });
     segments.push({ text: tag[2], className: LEVEL_TONE[tag[2].toUpperCase()] ?? tone });
-    segments.push({ text: "]", className: "text-accent" });
+    segments.push({ text: "]", className: "text-secondary" });
     rest = rest.slice(tag.index + tag[0].length);
   }
   if (rest) segments.push({ text: rest, className: tone });

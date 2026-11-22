@@ -33,7 +33,7 @@ export function LoaderPicker({ value, onChange, isDisabled }: LoaderPickerProps)
             className={cn(
               "group relative w-full !flex-row !items-center gap-3 cursor-pointer rounded-control border p-3 transition duration-150 data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-60",
               active
-                ? "border-accent/70 bg-accent-tint shadow-[0_0_0_1px_var(--accent-glow),0_10px_28px_-12px_var(--accent-glow)]"
+                ? "border-accent/60 bg-raised"
                 : "border-line bg-input/50 hover:border-line-strong hover:bg-raised",
             )}
           >
@@ -41,7 +41,7 @@ export function LoaderPicker({ value, onChange, isDisabled }: LoaderPickerProps)
               <span
                 className={cn(
                   "grid size-9 shrink-0 place-items-center rounded-[10px] transition-colors",
-                  active ? "bg-gradient-to-b from-accent to-accent-dim text-accent-ink" : "bg-raised text-accent",
+                  active ? "bg-accent-tint text-accent" : "bg-raised text-ink-2",
                 )}
               >
                 <Icon icon={meta.icon} width={18} height={18} />

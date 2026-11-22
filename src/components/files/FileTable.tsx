@@ -75,12 +75,12 @@ const FileRow = memo(function FileRow({ entry, selected, onPick, onOpen, onConte
       onContextMenu={handleContext}
       className={cn(
         "cursor-default border-b border-line/60 transition-colors outline-none select-none focus-visible:bg-raised",
-        selected ? "bg-accent-tint" : "hover:bg-raised/60",
+        selected ? "bg-accent-tint/60" : "hover:bg-raised/60",
       )}
     >
       <td className="px-4 py-2.5">
         <span className="flex min-w-0 items-center gap-3">
-          <Icon icon={iconFor(entry)} className={cn("shrink-0", entry.is_dir ? "text-accent" : "text-ink-3")} width={16} height={16} />
+          <Icon icon={iconFor(entry)} className={cn("shrink-0", entry.is_dir ? "text-secondary" : "text-ink-3")} width={16} height={16} />
           <span className="truncate text-ink-1">{entry.name}</span>
           {entry.is_symlink && <span className="font-mono text-[10px] text-ink-4 uppercase">link</span>}
         </span>

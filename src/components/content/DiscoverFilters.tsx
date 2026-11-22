@@ -61,8 +61,8 @@ export function SourceChips({ kind, platform, platforms, onPlatform }: SourceChi
               className={cn(
                 "h-auto rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
                 id === platform
-                  ? "border-accent/50 bg-accent-tint text-accent"
-                  : "border-line bg-panel text-ink-2 hover:border-accent/30 hover:text-ink-0",
+                  ? "border-line-strong bg-raised text-ink-0"
+                  : "border-line bg-panel text-ink-2 hover:border-line-strong hover:text-ink-0",
                 !usable && "cursor-not-allowed opacity-40 hover:border-line hover:text-ink-2",
               )}
             >

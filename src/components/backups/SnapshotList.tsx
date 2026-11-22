@@ -22,7 +22,7 @@ export function SnapshotList({ instanceId, snapshots, browsing, disabled, onBrow
       {snapshots.map((snapshot) => (
         <li
           key={snapshot.id}
-          className={cn("flex flex-wrap items-center gap-3 py-3", browsing === snapshot.id && "bg-accent-tint/30")}
+          className={cn("flex flex-wrap items-center gap-3 py-3", browsing === snapshot.id && "bg-raised/60")}
         >
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-center gap-2">

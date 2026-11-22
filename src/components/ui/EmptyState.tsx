@@ -18,7 +18,7 @@ export function EmptyState({ icon = "lucide:inbox", title, description, action, 
         className,
       )}
     >
-      <span className="grid size-14 place-items-center rounded-2xl bg-accent-tint text-accent">
+      <span className="grid size-14 place-items-center rounded-2xl bg-secondary-tint text-secondary">
         <Icon icon={icon} width={28} height={28} />
       </span>
       <div className="space-y-1.5">

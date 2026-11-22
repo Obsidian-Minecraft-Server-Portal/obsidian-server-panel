@@ -25,10 +25,10 @@ export function AuthCard({ headline, subtitle, children, footer }: AuthCardProps
         <LanguageChip />
       </div>
       <main className="grid flex-1 place-items-center px-4 py-12">
-        <GlassCard className="w-full max-w-md p-8">
+        <GlassCard glow className="w-full max-w-md p-8">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <span className="grid size-14 place-items-center rounded-control border border-accent/60 bg-accent-deep/40 shadow-[0_0_24px_var(--accent-glow)]">
+              <span className="grid size-14 place-items-center rounded-control border border-line-strong bg-input shadow-[0_0_24px_-4px_var(--accent-glow)]">
                 <Logo size={34} />
               </span>
               <div>

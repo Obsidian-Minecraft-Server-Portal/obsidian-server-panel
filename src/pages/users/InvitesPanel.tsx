@@ -16,10 +16,10 @@ function inviteState(invite: Invite): InviteState {
   return Date.parse(invite.expires_at) < Date.now() ? "expired" : "active";
 }
 
-const STATE_CHIP: Record<InviteState, { label: string; tone: "cyan" | "rose" | "accent" }> = {
+const STATE_CHIP: Record<InviteState, { label: string; tone: "cyan" | "rose" | "secondary" }> = {
   used: { label: "Used", tone: "cyan" },
   expired: { label: "Expired", tone: "rose" },
-  active: { label: "Open", tone: "accent" },
+  active: { label: "Open", tone: "secondary" },
 };
 
 export function InvitesPanel() {

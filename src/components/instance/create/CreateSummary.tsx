@@ -51,10 +51,9 @@ export function CreateSummary({ draft, onEula, onCreate, isPending, error }: Cre
   ];
 
   return (
-    <aside className="relative space-y-5 overflow-hidden rounded-card border border-line bg-gradient-to-b from-panel to-rail p-6 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.8)] glass-hairline xl:sticky xl:top-6">
-      <div className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-[radial-gradient(circle,var(--accent-glow)_0%,transparent_70%)]" />
+    <aside className="relative space-y-5 overflow-hidden rounded-card border border-line bg-panel p-6 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.8)] glass-hairline xl:sticky xl:top-6">
       <div className="relative flex items-center gap-3">
-        <span className="grid size-12 place-items-center rounded-control bg-gradient-to-b from-accent to-accent-dim text-accent-ink shadow-glow">
+        <span className="grid size-12 place-items-center rounded-control bg-secondary-tint text-secondary">
           <Icon icon={meta?.icon ?? "lucide:server"} width={22} height={22} />
         </span>
         <div className="min-w-0">

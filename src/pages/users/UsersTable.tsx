@@ -27,7 +27,7 @@ export function UsersTable({ onEdit }: UsersTableProps) {
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-ink-0">{user.username}</span>
-              {user.is_admin && <Chip tone="accent">Admin</Chip>}
+              {user.is_admin && <Chip tone="secondary">Admin</Chip>}
               {user.totp_enabled && <Chip tone="cyan">2FA</Chip>}
             </div>
             <p className="truncate font-mono text-[11px] text-ink-3 uppercase">

@@ -21,16 +21,16 @@ export function MemberRow({ member, active, canEdit, canRemove, onEdit, onRemove
     <li
       className={cn(
         "flex flex-wrap items-center gap-4 rounded-control border px-4 py-3 transition-colors",
-        active ? "border-accent/40 bg-accent-tint" : "border-line bg-input/40",
+        active ? "border-line-strong bg-raised/60" : "border-line bg-input/40",
       )}
     >
-      <Avatar className="size-10 bg-accent-tint text-accent">
+      <Avatar className="size-10 bg-secondary-tint text-secondary">
         <Avatar.Fallback className="font-semibold">{member.username.charAt(0).toUpperCase()}</Avatar.Fallback>
       </Avatar>
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-medium text-ink-0">{member.username}</span>
-          <Chip tone={member.is_owner ? "amber" : "accent"}>{roleLabel(member.role)}</Chip>
+          <Chip tone={member.is_owner ? "amber" : "secondary"}>{roleLabel(member.role)}</Chip>
         </div>
         <p className="font-mono text-xs text-ink-3">{member.permissions.length} PERMISSIONS</p>
       </div>

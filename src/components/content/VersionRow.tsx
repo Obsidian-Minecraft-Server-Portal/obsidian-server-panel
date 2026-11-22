@@ -25,7 +25,7 @@ export function VersionRow({ version, kind, onAction }: VersionRowProps) {
         </p>
         <div className="flex flex-wrap gap-1.5">
           {mcVersions.map((mc) => (
-            <Chip key={mc} tone="accent">
+            <Chip key={mc} tone="secondary">
               {mc}
             </Chip>
           ))}

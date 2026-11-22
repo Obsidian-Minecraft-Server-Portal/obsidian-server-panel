@@ -83,7 +83,7 @@ export function SettingsPage() {
               aria-current={key === active ? "page" : undefined}
               className={cn(
                 "rounded-control px-3 py-2 text-sm font-medium transition-colors",
-                key === active ? "bg-accent-tint text-accent" : "text-ink-3 hover:bg-raised hover:text-ink-1",
+                key === active ? "bg-raised text-ink-0" : "text-ink-3 hover:bg-raised hover:text-ink-1",
               )}
             >
               {entry.label}

@@ -14,7 +14,7 @@ export function SchedulePreview({ schedule }: SchedulePreviewProps) {
   const preview = usePreviewSchedule(debounced);
 
   return (
-    <div className="space-y-2 rounded-control border border-accent/30 bg-accent-tint/30 p-4">
+    <div className="space-y-2 rounded-control border border-secondary/25 bg-secondary-tint p-4">
       <p className="font-mono text-[11px] font-medium tracking-wider text-[#d9a8ff] uppercase">Preview</p>
       {!schedule ? (
         <p className="text-sm text-ink-3">Give the schedule a name to see when it will run.</p>

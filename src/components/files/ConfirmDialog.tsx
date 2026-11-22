@@ -36,7 +36,7 @@ export function ConfirmDialog({ title, description, confirmLabel, danger, onConf
         <Modal.Dialog className="bg-panel text-ink-1">
           <Modal.Header className="flex items-center gap-3">
             <span
-              className={`grid size-10 place-items-center rounded-control ${danger ? "bg-rose/12 text-rose" : "bg-accent-tint text-accent"}`}
+              className={`grid size-10 place-items-center rounded-control ${danger ? "bg-rose/12 text-rose" : "bg-secondary-tint text-secondary"}`}
             >
               <Icon icon={danger ? "lucide:triangle-alert" : "lucide:circle-help"} width={18} height={18} />
             </span>

@@ -28,8 +28,10 @@ function RailLink({ item }: { item: RailItem }) {
       title={item.label}
       className={({ isActive }) =>
         cn(
-          "grid size-11 place-items-center rounded-control transition-colors",
-          isActive ? "bg-accent-tint text-accent" : "text-ink-3 hover:bg-raised hover:text-ink-1",
+          "relative grid size-11 place-items-center rounded-control transition-colors",
+          isActive
+            ? "bg-raised text-ink-0 before:absolute before:top-2.5 before:-left-3 before:h-6 before:w-[3px] before:rounded-r-full before:bg-accent"
+            : "text-ink-3 hover:bg-raised hover:text-ink-1",
         )
       }
     >
@@ -48,7 +50,7 @@ export function IconRail() {
       <NavLink
         to="/"
         aria-label="Obsidian home"
-        className="grid size-11 place-items-center rounded-control border border-accent/60 bg-accent-deep/40 shadow-[0_0_18px_var(--accent-glow)]"
+        className="grid size-11 place-items-center rounded-control border border-line-strong bg-input"
       >
         <Logo size={28} />
       </NavLink>
@@ -64,7 +66,7 @@ export function IconRail() {
           isIconOnly
           aria-label="Account"
           onPress={() => navigate("/settings/account")}
-          className="relative mt-1 size-11 rounded-control bg-gradient-to-b from-accent to-accent-dim font-mono text-sm font-semibold text-accent-ink"
+          className="relative mt-1 size-11 rounded-control border border-line-strong bg-raised font-mono text-sm font-semibold text-ink-1"
         >
           {initials}
           <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-cyan ring-2 ring-rail" />

@@ -14,7 +14,7 @@ export function StatusChip({ instance }: { instance: Pick<InstanceView, "status"
 
 export function LoaderChip({ instance }: { instance: Pick<InstanceView, "loader" | "loader_version" | "mc_version"> }) {
   return (
-    <Chip tone="accent">
+    <Chip tone="secondary">
       {LOADER_META[instance.loader].label}
       {instance.loader_version ? ` ${instance.loader_version}` : ""}
     </Chip>

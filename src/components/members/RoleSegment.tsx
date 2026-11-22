@@ -22,7 +22,7 @@ export function RoleSegment({ roles, value, onChange, disabled }: RoleSegmentPro
             onPress={() => onChange(role)}
             className={cn(
               "rounded-[9px] font-medium",
-              active ? "bg-accent-tint text-[#d9a8ff]" : "text-ink-3 hover:text-ink-1",
+              active ? "bg-raised text-ink-0" : "text-ink-3 hover:text-ink-1",
             )}
           >
             {roleLabel(role)}

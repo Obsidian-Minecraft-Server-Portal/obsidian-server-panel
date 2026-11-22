@@ -15,7 +15,7 @@ export function InstanceIcon({ instance, className }: InstanceIconProps) {
   return (
     <span
       className={cn(
-        "grid shrink-0 place-items-center overflow-hidden rounded-control border border-line-strong bg-gradient-to-br from-accent-dim to-accent-deep",
+        "grid shrink-0 place-items-center overflow-hidden rounded-control border border-line-strong bg-gradient-to-br from-raised to-input",
         className,
       )}
     >

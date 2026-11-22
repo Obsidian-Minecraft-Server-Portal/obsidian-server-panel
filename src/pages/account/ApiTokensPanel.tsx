@@ -100,7 +100,7 @@ function CreateToken({ onCreated }: { onCreated: (token: NewApiToken) => void })
 
 function CreatedToken({ token, onDismiss }: { token: NewApiToken; onDismiss: () => void }) {
   return (
-    <div className="space-y-3 rounded-panel border border-accent/40 bg-accent-tint p-4">
+    <div className="space-y-3 rounded-panel border border-secondary/30 bg-secondary-tint p-4">
       <p className="text-sm font-semibold text-ink-0">Copy your new token</p>
       <p className="text-xs text-ink-2">It is shown only once. Store it somewhere safe.</p>
       <code className="block break-all rounded-control bg-input px-3 py-2 font-mono text-xs text-ink-1">{token.token}</code>

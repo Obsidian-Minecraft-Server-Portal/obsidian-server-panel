@@ -79,7 +79,7 @@ export function InstancePage() {
             aria-current={key === tab ? "page" : undefined}
             className={cn(
               "-mb-px border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors",
-              key === tab ? "border-accent text-accent" : "border-transparent text-ink-3 hover:text-ink-1",
+              key === tab ? "border-accent text-ink-0" : "border-transparent text-ink-3 hover:text-ink-1",
             )}
           >
             {entry.label}

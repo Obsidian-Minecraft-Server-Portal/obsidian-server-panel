@@ -34,7 +34,7 @@ export function BackupsAndSchedulesTab() {
             className={cn(
               "rounded-[9px] px-4 py-1.5 text-sm font-medium transition-colors",
               section === entry.id
-                ? "bg-gradient-to-b from-accent to-accent-dim text-accent-ink shadow-glow"
+                ? "bg-raised text-ink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                 : "text-ink-3 hover:text-ink-1",
             )}
           >

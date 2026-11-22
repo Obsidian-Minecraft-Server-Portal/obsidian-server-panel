@@ -33,7 +33,7 @@ function ProjectCard({ project, onOpen }: ProjectItemProps) {
   return (
     <Button
       onPress={() => onOpen(project)}
-      className="group h-full w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden rounded-panel border border-line bg-gradient-to-b from-panel to-rail p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-glow"
+      className="group h-full w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden rounded-panel border border-line bg-panel p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-glow"
     >
       <ProjectBanner src={project.banner_url} seed={projectKey(project)} className="h-36 shrink-0">
         <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent" />
@@ -52,7 +52,7 @@ function ProjectCard({ project, onOpen }: ProjectItemProps) {
             <Icon icon="lucide:download" width={12} height={12} />
             {formatDownloads(project.downloads)}
           </span>
-          <span className="rounded-full bg-accent-tint px-3 py-1 text-xs font-medium text-accent transition-colors group-hover:bg-accent group-hover:text-accent-ink">
+          <span className="rounded-full bg-raised px-3 py-1 text-xs font-medium text-ink-1 transition-colors group-hover:bg-accent group-hover:text-accent-ink">
             View
           </span>
         </div>
@@ -65,7 +65,7 @@ function ProjectRow({ project, onOpen }: ProjectItemProps) {
   return (
     <Button
       onPress={() => onOpen(project)}
-      className="h-auto w-full min-w-0 items-center justify-start gap-4 rounded-control border border-line bg-panel px-4 py-3 text-left transition duration-200 hover:border-accent/40 hover:bg-raised"
+      className="h-auto w-full min-w-0 items-center justify-start gap-4 rounded-control border border-line bg-panel px-4 py-3 text-left transition duration-200 hover:border-line-strong hover:bg-raised"
     >
       <ProjectIcon src={project.icon_url} alt="" className="size-9" />
       <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">

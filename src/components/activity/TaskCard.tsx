@@ -9,7 +9,7 @@ import { ProgressBar } from "../../components/ui/ProgressBar";
 import type { Tone } from "../../components/ui/tone";
 
 const STATUS: Record<TaskStatus, { label: string; tone: Tone; icon: string; badge: string }> = {
-  running: { label: "Running", tone: "accent", icon: "lucide:loader-circle", badge: "bg-accent-tint text-accent" },
+  running: { label: "Running", tone: "secondary", icon: "lucide:loader-circle", badge: "bg-secondary-tint text-secondary" },
   finished: { label: "Done", tone: "cyan", icon: "lucide:check", badge: "bg-cyan/12 text-cyan" },
   failed: { label: "Failed", tone: "rose", icon: "lucide:x", badge: "bg-rose/12 text-rose" },
 };

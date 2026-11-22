@@ -28,7 +28,7 @@ export function Sparkline({ values, max, className }: SparklineProps) {
     >
       {line && (
         <>
-          <polygon points={`0,${VIEW_HEIGHT} ${line} ${VIEW_WIDTH},${VIEW_HEIGHT}`} style={{ fill: "var(--accent-glow)" }} />
+          <polygon points={`0,${VIEW_HEIGHT} ${line} ${VIEW_WIDTH},${VIEW_HEIGHT}`} style={{ fill: "var(--secondary-tint)" }} />
           <polyline
             points={line}
             fill="none"
@@ -36,7 +36,7 @@ export function Sparkline({ values, max, className }: SparklineProps) {
             strokeWidth={1.5}
             strokeLinejoin="round"
             strokeLinecap="round"
-            style={{ stroke: "var(--accent)" }}
+            style={{ stroke: "var(--secondary)" }}
           />
         </>
       )}

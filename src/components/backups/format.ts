@@ -18,7 +18,7 @@ export function formatRatio(ratio: number): string {
 }
 
 export function labelTone(label: string): Tone {
-  if (label === "manual") return "accent";
+  if (label === "manual") return "secondary";
   if (label === "scheduled") return "cyan";
   return "neutral";
 }

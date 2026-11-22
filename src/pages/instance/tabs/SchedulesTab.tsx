@@ -70,7 +70,7 @@ export function SchedulesTab() {
         {failure && <p className="mb-4 text-sm text-rose">{failure.message}</p>}
 
         {editor && (
-          <div className="mb-6 space-y-6 rounded-panel border border-accent/30 bg-accent-tint/20 p-5">
+          <div className="mb-6 space-y-6 rounded-panel border border-line-strong bg-raised/30 p-5">
             <h3 className="text-base font-semibold text-ink-0">
               {editor.recordId === null ? "New schedule" : "Edit schedule"}
             </h3>

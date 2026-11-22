@@ -15,7 +15,7 @@ export function InstanceCard({ view }: { view: InstanceView }) {
       onClick={(event) => {
         if (!event.defaultPrevented) navigate(path);
       }}
-      className="group flex cursor-pointer flex-col transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-glow"
+      className="group flex cursor-pointer flex-col transition duration-200 hover:-translate-y-0.5 hover:border-line-strong"
     >
       <div className="relative h-24 overflow-hidden">
         <PixelBanner seed={String(view.id)} className="transition-transform duration-500 group-hover:scale-105" />
@@ -23,9 +23,9 @@ export function InstanceCard({ view }: { view: InstanceView }) {
       </div>
       <div className="relative z-10 flex flex-1 flex-col gap-4 p-5 pt-0">
         <div className="-mt-7 flex items-end gap-3">
-          <InstanceIcon instance={view} className="size-14 border-2 border-panel shadow-glow" />
+          <InstanceIcon instance={view} className="size-14 border-2 border-panel shadow-lift" />
           <div className="min-w-0 flex-1 pb-1">
-            <Link to={path} className="block truncate text-lg font-semibold text-ink-0 hover:text-accent">
+            <Link to={path} className="block truncate text-lg font-semibold text-ink-0 hover:underline">
               {view.name}
             </Link>
             <p className="truncate font-mono text-[11px] text-ink-3">:{view.port}</p>

@@ -14,7 +14,7 @@ const STATE_LABEL: Record<UploadState, string> = {
 
 const STATE_TEXT: Record<UploadState, string> = {
   queued: "text-ink-3",
-  uploading: "text-accent",
+  uploading: "text-secondary",
   done: "text-cyan",
   failed: "text-rose",
   cancelled: "text-ink-3",

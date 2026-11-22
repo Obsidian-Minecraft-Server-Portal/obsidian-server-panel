@@ -97,7 +97,7 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
         <Button
           variant="ghost"
           onPress={props.onClear}
-          className="w-full rounded-control border border-line bg-panel text-sm text-ink-1 hover:border-accent/40"
+          className="w-full rounded-control border border-line bg-panel text-sm text-ink-1 hover:border-line-strong"
         >
           Reset filters
         </Button>

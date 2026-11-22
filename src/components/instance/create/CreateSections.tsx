@@ -15,7 +15,7 @@ export interface SectionProps {
 }
 
 const FILE_INPUT =
-  "w-full rounded-control border border-dashed border-line-strong bg-input/50 p-2 text-sm text-ink-2 file:mr-3 file:rounded-[9px] file:border-0 file:bg-accent-tint file:px-3 file:py-1.5 file:text-accent hover:border-accent/60";
+  "w-full rounded-control border border-dashed border-line-strong bg-input/50 p-2 text-sm text-ink-2 file:mr-3 file:rounded-[9px] file:border-0 file:bg-raised file:px-3 file:py-1.5 file:text-ink-1 hover:border-line-strong";
 
 export function ServerTypeSection({ draft, patch }: SectionProps) {
   return (

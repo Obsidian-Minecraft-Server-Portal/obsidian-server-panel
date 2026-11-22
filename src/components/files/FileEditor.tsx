@@ -161,7 +161,7 @@ function Frame({ path, onClose, onDownload, dirty = false, saving = false, onSav
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Icon icon="lucide:file-code-2" className="shrink-0 text-accent" width={18} height={18} />
+          <Icon icon="lucide:file-code-2" className="shrink-0 text-secondary" width={18} height={18} />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink-0">{baseName(path)}</p>
             <p className="truncate font-mono text-[11px] text-ink-3">{path}</p>

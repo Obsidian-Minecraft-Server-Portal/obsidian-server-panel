@@ -19,7 +19,7 @@ export function DiscoverHero({ project, onOpen }: DiscoverHeroProps) {
       <div className="relative flex h-full flex-col justify-end gap-3 p-7">
         <div className="flex items-center gap-3">
           <PlatformChip platform={project.platform} />
-          <span className="font-mono text-[11px] tracking-wider text-accent uppercase">Most downloaded</span>
+          <span className="font-mono text-[11px] tracking-wider text-secondary uppercase">Most downloaded</span>
         </div>
         <h2 className="max-w-3xl truncate text-3xl font-extrabold text-ink-0">{project.name}</h2>
         <p className="line-clamp-2 max-w-2xl text-sm text-ink-2">{project.summary}</p>

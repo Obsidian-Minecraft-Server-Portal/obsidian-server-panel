@@ -24,7 +24,7 @@ export function InstanceTable({ instances }: { instances: InstanceView[] }) {
           {instances.map((view) => (
             <tr key={view.id} className="border-b border-line last:border-b-0 hover:bg-raised/40">
               <td className="px-4 py-3">
-                <Link to={`/instances/${view.id}`} className="font-semibold text-ink-0 hover:text-accent">
+                <Link to={`/instances/${view.id}`} className="font-semibold text-ink-0 hover:underline">
                   {view.name}
                 </Link>
               </td>

@@ -14,7 +14,7 @@ export function ProjectIcon({ src, alt, className }: ProjectIconProps) {
 
   if (failed) {
     return (
-      <span className={cn("grid shrink-0 place-items-center rounded-control bg-raised text-accent", className)}>
+      <span className={cn("grid shrink-0 place-items-center rounded-control bg-raised text-secondary", className)}>
         <Icon icon="lucide:package" width={22} height={22} />
       </span>
     );

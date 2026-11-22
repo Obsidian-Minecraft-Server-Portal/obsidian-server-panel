@@ -73,7 +73,7 @@ export function DiscoverPage() {
           {instance.data && (
             <Link
               to={`/instances/${instance.data.id}/content`}
-              className="inline-flex items-center gap-2 rounded-full bg-accent-tint px-3 py-1.5 font-mono text-[11px] tracking-wider text-accent uppercase"
+              className="inline-flex items-center gap-2 rounded-full bg-secondary-tint px-3 py-1.5 font-mono text-[11px] tracking-wider text-secondary-soft uppercase"
             >
               <Icon icon="lucide:crosshair" width={14} height={14} />
               For {instance.data.name}

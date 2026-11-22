@@ -30,7 +30,7 @@ export function PlayerRow({ player, disabled, onAction }: PlayerRowProps) {
       </div>
       <div className="flex flex-wrap gap-2">
         {player.online && <Chip tone="cyan" pulse>Online</Chip>}
-        {player.op && <Chip tone="accent">Op</Chip>}
+        {player.op && <Chip tone="secondary">Op</Chip>}
         {player.whitelisted && <Chip>Whitelisted</Chip>}
         {player.banned && <Chip tone="rose">Banned</Chip>}
       </div>

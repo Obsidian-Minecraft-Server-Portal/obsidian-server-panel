@@ -70,7 +70,7 @@ export function CommandInput({ disabled, onSubmit }: CommandInputProps) {
               aria-selected={command === activeSuggestion}
               className={cn(
                 "flex items-center justify-between px-4 py-2 font-mono text-sm",
-                command === activeSuggestion ? "bg-accent-tint text-ink-0" : "text-ink-2",
+                command === activeSuggestion ? "bg-raised text-ink-0" : "text-ink-2",
               )}
             >
               {command}
