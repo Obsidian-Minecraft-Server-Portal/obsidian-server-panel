@@ -1,22 +1,30 @@
-import { Tabs } from "@heroui/react";
+import { Button, cn, Tabs } from "@heroui/react";
 import type { ContentKind, PlatformId, PlatformInfo } from "../../api/content";
-import { useMinecraftVersions, type LoaderKind } from "../../api/loaders";
-import { OptionSelect, type SelectOption } from "../runtime/OptionSelect";
-import { LOADER_META } from "../runtime/loaderMeta";
-import { KIND_LABELS, KIND_ORDER, LOADERS_BY_KIND, PLATFORM_NAMES, PLATFORMS_BY_KIND } from "./meta";
+import { KIND_LABELS, KIND_ORDER, PLATFORM_NAMES, PLATFORMS_BY_KIND } from "./meta";
+
+const SOURCE_ORDER: PlatformId[] = [1, 0, 2, 3];
+
+export function isPlatformAvailable(platform: PlatformId, platforms: PlatformInfo[]): boolean {
+  return platforms.find((entry) => entry.id === platform)?.available ?? true;
+}
+
+export function platformOffersKind(platform: PlatformId, kind: ContentKind): boolean {
+  return PLATFORMS_BY_KIND[kind].includes(platform);
+}
 
 interface DiscoverTabsProps {
   kind: ContentKind;
+  platform: PlatformId;
   onKind: (kind: ContentKind) => void;
 }
 
-export function DiscoverTabs({ kind, onKind }: DiscoverTabsProps) {
+export function DiscoverTabs({ kind, platform, onKind }: DiscoverTabsProps) {
   return (
     <Tabs selectedKey={kind} onSelectionChange={(key) => onKind(String(key) as ContentKind)}>
       <Tabs.ListContainer>
         <Tabs.List aria-label="Content type">
           {KIND_ORDER.map((entry) => (
-            <Tabs.Tab key={entry} id={entry}>
+            <Tabs.Tab key={entry} id={entry} isDisabled={!platformOffersKind(platform, entry)}>
               {KIND_LABELS[entry]}
               <Tabs.Indicator />
             </Tabs.Tab>
@@ -27,74 +35,42 @@ export function DiscoverTabs({ kind, onKind }: DiscoverTabsProps) {
   );
 }
 
-const ANY = "any";
-
-function fromAny(value: string | null): string | null {
-  return value === ANY ? null : value;
-}
-
-interface DiscoverSelectsProps {
+interface SourceChipsProps {
   kind: ContentKind;
   platform: PlatformId;
   platforms: PlatformInfo[];
   onPlatform: (platform: PlatformId) => void;
-  loader: LoaderKind | null;
-  onLoader: (loader: LoaderKind | null) => void;
-  mcVersion: string | null;
-  onMcVersion: (version: string | null) => void;
 }
 
-export function DiscoverSelects({
-  kind,
-  platform,
-  platforms,
-  onPlatform,
-  loader,
-  onLoader,
-  mcVersion,
-  onMcVersion,
-}: DiscoverSelectsProps) {
-  const { data: versions } = useMinecraftVersions("vanilla");
-
-  const platformOptions: SelectOption[] = PLATFORMS_BY_KIND[kind]
-    .filter((id) => platforms.find((entry) => entry.id === id)?.available ?? true)
-    .map((id) => ({ id: String(id), label: PLATFORM_NAMES[id] }));
-  const loaderOptions: SelectOption[] = [
-    { id: ANY, label: "Any loader" },
-    ...LOADERS_BY_KIND[kind].map((id) => ({ id, label: LOADER_META[id].label })),
-  ];
-  const versionOptions: SelectOption[] = [
-    { id: ANY, label: "Any version" },
-    ...(versions ?? []).map((version) => ({ id: version, label: version })),
-  ];
-
+export function SourceChips({ kind, platform, platforms, onPlatform }: SourceChipsProps) {
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <OptionSelect
-        label="Platform"
-        className="w-44"
-        options={platformOptions}
-        value={String(platform)}
-        onChange={(value) => value !== null && onPlatform(Number(value) as PlatformId)}
-      />
-      {kind !== "modpack" && (
-        <>
-          <OptionSelect
-            label="Loader"
-            className="w-44"
-            options={loaderOptions}
-            value={loader ?? ANY}
-            onChange={(value) => onLoader(fromAny(value) as LoaderKind | null)}
-          />
-          <OptionSelect
-            label="Minecraft version"
-            className="w-40"
-            options={versionOptions}
-            value={mcVersion ?? ANY}
-            onChange={(value) => onMcVersion(fromAny(value))}
-          />
-        </>
-      )}
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="font-mono text-[11px] tracking-wider text-ink-3 uppercase">Source</span>
+      {SOURCE_ORDER.map((id) => {
+        const available = isPlatformAvailable(id, platforms);
+        const offered = platformOffersKind(id, kind);
+        const usable = available && offered;
+        const reason = !available ? "Not configured in this build" : !offered ? `${PLATFORM_NAMES[id]} has no ${KIND_LABELS[kind].toLowerCase()}` : undefined;
+        return (
+          <span key={id} title={reason} className="inline-flex">
+            <Button
+              variant="ghost"
+              isDisabled={!usable}
+              onPress={() => onPlatform(id)}
+              aria-pressed={id === platform}
+              className={cn(
+                "h-auto rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
+                id === platform
+                  ? "border-accent/50 bg-accent-tint text-accent"
+                  : "border-line bg-panel text-ink-2 hover:border-accent/30 hover:text-ink-0",
+                !usable && "cursor-not-allowed opacity-40 hover:border-line hover:text-ink-2",
+              )}
+            >
+              {PLATFORM_NAMES[id]}
+            </Button>
+          </span>
+        );
+      })}
     </div>
   );
 }

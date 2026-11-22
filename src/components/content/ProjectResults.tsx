@@ -2,8 +2,8 @@ import { Button, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import type { Project } from "../../api/content";
 import { PLATFORM_NAMES, formatDownloads, projectKey } from "./meta";
+import { ProjectBanner } from "./ProjectBanner";
 import { ProjectIcon } from "./ProjectIcon";
-import { PixelBanner } from "../ui/PixelBanner";
 
 export type { ViewMode as ResultView } from "../ui/ViewToggle";
 import type { ViewMode as ResultView } from "../ui/ViewToggle";
@@ -21,31 +21,38 @@ interface ProjectItemProps {
 
 const META_CLASS = "truncate font-mono text-[11px] uppercase tracking-wider text-ink-3";
 
+export function PlatformChip({ platform }: { platform: Project["platform"] }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/10 bg-black/40 px-2.5 py-1 font-mono text-[10px] tracking-widest text-ink-1 uppercase backdrop-blur">
+      {PLATFORM_NAMES[platform]}
+    </span>
+  );
+}
+
 function ProjectCard({ project, onOpen }: ProjectItemProps) {
   return (
     <Button
       onPress={() => onOpen(project)}
       className="group h-full w-full min-w-0 flex-col items-stretch justify-start gap-0 overflow-hidden rounded-panel border border-line bg-gradient-to-b from-panel to-rail p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-glow"
     >
-      <div className="relative h-24 shrink-0 overflow-hidden">
-        <PixelBanner seed={projectKey(project)} className="transition-transform duration-500 group-hover:scale-105" />
+      <ProjectBanner src={project.banner_url} seed={projectKey(project)} className="h-36 shrink-0">
         <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent" />
-        <span className="absolute top-3 right-3 rounded-full border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] tracking-widest text-ink-1 uppercase backdrop-blur">
-          {PLATFORM_NAMES[project.platform]}
-        </span>
-      </div>
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-3 px-4 pb-4">
-        <ProjectIcon src={project.icon_url} alt="" className="-mt-8 size-14 border-2 border-panel shadow-lg" />
-        <div className="min-w-0 space-y-1">
-          <p className="truncate font-semibold text-ink-0">{project.name}</p>
-          <p className="line-clamp-2 text-sm whitespace-normal text-ink-3">{project.summary}</p>
+        <div className="absolute top-3 left-3">
+          <PlatformChip platform={project.platform} />
         </div>
+      </ProjectBanner>
+      <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <ProjectIcon src={project.icon_url} alt="" className="size-9 shrink-0" />
+          <p className="truncate font-semibold text-ink-0">{project.name}</p>
+        </div>
+        <p className="line-clamp-3 min-h-[3.9em] text-sm whitespace-normal text-ink-2">{project.summary}</p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-1">
           <span className={cn(META_CLASS, "inline-flex items-center gap-1.5")}>
             <Icon icon="lucide:download" width={12} height={12} />
             {formatDownloads(project.downloads)}
           </span>
-          <span className="rounded-full bg-accent-tint px-2.5 py-1 text-xs font-medium text-accent transition-colors group-hover:bg-accent group-hover:text-accent-ink">
+          <span className="rounded-full bg-accent-tint px-3 py-1 text-xs font-medium text-accent transition-colors group-hover:bg-accent group-hover:text-accent-ink">
             View
           </span>
         </div>
@@ -82,7 +89,7 @@ export function ProjectResults({ projects, view, onOpen }: ProjectResultsProps) 
     );
   }
   return (
-    <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2200px]:grid-cols-4">
       {projects.map((project) => (
         <ProjectCard key={projectKey(project)} project={project} onOpen={onOpen} />
       ))}

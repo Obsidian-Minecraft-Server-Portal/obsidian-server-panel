@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import type { ContentKind, PlatformId } from "../../api/content";
+import type { ContentFilters, ContentKind, PlatformId, SideFilter } from "../../api/content";
 import type { LoaderKind } from "../../api/loaders";
 import { KIND_ORDER, LOADERS_BY_KIND, PLATFORMS_BY_KIND } from "../../components/content/meta";
 import type { ResultView } from "../../components/content/ProjectResults";
@@ -48,6 +48,12 @@ export function useDiscoverState() {
   const loader = LOADERS_BY_KIND[kind].find((entry) => entry === params.get("loader")) ?? null;
   const mcVersion = params.get("mc_version");
   const instanceId = Number.parseInt(params.get("instance") ?? "", 10) || null;
+  const filters: ContentFilters = {
+    categories: readList(params.get("categories")),
+    excludedCategories: readList(params.get("excluded")),
+    environments: readList(params.get("environments")).filter(isSide),
+    openSource: params.get("open") === "1",
+  };
 
   const update = (patch: Record<string, string | null>) =>
     setParams(
@@ -67,20 +73,62 @@ export function useDiscoverState() {
     writeStoredView(next);
   };
 
+  const toggleCategory = (id: string, multiple: boolean) => {
+    const picked = toggleItem(filters.categories, id, multiple);
+    update({
+      categories: joinList(picked),
+      excluded: joinList(filters.excludedCategories.filter((entry) => entry !== id)),
+    });
+  };
+
+  const toggleExcluded = (id: string) => {
+    const excluded = toggleItem(filters.excludedCategories, id, true);
+    update({
+      excluded: joinList(excluded),
+      categories: joinList(filters.categories.filter((entry) => entry !== id)),
+    });
+  };
+
   return {
     kind,
     platform,
     loader,
     mcVersion,
     instanceId,
+    filters,
     query,
     debouncedQuery,
     view,
     setQuery,
     setView,
-    setKind: (next: ContentKind) => update({ kind: next }),
-    setPlatform: (next: PlatformId) => update({ platform: String(next) }),
+    setKind: (next: ContentKind) => update({ kind: next, ...CLEARED_FILTERS }),
+    setPlatform: (next: PlatformId) => update({ platform: String(next), ...CLEARED_FILTERS }),
     setLoader: (next: LoaderKind | null) => update({ loader: next }),
     setMcVersion: (next: string | null) => update({ mc_version: next }),
+    toggleCategory,
+    toggleExcluded,
+    toggleEnvironment: (side: SideFilter) =>
+      update({ environments: joinList(toggleItem(filters.environments, side, true)) }),
+    setOpenSource: (on: boolean) => update({ open: on ? "1" : null }),
+    clearFilters: () => update({ loader: null, mc_version: null, ...CLEARED_FILTERS }),
   };
+}
+
+const CLEARED_FILTERS = { categories: null, excluded: null, environments: null, open: null } as const;
+
+function readList(value: string | null): string[] {
+  return value ? value.split(",").filter(Boolean) : [];
+}
+
+function joinList(items: string[]): string | null {
+  return items.length ? items.join(",") : null;
+}
+
+function toggleItem<T>(items: T[], item: T, multiple: boolean): T[] {
+  if (items.includes(item)) return items.filter((entry) => entry !== item);
+  return multiple ? [...items, item] : [item];
+}
+
+function isSide(value: string): value is SideFilter {
+  return value === "client" || value === "server";
 }

@@ -18,8 +18,38 @@ export interface Project {
   name: string;
   summary: string;
   icon_url: string | null;
+  banner_url: string | null;
   downloads: number;
   kind: ContentKind;
+}
+
+export type SideFilter = "client" | "server";
+
+export interface Category {
+  id: string;
+  name: string;
+}
+
+export interface CategoryGroup {
+  header: string;
+  categories: Category[];
+}
+
+export interface Facets {
+  categories: CategoryGroup[];
+  game_versions: boolean;
+  loaders: boolean;
+  environments: boolean;
+  open_source: boolean;
+  exclusions: boolean;
+  multiple: boolean;
+}
+
+export interface ContentFilters {
+  categories: string[];
+  excludedCategories: string[];
+  environments: SideFilter[];
+  openSource: boolean;
 }
 
 export interface SearchPage {
@@ -65,6 +95,7 @@ export interface SearchParams {
   query: string;
   loader: LoaderKind | null;
   mcVersion: string | null;
+  filters?: ContentFilters;
 }
 
 export interface VersionFilter {
@@ -84,6 +115,7 @@ export const SEARCH_PAGE_SIZE = 20;
 
 export const contentKeys = {
   platforms: ["content", "platforms"] as const,
+  facets: (platform: PlatformId, kind: ContentKind) => ["content", "facets", platform, kind] as const,
   search: (params: SearchParams) => ["content", "search", params] as const,
   versions: (platform: PlatformId, projectId: string, filter: VersionFilter) =>
     ["content", "versions", platform, projectId, filter] as const,
@@ -110,6 +142,24 @@ export function usePlatforms() {
   });
 }
 
+export function useContentFacets(platform: PlatformId, kind: ContentKind) {
+  return useQuery({
+    queryKey: contentKeys.facets(platform, kind),
+    queryFn: () => api.get<Facets>(`/content/${platform}/facets?kind=${kind}`),
+    staleTime: Infinity,
+  });
+}
+
+function searchFilterQuery(filters: ContentFilters | undefined): Record<string, string> {
+  if (!filters) return {};
+  const params: Record<string, string> = {};
+  if (filters.categories.length) params.categories = filters.categories.join(",");
+  if (filters.excludedCategories.length) params.excluded_categories = filters.excludedCategories.join(",");
+  if (filters.environments.length) params.environments = filters.environments.join(",");
+  if (filters.openSource) params.open_source = "true";
+  return params;
+}
+
 export function useContentSearch(params: SearchParams) {
   return useInfiniteQuery({
     queryKey: contentKeys.search(params),
@@ -120,6 +170,7 @@ export function useContentSearch(params: SearchParams) {
         query: params.query,
         page: String(pageParam),
         limit: String(SEARCH_PAGE_SIZE),
+        ...searchFilterQuery(params.filters),
       });
       if (params.loader) query.set("loader", params.loader);
       if (params.mcVersion) query.set("mc_version", params.mcVersion);
