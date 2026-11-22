@@ -1,0 +1,20 @@
+[package]
+name = "obsidian-scheduler"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+obsidian-common = { workspace = true }
+obsidian-db = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
