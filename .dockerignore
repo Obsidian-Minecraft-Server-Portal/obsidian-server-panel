@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.claude
+.vscode
+node_modules
+target
+packaging
+!packaging/stamp-version.sh
+wix
+**/*.log

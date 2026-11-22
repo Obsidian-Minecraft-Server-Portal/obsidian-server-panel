@@ -1,0 +1,234 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  NODE_VERSION: 22
+  PNPM_VERSION: 12.8.1
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:frontend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wwwroot
+          path: target/wwwroot
+          if-no-files-found: error
+          retention-days: 1
+
+  binaries:
+    name: ${{ matrix.target }}
+    needs: frontend
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - name: Keep LF line endings
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: wwwroot
+          path: target/wwwroot
+      - name: Stamp release version
+        shell: bash
+        run: |
+          sh packaging/stamp-version.sh "$GITHUB_REF_NAME"
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Linux system libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libxdo-dev libayatana-appindicator3-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Windows binary and MSI
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cargo build --release --locked --bin obsidian --target "$TARGET"
+          choco install wixtoolset -y --no-progress
+          WIX_DIR=$(ls -d "/c/Program Files (x86)/WiX Toolset v3"* | sort -V | tail -n 1)
+          export WIX="$(cygpath -w "$WIX_DIR")"
+          cargo install cargo-wix --locked
+          mkdir -p dist
+          cargo wix --no-build --nocapture --target "$TARGET" \
+            --install-version "${VERSION%%-*}" \
+            --output "dist/obsidian-${VERSION}-${TARGET}.msi"
+          powershell -NoProfile -Command "Compress-Archive -Path 'target/$TARGET/release/obsidian.exe' -DestinationPath 'dist/obsidian-$TARGET.zip' -Force"
+
+      - name: macOS app bundle and DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          cargo build --release --locked --bin obsidian --target "$TARGET"
+          cargo install cargo-bundle --locked
+          cargo bundle --release --bin obsidian --target "$TARGET"
+          mkdir -p dmg-src dist
+          cp -R "target/$TARGET/release/bundle/osx/Obsidian.app" dmg-src/
+          ln -s /Applications dmg-src/Applications
+          hdiutil create -volname "Obsidian $VERSION" -srcfolder dmg-src -ov -format UDZO "dist/obsidian-${VERSION}-${TARGET}.dmg"
+          tar -C "target/$TARGET/release" -czf "dist/obsidian-$TARGET.tar.gz" obsidian
+
+      - name: Linux headless and desktop binaries
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cargo build --release --locked --bin obsidian --target "$TARGET" --no-default-features --features updater,service
+          tar -C "target/$TARGET/release" -czf "dist/obsidian-$TARGET.tar.gz" obsidian
+          cargo build --release --locked --bin obsidian --target "$TARGET"
+          tar -C "target/$TARGET/release" -czf "dist/obsidian-desktop-$TARGET.tar.gz" obsidian
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  docker:
+    name: Docker ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Image and platform names
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "PLATFORM_SLUG=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: VERSION=${{ github.ref_name }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ env.PLATFORM_SLUG }}
+          cache-to: type=gha,scope=${{ env.PLATFORM_SLUG }},mode=max
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_SLUG }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-manifest:
+    name: Docker manifest
+    needs: docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: digests-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image tags
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Create and push multi-arch manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          TAGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          SOURCES=$(printf "${IMAGE}@sha256:%s " *)
+          docker buildx imagetools create $TAGS $SOURCES
+
+  release:
+    name: GitHub release
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Installer script and checksums
+        run: |
+          cp packaging/install.sh packaging/obsidian.service dist/
+          cd dist
+          sha256sum * > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true

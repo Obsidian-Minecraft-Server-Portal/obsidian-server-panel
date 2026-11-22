@@ -1,0 +1,24 @@
+[Unit]
+Description=Obsidian Minecraft server panel
+Documentation=https://github.com/Obsidian-Minecraft-Server-Portal/obsidian-server-panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=obsidian
+Group=obsidian
+Environment=OBSIDIAN_DATA_DIR=/var/lib/obsidian
+WorkingDirectory=/var/lib/obsidian
+ExecStart=/opt/obsidian/obsidian serve --headless
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+# Detached Minecraft runners must survive panel restarts and updates.
+KillMode=process
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

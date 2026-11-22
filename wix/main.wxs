@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Product Id="*" Name="Obsidian" Language="1033" Version="$(var.Version)" Manufacturer="Obsidian" UpgradeCode="11858BE8-284E-43C1-B11A-ADE49EDB325B">
+		<Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" Description="Obsidian Minecraft server panel" />
+		<MajorUpgrade DowngradeErrorMessage="A newer version of Obsidian is already installed." />
+		<MediaTemplate EmbedCab="yes" />
+		<WixVariable Id="WixUILicenseRtf" Value="wix\License.rtf" />
+
+		<Feature Id="ProductFeature" Title="Obsidian" Level="1">
+			<ComponentRef Id="ObsidianComponent" />
+			<ComponentRef Id="StartMenuComponent" />
+			<Feature Id="ServiceFeature" Title="Run as a system service" Description="Registers the panel as a Windows service that starts on boot. Do not also run the tray app from the Start Menu." Level="2">
+				<ComponentRef Id="ServiceComponent" />
+			</Feature>
+		</Feature>
+
+		<UIRef Id="WixUI_FeatureTree" />
+
+		<CustomAction Id="ObsidianServiceInstall" FileKey="ObsidianExecutable" ExeCommand="service install" Execute="deferred" Impersonate="no" Return="ignore" />
+		<CustomAction Id="ObsidianServiceStart" FileKey="ObsidianExecutable" ExeCommand="service start" Execute="deferred" Impersonate="no" Return="ignore" />
+		<CustomAction Id="ObsidianServiceStop" FileKey="ObsidianExecutable" ExeCommand="service stop" Execute="deferred" Impersonate="no" Return="ignore" />
+		<CustomAction Id="ObsidianServiceUninstall" FileKey="ObsidianExecutable" ExeCommand="service uninstall" Execute="deferred" Impersonate="no" Return="ignore" />
+		<InstallExecuteSequence>
+			<Custom Action="ObsidianServiceStop" Before="ObsidianServiceUninstall">&amp;ServiceFeature=2</Custom>
+			<Custom Action="ObsidianServiceUninstall" Before="RemoveFiles">&amp;ServiceFeature=2</Custom>
+			<Custom Action="ObsidianServiceInstall" After="InstallFiles">&amp;ServiceFeature=3</Custom>
+			<Custom Action="ObsidianServiceStart" After="ObsidianServiceInstall">&amp;ServiceFeature=3</Custom>
+		</InstallExecuteSequence>
+	</Product>
+
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFiles64Folder">
+				<Directory Id="INSTALLFOLDER" Name="Obsidian" />
+			</Directory>
+			<Directory Id="ProgramMenuFolder">
+				<Directory Id="ApplicationProgramsFolder" Name="Obsidian" />
+			</Directory>
+		</Directory>
+	</Fragment>
+
+	<Fragment>
+		<DirectoryRef Id="INSTALLFOLDER">
+			<Component Id="ObsidianComponent" Guid="*">
+				<File Id="ObsidianExecutable" Source="$(var.CargoTargetBinDir)\obsidian.exe" KeyPath="yes" />
+				<Environment Id="ObsidianPath" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" System="yes" />
+			</Component>
+		</DirectoryRef>
+	</Fragment>
+
+	<Fragment>
+		<DirectoryRef Id="ApplicationProgramsFolder">
+			<Component Id="StartMenuComponent" Guid="*">
+				<Shortcut Id="ObsidianStartMenuShortcut" Name="Obsidian" Description="Obsidian Minecraft server panel" Target="[#ObsidianExecutable]" WorkingDirectory="INSTALLFOLDER" />
+				<RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+				<RegistryValue Root="HKLM" Key="Software\Obsidian\Panel" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+			</Component>
+		</DirectoryRef>
+	</Fragment>
+
+	<Fragment>
+		<DirectoryRef Id="INSTALLFOLDER">
+			<Component Id="ServiceComponent" Guid="*">
+				<RegistryValue Root="HKLM" Key="Software\Obsidian\Panel" Name="ServiceFeature" Type="integer" Value="1" KeyPath="yes" />
+			</Component>
+		</DirectoryRef>
+	</Fragment>
+</Wix>
