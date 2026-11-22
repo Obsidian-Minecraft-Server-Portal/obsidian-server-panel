@@ -79,6 +79,18 @@ impl ByComponent for Runtimes {
 	}
 }
 
+pub async fn available() -> Result<Vec<(String, String)>> {
+	let manifest = JavaManifest::fetch().await.map_err(upstream)?;
+	let runtimes = platform_runtimes(&manifest)?;
+	Ok(crate::COMPONENTS
+		.iter()
+		.filter_map(|component| {
+			let runtime = runtimes.by_component(component)?.first()?;
+			Some(((*component).to_owned(), runtime.version.name.clone()))
+		})
+		.collect())
+}
+
 pub async fn remove_dir(root: &Path) -> Result<()> {
 	match tokio::fs::remove_dir_all(root).await {
 		Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.into()),

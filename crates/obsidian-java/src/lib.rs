@@ -5,7 +5,7 @@ mod probe;
 mod runtime;
 
 pub use manager::JavaManager;
-pub use runtime::{JavaRequirement, JavaRuntime, JavaSource};
+pub use runtime::{AvailableJava, JavaRequirement, JavaRuntime, JavaSource};
 
 pub const COMPONENTS: [&str; 7] = [
 	"java-runtime-alpha",

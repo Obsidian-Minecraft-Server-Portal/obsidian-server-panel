@@ -75,3 +75,10 @@ impl TryFrom<JavaRow> for JavaRuntime {
 		})
 	}
 }
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AvailableJava {
+	pub component: String,
+	pub version: String,
+	pub installed: bool,
+}

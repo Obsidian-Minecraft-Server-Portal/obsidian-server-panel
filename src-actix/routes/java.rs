@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{HttpResponse, delete, get, post, web};
 use obsidian_common::CommonError;
-use obsidian_java::{JavaRuntime, is_component};
+use obsidian_java::{AvailableJava, JavaRuntime, is_component};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -29,6 +29,17 @@ pub struct TaskStarted {
 #[get("/java")]
 pub async fn list_runtimes(_user: AuthUser, state: web::Data<AppState>) -> ApiResult<HttpResponse> {
 	Ok(HttpResponse::Ok().json(state.java.list().await?))
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/java/available",
+	tag = "java",
+	responses((status = 200, description = "Java runtimes Mojang publishes for this platform", body = Vec<AvailableJava>))
+)]
+#[get("/java/available")]
+pub async fn available_runtimes(_user: AuthUser, state: web::Data<AppState>) -> ApiResult<HttpResponse> {
+	Ok(HttpResponse::Ok().json(state.java.available().await?))
 }
 
 #[utoipa::path(
@@ -96,6 +107,7 @@ pub async fn remove_runtime(
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(list_runtimes)
+		.service(available_runtimes)
 		.service(install_runtime)
 		.service(detect_runtimes)
 		.service(remove_runtime);

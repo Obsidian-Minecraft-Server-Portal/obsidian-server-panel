@@ -11,26 +11,29 @@ use tokio::sync::Mutex;
 use crate::detect::detect;
 use crate::piston;
 use crate::probe::{Probe, probe};
-use crate::runtime::{JavaRequirement, JavaRow, JavaRuntime, JavaSource};
+use crate::runtime::{AvailableJava, JavaRequirement, JavaRow, JavaRuntime, JavaSource};
 use crate::is_component;
 
 const REQUIREMENT_TTL: Duration = Duration::from_secs(60 * 60);
 const REQUIREMENT_CAPACITY: u64 = 256;
 const FALLBACK_COMPONENT: &str = "jre-legacy";
 const FALLBACK_MAJOR: u8 = 8;
+const AVAILABLE_TTL: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Debug, Clone)]
 pub struct JavaManager {
 	db: Db,
 	paths: Paths,
 	requirements: Cache<String, JavaRequirement>,
+	available: Cache<(), Arc<Vec<(String, String)>>>,
 	install_lock: Arc<Mutex<()>>,
 }
 
 impl JavaManager {
 	pub fn new(db: Db, paths: Paths) -> Self {
 		let requirements = Cache::builder().time_to_live(REQUIREMENT_TTL).max_capacity(REQUIREMENT_CAPACITY).build();
-		Self { db, paths, requirements, install_lock: Arc::default() }
+		let available = Cache::builder().time_to_live(AVAILABLE_TTL).max_capacity(1).build();
+		Self { db, paths, requirements, available, install_lock: Arc::default() }
 	}
 
 	pub async fn list(&self) -> Result<Vec<JavaRuntime>> {
@@ -38,6 +41,27 @@ impl JavaManager {
 			.fetch_all(self.db.pool())
 			.await?;
 		rows.into_iter().map(JavaRuntime::try_from).collect()
+	}
+
+	pub async fn available(&self) -> Result<Vec<AvailableJava>> {
+		let listed = self
+			.available
+			.try_get_with((), async { piston::available().await.map(Arc::new) })
+			.await
+			.map_err(obsidian_loaders::unshare_error)?;
+		let installed: Vec<String> = self.list().await?.into_iter().filter_map(|runtime| runtime.component).collect();
+		Ok(listed
+			.iter()
+			.map(|(component, version)| AvailableJava {
+				installed: installed.contains(component),
+				component: component.clone(),
+				version: version.clone(),
+			})
+			.collect())
+	}
+
+	pub async fn runtime_for_component(&self, component: &str) -> Result<JavaRuntime> {
+		self.ensure(component, None).await
 	}
 
 	pub async fn detect_system(&self) -> Result<Vec<JavaRuntime>> {
