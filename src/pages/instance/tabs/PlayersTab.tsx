@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { usePlayerAction, usePlayers, type Player } from "../../../api/instances";
+import { hasPermission, useInstance, usePlayerAction, usePlayers, type Player } from "../../../api/instances";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
 import { AddPlayerForm } from "../../../components/instance/players/AddPlayerForm";
 import { PlayerRow } from "../../../components/instance/players/PlayerRow";
@@ -14,6 +14,8 @@ export function PlayersTab() {
   const id = useInstanceId();
   const players = usePlayers(id);
   const action = usePlayerAction(id);
+  const instance = useInstance(id);
+  const canManage = instance.data ? hasPermission(instance.data, "players.manage") : false;
   const [search, setSearch] = useState("");
 
   const visible = useMemo(() => {
@@ -51,17 +53,19 @@ export function PlayersTab() {
           <PlayerRow
             key={player.name}
             player={player}
-            disabled={action.isPending}
+            disabled={!canManage || action.isPending}
             onAction={(next) => action.mutate({ name: player.name, action: next })}
           />
         ))}
       </Panel>
-      <Panel title="Add player">
-        <AddPlayerForm disabled={action.isPending} onAction={(name, next) => action.mutate({ name, action: next })} />
-        <p className="mt-4 text-xs text-ink-3">
-          Changes apply immediately while the server runs, and edit the JSON lists while it is stopped.
-        </p>
-      </Panel>
+      {canManage && (
+        <Panel title="Add player">
+          <AddPlayerForm disabled={action.isPending} onAction={(name, next) => action.mutate({ name, action: next })} />
+          <p className="mt-4 text-xs text-ink-3">
+            Changes apply immediately while the server runs, and edit the JSON lists while it is stopped.
+          </p>
+        </Panel>
+      )}
     </div>
   );
 }

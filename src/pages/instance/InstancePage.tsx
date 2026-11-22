@@ -29,7 +29,7 @@ const TABS: Record<string, TabEntry> = {
   files: { label: "Files", permission: "files.read", component: FilesTab },
   backups: { label: "Backups", permission: "backups.download", component: BackupsTab },
   schedules: { label: "Schedules", permission: "schedules.manage", component: SchedulesTab },
-  players: { label: "Players", permission: "players.manage", component: PlayersTab },
+  players: { label: "Players", permission: "console.read", component: PlayersTab },
   properties: { label: "Properties", permission: "settings.edit", component: PropertiesTab },
   members: { label: "Members", permission: "members.manage", component: MembersTab },
   settings: { label: "Settings", permission: "settings.edit", component: SettingsTab },
