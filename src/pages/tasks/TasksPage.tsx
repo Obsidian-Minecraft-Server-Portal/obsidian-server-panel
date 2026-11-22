@@ -15,7 +15,7 @@ export function TasksPage() {
   return (
     <>
       <PageHeader title="Tasks" subtitle="Downloads, installs, builds, backups and restores in progress." />
-      <div className="space-y-4 px-8 pb-8">
+      <div className="max-w-4xl space-y-3 px-8 pb-8">
         {tasks.isError && (
           <EmptyState icon="lucide:triangle-alert" title="Tasks unavailable" description={tasks.error.message} />
         )}
