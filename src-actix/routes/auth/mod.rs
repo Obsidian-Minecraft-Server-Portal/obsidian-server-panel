@@ -8,12 +8,14 @@ use actix_governor::governor::middleware::NoOpMiddleware;
 use actix_governor::{Governor, GovernorConfigBuilder, KeyExtractor, SimpleKeyExtractionError};
 use actix_web::dev::ServiceRequest;
 use actix_web::web;
+use ipnet::Ipv6Net;
 use support::client_ip;
 
 const LOGIN_SECS_PER_REQUEST: u64 = 6;
 const LOGIN_BURST: u32 = 10;
 const RECOVERY_SECS_PER_REQUEST: u64 = 60;
 const RECOVERY_BURST: u32 = 5;
+const IPV6_BUCKET_PREFIX: u8 = 64;
 
 /// Per-client-IP limiter for endpoints that accept unauthenticated guesses. Honours trusted reverse proxies.
 pub fn rate_limit(seconds_per_request: u64, burst: u32) -> Governor<ClientIpKeyExtractor, NoOpMiddleware> {
@@ -34,7 +36,17 @@ impl KeyExtractor for ClientIpKeyExtractor {
 	type KeyExtractionError = SimpleKeyExtractionError<&'static str>;
 
 	fn extract(&self, req: &ServiceRequest) -> Result<Self::Key, Self::KeyExtractionError> {
-		client_ip(req.request()).ok_or_else(|| SimpleKeyExtractionError::new("could not determine the client address"))
+		client_ip(req.request())
+			.map(bucket)
+			.ok_or_else(|| SimpleKeyExtractionError::new("could not determine the client address"))
+	}
+}
+
+/// IPv6 clients usually own a whole /64, so per-address buckets would be trivial to rotate around.
+fn bucket(ip: IpAddr) -> IpAddr {
+	match ip {
+		IpAddr::V6(v6) => Ipv6Net::new(v6, IPV6_BUCKET_PREFIX).map_or(ip, |net| net.network().into()),
+		IpAddr::V4(_) => ip,
 	}
 }
 

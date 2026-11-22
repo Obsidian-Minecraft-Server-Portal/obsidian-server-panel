@@ -35,11 +35,11 @@ pub struct SmtpView {
 pub struct SettingsView {
 	pub timezone: String,
 	pub upnp_default: bool,
-	/// `env` when the value comes from `OBSIDIAN_UPNP_DEFAULT` and is read-only here, `panel` when stored in the panel.
+	/// `env` when `OBSIDIAN_UPNP_DEFAULT` or the config file pins it read-only, `panel` when stored in the panel.
 	pub upnp_default_source: Option<String>,
 	/// Seconds a stopping server gets to save before it is killed.
 	pub stop_timeout_secs: u64,
-	/// `env` when the value comes from `OBSIDIAN_STOP_TIMEOUT_SECS` and is read-only here, `panel` when stored in the panel.
+	/// `env` when `OBSIDIAN_STOP_TIMEOUT_SECS` or the config file pins it read-only, `panel` when stored in the panel.
 	pub stop_timeout_source: Option<String>,
 	pub public_url: Option<String>,
 	/// `config` when the public URL comes from the environment or config file and is read-only here.

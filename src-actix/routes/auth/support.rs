@@ -3,7 +3,7 @@ use std::net::{IpAddr, SocketAddr};
 use actix_web::cookie::time::Duration as CookieDuration;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::http::Uri;
-use actix_web::http::header::USER_AGENT;
+use actix_web::http::header::{HOST, USER_AGENT};
 use actix_web::{HttpRequest, web};
 use ipnet::IpNet;
 use obsidian_auth::{ClientInfo, SESSION_TTL_SECS};
@@ -33,14 +33,22 @@ pub fn client(req: &HttpRequest) -> ClientInfo {
 /// The address a request is attributed to. Forwarding headers are read only when the TCP peer is a trusted proxy.
 pub fn client_ip(req: &HttpRequest) -> Option<IpAddr> {
 	let peer = req.peer_addr()?.ip().to_canonical();
-	let trusted = req
-		.app_data::<web::Data<AppState>>()
-		.map(|state| state.config.trusted_proxies.as_slice())
-		.unwrap_or_default();
+	let trusted = trusted_proxies(req);
 	if !is_trusted(trusted, peer) {
 		return Some(peer);
 	}
 	Some(resolve_client(&forwarded_chain(req), trusted, peer))
+}
+
+fn trusted_proxies(req: &HttpRequest) -> &[IpNet] {
+	req.app_data::<web::Data<AppState>>()
+		.map(|state| state.config.trusted_proxies.as_slice())
+		.unwrap_or_default()
+}
+
+fn from_trusted_proxy(req: &HttpRequest, trusted: &[IpNet]) -> bool {
+	req.peer_addr()
+		.is_some_and(|addr| is_trusted(trusted, addr.ip().to_canonical()))
 }
 
 /// Walks the proxy chain from the right and returns the first hop that is not a trusted proxy.
@@ -58,17 +66,19 @@ fn is_trusted(trusted: &[IpNet], ip: IpAddr) -> bool {
 	trusted.iter().any(|net| net.contains(&ip))
 }
 
+/// `X-Forwarded-For` wins because most proxies append only to it and pass a client-sent `Forwarded` through untouched.
 fn forwarded_chain(req: &HttpRequest) -> Vec<IpAddr> {
-	let headers = req.headers();
-	if let Some(value) = headers.get(FORWARDED).and_then(|value| value.to_str().ok()) {
-		return value.split(',').filter_map(forwarded_for).collect();
+	if req.headers().contains_key(X_FORWARDED_FOR) {
+		return header_list(req, X_FORWARDED_FOR).filter_map(parse_hop).collect();
 	}
-	headers
-		.get_all(X_FORWARDED_FOR)
+	header_list(req, FORWARDED).filter_map(forwarded_for).collect()
+}
+
+fn header_list<'a>(req: &'a HttpRequest, name: &'static str) -> impl Iterator<Item = &'a str> {
+	req.headers()
+		.get_all(name)
 		.filter_map(|value| value.to_str().ok())
 		.flat_map(|value| value.split(','))
-		.filter_map(parse_hop)
-		.collect()
 }
 
 /// Extracts the `for=` parameter from one RFC 7239 `Forwarded` element.
@@ -110,9 +120,21 @@ pub fn session_token(req: &HttpRequest) -> Option<String> {
 	req.cookie(SESSION_COOKIE).map(|cookie| cookie.value().to_owned())
 }
 
+/// Forwarded scheme and host are honoured only from a trusted proxy; otherwise the request's own `Host` is used.
 pub fn request_origin(req: &HttpRequest) -> String {
-	let info = req.connection_info();
-	format!("{}://{}", info.scheme(), info.host())
+	if from_trusted_proxy(req, trusted_proxies(req)) {
+		let info = req.connection_info();
+		return format!("{}://{}", info.scheme(), info.host());
+	}
+	let config = req.app_config();
+	let scheme = if config.secure() { "https" } else { "http" };
+	let host = req
+		.headers()
+		.get(HOST)
+		.and_then(|value| value.to_str().ok())
+		.or_else(|| req.uri().authority().map(|authority| authority.as_str()))
+		.unwrap_or_else(|| config.host());
+	format!("{scheme}://{host}")
 }
 
 pub fn normalize_public_url(value: &str) -> ApiResult<String> {
@@ -148,10 +170,7 @@ fn is_https(config: &Config, req: &HttpRequest) -> bool {
 }
 
 fn forwarded_proto_is_https(config: &Config, req: &HttpRequest) -> bool {
-	let from_trusted_proxy = req
-		.peer_addr()
-		.is_some_and(|addr| is_trusted(&config.trusted_proxies, addr.ip().to_canonical()));
-	from_trusted_proxy
+	from_trusted_proxy(req, &config.trusted_proxies)
 		&& req
 			.headers()
 			.get(X_FORWARDED_PROTO)
@@ -183,5 +202,19 @@ mod tests {
 		assert_eq!(forwarded_for("for=\"[2001:db8::17]:4711\";proto=https"), Some(ip("2001:db8::17")));
 		assert_eq!(forwarded_for("For=192.0.2.43:47011"), Some(ip("192.0.2.43")));
 		assert_eq!(forwarded_for("by=203.0.113.43"), None);
+	}
+
+	#[test]
+	fn prefers_x_forwarded_for_over_client_sent_forwarded() {
+		let req = actix_web::test::TestRequest::default()
+			.insert_header((FORWARDED, "for=198.51.100.1"))
+			.insert_header((X_FORWARDED_FOR, "203.0.113.7, 10.0.0.5"))
+			.to_http_request();
+		assert_eq!(forwarded_chain(&req), [ip("203.0.113.7"), ip("10.0.0.5")]);
+		let req = actix_web::test::TestRequest::default()
+			.append_header((FORWARDED, "for=192.0.2.1"))
+			.append_header((FORWARDED, "for=192.0.2.2"))
+			.to_http_request();
+		assert_eq!(forwarded_chain(&req), [ip("192.0.2.1"), ip("192.0.2.2")]);
 	}
 }

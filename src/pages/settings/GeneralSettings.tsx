@@ -41,7 +41,7 @@ function GeneralForm({ settings }: { settings: SettingsView }) {
     update.mutate(
       {
         timezone,
-        upnp_default: upnp,
+        ...(upnpLocked ? {} : { upnp_default: upnp }),
         ...(urlLocked ? {} : { public_url: publicUrl.trim() }),
         ...(stopLocked ? {} : { stop_timeout_secs: stopSecs }),
       },
@@ -79,7 +79,7 @@ function GeneralForm({ settings }: { settings: SettingsView }) {
           label="Forward server ports with UPnP by default"
           description={
             upnpLocked
-              ? "Set by the environment, so it is read-only here."
+              ? "Set by the environment or config file, so it is read-only here."
               : "New instances start with UPnP port forwarding switched on."
           }
           value={upnp}
@@ -94,7 +94,7 @@ function GeneralForm({ settings }: { settings: SettingsView }) {
           isDisabled={stopLocked}
           description={
             stopLocked
-              ? "Set by the environment, so it is read-only here."
+              ? "Set by the environment or config file, so it is read-only here."
               : "How long a stopping server gets to save before it is killed. 5 to 600."
           }
         />
