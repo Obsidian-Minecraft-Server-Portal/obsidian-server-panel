@@ -238,16 +238,26 @@ function ModRow({
         {!mod.downloadable && <p className="font-mono text-[11px] text-rose">not downloadable</p>}
       </td>
       <td className="px-4 py-3">
-        <Segmented
-          label={`${mod.name} in the pack`}
-          value={current}
-          options={[
-            { value: "auto", label: "Auto" },
-            { value: "include", label: "Include" },
-            { value: "exclude", label: "Exclude" },
-          ]}
-          onChange={(value) => onChange(value === "auto" ? undefined : value === "include")}
-        />
+        <div className="flex flex-col items-start gap-1.5">
+          <Segmented
+            label={`${mod.name} in the pack`}
+            value={current}
+            options={[
+              { value: "auto", label: "Auto" },
+              { value: "include", label: "Include" },
+              { value: "exclude", label: "Exclude" },
+            ]}
+            onChange={(value) => onChange(value === "auto" ? undefined : value === "include")}
+          />
+          {override === undefined && mod.remembered !== null && (
+            <span
+              className="font-mono text-[11px] text-ink-2"
+              title="Chosen in an earlier export. Pick Include or Exclude to change it."
+            >
+              Remembered: {mod.remembered ? "included" : "left out"}
+            </span>
+          )}
+        </div>
       </td>
     </tr>
   );
