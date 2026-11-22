@@ -36,7 +36,7 @@ fn curseforge_manifest_reads_primary_loader() {
 		"files":[{"projectID":238222,"fileID":4630234,"required":true}],"overrides":"overrides"}"#;
 	let pack = manifest::parse(&archive(&[("manifest.json", manifest)])).unwrap();
 	assert_eq!(pack.loader, Loader::Forge);
-	assert_eq!(pack.loader_version.as_deref(), Some("47.2.0"));
+	assert_eq!(pack.loader_version.as_deref(), Some("1.20.1-47.2.0"));
 	assert_eq!(pack.overrides, vec!["overrides".to_owned()]);
 	assert!(
 		matches!(&pack.files[0].source, Source::CurseForge { project_id, file_id } if project_id == "238222" && file_id == "4630234")

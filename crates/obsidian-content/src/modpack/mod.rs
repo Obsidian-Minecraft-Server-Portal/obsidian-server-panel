@@ -249,6 +249,13 @@ fn join_relative(root: &Path, relative: &str) -> Result<PathBuf> {
 	Ok(root.join(path))
 }
 
+fn loader_build(loader: Loader, mc_version: &str, version: &str) -> String {
+	match loader {
+		Loader::Forge if !version.starts_with(&format!("{mc_version}-")) => format!("{mc_version}-{version}"),
+		_ => version.to_owned(),
+	}
+}
+
 fn loader_named(name: &str) -> Option<Loader> {
 	match name {
 		"forge" => Some(Loader::Forge),

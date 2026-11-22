@@ -57,6 +57,7 @@ pub(super) fn metadata(index: &Index) -> Result<(String, Loader, Option<String>)
 		.cloned()
 		.ok_or_else(|| CommonError::Invalid("modpack does not declare a Minecraft version".into()))?;
 	let (loader, loader_version) = dependency_loader(&index.dependencies);
+	let loader_version = loader_version.map(|version| super::loader_build(loader, &mc_version, &version));
 	Ok((mc_version, loader, loader_version))
 }
 

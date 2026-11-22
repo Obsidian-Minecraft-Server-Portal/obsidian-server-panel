@@ -55,7 +55,7 @@ pub fn parse(bytes: &[u8]) -> Result<Pack> {
 			let (name, version) = entry.id.split_once('-').unwrap_or((entry.id.as_str(), ""));
 			let loader = loader_named(name)
 				.ok_or_else(|| CommonError::Invalid(format!("unsupported modpack loader '{name}'")))?;
-			(loader, Some(version.to_owned()))
+			(loader, Some(super::loader_build(loader, &manifest.minecraft.version, version)))
 		}
 		None => (obsidian_common::Loader::Vanilla, None),
 	};
