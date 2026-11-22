@@ -187,6 +187,7 @@ Workspace crates in `crates/`:
 
 | Crate                 | Responsibility                                                                                                                     |
 |-----------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `obsidian-common`     | Shared types: data paths, `Loader` enum, `EventBus`, `TaskRegistry`, common errors                                                 |
 | `obsidian-db`         | sqlx SQLite pool, `sqlx::migrate!` migrations, in-memory DB + flusher, repositories                                                |
 | `obsidian-auth`       | Users, argon2id, sessions, TOTP (`totp-rs`), trusted IPs, invites, password reset, the permission model                            |
 | `obsidian-java`       | Java runtimes via piston-mc, plus detection of Java already installed on the system                                                |
