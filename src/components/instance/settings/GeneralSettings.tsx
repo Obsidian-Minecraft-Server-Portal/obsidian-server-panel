@@ -3,7 +3,8 @@ import { useUpdateInstance, type InstanceView, type UpdateInstanceInput } from "
 import { JavaSelect } from "../../runtime/JavaSelect";
 import { Panel } from "../../ui/Panel";
 import { PrimaryButton } from "../../ui/PrimaryButton";
-import { FormField, SwitchField } from "../FormField";
+import { FormField } from "../FormField";
+import { SwitchRow } from "../../ui/SwitchRow";
 import { isMemoryRange, isPortValid } from "../wizard/draft";
 
 interface Form {
@@ -102,9 +103,9 @@ export function GeneralSettings({ view }: { view: InstanceView }) {
           onChange={(value) => set("jvmArgs", value)}
           hint="Extra flags passed to Java before the server jar."
         />
-        <SwitchField
+        <SwitchRow
           label="Start automatically"
-          hint="Start this server when the panel boots."
+          description="Start this server when the panel boots."
           isSelected={form.autoStart}
           onChange={(value) => set("autoStart", value)}
         />

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { OptionSelect, type SelectOption } from "../../components/runtime/OptionSelect";
 import { FormField } from "../account/FormField";
-import { ToggleField } from "../account/ToggleField";
+import { SwitchRow } from "../../components/ui/SwitchRow";
 import type { SmtpTlsMode } from "../../api/settings";
 
 export interface SmtpDraft {
@@ -42,10 +42,10 @@ export function EmailStep({ value, onChange }: EmailStepProps) {
 
   return (
     <div className="space-y-5">
-      <ToggleField
+      <SwitchRow
         label={t("setup.smtpToggle")}
         description={t("setup.smtpToggleHint")}
-        value={value.enabled}
+        isSelected={value.enabled}
         onChange={set("enabled")}
       />
       {value.enabled && (

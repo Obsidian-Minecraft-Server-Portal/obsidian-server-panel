@@ -1,5 +1,6 @@
 import { Checkbox } from "@heroui/react";
-import { FormField, SwitchField } from "../FormField";
+import { FormField } from "../FormField";
+import { SwitchRow } from "../../ui/SwitchRow";
 import { Panel } from "../../ui/Panel";
 import { isMemoryValid, isPortValid, type WizardDraft } from "./draft";
 
@@ -44,15 +45,15 @@ export function StepDetails({ draft, patch }: StepProps) {
       </Panel>
       <Panel title="Options">
         <div className="space-y-5">
-          <SwitchField
+          <SwitchRow
             label="Forward port with UPnP"
-            hint="Open the port on your router while the server runs."
+            description="Open the port on your router while the server runs."
             isSelected={draft.upnpEnabled}
             onChange={(upnpEnabled) => patch({ upnpEnabled })}
           />
-          <SwitchField
+          <SwitchRow
             label="Start with the panel"
-            hint="Start automatically after a reboot."
+            description="Start automatically after a reboot."
             isSelected={draft.autoStart}
             onChange={(autoStart) => patch({ autoStart })}
           />

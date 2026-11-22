@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { OptionSelect } from "../../components/runtime/OptionSelect";
 import { FormField } from "../account/FormField";
-import { ToggleField } from "../account/ToggleField";
+import { SwitchRow } from "../../components/ui/SwitchRow";
 import { timezoneOptions } from "../settings/timezones";
 
 export interface DefaultsDraft {
@@ -43,10 +43,10 @@ export function DefaultsStep({ value, onChange }: DefaultsStepProps) {
         onChange={(stopTimeout) => onChange({ ...value, stopTimeout })}
         description={t("setup.stopTimeoutHint")}
       />
-      <ToggleField
+      <SwitchRow
         label={t("setup.upnp")}
         description={t("setup.upnpHint")}
-        value={value.upnp}
+        isSelected={value.upnp}
         onChange={(upnp) => onChange({ ...value, upnp })}
       />
     </div>

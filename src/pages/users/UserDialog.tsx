@@ -5,7 +5,7 @@ import { useCreateUser, useDeleteUser, useSetUserPassword, useUpdateUser } from 
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { GhostButton } from "../../components/ui/GhostButton";
 import { FormField } from "../account/FormField";
-import { ToggleField } from "../account/ToggleField";
+import { SwitchRow } from "../../components/ui/SwitchRow";
 import { errorMessage } from "../account/errorMessage";
 
 interface UserDialogProps {
@@ -128,10 +128,10 @@ function UserForm({ user, onClose }: { user: UserProfile | null; onClose: () => 
           placeholder="Server default"
           description="How many instances this user may create. Leave blank for the default."
         />
-        <ToggleField
+        <SwitchRow
           label="Administrator"
           description="Administrators manage users, settings and every instance."
-          value={isAdmin}
+          isSelected={isAdmin}
           onChange={setIsAdmin}
         />
         {error && (

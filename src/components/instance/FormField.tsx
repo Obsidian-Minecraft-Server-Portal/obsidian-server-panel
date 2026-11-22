@@ -1,4 +1,4 @@
-import { Input, Label, Switch, TextArea, TextField, cn } from "@heroui/react";
+import { Input, Label, TextArea, TextField, cn } from "@heroui/react";
 import type { ReactNode } from "react";
 
 const FIELD = "w-full rounded-control border border-line bg-input px-3 text-sm text-ink-1 placeholder:text-ink-4 focus:border-accent";
@@ -41,24 +41,3 @@ export function FormField({
   );
 }
 
-interface SwitchFieldProps {
-  label: string;
-  hint?: ReactNode;
-  isSelected: boolean;
-  onChange: (selected: boolean) => void;
-  isDisabled?: boolean;
-}
-
-export function SwitchField({ label, hint, isSelected, onChange, isDisabled }: SwitchFieldProps) {
-  return (
-    <Switch isSelected={isSelected} onChange={onChange} isDisabled={isDisabled} className="flex items-center justify-between gap-4">
-      <Switch.Content>
-        <span className="block text-sm font-medium text-ink-1">{label}</span>
-        {hint && <span className="block text-xs text-ink-3">{hint}</span>}
-      </Switch.Content>
-      <Switch.Control>
-        <Switch.Thumb />
-      </Switch.Control>
-    </Switch>
-  );
-}

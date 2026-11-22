@@ -5,7 +5,7 @@ import { Panel } from "../../components/ui/Panel";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { FormField } from "../account/FormField";
 import { Feedback } from "../account/Feedback";
-import { ToggleField } from "../account/ToggleField";
+import { SwitchRow } from "../../components/ui/SwitchRow";
 import { errorMessage } from "../account/errorMessage";
 import { timezoneOptions } from "./timezones";
 
@@ -75,14 +75,14 @@ function GeneralForm({ settings }: { settings: SettingsView }) {
               : "Used in invite and password reset links. Leave blank to clear."
           }
         />
-        <ToggleField
+        <SwitchRow
           label="Forward server ports with UPnP by default"
           description={
             upnpLocked
               ? "Set by the environment or config file, so it is read-only here."
               : "New instances start with UPnP port forwarding switched on."
           }
-          value={upnp}
+          isSelected={upnp}
           onChange={setUpnp}
           isDisabled={upnpLocked}
         />

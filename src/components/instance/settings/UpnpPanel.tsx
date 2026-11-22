@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useUpdateInstance, useUpnp, type InstanceView } from "../../../api/instances";
 import { Panel } from "../../ui/Panel";
 import { StatusDot } from "../../ui/StatusDot";
-import { SwitchField } from "../FormField";
+import { SwitchRow } from "../../ui/SwitchRow";
 
 export function UpnpPanel({ view }: { view: InstanceView }) {
   const update = useUpdateInstance(view.id);
@@ -12,9 +12,9 @@ export function UpnpPanel({ view }: { view: InstanceView }) {
   return (
     <Panel title="UPnP">
       <div className="space-y-5">
-        <SwitchField
+        <SwitchRow
           label="Forward the server port"
-          hint="Maps the server port on your router while the server runs."
+          description="Maps the server port on your router while the server runs."
           isSelected={view.upnp_enabled}
           isDisabled={update.isPending}
           onChange={(upnp_enabled) => update.mutate({ upnp_enabled })}

@@ -1,5 +1,6 @@
 import { OptionSelect } from "../../runtime/OptionSelect";
-import { FormField, SwitchField } from "../FormField";
+import { FormField } from "../FormField";
+import { SwitchRow } from "../../ui/SwitchRow";
 import { Panel } from "../../ui/Panel";
 import { PROPERTY_SECTIONS, type PropertyDef } from "./propertyDefs";
 import type { Properties } from "./propertiesText";
@@ -45,9 +46,9 @@ function PropertyControl({
 }) {
   if (def.kind === "bool") {
     return (
-      <SwitchField
+      <SwitchRow
         label={def.label}
-        hint={def.hint}
+        description={def.hint}
         isSelected={value === "true"}
         isDisabled={disabled}
         onChange={(selected) => onChange(String(selected))}
