@@ -2,14 +2,13 @@ import { Icon } from "@iconify-icon/react";
 import { useOverlayState } from "@heroui/react";
 import { useState } from "react";
 import type { UserProfile } from "../../api/auth";
-import { PageHeader } from "../../components/ui/PageHeader";
 import { Panel } from "../../components/ui/Panel";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
-import { InvitesPanel } from "./InvitesPanel";
-import { UserDialog } from "./UserDialog";
-import { UsersTable } from "./UsersTable";
+import { InvitesPanel } from "../users/InvitesPanel";
+import { UserDialog } from "../users/UserDialog";
+import { UsersTable } from "../users/UsersTable";
 
-export function UsersPage() {
+export function UsersSettings() {
   const dialog = useOverlayState();
   const [editing, setEditing] = useState<UserProfile | null>(null);
 
@@ -25,18 +24,16 @@ export function UsersPage() {
 
   return (
     <>
-      <PageHeader
-        title="Users"
-        subtitle="Accounts, instance limits and invite links."
-        actions={
-          <PrimaryButton onPress={openNew}>
-            <Icon icon="lucide:user-plus" width={16} height={16} />
-            New user
-          </PrimaryButton>
-        }
-      />
-      <div className="grid gap-6 px-8 pb-8 xl:grid-cols-[1fr_24rem]">
-        <Panel title="Accounts">
+      <div className="space-y-6">
+        <Panel
+          title="Accounts"
+          actions={
+            <PrimaryButton onPress={openNew}>
+              <Icon icon="lucide:user-plus" width={16} height={16} />
+              New user
+            </PrimaryButton>
+          }
+        >
           <UsersTable onEdit={openEdit} />
         </Panel>
         <InvitesPanel />

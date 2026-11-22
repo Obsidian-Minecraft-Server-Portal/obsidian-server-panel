@@ -1,12 +1,14 @@
 import { cn } from "@heroui/react";
 import { useEffect, type ComponentType, type MouseEvent } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useCurrentUser, useHealth } from "../../api/session";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { AccountSettings } from "./AccountSettings";
 import { GeneralSettings } from "./GeneralSettings";
 import { JavaSettings } from "./JavaSettings";
 import { SmtpSettings } from "./SmtpSettings";
 import { UpdateSettings } from "./UpdateSettings";
+import { UsersSettings } from "./UsersSettings";
 import { useSettingsScrollSpy } from "./useSettingsScrollSpy";
 
 interface Section {
@@ -21,30 +23,45 @@ const SECTIONS: Record<string, Section> = {
 };
 
 const UPDATES_SECTION: Section = { label: "Updates", component: UpdateSettings };
+const USERS_SECTION: Section = { label: "Users", component: UsersSettings };
+const ACCOUNT_SECTION: Section = { label: "Account", component: AccountSettings };
 
+const ADMIN_ONLY_KEYS = ["updates", "users"];
 const DEFAULT_SECTION = "general";
+const SCROLL_SPY_NAVIGATION = { fromScrollSpy: true };
 
 export function SettingsPage() {
   const { section = DEFAULT_SECTION } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const health = useHealth();
   const currentUser = useCurrentUser();
-  const showUpdates = health.data?.updater_enabled === true && currentUser.data?.is_admin === true;
-  const sections = showUpdates ? { ...SECTIONS, updates: UPDATES_SECTION } : SECTIONS;
+  const isAdmin = currentUser.data?.is_admin === true;
+  const showUpdates = health.data?.updater_enabled === true && isAdmin;
+  const sections: Record<string, Section> = {
+    ...SECTIONS,
+    ...(showUpdates ? { updates: UPDATES_SECTION } : {}),
+    ...(isAdmin ? { users: USERS_SECTION } : {}),
+    account: ACCOUNT_SECTION,
+  };
   const keys = Object.keys(sections);
+  const keysKey = keys.join("|");
   const active = useSettingsScrollSpy(keys, section);
 
   useEffect(() => {
-    if (active !== section) navigate(`/settings/${active}`, { replace: true });
+    if (active !== section) navigate(`/settings/${active}`, { replace: true, state: SCROLL_SPY_NAVIGATION });
   }, [active]);
 
   useEffect(() => {
-    if (keys.includes(section)) document.getElementById(section)?.scrollIntoView({ block: "start" });
-  }, []);
+    if (location.state?.fromScrollSpy) return;
+    document.getElementById(section)?.scrollIntoView({ block: "start" });
+  }, [location.key, keysKey]);
 
   if (!(section in sections)) {
     const loading = health.isPending || currentUser.isPending;
-    if (loading && section === "updates") return <div className="mx-auto h-64 max-w-[1920px] animate-shimmer rounded-panel bg-raised" />;
+    if (loading && ADMIN_ONLY_KEYS.includes(section)) {
+      return <div className="mx-auto h-64 max-w-[1920px] animate-shimmer rounded-panel bg-raised" />;
+    }
     return <Navigate to="/settings" replace />;
   }
 
@@ -55,7 +72,7 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1920px]">
-      <PageHeader title="Settings" subtitle="Panel defaults, outgoing email, Java runtimes and updates." />
+      <PageHeader title="Settings" subtitle="Panel defaults, outgoing email, Java runtimes, users and your account." />
       <div className="flex flex-col gap-8 px-8 pb-8 md:flex-row">
         <nav className="flex shrink-0 gap-1 md:sticky md:top-6 md:h-fit md:w-52 md:flex-col" aria-label="Settings sections">
           {Object.entries(sections).map(([key, entry]) => (

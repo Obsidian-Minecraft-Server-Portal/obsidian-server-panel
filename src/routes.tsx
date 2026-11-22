@@ -1,6 +1,5 @@
 import type { ComponentType } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
-import { AdminRoute } from "./components/layout/AdminRoute";
 import { AppShell } from "./components/layout/AppShell";
 import { AuthGate } from "./components/layout/AuthGate";
 
@@ -27,12 +26,8 @@ export const router = createBrowserRouter([
           },
           { path: "instances/:id/:tab?", lazy: page(() => import("./pages/instance/InstancePage"), "InstancePage") },
           { path: "discover", lazy: page(() => import("./pages/discover/DiscoverPage"), "DiscoverPage") },
-          { path: "tasks", lazy: page(() => import("./pages/tasks/TasksPage"), "TasksPage") },
-          {
-            element: <AdminRoute />,
-            children: [{ path: "users", lazy: page(() => import("./pages/users/UsersPage"), "UsersPage") }],
-          },
-          { path: "account", lazy: page(() => import("./pages/account/AccountPage"), "AccountPage") },
+          { path: "users", element: <Navigate to="/settings/users" replace /> },
+          { path: "account", element: <Navigate to="/settings/account" replace /> },
           { path: "settings/:section?", lazy: page(() => import("./pages/settings/SettingsPage"), "SettingsPage") },
         ],
       },
