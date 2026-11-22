@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import type { ContentFilters, ContentKind, PlatformId, SideFilter } from "../../api/content";
+import type { ContentFilters, ContentKind, PlatformId, PlatformInfo, SideFilter } from "../../api/content";
 import type { LoaderKind } from "../../api/loaders";
-import { KIND_ORDER, LOADERS_BY_KIND, PLATFORMS_BY_KIND } from "../../components/content/meta";
+import { KIND_ORDER, LOADERS_BY_KIND, platformsForKind } from "../../components/content/meta";
 import type { ResultView } from "../../components/content/ProjectResults";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -35,16 +35,17 @@ function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
-export function useDiscoverState() {
+export function useDiscoverState(platforms: PlatformInfo[]) {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [view, setViewState] = useState<ResultView>(readStoredView);
   const debouncedQuery = useDebounced(query, SEARCH_DEBOUNCE_MS);
 
-  const kind = KIND_ORDER.find((entry) => entry === params.get("kind")) ?? "mod";
+  const kind = KIND_ORDER.find((entry) => entry === params.get("kind")) ?? KIND_ORDER[0];
   const rawPlatform = params.get("platform");
   const requestedPlatform = rawPlatform === null ? null : (Number(rawPlatform) as PlatformId);
-  const platform = requestedPlatform !== null && PLATFORMS_BY_KIND[kind].includes(requestedPlatform) ? requestedPlatform : PLATFORMS_BY_KIND[kind][0];
+  const offered = platformsForKind(platforms, kind);
+  const platform = requestedPlatform !== null && offered.includes(requestedPlatform) ? requestedPlatform : offered[0];
   const loader = LOADERS_BY_KIND[kind].find((entry) => entry === params.get("loader")) ?? null;
   const mcVersion = params.get("mc_version");
   const instanceId = Number.parseInt(params.get("instance") ?? "", 10) || null;

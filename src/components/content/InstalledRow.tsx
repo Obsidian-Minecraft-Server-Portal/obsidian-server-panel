@@ -29,7 +29,7 @@ export function InstalledRow({ item, update, busy, confirmingRemove, onToggle, o
       <div className="min-w-0 flex-1 basis-56 space-y-1.5">
         <p className={cn("truncate font-medium text-ink-0", !item.enabled && "text-ink-3 line-through")}>{displayName}</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Chip>{item.kind === "plugin" ? "Plugin" : "Mod"}</Chip>
+          <Chip>{item.kind === "plugin" ? "Plugin" : item.kind === "datapack" ? "Data pack" : "Mod"}</Chip>
           {item.platform !== null && <Chip tone="cyan">{PLATFORM_NAMES[item.platform]}</Chip>}
           {update && (
             <Chip tone="amber" pulse>

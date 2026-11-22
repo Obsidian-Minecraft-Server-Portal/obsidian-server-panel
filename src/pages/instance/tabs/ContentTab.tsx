@@ -10,8 +10,10 @@ import {
   useUpdateAllContent,
   useUploadContent,
 } from "../../../api/content";
-import { useInstance } from "../../../api/instances";
+import type { ContentKind, InstalledContent } from "../../../api/content";
+import { hasPermission, useInstance } from "../../../api/instances";
 import { InstalledRow } from "../../../components/content/InstalledRow";
+import { ServerWorldPanel } from "../../../components/content/ServerWorldPanel";
 import { kindForLoader } from "../../../components/content/meta";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { GhostButton } from "../../../components/ui/GhostButton";
@@ -19,6 +21,17 @@ import { PrimaryButton } from "../../../components/ui/PrimaryButton";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
 
 const NON_CONTENT_LOADERS = new Set(["vanilla", "custom"]);
+
+const GROUPS: { label: string; kinds: ContentKind[] }[] = [
+  { label: "Mods & plugins", kinds: ["mod", "plugin"] },
+  { label: "Data packs", kinds: ["datapack"] },
+];
+
+function groupItems(items: InstalledContent[]) {
+  return GROUPS.map((group) => ({ ...group, items: items.filter((item) => group.kinds.includes(item.kind)) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
 
 export function ContentTab() {
   const { id = "" } = useParams();
@@ -97,6 +110,11 @@ export function ContentTab() {
         </div>
       </div>
 
+      <ServerWorldPanel
+        instanceId={instanceId}
+        canRemove={instance.data ? hasPermission(instance.data, "content.remove") : false}
+      />
+
       {uploadProgress !== null && (
         <div className="space-y-2">
           <p className="font-mono text-xs text-ink-3">Uploading…</p>
@@ -111,7 +129,7 @@ export function ContentTab() {
         <EmptyState
           icon="lucide:puzzle"
           title="No content installed"
-          description="Mods and plugins installed on this instance appear here."
+          description="Mods, plugins and data packs installed on this instance appear here."
           action={
             <PrimaryButton onPress={browse}>
               <Icon icon="lucide:search" width={15} height={15} />
@@ -120,18 +138,25 @@ export function ContentTab() {
           }
         />
       ) : (
-        <div className="space-y-2.5">
-          {items.map((item) => (
-            <InstalledRow
-              key={item.id}
-              item={item}
-              update={updateByMod.get(item.id)}
-              busy={busy}
-              confirmingRemove={pendingRemove === item.id}
-              onToggle={(enabled) => toggle.mutate({ modId: item.id, enabled })}
-              onApplyUpdate={(entry) => applyUpdate.mutate({ modId: entry.mod_id, versionId: entry.latest.id })}
-              onRemove={() => removeItem(item.id)}
-            />
+        <div className="space-y-6">
+          {groupItems(items).map((group) => (
+            <section key={group.label} className="space-y-2.5">
+              <h3 className="font-mono text-[11px] tracking-wider text-ink-3 uppercase">
+                {group.label} · {group.items.length}
+              </h3>
+              {group.items.map((item) => (
+                <InstalledRow
+                  key={item.id}
+                  item={item}
+                  update={updateByMod.get(item.id)}
+                  busy={busy}
+                  confirmingRemove={pendingRemove === item.id}
+                  onToggle={(enabled) => toggle.mutate({ modId: item.id, enabled })}
+                  onApplyUpdate={(entry) => applyUpdate.mutate({ modId: entry.mod_id, versionId: entry.latest.id })}
+                  onRemove={() => removeItem(item.id)}
+                />
+              ))}
+            </section>
           ))}
         </div>
       )}

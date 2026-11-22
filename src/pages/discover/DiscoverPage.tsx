@@ -11,7 +11,7 @@ import { ViewToggle } from "../../components/ui/ViewToggle";
 import { InstallTargetModal, type InstallAction } from "../../components/content/InstallTargetModal";
 import { ModpackModal, type ModpackAction } from "../../components/content/ModpackModal";
 import { ProjectDrawer } from "../../components/content/ProjectDrawer";
-import { PLATFORM_NAMES } from "../../components/content/meta";
+import { KIND_LABELS, PLATFORM_NAMES } from "../../components/content/meta";
 import { ProjectResults } from "../../components/content/ProjectResults";
 import { ProjectTable } from "../../components/content/ProjectTable";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -20,8 +20,8 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { useDiscoverState } from "./useDiscoverState";
 
 export function DiscoverPage() {
-  const discover = useDiscoverState();
   const { data: platforms = [] } = usePlatforms();
+  const discover = useDiscoverState(platforms);
   const instance = useInstance(discover.instanceId ?? Number.NaN);
   const facets = useContentFacets(discover.platform, discover.kind).data;
   const [drawerProject, setDrawerProject] = useState<Project | null>(null);
@@ -31,6 +31,7 @@ export function DiscoverPage() {
   const isModpack = discover.kind === "modpack";
   const loader = isModpack ? null : discover.loader;
   const mcVersion = isModpack ? null : discover.mcVersion;
+  const platformName = PLATFORM_NAMES[discover.platform];
 
   const search = useContentSearch({
     platform: discover.platform,
@@ -48,42 +49,43 @@ export function DiscoverPage() {
   const chooseVersion = (version: ProjectVersion) => {
     if (!drawerProject) return;
     if (isModpack) setModpackAction({ project: drawerProject, version });
-    else setInstallAction({ project: drawerProject, version });
+    else setInstallAction({ project: drawerProject, version, kind: discover.kind });
   };
 
   return (
     <>
       <PageHeader
         title="Discover"
-        subtitle="Modpacks, mods and plugins from Modrinth, CurseForge, Hangar and Spiget."
+        subtitle={`Search ${platformName} for ${KIND_LABELS[discover.kind].toLowerCase()}`}
+        className="mb-0 border-b-0 pb-4"
         search={{ value: discover.query, onChange: discover.setQuery, placeholder: "Search content" }}
         actions={<ViewToggle label="Result view" value={discover.view} onChange={discover.setView} />}
       />
       <div className="space-y-5 px-8 pb-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <SourceChips
               kind={discover.kind}
               platform={discover.platform}
               platforms={platforms}
               onPlatform={discover.setPlatform}
             />
-            <DiscoverTabs kind={discover.kind} platform={discover.platform} onKind={discover.setKind} />
+            {instance.data && (
+              <Link
+                to={`/instances/${instance.data.id}/content`}
+                className="inline-flex items-center gap-2 rounded-full bg-secondary-tint px-3 py-1.5 font-mono text-[11px] tracking-wider text-secondary-soft uppercase"
+              >
+                <Icon icon="lucide:crosshair" width={14} height={14} />
+                For {instance.data.name}
+              </Link>
+            )}
           </div>
-          {instance.data && (
-            <Link
-              to={`/instances/${instance.data.id}/content`}
-              className="inline-flex items-center gap-2 rounded-full bg-secondary-tint px-3 py-1.5 font-mono text-[11px] tracking-wider text-secondary-soft uppercase"
-            >
-              <Icon icon="lucide:crosshair" width={14} height={14} />
-              For {instance.data.name}
-            </Link>
-          )}
+          <DiscoverTabs kind={discover.kind} platform={discover.platform} platforms={platforms} onKind={discover.setKind} />
         </div>
         <div className="flex items-start gap-6">
           <DiscoverSidebar
             kind={discover.kind}
-            platformName={PLATFORM_NAMES[discover.platform]}
+            platformName={platformName}
             facets={facets}
             filters={discover.filters}
             loader={discover.loader}
@@ -120,7 +122,7 @@ export function DiscoverPage() {
       <ProjectDrawer
         project={drawerProject}
         kind={discover.kind}
-        filter={{ loader, mcVersion }}
+        filter={{ loader, mcVersion, kind: discover.kind }}
         onClose={() => setDrawerProject(null)}
         onAction={chooseVersion}
       />

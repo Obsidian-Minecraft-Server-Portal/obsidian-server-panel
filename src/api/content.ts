@@ -3,12 +3,13 @@ import { api, upload } from "./client";
 import type { LoaderKind } from "./loaders";
 
 export type PlatformId = 0 | 1 | 2 | 3;
-export type ContentKind = "mod" | "plugin" | "modpack";
+export type ContentKind = "mod" | "plugin" | "modpack" | "datapack" | "resourcepack" | "world";
 
 export interface PlatformInfo {
   id: PlatformId;
   name: string;
   available: boolean;
+  kinds: ContentKind[];
 }
 
 export interface Project {
@@ -101,6 +102,7 @@ export interface SearchParams {
 export interface VersionFilter {
   loader: LoaderKind | null;
   mcVersion: string | null;
+  kind?: ContentKind;
 }
 
 export interface ModpackInput {
@@ -127,8 +129,9 @@ export function contentIconUrl(instanceId: number, modId: number): string {
   return `/api/v1/instances/${instanceId}/content/${modId}/icon`;
 }
 
-function filterQuery(filter: { loader: LoaderKind | null; mcVersion: string | null }): string {
+function filterQuery(filter: VersionFilter): string {
   const params = new URLSearchParams();
+  if (filter.kind) params.set("kind", filter.kind);
   if (filter.loader) params.set("loader", filter.loader);
   if (filter.mcVersion) params.set("mc_version", filter.mcVersion);
   return params.toString();
@@ -221,11 +224,12 @@ function useInvalidateInstalled(instanceId: number, includeUpdates: boolean) {
 export function useInstallContent(instanceId: number) {
   const invalidate = useInvalidateInstalled(instanceId, true);
   return useMutation({
-    mutationFn: (input: { platform: PlatformId; projectId: string; versionId: string }) =>
+    mutationFn: (input: { platform: PlatformId; projectId: string; versionId: string; kind: ContentKind }) =>
       api.post<InstalledContent>(`/instances/${instanceId}/content`, {
         platform: input.platform,
         project_id: input.projectId,
         version_id: input.versionId,
+        kind: input.kind,
       }),
     onSuccess: invalidate,
   });
@@ -299,5 +303,66 @@ export function useInstallModpack() {
         name: input.name,
         accept_eula: input.acceptEula,
       }),
+  });
+}
+
+export interface ServerResourcePack {
+  url: string;
+  sha1: string | null;
+}
+
+export interface VersionRef {
+  platform: PlatformId;
+  projectId: string;
+  versionId: string;
+}
+
+function versionBody(input: VersionRef) {
+  return { platform: input.platform, project_id: input.projectId, version_id: input.versionId };
+}
+
+const resourcePackKey = (instanceId: number) => ["instances", instanceId, "resource-pack"] as const;
+const worldKey = (instanceId: number) => ["instances", instanceId, "world"] as const;
+
+export function useResourcePack(instanceId: number) {
+  return useQuery({
+    queryKey: resourcePackKey(instanceId),
+    queryFn: () => api.get<ServerResourcePack | null>(`/instances/${instanceId}/resource-pack`),
+  });
+}
+
+export function useSetResourcePack(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: VersionRef) =>
+      api.put<ServerResourcePack>(`/instances/${instanceId}/resource-pack`, versionBody(input)),
+    onSuccess: (pack) => queryClient.setQueryData(resourcePackKey(instanceId), pack),
+  });
+}
+
+export function useClearResourcePack(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete(`/instances/${instanceId}/resource-pack`),
+    onSuccess: () => queryClient.setQueryData(resourcePackKey(instanceId), null),
+  });
+}
+
+export function useCurrentWorld(instanceId: number) {
+  return useQuery({
+    queryKey: worldKey(instanceId),
+    queryFn: () => api.get<{ level_name: string }>(`/instances/${instanceId}/world`),
+  });
+}
+
+export function useInstallWorld(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: VersionRef) =>
+      api.post<{ level_name: string }>(`/instances/${instanceId}/world`, versionBody(input)),
+    onSuccess: (world) => {
+      queryClient.setQueryData(worldKey(instanceId), world);
+      void queryClient.invalidateQueries({ queryKey: contentKeys.installed(instanceId) });
+    },
   });
 }

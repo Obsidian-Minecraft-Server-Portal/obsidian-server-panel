@@ -1,8 +1,8 @@
 import { Modal } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { useState } from "react";
-import type { Project, ProjectVersion } from "../../api/content";
-import { useInstallContent } from "../../api/content";
+import type { ContentKind, Project, ProjectVersion } from "../../api/content";
+import { useInstallContent, useInstallWorld, useSetResourcePack } from "../../api/content";
 import { useInstances } from "../../api/instances";
 import { LOADER_META } from "../runtime/loaderMeta";
 import { OptionSelect } from "../runtime/OptionSelect";
@@ -12,7 +12,19 @@ import { PrimaryButton } from "../ui/PrimaryButton";
 export interface InstallAction {
   project: Project;
   version: ProjectVersion;
+  kind: ContentKind;
 }
+
+const KIND_NOTES: Partial<Record<ContentKind, string>> = {
+  datapack: "Installs into the world the server currently loads.",
+  resourcepack: "Sets this pack as the server resource pack in server.properties. Players are offered it when they join.",
+  world: "The server must be stopped. The world is extracted into a new folder and selected as level-name; the current world is kept.",
+};
+
+const SUCCESS_VERBS: Partial<Record<ContentKind, string>> = {
+  resourcepack: "Set as the resource pack for",
+  world: "Switched the world of",
+};
 
 interface InstallTargetModalProps {
   action: InstallAction | null;
@@ -42,7 +54,11 @@ function InstallForm({ action, defaultInstanceId, onClose }: InstallFormProps) {
   const { data: instances, isLoading, isError } = useInstances();
   const [selected, setSelected] = useState<string | null>(defaultInstanceId === null ? null : String(defaultInstanceId));
   const instanceId = selected === null ? 0 : Number(selected);
-  const install = useInstallContent(instanceId);
+  const installFile = useInstallContent(instanceId);
+  const setPack = useSetResourcePack(instanceId);
+  const installWorld = useInstallWorld(instanceId);
+  const install = action.kind === "world" ? installWorld : action.kind === "resourcepack" ? setPack : installFile;
+  const note = KIND_NOTES[action.kind];
   const installedTo = instances?.find((entry) => entry.id === instanceId);
 
   const options = (instances ?? []).map((entry) => ({
@@ -50,12 +66,12 @@ function InstallForm({ action, defaultInstanceId, onClose }: InstallFormProps) {
     label: `${entry.name} · ${LOADER_META[entry.loader].label} ${entry.mc_version}`,
   }));
 
-  const submit = () =>
-    install.mutate({
-      platform: action.project.platform,
-      projectId: action.project.id,
-      versionId: action.version.id,
-    });
+  const submit = () => {
+    const ref = { platform: action.project.platform, projectId: action.project.id, versionId: action.version.id };
+    if (action.kind === "world") installWorld.mutate(ref);
+    else if (action.kind === "resourcepack") setPack.mutate(ref);
+    else installFile.mutate({ ...ref, kind: action.kind });
+  };
 
   return (
     <>
@@ -72,7 +88,7 @@ function InstallForm({ action, defaultInstanceId, onClose }: InstallFormProps) {
         {install.isSuccess ? (
           <p className="flex items-center gap-2 text-sm text-cyan">
             <Icon icon="lucide:circle-check" width={16} height={16} />
-            Installed to {installedTo?.name ?? "the instance"}.
+            {SUCCESS_VERBS[action.kind] ?? "Installed to"} {installedTo?.name ?? "the instance"}.
           </p>
         ) : (
           <OptionSelect
@@ -83,6 +99,12 @@ function InstallForm({ action, defaultInstanceId, onClose }: InstallFormProps) {
             placeholder={isLoading ? "Loading instances…" : isError ? "Instances could not be loaded" : "Choose an instance"}
             isDisabled={isLoading || isError || options.length === 0 || install.isPending}
           />
+        )}
+        {note && !install.isSuccess && (
+          <p className="flex items-start gap-2 rounded-control border border-line bg-input px-3 py-2.5 text-xs text-ink-2">
+            <Icon icon="lucide:info" width={14} height={14} className="mt-px shrink-0 text-secondary" />
+            {note}
+          </p>
         )}
         {install.error && <p className="text-sm text-rose">{install.error.message}</p>}
       </Modal.Body>

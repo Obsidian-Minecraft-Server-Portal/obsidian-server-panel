@@ -49,20 +49,22 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
       >
         <VersionList selected={mcVersion} onSelect={props.onMcVersion} />
       </Section>
-      <Section
-        title="Loader"
-        disabled={isModpack || !facets?.loaders}
-        hint={isModpack ? "Modpacks are not filtered by loader" : loading ? "Loading…" : `Not offered by ${platformName}`}
-      >
-        {LOADERS_BY_KIND[kind].map((id) => (
-          <FilterRow
-            key={id}
-            label={LOADER_META[id].label}
-            picked={loader === id}
-            onPress={() => props.onLoader(loader === id ? null : id)}
-          />
-        ))}
-      </Section>
+      {LOADERS_BY_KIND[kind].length > 0 && (
+        <Section
+          title="Loader"
+          disabled={!facets?.loaders}
+          hint={loading ? "Loading…" : `Not offered by ${platformName}`}
+        >
+          {LOADERS_BY_KIND[kind].map((id) => (
+            <FilterRow
+              key={id}
+              label={LOADER_META[id].label}
+              picked={loader === id}
+              onPress={() => props.onLoader(loader === id ? null : id)}
+            />
+          ))}
+        </Section>
+      )}
       {hasGroups ? (
         facets?.categories.map((group) => (
           <CategorySection key={group.header} group={group} facets={facets} filters={filters} actions={props} />
@@ -70,22 +72,24 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
       ) : (
         <Section title="Categories" disabled hint={loading ? "Loading…" : `Not offered by ${platformName}`} />
       )}
-      <Section
-        title="Environment"
-        disabled={!facets?.environments}
-        hint={loading ? "Loading…" : `Not offered by ${platformName}`}
-      >
-        <FilterRow
-          label="Client"
-          picked={filters.environments.includes("client")}
-          onPress={() => props.onToggleEnvironment("client")}
-        />
-        <FilterRow
-          label="Server"
-          picked={filters.environments.includes("server")}
-          onPress={() => props.onToggleEnvironment("server")}
-        />
-      </Section>
+      {usesEnvironments(kind) && (
+        <Section
+          title="Environment"
+          disabled={!facets?.environments}
+          hint={loading ? "Loading…" : `Not offered by ${platformName}`}
+        >
+          <FilterRow
+            label="Client"
+            picked={filters.environments.includes("client")}
+            onPress={() => props.onToggleEnvironment("client")}
+          />
+          <FilterRow
+            label="Server"
+            picked={filters.environments.includes("server")}
+            onPress={() => props.onToggleEnvironment("server")}
+          />
+        </Section>
+      )}
       <Section
         title="License"
         disabled={!facets?.open_source}
@@ -267,4 +271,8 @@ function titleize(text: string): string {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function usesEnvironments(kind: ContentKind): boolean {
+  return kind === "mod" || kind === "plugin" || kind === "modpack";
 }
