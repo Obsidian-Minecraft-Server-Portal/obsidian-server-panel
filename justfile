@@ -2,7 +2,7 @@ set windows-shell := ["powershell.exe", "-NoProfile", "-NoLogo", "-Command"]
 set shell := ["bash", "-c"]
 set dotenv-load := true
 
-data_dir := env("OBSIDIAN_DATA_DIR", justfile_directory() / "target" / "dev-data")
+data_dir := env("OBSIDIAN_DATA_DIR", justfile_directory() / "target" / "dev-env")
 image := "obsidian-server-panel:dev"
 
 [private]
@@ -17,12 +17,12 @@ install:
 # Run the panel in debug mode; Actix proxies the Vite dev server
 [group('dev')]
 dev: install
-    OBSIDIAN_DATA_DIR="{{ data_dir }}" cargo run --bin obsidian -- serve --headless
+    cargo run --bin obsidian -- serve --headless
 
 # Run the panel with the tray icon
 [group('dev')]
 dev-tray: install
-    OBSIDIAN_DATA_DIR="{{ data_dir }}" cargo run --bin obsidian -- serve
+    cargo run --bin obsidian -- serve
 
 # Run only the Vite dev server
 [group('dev')]
@@ -32,7 +32,7 @@ frontend: install
 # Reset a user's password against the dev data dir (panel must be stopped)
 [group('dev')]
 reset-password username:
-    OBSIDIAN_DATA_DIR="{{ data_dir }}" cargo run --bin obsidian -- reset-password {{ username }}
+    cargo run --bin obsidian -- reset-password {{ username }}
 
 # Delete the dev data dir (database, instances, backups)
 [group('dev')]

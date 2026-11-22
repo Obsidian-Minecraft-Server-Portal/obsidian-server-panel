@@ -453,6 +453,9 @@ GNU `screen` is not allowed.
 
 - Precedence: built-in defaults → `config.toml` in the data dir → `OBSIDIAN_*`
   env vars.
+- Dev runs: `.cargo/config.toml` sets `OBSIDIAN_DATA_DIR` (via `[env]`, relative to the workspace root) to
+  `target/dev-env`, so `cargo run` and `just dev` never touch an installed panel's data. An exported
+  `OBSIDIAN_DATA_DIR` still wins.
 - Env vars cover:
   - Port and bind address.
   - Data dir.
