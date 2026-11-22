@@ -41,3 +41,23 @@ impl InstanceManager {
 		let _ = tokio::fs::remove_file(self.paths.banners_dir.join(format!("{id}.jpg"))).await;
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use std::io::Cursor;
+
+	use image::{DynamicImage, ImageBuffer, ImageFormat, Rgb};
+
+	use super::{BANNER_HEIGHT, BANNER_WIDTH, encode_banner};
+
+	#[test]
+	fn banners_are_cover_cropped_jpegs() {
+		let source = DynamicImage::ImageRgb8(ImageBuffer::from_pixel(2400, 900, Rgb([120u8, 40, 200])));
+		let mut png = Cursor::new(Vec::new());
+		source.write_to(&mut png, ImageFormat::Png).unwrap();
+		let jpeg = encode_banner(&png.into_inner()).unwrap();
+		assert_eq!(image::guess_format(&jpeg).unwrap(), ImageFormat::Jpeg);
+		let decoded = image::load_from_memory(&jpeg).unwrap();
+		assert_eq!((decoded.width(), decoded.height()), (BANNER_WIDTH, BANNER_HEIGHT));
+	}
+}
