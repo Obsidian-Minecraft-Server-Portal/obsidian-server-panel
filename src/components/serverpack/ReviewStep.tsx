@@ -229,7 +229,7 @@ function ModRow({
         </div>
       </td>
       <td className="px-4 py-3">
-        <SideChip side={mod.side} confidence={mod.confidence} />
+        <SideChip side={mod.side} leaning={mod.leaning} confidence={mod.confidence} />
       </td>
       <td className="max-w-[18rem] px-4 py-3">
         <p className="truncate font-mono text-[11px] text-ink-3" title={mod.evidence.join(" · ")}>

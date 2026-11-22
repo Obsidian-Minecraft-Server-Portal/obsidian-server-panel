@@ -5,12 +5,15 @@ import type { LoaderKind } from "./loaders";
 
 export type DetectedSide = "client" | "server" | "both" | "unsure";
 
+export type LeaningSide = "client" | "server" | "both";
+
 export interface AnalyzedMod {
   index: number;
   filename: string;
   name: string;
   kind: ContentKind;
   side: DetectedSide;
+  leaning: LeaningSide | null;
   confidence: number;
   evidence: string[];
   downloadable: boolean;
