@@ -64,6 +64,17 @@ pub enum SideSupport {
 	Unknown,
 }
 
+impl SideSupport {
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Required => "required",
+			Self::Optional => "optional",
+			Self::Unsupported => "unsupported",
+			Self::Unknown => "unknown",
+		}
+	}
+}
+
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct Project {
 	#[schema(value_type = u8)]
@@ -133,6 +144,14 @@ pub struct InstallRequest {
 	pub kind: Option<Kind>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PackSource {
+	#[default]
+	Client,
+	ServerPack,
+}
+
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct ModpackRequest {
 	#[schema(value_type = u8)]
@@ -142,4 +161,16 @@ pub struct ModpackRequest {
 	pub name: Option<String>,
 	#[serde(default)]
 	pub accept_eula: bool,
+	#[serde(default)]
+	pub source: PackSource,
+}
+
+#[derive(Debug, Clone)]
+pub struct HashMatch {
+	pub sha1: String,
+	pub project_id: String,
+	pub version_id: String,
+	pub title: String,
+	pub client_side: SideSupport,
+	pub server_side: SideSupport,
 }

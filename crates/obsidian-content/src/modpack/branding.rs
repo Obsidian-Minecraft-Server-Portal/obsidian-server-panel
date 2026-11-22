@@ -5,7 +5,7 @@ use crate::manager::ContentManager;
 use crate::platform::ContentPlatform;
 
 impl ContentManager {
-	pub(super) async fn apply_branding(
+	pub(crate) async fn apply_branding(
 		&self,
 		instances: &InstanceManager,
 		instance_id: i64,

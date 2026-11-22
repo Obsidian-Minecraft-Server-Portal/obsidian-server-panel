@@ -9,10 +9,11 @@ use obsidian_common::{CommonError, Loader, Result};
 use reqwest::StatusCode;
 
 use crate::http::{segment, upstream};
-use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, Side, SideSupport, VersionFilter};
+use crate::model::{Category, CategoryGroup, Facets, HashMatch, Project, ProjectVersion, SearchPage, SearchQuery, Side, SideSupport, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
 const DATAPACK_LOADER: &[&str] = &["datapack"];
+const HASH_BATCH: usize = 100;
 
 pub struct Modrinth {
 	api: Ferinth<()>,
@@ -135,6 +136,67 @@ impl ContentPlatform for Modrinth {
 			.await
 			.map_err(map_error)?;
 		Ok(versions.into_iter().filter_map(to_version).collect())
+	}
+
+	async fn server_pack(&self, project_id: &str, version_id: &str) -> Result<Option<ProjectVersion>> {
+		let version = self.api.version_get(segment(version_id)?).await.map_err(map_error)?;
+		if version.project_id != segment(project_id)? {
+			return Err(CommonError::NotFound("version does not belong to this project".into()));
+		}
+		let Some(file) = version
+			.files
+			.iter()
+			.find(|file| !file.primary && is_server_pack_name(&file.filename))
+		else {
+			return Ok(None);
+		};
+		Ok(Some(ProjectVersion {
+			id: version.id.clone(),
+			project_id: version.project_id.clone(),
+			name: version.name.clone(),
+			version_number: version.version_number.clone(),
+			mc_versions: version.game_versions.clone(),
+			loaders: version.loaders.clone(),
+			file_name: file.filename.clone(),
+			download_url: Some(file.url.to_string()),
+			sha1: Some(file.hashes.sha1.clone()),
+			sha256: None,
+			published_at: version.date_published,
+			has_server_pack: false,
+		}))
+	}
+
+	async fn lookup_hashes(&self, sha1s: &[String]) -> Result<Vec<HashMatch>> {
+		let mut matches = Vec::new();
+		for chunk in sha1s.chunks(HASH_BATCH) {
+			let versions = self
+				.api
+				.version_get_from_multiple_hashes(chunk.to_vec())
+				.await
+				.map_err(map_error)?;
+			let mut project_ids: Vec<&str> = versions.values().map(|version| version.project_id.as_str()).collect();
+			project_ids.sort_unstable();
+			project_ids.dedup();
+			let projects = if project_ids.is_empty() {
+				Vec::new()
+			} else {
+				self.api.project_get_multiple(&project_ids).await.map_err(map_error)?
+			};
+			for (sha1, version) in versions {
+				let Some(project) = projects.iter().find(|project| project.id == version.project_id) else {
+					continue;
+				};
+				matches.push(HashMatch {
+					sha1,
+					project_id: project.id.clone(),
+					version_id: version.id,
+					title: project.title.clone(),
+					client_side: side_support(project.client_side),
+					server_side: side_support(project.server_side),
+				});
+			}
+		}
+		Ok(matches)
 	}
 
 	async fn version(&self, project_id: &str, version_id: &str) -> Result<ProjectVersion> {

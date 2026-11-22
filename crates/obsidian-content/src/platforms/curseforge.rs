@@ -123,6 +123,15 @@ impl ContentPlatform for CurseForge {
 		Ok(versions)
 	}
 
+	async fn server_pack(&self, project_id: &str, version_id: &str) -> Result<Option<ProjectVersion>> {
+		let file: Single<File> =
+			http::json(self.get(&format!("mods/{}/files/{}", numeric(project_id)?, numeric(version_id)?))).await?;
+		match file.data.server_pack_file_id {
+			Some(server_pack) => Ok(Some(self.version(project_id, &server_pack.to_string()).await?)),
+			None => Ok(None),
+		}
+	}
+
 	async fn version(&self, project_id: &str, version_id: &str) -> Result<ProjectVersion> {
 		let file: Single<File> =
 			http::json(self.get(&format!("mods/{}/files/{}", numeric(project_id)?, numeric(version_id)?))).await?;

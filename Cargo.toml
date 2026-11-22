@@ -72,6 +72,8 @@ russh = "0.65"
 russh-sftp = "4"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 ferinth = "2.13"
+memchr = "2"
+sievemc = { package = "sievemc_lib", git = "https://github.com/Drew-Chase/sievemc", rev = "4b15baeb486b8a1773309cb4950df8e6fdd0c6dc" }
 sha1 = "0.11"
 sha2 = "0.11"
 toml = "0.8"

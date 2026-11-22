@@ -4,7 +4,9 @@ mod tests;
 mod branding;
 mod manifest;
 mod mrpack;
-#[cfg(test)]
+mod listing;
+mod official;
+pub(crate) use listing::{ListedFile, Listing, Origin, PackEnv, read};
 pub(crate) use mrpack::ensure_trusted;
 
 use std::path::{Component, Path, PathBuf};
@@ -20,7 +22,7 @@ use crate::http;
 use crate::icon;
 use crate::manager::store;
 use crate::manager::{ContentManager, NewRecord, safe_filename, verify_checksums};
-use crate::model::ModpackRequest;
+use crate::model::{ModpackRequest, PackSource};
 use crate::platform::{Kind, Platform};
 
 const FILE_CONCURRENCY: usize = 6;
@@ -126,6 +128,19 @@ impl ContentManager {
 		let warnings = self
 			.apply_branding(instances, instance_id, provider.as_ref(), &request.project_id)
 			.await;
+		if request.source == PackSource::ServerPack {
+			let installed = self
+				.install_official_pack(
+					instance_id,
+					&directory,
+					provider.as_ref(),
+					&request.project_id,
+					&request.version_id,
+					task,
+				)
+				.await?;
+			return Ok(json!({ "instance_id": instance_id, "installed": installed, "failed": [], "warnings": warnings }));
+		}
 		let total = files.len().max(1);
 		let mut completed = 0usize;
 		let mut installed = 0usize;

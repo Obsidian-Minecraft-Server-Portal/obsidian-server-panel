@@ -19,6 +19,7 @@ use tokio::sync::Mutex;
 use crate::model::{Facets, InstalledContent, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 use crate::platforms::{CurseForge, Hangar, Modrinth, Spiget};
+use crate::serverpack::DraftStore;
 use crate::{CURSEFORGE_API_KEY, http, icon};
 
 pub(crate) use install::{content_filename, jar_filename, safe_filename, verify_checksums};
@@ -38,6 +39,7 @@ pub struct ContentManager {
 	platforms: Arc<[Arc<dyn ContentPlatform>]>,
 	pub(crate) scanned: Cache<i64, ()>,
 	files: Arc<Mutex<()>>,
+	pub(crate) drafts: DraftStore,
 }
 
 impl ContentManager {
@@ -62,6 +64,7 @@ impl ContentManager {
 				.max_capacity(SCANNED_INSTANCES)
 				.build(),
 			files: Arc::new(Mutex::new(())),
+			drafts: DraftStore::new(),
 		}
 	}
 

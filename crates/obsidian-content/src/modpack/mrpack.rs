@@ -18,57 +18,66 @@ const TRUSTED_HOSTS: [&str; 4] = [
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Index {
-	name: String,
-	dependencies: HashMap<String, String>,
-	files: Vec<IndexFile>,
+pub(super) struct Index {
+	pub name: String,
+	pub dependencies: HashMap<String, String>,
+	pub files: Vec<IndexFile>,
 }
 
 #[derive(Deserialize)]
-struct IndexFile {
-	path: String,
-	hashes: Hashes,
-	env: Option<Env>,
-	downloads: Vec<String>,
+pub(super) struct IndexFile {
+	pub path: String,
+	pub hashes: Hashes,
+	pub env: Option<Env>,
+	pub downloads: Vec<String>,
 }
 
 #[derive(Deserialize)]
-struct Hashes {
-	sha1: Option<String>,
+pub(super) struct Hashes {
+	pub sha1: Option<String>,
 }
 
 #[derive(Deserialize)]
-struct Env {
-	server: Option<String>,
+pub(super) struct Env {
+	pub client: Option<String>,
+	pub server: Option<String>,
 }
 
-pub fn parse(bytes: &[u8]) -> Result<Pack> {
+pub(super) fn index(bytes: &[u8]) -> Result<Index> {
 	let mut archive = archive::open(bytes)?;
 	let text = archive::read_text(&mut archive, INDEX_FILE)
 		.ok_or_else(|| CommonError::Invalid(format!("modpack is missing {INDEX_FILE}")))?;
-	let index: Index = serde_json::from_str(&text)?;
+	Ok(serde_json::from_str(&text)?)
+}
+
+pub(super) fn metadata(index: &Index) -> Result<(String, Loader, Option<String>)> {
 	let mc_version = index
 		.dependencies
 		.get("minecraft")
 		.cloned()
 		.ok_or_else(|| CommonError::Invalid("modpack does not declare a Minecraft version".into()))?;
 	let (loader, loader_version) = dependency_loader(&index.dependencies);
+	Ok((mc_version, loader, loader_version))
+}
+
+pub(super) fn download_url(file: &IndexFile) -> Option<String> {
+	let trusted = file.downloads.iter().position(|url| ensure_trusted(url).is_ok()).unwrap_or(0);
+	file.downloads.get(trusted).cloned()
+}
+
+pub fn parse(bytes: &[u8]) -> Result<Pack> {
+	let index = index(bytes)?;
+	let (mc_version, loader, loader_version) = metadata(&index)?;
 	let files = index
 		.files
-		.into_iter()
+		.iter()
 		.filter(|file| file.env.as_ref().and_then(|env| env.server.as_deref()) != Some(UNSUPPORTED))
 		.filter_map(|file| {
-			let trusted = file
-				.downloads
-				.iter()
-				.position(|url| ensure_trusted(url).is_ok())
-				.unwrap_or(0);
-			let url = file.downloads.into_iter().nth(trusted)?;
 			Some(PackFile {
-				path: Some(file.path),
+				path: Some(file.path.clone()),
 				source: Source::Direct {
-					url,
-					sha1: file.hashes.sha1,
+					url: download_url(file)?,
+					sha1: file.hashes.sha1.clone(),
 				},
 			})
 		})

@@ -12,6 +12,7 @@ pub mod system;
 pub mod loaders;
 pub mod members;
 pub mod modpacks;
+pub mod serverpack;
 pub mod notifications;
 pub mod schedules;
 pub mod settings;
@@ -41,6 +42,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(content::configure)
 			.configure(content_targets::configure)
 			.configure(modpacks::configure)
+			.configure(serverpack::configure)
 			.configure(backups::configure)
 			.configure(schedules::configure)
 			.configure(members::configure)
