@@ -8,14 +8,14 @@ import { PowerControls } from "./PowerControls";
 
 export function InstanceCard({ view }: { view: InstanceView }) {
   return (
-    <GlassCard className="flex flex-col">
+    <GlassCard className="group flex flex-col transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-glow">
       <div className="relative h-24 overflow-hidden">
-        <PixelBanner seed={String(view.id)} />
+        <PixelBanner seed={String(view.id)} className="transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-panel" />
       </div>
-      <div className="flex flex-1 flex-col gap-4 p-5 pt-0">
+      <div className="relative z-10 flex flex-1 flex-col gap-4 p-5 pt-0">
         <div className="-mt-7 flex items-end gap-3">
-          <InstanceIcon instance={view} className="size-14 shadow-glow" />
+          <InstanceIcon instance={view} className="size-14 border-2 border-panel shadow-glow" />
           <div className="min-w-0 flex-1 pb-1">
             <Link to={`/instances/${view.id}`} className="block truncate text-lg font-semibold text-ink-0 hover:text-accent">
               {view.name}
