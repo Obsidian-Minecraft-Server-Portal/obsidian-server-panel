@@ -1,0 +1,10 @@
+[package]
+name = "obsidian-db"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+obsidian-common = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
