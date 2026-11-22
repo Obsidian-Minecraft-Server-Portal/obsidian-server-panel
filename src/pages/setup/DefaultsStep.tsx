@@ -7,6 +7,7 @@ export interface DefaultsDraft {
   timezone: string;
   publicUrl: string;
   upnp: boolean;
+  stopTimeout: string;
 }
 
 interface DefaultsStepProps {
@@ -32,6 +33,13 @@ export function DefaultsStep({ value, onChange }: DefaultsStepProps) {
         value={value.publicUrl}
         onChange={(publicUrl) => onChange({ ...value, publicUrl })}
         description="Used in invite and password reset links."
+      />
+      <FormField
+        label="Graceful stop timeout (seconds)"
+        inputMode="numeric"
+        value={value.stopTimeout}
+        onChange={(stopTimeout) => onChange({ ...value, stopTimeout })}
+        description="How long a server gets to shut down after `stop` before it is killed."
       />
       <ToggleField
         label="Forward server ports with UPnP by default"

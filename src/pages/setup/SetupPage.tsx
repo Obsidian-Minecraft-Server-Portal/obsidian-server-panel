@@ -24,6 +24,7 @@ export function SetupPage() {
     timezone: browserTimezone(),
     publicUrl: window.location.origin,
     upnp: false,
+    stopTimeout: "30",
   }));
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +33,12 @@ export function SetupPage() {
       if (!admin.username.trim()) return "Choose a username for the administrator.";
       if (!admin.password) return "Choose a password.";
       if (admin.password !== admin.confirm) return "The passwords do not match.";
+    }
+    if (step === 2) {
+      const secs = Number(defaults.stopTimeout);
+      if (!(Number.isInteger(secs) && secs >= 5 && secs <= 600)) {
+        return "Graceful stop timeout must be a whole number of seconds between 5 and 600.";
+      }
     }
     if (step === 1 && smtp.enabled && (!smtp.host.trim() || !smtp.from.trim())) {
       return "Enter the SMTP host and the sender address, or turn email off.";
@@ -55,6 +62,7 @@ export function SetupPage() {
       password: admin.password,
       timezone: defaults.timezone,
       upnp_default: defaults.upnp,
+      stop_timeout_secs: Number(defaults.stopTimeout),
       public_url: defaults.publicUrl.trim() || undefined,
       smtp: smtp.enabled
         ? {

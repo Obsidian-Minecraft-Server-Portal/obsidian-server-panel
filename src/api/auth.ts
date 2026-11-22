@@ -27,6 +27,7 @@ export interface SetupBody {
   password: string;
   timezone?: string;
   upnp_default?: boolean;
+  stop_timeout_secs?: number;
   public_url?: string;
   smtp?: SmtpInput;
 }
