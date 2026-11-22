@@ -1,0 +1,23 @@
+[package]
+name = "obsidian-backups"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+blake3 = { workspace = true }
+chrono = { workspace = true }
+fastcdc = "5"
+ignore = "0.4"
+obsidian-common = { workspace = true }
+obsidian-db = { workspace = true }
+rayon = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tempfile = "3"
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+walkdir = { workspace = true }
+zip = { version = "9", default-features = false, features = ["deflate"] }
+zstd = "0.14"
