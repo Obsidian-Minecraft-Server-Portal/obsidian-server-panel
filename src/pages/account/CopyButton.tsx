@@ -1,5 +1,6 @@
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
+import copyToClipboard from "copy-to-clipboard";
 import { useState } from "react";
 
 interface CopyButtonProps {
@@ -11,13 +12,11 @@ export function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const copy = () =>
-    void navigator.clipboard
-      .writeText(value)
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
-      })
-      .catch(() => setCopied(false));
+    void copyToClipboard(value, { fallbackToPrompt: true }).then((succeeded) => {
+      if (!succeeded) return;
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    });
 
   return (
     <Button size="sm" variant="ghost" onPress={copy} className="rounded-control border border-line-strong text-ink-1">
