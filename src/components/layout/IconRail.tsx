@@ -1,7 +1,7 @@
 import { initialsOf } from "../ui/UserAvatar";
 import { Button, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { useCurrentUser } from "../../api/session";
 import { Logo } from "../ui/Logo";
 import { ActivityMenu } from "../activity/ActivityMenu";
@@ -11,15 +11,22 @@ interface RailItem {
   icon: string;
   label: string;
   end?: boolean;
+  matches?: (pathname: string) => boolean;
 }
 
 const PRIMARY_ITEMS: RailItem[] = [
-  { to: "/", icon: "lucide:layout-dashboard", label: "Dashboard", end: true },
-  { to: "/instances", icon: "lucide:box", label: "Instances" },
+  {
+    to: "/",
+    icon: "lucide:layout-dashboard",
+    label: "Dashboard",
+    end: true,
+    matches: (pathname) => pathname === "/" || pathname.startsWith("/instances"),
+  },
   { to: "/discover", icon: "lucide:compass", label: "Discover" },
 ];
 
 function RailLink({ item }: { item: RailItem }) {
+  const { pathname } = useLocation();
   return (
     <NavLink
       to={item.to}
@@ -29,7 +36,7 @@ function RailLink({ item }: { item: RailItem }) {
       className={({ isActive }) =>
         cn(
           "relative grid size-11 place-items-center rounded-control transition-colors",
-          isActive
+          (item.matches?.(pathname) ?? isActive)
             ? "bg-raised text-ink-0 before:absolute before:top-2.5 before:-left-3 before:h-6 before:w-[3px] before:rounded-r-full before:bg-accent"
             : "text-ink-3 hover:bg-raised hover:text-ink-1",
         )

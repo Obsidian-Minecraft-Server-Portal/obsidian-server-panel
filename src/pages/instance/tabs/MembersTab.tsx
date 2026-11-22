@@ -44,7 +44,7 @@ export function MembersSection({ instanceId }: { instanceId: number }) {
     if (userId === selectedId) setSelectedId(null);
     remove.mutate(userId, {
       onSuccess: () => {
-        if (userId === myId && !me.data?.is_admin) navigate("/instances");
+        if (userId === myId && !me.data?.is_admin) navigate("/");
       },
     });
   };

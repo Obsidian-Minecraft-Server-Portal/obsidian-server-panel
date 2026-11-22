@@ -6,7 +6,7 @@ import { PowerControls } from "./PowerControls";
 
 export function InstanceRow({ view }: { view: InstanceView }) {
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-panel border border-line bg-panel px-4 py-3 transition-colors hover:border-line-strong">
+    <div className="flex flex-wrap items-center gap-4 px-4 py-3 transition-colors hover:bg-raised/40">
       <InstanceIcon instance={view} className="size-10" />
       <Link to={`/instances/${view.id}`} className="min-w-40 flex-1 truncate font-semibold text-ink-0 hover:underline">
         {view.name}

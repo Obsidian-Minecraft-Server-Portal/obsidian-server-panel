@@ -1,0 +1,25 @@
+import type { InstanceView } from "../../api/instances";
+import type { ViewMode } from "../ui/ViewToggle";
+import { InstanceCard } from "./InstanceCard";
+import { InstanceRow } from "./InstanceRow";
+import { InstanceTable } from "./InstanceTable";
+
+export function InstanceList({ mode, instances }: { mode: ViewMode; instances: InstanceView[] }) {
+  if (mode === "table") return <InstanceTable instances={instances} />;
+  if (mode === "compact") {
+    return (
+      <div className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-panel">
+        {instances.map((view) => (
+          <InstanceRow key={view.id} view={view} />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {instances.map((view) => (
+        <InstanceCard key={view.id} view={view} />
+      ))}
+    </div>
+  );
+}

@@ -63,7 +63,7 @@ export function DangerZone({ view }: { view: InstanceView }) {
                   <PrimaryButton
                     isDisabled={!confirmed || remove.isPending}
                     isPending={remove.isPending}
-                    onPress={() => remove.mutate(undefined, { onSuccess: () => navigate("/instances") })}
+                    onPress={() => remove.mutate(undefined, { onSuccess: () => navigate("/") })}
                   >
                     Delete permanently
                   </PrimaryButton>

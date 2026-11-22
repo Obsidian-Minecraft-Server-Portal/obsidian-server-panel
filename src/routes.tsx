@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, lazy: page(() => import("./pages/dashboard/DashboardPage"), "DashboardPage") },
-          { path: "instances", lazy: page(() => import("./pages/instances/InstancesPage"), "InstancesPage") },
+          { path: "instances", element: <Navigate to="/" replace /> },
           {
             path: "instances/new",
             lazy: page(() => import("./pages/instances/CreateInstancePage"), "CreateInstancePage"),

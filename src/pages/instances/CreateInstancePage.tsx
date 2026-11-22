@@ -26,7 +26,7 @@ export function CreateInstancePage() {
       <PageHeader
         title="New server"
         subtitle="Pick the software, version and resources. Everything can be changed later."
-        actions={<GhostButton onPress={() => navigate("/instances")}>Cancel</GhostButton>}
+        actions={<GhostButton onPress={() => navigate("/")}>Cancel</GhostButton>}
       />
       <div className="px-8 pb-10">
         {created ? (
