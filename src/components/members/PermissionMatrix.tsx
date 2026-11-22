@@ -21,9 +21,9 @@ export function PermissionMatrix({ catalog, value, onChange, disabled }: Permiss
   };
 
   return (
-    <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="columns-1 gap-3 sm:columns-2 xl:columns-3">
       {groups.map((group) => (
-        <section key={group.key} className="rounded-control border border-line bg-input/50 px-4 py-3">
+        <section key={group.key} className="mb-3 break-inside-avoid rounded-control border border-line bg-input/50 px-4 py-3">
           <h4 className="mb-1 font-mono text-[10px] font-medium tracking-widest text-ink-3 uppercase">{group.label}</h4>
           <ul className="divide-y divide-line">
             {group.permissions.map((name) => (
