@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { JAVA_COMPONENTS, javaKey, useInstallJava } from "../../api/java";
+import { JAVA_COMPONENTS, javaKey, useAvailableJava, useInstallJava } from "../../api/java";
 import { useTasks } from "../../api/tasks";
 import { Panel } from "../ui/Panel";
 import { PrimaryButton } from "../ui/PrimaryButton";
@@ -13,6 +13,13 @@ export function InstallRuntimePanel() {
   const queryClient = useQueryClient();
   const tasks = useTasks();
   const install = useInstallJava();
+  const available = useAvailableJava();
+  const options = JAVA_COMPONENTS.map((id) => {
+    const runtime = available.data?.find((entry) => entry.component === id);
+    const name = id.replace(/^java-runtime-|^jre-/, "");
+    if (!runtime) return { id, label: name };
+    return { id, label: `Java ${runtime.version} · ${name}${runtime.installed ? " · installed" : ""}` };
+  });
   const [component, setComponent] = useState(DEFAULT_COMPONENT);
   const [taskId, setTaskId] = useState<number | null>(null);
 
@@ -31,7 +38,7 @@ export function InstallRuntimePanel() {
           <OptionSelect
             label="Managed runtime"
             className="min-w-64 flex-1"
-            options={JAVA_COMPONENTS.map((id) => ({ id, label: id }))}
+            options={options}
             value={component}
             onChange={(next) => next && setComponent(next)}
             isDisabled={running || install.isPending}
