@@ -9,6 +9,7 @@ import { useStatsHistory } from "../../../components/instance/stats/useStatsHist
 import { consoleKey, useConsoleBacklog, useInstance, useSendCommand } from "../../../api/instances";
 import { useLiveConsole } from "../../../api/instanceLive";
 import { GhostButton } from "../../../components/ui/GhostButton";
+import { PlayersPanels } from "./PlayersTab";
 
 export function ConsoleTab() {
   const id = useInstanceId();
@@ -25,7 +26,11 @@ export function ConsoleTab() {
   const history = useStatsHistory(id, running);
 
   return (
-    <div className="space-y-4 px-8 pb-8">
+    <div className="grid items-start gap-5 px-8 pb-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
+      <aside className="min-w-0">
+        <PlayersPanels />
+      </aside>
+      <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {instance.data && <StatusChip instance={instance.data} />}
@@ -48,6 +53,7 @@ export function ConsoleTab() {
       {backlog.isError && <p className="text-sm text-rose">{backlog.error.message}</p>}
       <ConsoleView lines={lines} />
       <CommandInput disabled={!active} onSubmit={(line) => send.mutate(line)} />
+      </div>
     </div>
   );
 }

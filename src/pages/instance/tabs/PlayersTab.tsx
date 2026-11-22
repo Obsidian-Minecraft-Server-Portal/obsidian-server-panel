@@ -10,7 +10,7 @@ function byOnlineThenName(a: Player, b: Player): number {
   return Number(b.online) - Number(a.online) || a.name.localeCompare(b.name);
 }
 
-export function PlayersTab() {
+export function PlayersPanels() {
   const id = useInstanceId();
   const players = usePlayers(id);
   const action = usePlayerAction(id);
@@ -26,7 +26,7 @@ export function PlayersTab() {
   const error = players.error ?? action.error;
 
   return (
-    <div className="grid gap-5 px-8 pb-8 xl:grid-cols-[1fr_22rem]">
+    <div className="flex flex-col gap-5">
       <Panel
         title={`Players${players.data ? ` · ${players.data.length}` : ""}`}
         actions={

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate } from "react-router";
 import { useCurrentUser } from "../../../api/session";
 import { useMembers, usePermissionCatalog, useRemoveMember } from "../../../api/members";
 import { InviteMemberPanel } from "../../../components/members/InviteMemberPanel";
@@ -9,9 +9,7 @@ import { Chip } from "../../../components/ui/Chip";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { Panel } from "../../../components/ui/Panel";
 
-export function MembersTab() {
-  const { id = "" } = useParams();
-  const instanceId = Number(id);
+export function MembersSection({ instanceId }: { instanceId: number }) {
   const navigate = useNavigate();
   const me = useCurrentUser();
   const catalog = usePermissionCatalog();
@@ -52,7 +50,7 @@ export function MembersTab() {
   };
 
   return (
-    <div className="space-y-6 px-8 pb-8">
+    <div className="space-y-6">
       <Panel title="Members" actions={<Chip>{list.length} {list.length === 1 ? "member" : "members"}</Chip>}>
         <ul className="space-y-2">
           {list.map((member) => (

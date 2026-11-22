@@ -99,9 +99,32 @@ export function FilesTab() {
 
   if (editing) {
     return (
-      <div className="px-8 pb-8">
-        <FileEditor key={editing} instanceId={id} path={editing} ops={ops} onClose={() => setEditing(null)} />
+      <div className="grid items-start gap-5 px-8 pb-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <section className="overflow-hidden rounded-panel border border-line bg-panel">
+          <div className="border-b border-line p-3">
+            <Breadcrumbs path={dir} onNavigate={navigate} />
+          </div>
+          <Listing
+            isPending={listing.isPending}
+            error={listing.isError ? errorMessage(listing.error) : null}
+            isEmpty={listing.isSuccess && entries.length === 0}
+            parent={dir ? parentPath(dir) : null}
+            onNavigate={navigate}
+          >
+            <FileTable
+              entries={entries}
+              selected={new Set([editing])}
+              onPick={pick}
+              onOpen={onOpen}
+              onContextMenu={onContextMenu}
+            />
+          </Listing>
+        </section>
+        <div className="min-w-0 space-y-5">
+          <FileEditor key={editing} instanceId={id} path={editing} ops={ops} onClose={() => setEditing(null)} />
+        </div>
         {dialog && <FileDialogs dialog={dialog} dir={dir} entries={entries} ops={ops} onOpenFile={openFile} onClose={closeDialog} />}
+        {target && <ContextMenu x={target.x} y={target.y} actions={menuActions} onClose={closeMenu} />}
         <UploadPanel />
       </div>
     );

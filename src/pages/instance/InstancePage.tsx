@@ -7,14 +7,11 @@ import { useLiveInstances } from "../../api/instanceLive";
 import { CrashHints } from "../../components/instance/CrashHints";
 import { InstanceHero } from "../../components/instance/InstanceHero";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { BackupsTab } from "./tabs/BackupsTab";
+import { BackupsAndSchedulesTab } from "./tabs/BackupsAndSchedulesTab";
 import { ConsoleTab } from "./tabs/ConsoleTab";
 import { ContentTab } from "./tabs/ContentTab";
 import { FilesTab } from "./tabs/FilesTab";
-import { MembersTab } from "./tabs/MembersTab";
-import { PlayersTab } from "./tabs/PlayersTab";
 import { PropertiesTab } from "./tabs/PropertiesTab";
-import { SchedulesTab } from "./tabs/SchedulesTab";
 import { SettingsTab } from "./tabs/SettingsTab";
 
 interface TabEntry {
@@ -27,11 +24,8 @@ const TABS: Record<string, TabEntry> = {
   console: { label: "Console", permission: "console.read", component: ConsoleTab },
   content: { label: "Content", permission: "files.read", component: ContentTab },
   files: { label: "Files", permission: "files.read", component: FilesTab },
-  backups: { label: "Backups", permission: "backups.download", component: BackupsTab },
-  schedules: { label: "Schedules", permission: "schedules.manage", component: SchedulesTab },
-  players: { label: "Players", permission: "console.read", component: PlayersTab },
+  backups: { label: "Backups & schedules", permission: "backups.download", component: BackupsAndSchedulesTab },
   properties: { label: "Properties", permission: "settings.edit", component: PropertiesTab },
-  members: { label: "Members", permission: "members.manage", component: MembersTab },
   settings: { label: "Settings", permission: "settings.edit", component: SettingsTab },
 };
 

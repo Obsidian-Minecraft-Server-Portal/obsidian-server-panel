@@ -1,9 +1,10 @@
-import { useInstance } from "../../../api/instances";
+import { hasPermission, useInstance } from "../../../api/instances";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
 import { DangerZone } from "../../../components/instance/settings/DangerZone";
 import { GeneralSettings, generalSettingsKey } from "../../../components/instance/settings/GeneralSettings";
 import { IconPanel } from "../../../components/instance/settings/IconPanel";
 import { UpnpPanel } from "../../../components/instance/settings/UpnpPanel";
+import { MembersSection } from "./MembersTab";
 
 export function SettingsTab() {
   const id = useInstanceId();
@@ -21,6 +22,11 @@ export function SettingsTab() {
         <IconPanel view={view} />
         <DangerZone view={view} />
       </div>
+      {hasPermission(view, "members.manage") && (
+        <div className="xl:col-span-2">
+          <MembersSection instanceId={id} />
+        </div>
+      )}
     </div>
   );
 }
