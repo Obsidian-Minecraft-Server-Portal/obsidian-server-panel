@@ -73,10 +73,13 @@ impl ContentManager {
 						})?
 						.id,
 				};
-				if let Some((current, _)) = sources::get(self.db.pool(), instance_id, RESOURCE_PACK).await? {
-					if current.platform == platform && current.project_id == project_id && current.version_id == version {
-						return Err(CommonError::Conflict("this resource pack is already the server pack".into()));
-					}
+				let already_set = sources::get(self.db.pool(), instance_id, RESOURCE_PACK)
+					.await?
+					.is_some_and(|(current, _)| {
+						current.platform == platform && current.project_id == project_id && current.version_id == version
+					});
+				if already_set {
+					return Err(CommonError::Conflict("this resource pack is already the server pack".into()));
 				}
 				let pack = self.set_resource_pack(instance_id, platform, project_id, &version).await?;
 				Ok(QuickAdded {
