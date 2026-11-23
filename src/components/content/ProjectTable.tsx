@@ -1,23 +1,28 @@
 import { Button } from "@heroui/react";
+import type { ReactNode } from "react";
 import type { Project } from "../../api/content";
 import { PLATFORM_NAMES, formatDownloads, projectKey } from "./meta";
 
 interface ProjectTableProps {
   projects: Project[];
   onOpen: (project: Project) => void;
+  renderActions: (project: Project) => ReactNode;
 }
 
 const HEAD_CLASS = "px-4 py-3 text-left font-mono text-[11px] font-medium tracking-wider text-ink-3 uppercase";
 
-export function ProjectTable({ projects, onOpen }: ProjectTableProps) {
+export function ProjectTable({ projects, onOpen, renderActions }: ProjectTableProps) {
   return (
     <div className="overflow-x-auto rounded-panel border border-line bg-panel">
-      <table className="w-full min-w-[36rem] border-collapse text-sm">
+      <table className="w-full min-w-[44rem] border-collapse text-sm">
         <thead className="border-b border-line">
           <tr>
             <th scope="col" className={HEAD_CLASS}>Name</th>
             <th scope="col" className={HEAD_CLASS}>Platform</th>
             <th scope="col" className={`${HEAD_CLASS} text-right`}>Downloads</th>
+            <th scope="col" className={`${HEAD_CLASS} text-right`}>
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -38,6 +43,9 @@ export function ProjectTable({ projects, onOpen }: ProjectTableProps) {
               </td>
               <td className="px-4 py-3 text-right font-mono text-xs text-ink-2 tabular-nums">
                 {formatDownloads(project.downloads)}
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex justify-end gap-2">{renderActions(project)}</div>
               </td>
             </tr>
           ))}

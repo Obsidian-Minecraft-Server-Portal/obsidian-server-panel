@@ -1,4 +1,4 @@
-import type { ContentKind, PlatformId, PlatformInfo, Project } from "../../api/content";
+import type { ContentKind, PlatformId, PlatformInfo, Project, SideSupport } from "../../api/content";
 import type { LoaderKind } from "../../api/loaders";
 
 export const PLATFORM_NAMES: Record<PlatformId, string> = {
@@ -74,4 +74,26 @@ export function formatDownloads(count: number): string {
 
 export function projectKey(project: Project): string {
   return `${project.platform}:${project.id}`;
+}
+
+export const LOADER_BOUND_KINDS: ReadonlySet<ContentKind> = new Set<ContentKind>(["mod", "plugin"]);
+
+export const SIDE_LABELS: Record<SideSupport, string> = {
+  required: "Required",
+  optional: "Optional",
+  unsupported: "Unsupported",
+  unknown: "Unknown",
+};
+
+export function parsePlatform(raw: string | undefined): PlatformId | null {
+  const value = Number(raw);
+  return raw !== undefined && Number.isInteger(value) && value in PLATFORM_NAMES ? (value as PlatformId) : null;
+}
+
+export function httpUrl(value: string | null | undefined): string | null {
+  return value && /^https?:\/\//i.test(value) ? value : null;
+}
+
+export function acceptsLoader(kind: ContentKind, loader: LoaderKind): boolean {
+  return !LOADER_BOUND_KINDS.has(kind) || LOADERS_BY_KIND[kind].includes(loader);
 }

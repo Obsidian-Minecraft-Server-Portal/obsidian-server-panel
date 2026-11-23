@@ -1,37 +1,40 @@
 import { Icon } from "@iconify-icon/react";
-import { useMemo, useState } from "react";
-import { Link } from "react-router";
-import type { Project, ProjectVersion } from "../../api/content";
-import { useContentFacets, useContentSearch, usePlatforms } from "../../api/content";
-import { useInstance } from "../../api/instances";
+import { type ReactNode, useMemo } from "react";
+import { Link, useNavigate } from "react-router";
+import type { Project, SideFilter } from "../../api/content";
+import { useContentFacets, useContentSearch, usePlatforms, useQuickAdd } from "../../api/content";
+import { hasPermission, useInstance } from "../../api/instances";
 import { DiscoverTabs, SourceChips } from "../../components/content/DiscoverFilters";
 import { DiscoverHero } from "../../components/content/DiscoverHero";
 import { DiscoverSidebar } from "../../components/content/DiscoverSidebar";
-import { ViewToggle } from "../../components/ui/ViewToggle";
-import { InstallTargetModal, type InstallAction } from "../../components/content/InstallTargetModal";
-import { ModpackModal, type ModpackAction } from "../../components/content/ModpackModal";
-import { ProjectDrawer } from "../../components/content/ProjectDrawer";
-import { KIND_LABELS, PLATFORM_NAMES } from "../../components/content/meta";
+import { KIND_LABELS, LOADER_BOUND_KINDS, PLATFORM_NAMES, acceptsLoader } from "../../components/content/meta";
 import { ProjectResults } from "../../components/content/ProjectResults";
 import { ProjectTable } from "../../components/content/ProjectTable";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { GhostButton } from "../../components/ui/GhostButton";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { PrimaryButton } from "../../components/ui/PrimaryButton";
+import { ViewToggle } from "../../components/ui/ViewToggle";
 import { useDiscoverState } from "./useDiscoverState";
 
 export function DiscoverPage() {
+  const navigate = useNavigate();
   const { data: platforms = [] } = usePlatforms();
   const discover = useDiscoverState(platforms);
   const instance = useInstance(discover.instanceId ?? Number.NaN);
   const facets = useContentFacets(discover.platform, discover.kind).data;
-  const [drawerProject, setDrawerProject] = useState<Project | null>(null);
-  const [installAction, setInstallAction] = useState<InstallAction | null>(null);
-  const [modpackAction, setModpackAction] = useState<ModpackAction | null>(null);
+  const quickAdd = useQuickAdd(discover.instanceId ?? 0);
 
   const isModpack = discover.kind === "modpack";
   const loader = isModpack ? null : discover.loader;
   const mcVersion = discover.mcVersion;
   const platformName = PLATFORM_NAMES[discover.platform];
+  const environments: SideFilter[] = discover.environmentsChosen
+    ? discover.filters.environments
+    : facets?.environments && discover.instanceId !== null
+      ? ["server"]
+      : [];
+  const filters = { ...discover.filters, environments };
 
   const search = useContentSearch({
     platform: discover.platform,
@@ -39,18 +42,41 @@ export function DiscoverPage() {
     query: discover.debouncedQuery,
     loader,
     mcVersion,
-    filters: discover.filters,
+    filters,
   });
   const projects = useMemo(() => search.data?.pages.flatMap((page) => page.items) ?? [], [search.data]);
   const browsing = discover.debouncedQuery.trim() === "" && projects.length > 0;
   const hero = browsing ? projects[0] : null;
   const listed = hero ? projects.slice(1) : projects;
 
-  const chooseVersion = (version: ProjectVersion) => {
-    if (!drawerProject) return;
-    if (isModpack) setModpackAction({ project: drawerProject, version });
-    else setInstallAction({ project: drawerProject, version, kind: discover.kind });
+  const quickAddTarget = instance.data && hasPermission(instance.data, "content.install") ? instance.data : null;
+  const quickAddable = (project: Project) =>
+    quickAddTarget !== null &&
+    LOADER_BOUND_KINDS.has(project.kind) &&
+    acceptsLoader(project.kind, quickAddTarget.loader);
+
+  const openProject = (project: Project) => {
+    const query = discover.instanceId === null ? "" : `?instance=${discover.instanceId}`;
+    navigate(`/discover/projects/${project.platform}/${encodeURIComponent(project.id)}${query}`);
   };
+
+  const renderActions = (project: Project) => (
+    <>
+      {quickAddable(project) && (
+        <PrimaryButton
+          size="sm"
+          isDisabled={quickAdd.isPending}
+          onPress={() => quickAdd.mutate({ platform: project.platform, projectId: project.id })}
+        >
+          <Icon icon="lucide:zap" width={14} height={14} />
+          Quick add
+        </PrimaryButton>
+      )}
+      <GhostButton size="sm" onPress={() => openProject(project)}>
+        View more
+      </GhostButton>
+    </>
+  );
 
   return (
     <>
@@ -87,19 +113,26 @@ export function DiscoverPage() {
             kind={discover.kind}
             platformName={platformName}
             facets={facets}
-            filters={discover.filters}
+            filters={filters}
             loader={discover.loader}
             mcVersion={discover.mcVersion}
             onLoader={discover.setLoader}
             onMcVersion={discover.setMcVersion}
             onToggleCategory={discover.toggleCategory}
             onToggleExcluded={discover.toggleExcluded}
-            onToggleEnvironment={discover.toggleEnvironment}
+            onToggleEnvironment={(side) => discover.toggleEnvironment(side, environments)}
             onOpenSource={discover.setOpenSource}
             onClear={discover.clearFilters}
           />
           <div className="min-w-0 flex-1 space-y-5">
-            {hero && <DiscoverHero project={hero} onOpen={setDrawerProject} />}
+            {quickAdd.isSuccess && (
+              <p className="flex items-center gap-2 text-sm text-green">
+                <Icon icon="lucide:circle-check" width={16} height={16} />
+                Added {quickAdd.data.length} {quickAdd.data.length === 1 ? "file" : "files"} to {instance.data?.name ?? "the instance"}.
+              </p>
+            )}
+            {quickAdd.error && <p className="text-sm text-rose">{quickAdd.error.message}</p>}
+            {hero && <DiscoverHero project={hero} onOpen={openProject} />}
             <Results
               projects={listed}
               view={discover.view}
@@ -107,7 +140,8 @@ export function DiscoverPage() {
               isError={search.isError}
               errorMessage={search.error?.message}
               total={search.data?.pages[0]?.total ?? 0}
-              onOpen={setDrawerProject}
+              onOpen={openProject}
+              renderActions={renderActions}
             />
             {search.hasNextPage && (
               <div className="flex justify-center">
@@ -119,19 +153,6 @@ export function DiscoverPage() {
           </div>
         </div>
       </div>
-      <ProjectDrawer
-        project={drawerProject}
-        kind={discover.kind}
-        filter={{ loader, mcVersion, kind: discover.kind }}
-        onClose={() => setDrawerProject(null)}
-        onAction={chooseVersion}
-      />
-      <InstallTargetModal
-        action={installAction}
-        defaultInstanceId={discover.instanceId}
-        onClose={() => setInstallAction(null)}
-      />
-      <ModpackModal action={modpackAction} onClose={() => setModpackAction(null)} />
     </>
   );
 }
@@ -144,9 +165,10 @@ interface ResultsProps {
   errorMessage: string | undefined;
   total: number;
   onOpen: (project: Project) => void;
+  renderActions: (project: Project) => ReactNode;
 }
 
-function Results({ projects, view, isPending, isError, errorMessage, total, onOpen }: ResultsProps) {
+function Results({ projects, view, isPending, isError, errorMessage, total, onOpen, renderActions }: ResultsProps) {
   if (isError) return <p className="text-sm text-rose">{errorMessage ?? "Search failed."}</p>;
   if (isPending) return <p className="font-mono text-xs text-ink-3">Searching…</p>;
   if (projects.length === 0) {
@@ -158,9 +180,9 @@ function Results({ projects, view, isPending, isError, errorMessage, total, onOp
         {total.toLocaleString()} results · showing {projects.length}
       </p>
       {view === "table" ? (
-        <ProjectTable projects={projects} onOpen={onOpen} />
+        <ProjectTable projects={projects} onOpen={onOpen} renderActions={renderActions} />
       ) : (
-        <ProjectResults projects={projects} view={view} onOpen={onOpen} />
+        <ProjectResults projects={projects} view={view} onOpen={onOpen} renderActions={renderActions} />
       )}
     </div>
   );

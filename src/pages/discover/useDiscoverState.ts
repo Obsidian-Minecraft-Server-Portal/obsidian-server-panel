@@ -8,6 +8,7 @@ import type { ResultView } from "../../components/content/ProjectResults";
 const SEARCH_DEBOUNCE_MS = 300;
 const VIEW_STORAGE_KEY = "obsidian.discover.view";
 const VIEWS: ResultView[] = ["grid", "compact", "table"];
+const NO_ENVIRONMENT = "none";
 
 function readStoredView(): ResultView {
   try {
@@ -49,6 +50,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
   const loader = LOADERS_BY_KIND[kind].find((entry) => entry === params.get("loader")) ?? null;
   const mcVersion = params.get("mc_version");
   const instanceId = Number.parseInt(params.get("instance") ?? "", 10) || null;
+  const environmentsChosen = params.has("environments");
   const filters: ContentFilters = {
     categories: readList(params.get("categories")),
     excludedCategories: readList(params.get("excluded")),
@@ -97,6 +99,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
     mcVersion,
     instanceId,
     filters,
+    environmentsChosen,
     query,
     debouncedQuery,
     view,
@@ -113,8 +116,10 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
     setMcVersion: (next: string | null) => update({ mc_version: next }),
     toggleCategory,
     toggleExcluded,
-    toggleEnvironment: (side: SideFilter) =>
-      update({ environments: joinList(toggleItem(filters.environments, side, true)) }),
+    toggleEnvironment: (side: SideFilter, current: SideFilter[]) => {
+      const next = toggleItem(current, side, true);
+      update({ environments: next.length ? next.join(",") : NO_ENVIRONMENT });
+    },
     setOpenSource: (on: boolean) => update({ open: on ? "1" : null }),
     clearFilters: () => update({ loader: null, mc_version: null, ...CLEARED_FILTERS }),
   };

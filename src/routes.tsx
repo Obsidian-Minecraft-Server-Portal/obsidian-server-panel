@@ -27,6 +27,10 @@ export const router = createBrowserRouter([
           { path: "instances/:id/:tab?", lazy: page(() => import("./pages/instance/InstancePage"), "InstancePage") },
           { path: "discover", lazy: page(() => import("./pages/discover/DiscoverPage"), "DiscoverPage") },
           {
+            path: "discover/projects/:platform/:projectId",
+            lazy: page(() => import("./pages/discover/ProjectPage"), "ProjectPage"),
+          },
+          {
             path: "discover/server-pack/:draftId",
             lazy: page(() => import("./pages/serverpack/ServerPackPage"), "ServerPackPage"),
           },

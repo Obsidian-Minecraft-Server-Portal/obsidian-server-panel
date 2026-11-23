@@ -76,6 +76,82 @@ export interface ProjectVersion {
   sha256: string | null;
   published_at: string;
   has_server_pack: boolean;
+  channel: string;
+  downloads: number;
+  dependencies: VersionDependency[];
+}
+
+export interface VersionDependency {
+  project_id: string | null;
+  version_id: string | null;
+  kind: "required" | "optional" | "incompatible" | "embedded";
+}
+
+export interface GalleryImage {
+  url: string;
+  title: string | null;
+  description: string | null;
+}
+
+export interface ProjectLinks {
+  website: string | null;
+  issues: string | null;
+  source: string | null;
+  wiki: string | null;
+  discord: string | null;
+  donate: string[];
+}
+
+export interface ProjectDetail {
+  project: Project;
+  body_html: string;
+  gallery: GalleryImage[];
+  links: ProjectLinks;
+  authors: string[];
+  license: string | null;
+  categories: string[];
+  game_versions: string[];
+  loaders: string[];
+  followers: number | null;
+  published_at: string | null;
+  updated_at: string | null;
+  web_url: string | null;
+}
+
+export function useProjectDetail(platform: PlatformId, projectId: string) {
+  return useQuery({
+    queryKey: ["content", "detail", platform, projectId],
+    queryFn: () => api.get<ProjectDetail>(`/content/${platform}/projects/${encodeURIComponent(projectId)}/detail`),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useProjectChangelog(platform: PlatformId, projectId: string, versionId: string | null) {
+  return useQuery({
+    queryKey: ["content", "changelog", platform, projectId, versionId],
+    queryFn: () =>
+      api.get<string | null>(
+        `/content/${platform}/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId ?? "")}/changelog`,
+      ),
+    enabled: versionId !== null,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useQuickAdd(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { platform: PlatformId; projectId: string; versionId?: string | null }) =>
+      api.post<InstalledContent[]>(`/instances/${instanceId}/content/quick-add`, {
+        platform: input.platform,
+        project_id: input.projectId,
+        version_id: input.versionId ?? null,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: contentKeys.installed(instanceId) });
+      void queryClient.invalidateQueries({ queryKey: contentKeys.updates(instanceId) });
+    },
+  });
 }
 
 export interface InstalledContent {

@@ -125,6 +125,61 @@
   --warning-foreground: #1a1204;
 }
 
+.rendered-html {
+  @apply space-y-3 break-words text-sm leading-relaxed text-ink-2;
+}
+
+.rendered-html h1,
+.rendered-html h2,
+.rendered-html h3 {
+  @apply mt-6 font-semibold text-ink-0;
+}
+
+.rendered-html h1 {
+  @apply text-2xl;
+}
+
+.rendered-html h2 {
+  @apply text-xl;
+}
+
+.rendered-html h3 {
+  @apply text-base;
+}
+
+.rendered-html a {
+  @apply text-accent underline-offset-2 hover:underline;
+}
+
+.rendered-html img {
+  @apply my-2 h-auto max-w-full rounded-control;
+}
+
+.rendered-html ul {
+  @apply list-disc space-y-1 pl-5;
+}
+
+.rendered-html ol {
+  @apply list-decimal space-y-1 pl-5;
+}
+
+.rendered-html code {
+  @apply rounded bg-raised px-1 font-mono text-[0.85em] text-ink-1;
+}
+
+.rendered-html pre {
+  @apply overflow-x-auto rounded-control bg-input p-3 font-mono text-xs;
+}
+
+.rendered-html table {
+  @apply w-full border-collapse text-left text-xs;
+}
+
+.rendered-html th,
+.rendered-html td {
+  @apply border border-line px-2 py-1;
+}
+
 @utility grid-faint {
   background-image:
     linear-gradient(var(--line) 1px, transparent 1px),
