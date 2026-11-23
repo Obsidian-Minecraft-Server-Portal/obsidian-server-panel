@@ -1,13 +1,13 @@
 import { Switch, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import copyToClipboard from "copy-to-clipboard";
-import type { MouseEvent } from "react";
 import type { ContentUpdate, InstalledContent } from "../../api/content";
 import { contentIconUrl } from "../../api/content";
 import { ContextMenu, MenuButton, type MenuAction } from "../ui/ContextMenu";
 import { Chip } from "../ui/Chip";
 import { GhostButton } from "../ui/GhostButton";
 import { PrimaryButton } from "../ui/PrimaryButton";
+import { stopRowClick } from "../ui/openUnlessInteractive";
 import { useContextMenu } from "../ui/useContextMenu";
 import { PLATFORM_NAMES } from "./meta";
 import { ProjectIcon } from "./ProjectIcon";
@@ -26,8 +26,6 @@ interface InstalledRowProps {
 }
 
 const DISABLED_SUFFIX = /\.disabled$/;
-
-const stopRowClick = (event: MouseEvent) => event.stopPropagation();
 
 export function InstalledRow({
   item,
