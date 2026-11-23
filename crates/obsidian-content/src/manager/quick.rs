@@ -23,6 +23,8 @@ impl ContentManager {
 		owner: Option<UserId>,
 	) -> Result<Vec<InstalledContent>> {
 		let provider = self.provider(platform)?.clone();
+		let project = provider.project(project_id).await?;
+		let project_id = project.id.as_str();
 		let (loader, mc_version) = store::instance(self.db.pool(), instance_id).await?;
 		let filter = VersionFilter {
 			mc_version: Some(mc_version.clone()),
