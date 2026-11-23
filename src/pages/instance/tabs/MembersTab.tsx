@@ -52,8 +52,9 @@ export function MembersSection({ instanceId }: { instanceId: number }) {
   };
 
   return (
-    <div>
+    <div className="h-full">
       <Panel
+        className="h-full"
         title="Members"
         actions={
           <div className="flex flex-wrap items-center gap-2">

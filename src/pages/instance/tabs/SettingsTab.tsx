@@ -17,20 +17,12 @@ export function SettingsTab() {
 
   return (
     <div className="grid grid-cols-1 gap-5 px-4 sm:px-8 pb-8 xl:grid-cols-2">
-      <div className="space-y-5">
-        <GeneralSettings view={view} />
-        <SoftwarePanel view={view} />
-      </div>
-      <div className="space-y-5">
-        <UpnpPanel view={view} />
-        <IconPanel view={view} />
-        <DangerZone view={view} />
-      </div>
-      {hasPermission(view, "members.manage") && (
-        <div className="xl:col-span-2">
-          <MembersSection instanceId={id} />
-        </div>
-      )}
+      <GeneralSettings view={view} />
+      <UpnpPanel view={view} />
+      <SoftwarePanel view={view} />
+      {hasPermission(view, "members.manage") && <MembersSection instanceId={id} />}
+      <IconPanel view={view} />
+      <DangerZone view={view} />
     </div>
   );
 }
