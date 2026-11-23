@@ -210,6 +210,36 @@ pub struct ContentUpdate {
 	pub latest: ProjectVersion,
 }
 
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PlannedDependency {
+	#[schema(value_type = u8)]
+	pub platform: Platform,
+	pub project_id: String,
+	pub version: ProjectVersion,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct Upgrade {
+	pub version: ProjectVersion,
+	pub dependencies: Vec<PlannedDependency>,
+	pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum Compatibility {
+	Upgradable(Box<Upgrade>),
+	Unavailable { reason: String },
+	DeclaredCompatible { reason: String, minecraft_range: String },
+	NeedsDecision { reason: String, minecraft_range: Option<String> },
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct CompatibilityEntry {
+	pub item: InstalledContent,
+	pub compatibility: Compatibility,
+}
+
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct InstallRequest {
 	#[schema(value_type = u8)]

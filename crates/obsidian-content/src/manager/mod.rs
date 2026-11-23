@@ -7,10 +7,13 @@ pub(crate) mod store;
 pub(crate) mod targets;
 
 pub use quick::QuickAdded;
+pub use records::ContentRecord;
 pub use relations::{ContentRelations, DependencyEntry, DependentEntry};
 pub use sources::ContentSource;
 pub use targets::{InstalledWorld, ServerResourcePack};
+mod compat;
 mod quick;
+mod records;
 mod relations;
 mod update;
 
@@ -64,6 +67,15 @@ impl ContentManager {
 		if let Some(key) = CURSEFORGE_API_KEY.filter(|key| !key.is_empty()) {
 			platforms.push(Arc::new(CurseForge::new(http.clone(), key)));
 		}
+		Self::assemble(db, paths, tasks, http, platforms)
+	}
+
+	#[cfg(test)]
+	pub(crate) fn with_platforms(db: Db, paths: Paths, tasks: TaskRegistry, platforms: Vec<Arc<dyn ContentPlatform>>) -> Self {
+		Self::assemble(db, paths, tasks, http::client(), platforms)
+	}
+
+	fn assemble(db: Db, paths: Paths, tasks: TaskRegistry, http: reqwest::Client, platforms: Vec<Arc<dyn ContentPlatform>>) -> Self {
 		Self {
 			db,
 			paths,

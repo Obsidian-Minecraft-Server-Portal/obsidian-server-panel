@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use obsidian_common::{CommonError, Loader, Result};
 use sqlx::{SqliteExecutor, SqlitePool};
 
@@ -121,7 +123,7 @@ pub async fn insert_untracked<'c>(
 	metadata: &Metadata,
 ) -> Result<()> {
 	sqlx::query(
-		"INSERT INTO mods (filename, name, icon, kind, instance_id, mod_id, depends, metadata_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (instance_id, filename) DO NOTHING",
+		"INSERT INTO mods (filename, name, icon, kind, instance_id, mod_id, depends, metadata_version, minecraft_range) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (instance_id, filename) DO NOTHING",
 	)
 	.bind(filename)
 	.bind(metadata.name.as_deref())
@@ -131,6 +133,7 @@ pub async fn insert_untracked<'c>(
 	.bind(metadata.mod_id.as_deref())
 	.bind(depends_json(&metadata.depends))
 	.bind(METADATA_VERSION)
+	.bind(metadata.minecraft_range.as_deref())
 	.execute(executor)
 	.await?;
 	Ok(())
@@ -154,15 +157,27 @@ pub async fn set_association(
 }
 
 pub async fn set_metadata(pool: &SqlitePool, mod_id: i64, metadata: &Metadata) -> Result<()> {
-	sqlx::query("UPDATE mods SET name = ?, mod_id = ?, depends = ?, metadata_version = ? WHERE id = ?")
+	sqlx::query("UPDATE mods SET name = ?, mod_id = ?, depends = ?, metadata_version = ?, minecraft_range = ? WHERE id = ?")
 		.bind(metadata.name.as_deref())
 		.bind(metadata.mod_id.as_deref())
 		.bind(depends_json(&metadata.depends))
 		.bind(METADATA_VERSION)
+		.bind(metadata.minecraft_range.as_deref())
 		.bind(mod_id)
 		.execute(pool)
 		.await?;
 	Ok(())
+}
+
+pub async fn minecraft_ranges(pool: &SqlitePool, instance_id: i64) -> Result<HashMap<i64, String>> {
+	let rows: Vec<(i64, Option<String>)> = sqlx::query_as("SELECT id, minecraft_range FROM mods WHERE instance_id = ?")
+		.bind(instance_id)
+		.fetch_all(pool)
+		.await?;
+	Ok(rows
+		.into_iter()
+		.filter_map(|(id, range)| Some((id, range?)))
+		.collect())
 }
 
 pub async fn needing_metadata(pool: &SqlitePool, instance_id: i64) -> Result<Vec<InstalledContent>> {

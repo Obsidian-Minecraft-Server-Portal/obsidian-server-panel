@@ -1,13 +1,16 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use serde::de::{self, IgnoredAny, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use crate::archive::{self, Archive};
 
-pub(crate) const METADATA_VERSION: i64 = 1;
+pub(crate) const METADATA_VERSION: i64 = 2;
 
 const PLATFORM_IDS: [&str; 7] = ["minecraft", "java", "fabricloader", "quiltloader", "forge", "neoforge", "fml"];
+const MINECRAFT: &str = "minecraft";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Dependency {
@@ -20,6 +23,7 @@ pub struct Metadata {
 	pub name: Option<String>,
 	pub mod_id: Option<String>,
 	pub depends: Vec<Dependency>,
+	pub minecraft_range: Option<String>,
 }
 
 pub fn extract(jar: &[u8]) -> Metadata {
@@ -49,6 +53,7 @@ fn from_fabric(archive: &mut Archive<'_>) -> Option<Metadata> {
 		name: text(json.get("name")),
 		mod_id: text(json.get("id")),
 		depends,
+		minecraft_range: version_text(json.get("depends").and_then(|depends| depends.get(MINECRAFT))),
 	})
 }
 
@@ -62,17 +67,12 @@ fn object_ids<'a>(value: Option<&'a Value>, required: bool) -> impl Iterator<Ite
 fn from_quilt(archive: &mut Archive<'_>) -> Option<Metadata> {
 	let json: Value = serde_json::from_str(&archive::read_text(archive, "quilt.mod.json")?).ok()?;
 	let loader = json.get("quilt_loader")?;
-	let depends = loader
-		.get("depends")
-		.and_then(Value::as_array)
-		.into_iter()
-		.flatten()
-		.filter_map(quilt_dependency)
-		.collect();
+	let entries: &[Value] = loader.get("depends").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]);
 	Some(Metadata {
 		name: text(loader.pointer("/metadata/name")),
 		mod_id: text(loader.get("id")),
-		depends,
+		depends: entries.iter().filter_map(quilt_dependency).collect(),
+		minecraft_range: entries.iter().find_map(quilt_minecraft_range),
 	})
 }
 
@@ -90,25 +90,38 @@ fn quilt_dependency(value: &Value) -> Option<Dependency> {
 	}
 }
 
+fn quilt_minecraft_range(value: &Value) -> Option<String> {
+	let object = value.as_object()?;
+	if object.get("id")?.as_str()? != MINECRAFT {
+		return None;
+	}
+	version_text(object.get("versions"))
+}
+
 fn from_forge_toml(archive: &mut Archive<'_>) -> Option<Metadata> {
 	["META-INF/neoforge.mods.toml", "META-INF/mods.toml"].into_iter().find_map(|path| {
 		let table: toml::Table = toml::from_str(&archive::read_text(archive, path)?).ok()?;
 		let first = table.get("mods")?.as_array()?.first()?;
-		let depends = table
-			.get("dependencies")
-			.and_then(toml::Value::as_table)
-			.into_iter()
-			.flat_map(|owners| owners.values())
-			.filter_map(toml::Value::as_array)
-			.flatten()
-			.filter_map(forge_dependency)
-			.collect();
 		Some(Metadata {
 			name: first.get("displayName").and_then(toml::Value::as_str).map(str::to_owned),
 			mod_id: first.get("modId").and_then(toml::Value::as_str).map(str::to_owned),
-			depends,
+			depends: dependency_entries(&table).filter_map(forge_dependency).collect(),
+			minecraft_range: dependency_entries(&table)
+				.find(|entry| entry.get("modId").and_then(toml::Value::as_str) == Some(MINECRAFT))
+				.and_then(|entry| entry.get("versionRange")?.as_str().map(str::to_owned))
+				.filter(|range| !range.trim().is_empty()),
 		})
 	})
+}
+
+fn dependency_entries(table: &toml::Table) -> impl Iterator<Item = &toml::Value> {
+	table
+		.get("dependencies")
+		.and_then(toml::Value::as_table)
+		.into_iter()
+		.flat_map(|owners| owners.values())
+		.filter_map(toml::Value::as_array)
+		.flatten()
 }
 
 fn forge_dependency(entry: &toml::Value) -> Option<Dependency> {
@@ -121,6 +134,8 @@ fn forge_dependency(entry: &toml::Value) -> Option<Dependency> {
 #[derive(Deserialize)]
 struct PluginDescriptor {
 	name: Option<String>,
+	#[serde(default, rename = "api-version", deserialize_with = "text_only")]
+	api_version: Option<String>,
 	#[serde(default)]
 	depend: Vec<String>,
 	#[serde(default)]
@@ -147,6 +162,12 @@ fn required_by_default() -> bool {
 
 fn from_plugin_yml(archive: &mut Archive<'_>, path: &str) -> Option<Metadata> {
 	let descriptor: PluginDescriptor = serde_saphyr::from_str(&archive::read_text(archive, path)?).ok()?;
+	let minecraft_range = descriptor
+		.api_version
+		.as_deref()
+		.map(str::trim)
+		.filter(|version| !version.is_empty())
+		.map(|version| format!(">={version}"));
 	let name = descriptor.name?;
 	let depends = descriptor
 		.depend
@@ -168,9 +189,86 @@ fn from_plugin_yml(archive: &mut Archive<'_>, path: &str) -> Option<Metadata> {
 		name: Some(name.clone()),
 		mod_id: Some(name),
 		depends,
+		minecraft_range,
 	})
+}
+
+fn text_only<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+	struct TextOnly;
+
+	impl<'de> Visitor<'de> for TextOnly {
+		type Value = Option<String>;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+			formatter.write_str("an optional text value")
+		}
+
+		fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+			Ok(None)
+		}
+
+		fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+			Ok(None)
+		}
+
+		fn visit_some<D2: Deserializer<'de>>(self, deserializer: D2) -> Result<Self::Value, D2::Error> {
+			deserializer.deserialize_any(self)
+		}
+
+		fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+			Ok(Some(value.to_owned()))
+		}
+
+		fn visit_string<E: de::Error>(self, value: String) -> Result<Self::Value, E> {
+			Ok(Some(value))
+		}
+
+		fn visit_bool<E: de::Error>(self, _: bool) -> Result<Self::Value, E> {
+			Ok(None)
+		}
+
+		fn visit_i64<E: de::Error>(self, _: i64) -> Result<Self::Value, E> {
+			Ok(None)
+		}
+
+		fn visit_u64<E: de::Error>(self, _: u64) -> Result<Self::Value, E> {
+			Ok(None)
+		}
+
+		fn visit_f64<E: de::Error>(self, _: f64) -> Result<Self::Value, E> {
+			Ok(None)
+		}
+
+		fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+			while seq.next_element::<IgnoredAny>()?.is_some() {}
+			Ok(None)
+		}
+
+		fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+			while map.next_entry::<IgnoredAny, IgnoredAny>()?.is_some() {}
+			Ok(None)
+		}
+	}
+
+	deserializer.deserialize_option(TextOnly)
 }
 
 fn text(value: Option<&Value>) -> Option<String> {
 	value.and_then(Value::as_str).map(str::to_owned)
+}
+
+fn version_text(value: Option<&Value>) -> Option<String> {
+	match value? {
+		Value::String(range) => Some(range.trim().to_owned()).filter(|range| !range.is_empty()),
+		Value::Array(ranges) => {
+			let alternatives: Vec<&str> = ranges
+				.iter()
+				.filter_map(Value::as_str)
+				.map(str::trim)
+				.filter(|range| !range.is_empty())
+				.collect();
+			(!alternatives.is_empty()).then(|| alternatives.join(" || "))
+		}
+		_ => None,
+	}
 }

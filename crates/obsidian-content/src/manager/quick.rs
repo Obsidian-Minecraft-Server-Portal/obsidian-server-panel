@@ -17,9 +17,9 @@ pub struct QuickAdded {
 	pub resource_pack: Option<ServerResourcePack>,
 }
 
-struct Planned {
-	project_id: String,
-	version: ProjectVersion,
+pub(super) struct Planned {
+	pub(super) project_id: String,
+	pub(super) version: ProjectVersion,
 }
 
 impl ContentManager {
@@ -158,7 +158,7 @@ impl ContentManager {
 	}
 }
 
-async fn plan(
+pub(super) async fn plan(
 	provider: &dyn ContentPlatform,
 	filter: &VersionFilter,
 	installed: &HashSet<String>,
@@ -209,7 +209,7 @@ async fn plan(
 	Ok(planned)
 }
 
-fn newest(versions: Vec<ProjectVersion>) -> Option<ProjectVersion> {
+pub(super) fn newest(versions: Vec<ProjectVersion>) -> Option<ProjectVersion> {
 	versions.into_iter().max_by_key(|version| version.published_at)
 }
 

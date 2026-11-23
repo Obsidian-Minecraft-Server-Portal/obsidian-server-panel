@@ -6,6 +6,7 @@ use zip::write::SimpleFileOptions;
 
 use crate::icon;
 use crate::manager::targets::world_root;
+use crate::metadata;
 use crate::manager::{NewRecord, content_filename, jar_filename, safe_filename, store, verify_checksums};
 use crate::platform::{Kind, Platform};
 use crate::{ContentManager, http, modpack};
@@ -17,6 +18,28 @@ fn jar(entries: &[(&str, &[u8])]) -> Vec<u8> {
 		writer.write_all(bytes).unwrap();
 	}
 	writer.finish().unwrap().into_inner()
+}
+
+#[test]
+fn minecraft_range_is_read_from_each_loader_format() {
+	let cases = [
+		(jar(&[("fabric.mod.json", br#"{"depends":{"minecraft":">=1.20 <1.21","fabricloader":">=0.14"}}"#)]), Some(">=1.20 <1.21")),
+		(jar(&[("fabric.mod.json", br#"{"depends":{"minecraft":["1.20.1","1.20.2"]}}"#)]), Some("1.20.1 || 1.20.2")),
+		(
+			jar(&[("quilt.mod.json", br#"{"quilt_loader":{"id":"q","depends":[{"id":"minecraft","versions":">=1.21"}]}}"#)]),
+			Some(">=1.21"),
+		),
+		(
+			jar(&[("META-INF/mods.toml", b"[[mods]]\nmodId = \"x\"\n\n[[dependencies.x]]\nmodId = \"minecraft\"\nversionRange = \"[1.20.1,1.21)\"\n")]),
+			Some("[1.20.1,1.21)"),
+		),
+		(jar(&[("plugin.yml", b"name: P\napi-version: '1.20'\n")]), Some(">=1.20")),
+		(jar(&[("plugin.yml", b"name: P\napi-version: 1.20\n")]), None),
+		(jar(&[("fabric.mod.json", br#"{"id":"x"}"#)]), None),
+	];
+	for (bytes, expected) in cases {
+		assert_eq!(metadata::extract(&bytes).minecraft_range.as_deref(), expected);
+	}
 }
 
 #[test]
@@ -192,6 +215,85 @@ async fn list_reconciles_jars_dropped_on_disk() {
 	tokio::fs::remove_file(mods.join("manual.jar")).await.unwrap();
 	manager.scanned.invalidate(&instance_id);
 	assert_eq!(manager.list(instance_id).await.unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn restore_records_returns_rows_to_their_saved_state() {
+	let dir = tempfile::tempdir().unwrap();
+	let paths = Paths::new(dir.path()).unwrap();
+	let db = Db::open(&paths).await.unwrap();
+	let manager = ContentManager::new(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()));
+	let instance_id = seed_instance(&db).await;
+	let sodium = NewRecord {
+		instance_id,
+		filename: "a.jar",
+		project_id: Some("sodium"),
+		version_id: Some("v1"),
+		platform: Some(Platform::Modrinth),
+		kind: Kind::Mod,
+		icon: None,
+	};
+	store::insert(db.pool(), &sodium).await.unwrap();
+	let lithium = NewRecord {
+		instance_id,
+		filename: "b.jar",
+		project_id: Some("lithium"),
+		version_id: Some("v1"),
+		platform: Some(Platform::Modrinth),
+		kind: Kind::Mod,
+		icon: None,
+	};
+	store::insert(db.pool(), &lithium).await.unwrap();
+	let saved = manager.records(instance_id).await.unwrap();
+
+	sqlx::query("UPDATE mods SET version_id = 'v2', filename = 'a2.jar' WHERE instance_id = ? AND filename = 'a.jar'")
+		.bind(instance_id)
+		.execute(db.pool())
+		.await
+		.unwrap();
+	sqlx::query("DELETE FROM mods WHERE instance_id = ? AND filename = 'b.jar'")
+		.bind(instance_id)
+		.execute(db.pool())
+		.await
+		.unwrap();
+	let added = NewRecord {
+		instance_id,
+		filename: "c.jar",
+		project_id: Some("fabric-api"),
+		version_id: Some("v1"),
+		platform: Some(Platform::Modrinth),
+		kind: Kind::Mod,
+		icon: None,
+	};
+	store::insert(db.pool(), &added).await.unwrap();
+
+	manager.restore_records(instance_id, &saved).await.unwrap();
+	let restored = manager.records(instance_id).await.unwrap();
+	let describe = |rows: &[crate::ContentRecord]| -> Vec<(i64, String, Option<String>)> {
+		rows.iter()
+			.map(|row| (row.id, row.filename.clone(), row.version_id.clone()))
+			.collect()
+	};
+	assert_eq!(describe(&restored), describe(&saved));
+}
+
+#[tokio::test]
+async fn minecraft_ranges_are_stored_per_row() {
+	let dir = tempfile::tempdir().unwrap();
+	let paths = Paths::new(dir.path()).unwrap();
+	let db = Db::open(&paths).await.unwrap();
+	let instance_id = seed_instance(&db).await;
+	let declared = metadata::Metadata {
+		minecraft_range: Some(">=1.21".into()),
+		..Default::default()
+	};
+	store::insert_untracked(db.pool(), instance_id, "declared.jar", Kind::Mod, None, &declared).await.unwrap();
+	store::insert_untracked(db.pool(), instance_id, "silent.jar", Kind::Mod, None, &metadata::Metadata::default())
+		.await
+		.unwrap();
+
+	let ranges = store::minecraft_ranges(db.pool(), instance_id).await.unwrap();
+	assert_eq!(ranges.values().collect::<Vec<_>>(), [&">=1.21".to_owned()]);
 }
 
 #[test]

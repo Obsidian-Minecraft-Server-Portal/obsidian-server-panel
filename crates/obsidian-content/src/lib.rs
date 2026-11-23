@@ -7,6 +7,7 @@ mod modpack;
 mod metadata;
 mod platform;
 mod platforms;
+mod range;
 mod render;
 mod serverpack;
 #[cfg(test)]
@@ -14,11 +15,13 @@ mod tests;
 
 pub use icon::mime as icon_mime;
 pub use manager::{
-	ContentManager, ContentRelations, ContentSource, DependencyEntry, DependentEntry, InstalledWorld, QuickAdded, ServerResourcePack,
+	ContentManager, ContentRecord, ContentRelations, ContentSource, DependencyEntry, DependentEntry, InstalledWorld, QuickAdded,
+	ServerResourcePack,
 };
 pub use model::{
-	Category, CategoryGroup, ContentUpdate, DependencyKind, Facets, GalleryImage, InstallRequest, InstalledContent, ModpackRequest, PackSource,
-	Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage, SearchQuery, Side, VersionDependency, VersionFilter,
+	Category, CategoryGroup, Compatibility, CompatibilityEntry, ContentUpdate, DependencyKind, Facets, GalleryImage, InstallRequest,
+	InstalledContent, ModpackRequest, PackSource, PlannedDependency, Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage,
+	SearchQuery, Side, Upgrade, VersionDependency, VersionFilter,
 };
 pub use platform::{ContentPlatform, Kind, Platform};
 pub use serverpack::{
