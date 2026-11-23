@@ -33,10 +33,7 @@ export function ScheduleForm({ initial, submitLabel, pending, error, onSubmit, o
         <Input placeholder="Nightly restart" maxLength={64} />
       </TextField>
 
-      <section className="space-y-2">
-        <h3 className="text-sm font-medium text-ink-2">When</h3>
-        <TriggerEditor value={draft.trigger} onChange={(trigger) => setDraft({ ...draft, trigger })} />
-      </section>
+      <TriggerEditor value={draft.trigger} onChange={(trigger) => setDraft({ ...draft, trigger })} />
 
       <section className="space-y-2">
         <h3 className="text-sm font-medium text-ink-2">Then</h3>

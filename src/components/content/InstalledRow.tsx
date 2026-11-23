@@ -30,7 +30,7 @@ export function InstalledRow({ item, update, busy, confirmingRemove, onToggle, o
         <p className={cn("truncate font-medium text-ink-0", !item.enabled && "text-ink-3 line-through")}>{displayName}</p>
         <div className="flex flex-wrap items-center gap-1.5">
           <Chip>{item.kind === "plugin" ? "Plugin" : item.kind === "datapack" ? "Data pack" : "Mod"}</Chip>
-          {item.platform !== null && <Chip tone="cyan">{PLATFORM_NAMES[item.platform]}</Chip>}
+          {item.platform !== null && <Chip tone="secondary">{PLATFORM_NAMES[item.platform]}</Chip>}
           {update && (
             <Chip tone="amber" pulse>
               Update · {update.latest.version_number}
@@ -44,15 +44,12 @@ export function InstalledRow({ item, update, busy, confirmingRemove, onToggle, o
             Update
           </PrimaryButton>
         )}
-        <Switch
-          aria-label={item.enabled ? "Disable" : "Enable"}
-          isSelected={item.enabled}
-          isDisabled={busy}
-          onChange={onToggle}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
+        <Switch isSelected={item.enabled} isDisabled={busy} onChange={onToggle}>
+          <Switch.Content aria-label={item.enabled ? "Disable" : "Enable"}>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
         </Switch>
         <GhostButton
           size="sm"

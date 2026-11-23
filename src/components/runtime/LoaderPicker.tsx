@@ -22,7 +22,7 @@ export function LoaderPicker({ value, onChange, isDisabled, exclude }: LoaderPic
       value={value}
       onChange={(next) => onChange(next as LoaderKind)}
       isDisabled={isDisabled}
-      className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+      className="grid grid-cols-1 gap-2 sm:grid-cols-3"
     >
       {kinds.filter((kind) => !exclude?.includes(kind)).map((kind) => {
         const meta = LOADER_META[kind];

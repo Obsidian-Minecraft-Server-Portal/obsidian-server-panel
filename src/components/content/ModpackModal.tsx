@@ -1,4 +1,4 @@
-import { Checkbox, Input, Label, Modal, TextField } from "@heroui/react";
+import { Input, Label, Modal, TextField } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +8,7 @@ import { useInstallModpack } from "../../api/content";
 import { instancesKey } from "../../api/instances";
 import { useAnalyzeModpack } from "../../api/serverpack";
 import { useTasks, type TaskView } from "../../api/tasks";
+import { CheckboxRow } from "../ui/CheckboxRow";
 import { ProgressBar } from "../ui/ProgressBar";
 import { GhostButton } from "../ui/GhostButton";
 import { PrimaryButton } from "../ui/PrimaryButton";
@@ -93,14 +94,9 @@ function OfficialPackForm({ action, onClose }: { action: ModpackAction; onClose:
               <Label className="text-sm font-medium text-ink-2">Instance name</Label>
               <Input placeholder={action.project.name} />
             </TextField>
-            <Checkbox isSelected={acceptEula} onChange={setAcceptEula} isDisabled={install.isPending}>
-              <Checkbox.Control>
-                <Checkbox.Indicator />
-              </Checkbox.Control>
-              <Checkbox.Content className="text-sm text-ink-1">
-                I accept the Minecraft EULA (https://aka.ms/MinecraftEULA).
-              </Checkbox.Content>
-            </Checkbox>
+            <CheckboxRow isSelected={acceptEula} onChange={setAcceptEula} isDisabled={install.isPending}>
+              I accept the Minecraft EULA (https://aka.ms/MinecraftEULA).
+            </CheckboxRow>
             {install.error && <p className="text-sm text-rose">{install.error.message}</p>}
           </>
         ) : (
@@ -213,7 +209,7 @@ function InstallProgress({ task }: { task: TaskView | undefined }) {
     const warnings = result?.warnings ?? [];
     return (
       <div className="space-y-4">
-        <p className="flex items-center gap-2 text-sm text-cyan">
+        <p className="flex items-center gap-2 text-sm text-green">
           <Icon icon="lucide:circle-check" width={16} height={16} />
           Installed {result?.installed ?? 0} files{failed > 0 ? `, ${failed} need manual install` : ""}.
         </p>

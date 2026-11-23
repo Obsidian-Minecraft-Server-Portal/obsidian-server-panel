@@ -1,5 +1,5 @@
-import { Checkbox, cn } from "@heroui/react";
 import { useMemo } from "react";
+import { CheckboxRow } from "../ui/CheckboxRow";
 import { groupPermissions, permissionLabel } from "./format";
 
 interface PermissionMatrixProps {
@@ -27,18 +27,14 @@ export function PermissionMatrix({ catalog, value, onChange, disabled }: Permiss
           <h4 className="mb-1 font-mono text-[10px] font-medium tracking-widest text-ink-3 uppercase">{group.label}</h4>
           <ul className="divide-y divide-line">
             {group.permissions.map((name) => (
-              <li key={name}>
-                <Checkbox
+              <li key={name} className="py-2.5">
+                <CheckboxRow
                   isSelected={selected.has(name)}
                   isDisabled={disabled}
-                  onChange={(on: boolean) => toggle(name, on)}
-                  className={cn("!flex !flex-row !items-center gap-3 py-2.5", disabled ? "opacity-60" : "cursor-pointer")}
+                  onChange={(on) => toggle(name, on)}
                 >
-                  <Checkbox.Control className="size-4 shrink-0 rounded-[5px] border border-ink-4 bg-input data-[selected=true]:border-accent data-[selected=true]:bg-accent">
-                    <Checkbox.Indicator />
-                  </Checkbox.Control>
-                  <Checkbox.Content className="text-sm text-ink-1">{permissionLabel(name)}</Checkbox.Content>
-                </Checkbox>
+                  {permissionLabel(name)}
+                </CheckboxRow>
               </li>
             ))}
           </ul>

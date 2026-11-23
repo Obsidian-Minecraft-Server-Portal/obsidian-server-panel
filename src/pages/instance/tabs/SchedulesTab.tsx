@@ -101,7 +101,7 @@ export function SchedulesTab() {
             title="No schedules yet"
             description="Schedules run backups, restarts and commands on a timer or in response to server events. Pick a preset to start."
             action={
-              <div className="w-full max-w-3xl">
+              <div className="w-full max-w-5xl">
                 <PresetCards onPick={(preset) => openEditor({ recordId: null, initial: preset.schedule })} />
               </div>
             }

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useLoaderVersions, type LoaderKind } from "../../api/loaders";
 import { SearchSelect } from "../ui/SearchSelect";
 
@@ -12,8 +12,16 @@ interface LoaderVersionSelectProps {
 
 export function LoaderVersionSelect({ loader, mcVersion, value, onChange, isDisabled }: LoaderVersionSelectProps) {
   const { data, isLoading, isError } = useLoaderVersions(loader, mcVersion);
-  const options = useMemo(() => (data ?? []).map((version, index) => ({ id: version, label: version, detail: index === 0 ? "Latest" : undefined })), [data]);
+  const options = useMemo(
+    () => (data ?? []).map((version, index) => ({ id: version, label: version, detail: index === 0 ? "Latest" : undefined })),
+    [data],
+  );
   const notRequired = data !== undefined && data.length === 0;
+  const latest = data?.[0] ?? null;
+
+  useEffect(() => {
+    if (value === null && latest !== null && !isDisabled) onChange(latest);
+  }, [value, latest, isDisabled, onChange]);
 
   const placeholder = !mcVersion
     ? "Choose a Minecraft version first"

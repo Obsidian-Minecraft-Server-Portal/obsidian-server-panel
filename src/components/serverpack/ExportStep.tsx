@@ -1,4 +1,5 @@
-import { Checkbox, Input, Label, TextField } from "@heroui/react";
+import { Input, Label, TextField } from "@heroui/react";
+import { CheckboxRow } from "../ui/CheckboxRow";
 import { useEffect, useRef, useState } from "react";
 import { useExportServerPack, type AnalysisResult, type ServerPackReceipt } from "../../api/serverpack";
 import { useTasks, type TaskView } from "../../api/tasks";
@@ -54,14 +55,9 @@ export function ExportStep({ draft, decisions, onBack, onDone }: ExportStepProps
               <Label className="text-sm font-medium text-ink-2">Server name</Label>
               <Input placeholder={draft.pack_name} />
             </TextField>
-            <Checkbox isSelected={acceptEula} onChange={setAcceptEula} isDisabled={exportPack.isPending}>
-              <Checkbox.Control>
-                <Checkbox.Indicator />
-              </Checkbox.Control>
-              <Checkbox.Content className="text-sm text-ink-1">
-                I accept the Minecraft EULA (https://aka.ms/MinecraftEULA).
-              </Checkbox.Content>
-            </Checkbox>
+            <CheckboxRow isSelected={acceptEula} onChange={setAcceptEula} isDisabled={exportPack.isPending}>
+              I accept the Minecraft EULA (https://aka.ms/MinecraftEULA).
+            </CheckboxRow>
             {exportPack.error && <p className="text-sm text-rose">{exportPack.error.message}</p>}
             <div className="flex justify-end gap-2">
               <GhostButton onPress={onBack} isDisabled={exportPack.isPending}>

@@ -31,10 +31,12 @@ export function ScheduleCard({ record, busy, onToggle, onRun, onEdit, onDelete }
             {record.next_run_at ? `NEXT ${formatDateTime(record.next_run_at)}` : "NO UPCOMING RUN"}
           </p>
         </div>
-        <Switch isSelected={schedule.enabled} isDisabled={busy} onChange={onToggle} aria-label="Enabled">
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
+        <Switch isSelected={schedule.enabled} isDisabled={busy} onChange={onToggle}>
+          <Switch.Content aria-label="Enabled">
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
         </Switch>
       </header>
 

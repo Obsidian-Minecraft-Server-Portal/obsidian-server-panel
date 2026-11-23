@@ -1,8 +1,9 @@
-import { Button, Checkbox, Input, Label, TextField } from "@heroui/react";
+import { Button, Input, Label, TextField } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { useEffect, useState } from "react";
 import type { Action, Step } from "../../api/schedules";
 import { OptionSelect } from "../runtime/OptionSelect";
+import { CheckboxRow } from "../ui/CheckboxRow";
 import { GhostButton } from "../ui/GhostButton";
 import { NumberInput } from "./FormFields";
 import { ACTION_OPTIONS, newStep, type ActionKind } from "./model";
@@ -85,15 +86,12 @@ function StepRow({ step, index, isFirst, isLast, onChange, onRemove, onMove }: S
           max={86_400}
           onChange={(delay_secs) => onChange({ ...step, delay_secs })}
         />
-        <Checkbox
+        <CheckboxRow
           isSelected={step.only_if_running}
-          onChange={(only_if_running: boolean) => onChange({ ...step, only_if_running })}
+          onChange={(only_if_running) => onChange({ ...step, only_if_running })}
         >
-          <Checkbox.Control>
-            <Checkbox.Indicator />
-          </Checkbox.Control>
-          <Checkbox.Content className="text-sm text-ink-2">Only if the server is running</Checkbox.Content>
-        </Checkbox>
+          Only if the server is running
+        </CheckboxRow>
       </div>
     </li>
   );

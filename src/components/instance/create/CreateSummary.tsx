@@ -1,7 +1,7 @@
-import { Checkbox } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { useAvailableJava, useJavaRequirement, useJavaRuntimes } from "../../../api/java";
 import { useNextPort } from "../../../api/system";
+import { CheckboxRow } from "../../ui/CheckboxRow";
 import { LOADER_META } from "../../runtime/loaderMeta";
 import { PrimaryButton } from "../../ui/PrimaryButton";
 import { missingField, type CreateDraft } from "./draft";
@@ -71,23 +71,14 @@ export function CreateSummary({ draft, onEula, onCreate, isPending, error }: Cre
         ))}
       </dl>
 
-      <div className="relative flex items-start gap-3">
-        <Checkbox
-          isSelected={draft.acceptEula}
-          onChange={onEula}
-          className="relative flex w-full items-start gap-3 rounded-control p-1 text-left"
-        >
-          <Checkbox.Control className="mt-0.5 size-5 shrink-0 border-ink-4 bg-input">
-            <Checkbox.Indicator />
-          </Checkbox.Control>
-          <Checkbox.Content className="min-w-0 flex-1 text-sm leading-snug text-ink-2">
-            I accept the{" "}
-            <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer" className="text-accent hover:underline">
-              Minecraft EULA
-            </a>
-            , which every server must agree to. <span className="text-rose">*</span>
-          </Checkbox.Content>
-        </Checkbox>
+      <div className="relative">
+        <CheckboxRow isSelected={draft.acceptEula} onChange={onEula}>
+          I accept the{" "}
+          <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+            Minecraft EULA
+          </a>
+          , which every server must agree to. <span className="text-rose">*</span>
+        </CheckboxRow>
       </div>
 
       <div className="relative space-y-2">
