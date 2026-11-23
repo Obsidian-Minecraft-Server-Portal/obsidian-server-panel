@@ -1,13 +1,8 @@
 import type { FileEntry } from "../../api/files";
+import type { MenuAction } from "../ui/ContextMenu";
 import { isArchive } from "./fileUtils";
 
-export interface FileAction {
-  key: string;
-  label: string;
-  icon: string;
-  danger?: boolean;
-  run: () => void;
-}
+export type FileAction = MenuAction;
 
 export interface FileActionHandlers {
   open: (entry: FileEntry) => void;

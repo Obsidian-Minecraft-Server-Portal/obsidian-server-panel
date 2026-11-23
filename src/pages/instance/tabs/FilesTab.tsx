@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router";
 import { downloadUrl, useDirectory, type FileEntry } from "../../../api/files";
 import { useInstance } from "../../../api/instances";
 import { Breadcrumbs } from "../../../components/files/Breadcrumbs";
-import { ContextMenu } from "../../../components/files/ContextMenu";
+import { ContextMenu } from "../../../components/ui/ContextMenu";
 import { FileDialogs, type FileDialog } from "../../../components/files/FileDialogs";
 import { FileDropZone } from "../../../components/files/FileDropZone";
 import { FileEditor } from "../../../components/files/FileEditor";
@@ -127,7 +127,7 @@ export function FilesTab() {
           <FileEditor key={editing} instanceId={id} path={editing} ops={ops} onClose={() => setEditing(null)} />
         </div>
         {dialog && <FileDialogs dialog={dialog} dir={dir} entries={entries} ops={ops} onOpenFile={openFile} onClose={closeDialog} />}
-        {target && <ContextMenu x={target.x} y={target.y} actions={menuActions} onClose={closeMenu} />}
+        {target && <ContextMenu x={target.x} y={target.y} label="File actions" actions={menuActions} onClose={closeMenu} />}
         <UploadPanel />
       </div>
     );
@@ -172,7 +172,7 @@ export function FilesTab() {
       </div>
 
       {dialog && <FileDialogs dialog={dialog} dir={dir} entries={entries} ops={ops} onOpenFile={openFile} onClose={closeDialog} />}
-      {target && <ContextMenu x={target.x} y={target.y} actions={menuActions} onClose={closeMenu} />}
+      {target && <ContextMenu x={target.x} y={target.y} label="File actions" actions={menuActions} onClose={closeMenu} />}
       <UploadPanel />
     </div>
   );

@@ -1,7 +1,16 @@
 import { cn, Menu } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { useEffect, useRef, type Key } from "react";
-import type { FileAction } from "./fileActions";
+import { useEffect, useRef, type Key, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
+import { GhostButton } from "./GhostButton";
+
+export interface MenuAction {
+  key: string;
+  label: string;
+  icon: string;
+  danger?: boolean;
+  run: () => void;
+}
 
 const MENU_WIDTH = 208;
 const ITEM_HEIGHT = 36;
@@ -9,11 +18,12 @@ const ITEM_HEIGHT = 36;
 interface ContextMenuProps {
   x: number;
   y: number;
-  actions: FileAction[];
+  label: string;
+  actions: MenuAction[];
   onClose: () => void;
 }
 
-export function ContextMenu({ x, y, actions, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, label, actions, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,13 +51,15 @@ export function ContextMenu({ x, y, actions, onClose }: ContextMenuProps) {
     actions.find((action) => action.key === key)?.run();
   };
 
-  return (
+  return createPortal(
     <div
       ref={ref}
       style={{ left, top, width: MENU_WIDTH }}
+      onClick={stopPropagation}
+      onContextMenu={stopPropagation}
       className="fixed z-50 rounded-control border border-line-strong bg-raised p-1.5 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8)]"
     >
-      <Menu aria-label="File actions" autoFocus="first" onAction={run} className="space-y-0.5 outline-none">
+      <Menu aria-label={label} autoFocus="first" onAction={run} className="space-y-0.5 outline-none">
         {actions.map((action, index) => (
           <Menu.Item
             key={action.key}
@@ -64,6 +76,34 @@ export function ContextMenu({ x, y, actions, onClose }: ContextMenuProps) {
           </Menu.Item>
         ))}
       </Menu>
-    </div>
+    </div>,
+    document.body,
+  );
+}
+
+function stopPropagation(event: MouseEvent) {
+  event.stopPropagation();
+}
+
+interface MenuButtonProps {
+  label: string;
+  onOpen: (x: number, y: number) => void;
+}
+
+export function MenuButton({ label, onOpen }: MenuButtonProps) {
+  return (
+    <GhostButton
+      isIconOnly
+      size="sm"
+      aria-label={label}
+      onClick={stopPropagation}
+      onPress={(event) => {
+        const box = event.target.getBoundingClientRect();
+        onOpen(box.left, box.bottom + 6);
+      }}
+      className="size-8 min-w-0"
+    >
+      <Icon icon="lucide:ellipsis" width={16} height={16} />
+    </GhostButton>
   );
 }
