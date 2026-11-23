@@ -3,14 +3,15 @@ import { Icon } from "@iconify-icon/react";
 import { useState } from "react";
 import { useNotifications } from "../../api/notifications";
 import { useTasks } from "../../api/tasks";
+import { Tip } from "../ui/Tip";
 import { NotificationList } from "./NotificationList";
 import { TaskList } from "./TaskList";
 
 type ActivityTab = "notifications" | "tasks";
 
-function CountBadge({ count, tone }: { count: number; tone: "accent" | "cyan" }) {
+function CountBadge({ count, tone }: { count: number; tone: "accent" | "green" }) {
   if (count === 0) return null;
-  const palette = tone === "accent" ? "bg-accent-tint text-accent" : "bg-cyan/12 text-cyan";
+  const palette = tone === "accent" ? "bg-accent-tint text-accent" : "bg-green/12 text-green";
   return <span className={`rounded-full px-1.5 font-mono text-[10px] leading-4 ${palette}`}>{count}</span>;
 }
 
@@ -22,7 +23,7 @@ export function ActivityMenu() {
 
   const unread = (notifications.data ?? []).filter((item) => !item.read).length;
   const running = (tasks.data ?? []).filter((task) => task.status === "running").length;
-  const dot = unread > 0 ? "bg-accent" : running > 0 ? "bg-cyan animate-pulse" : null;
+  const dot = unread > 0 ? "bg-accent" : running > 0 ? "bg-green animate-pulse" : null;
   const label = [
     "Activity",
     unread > 0 && `${unread} unread`,
@@ -31,15 +32,17 @@ export function ActivityMenu() {
 
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Button
-        variant="ghost"
-        isIconOnly
-        aria-label={label}
-        className="relative size-11 rounded-control text-ink-3 hover:bg-raised hover:text-ink-1"
-      >
-        <Icon icon="lucide:bell" width={20} height={20} />
-        {dot && <span className={`absolute top-2 right-2 size-2 rounded-full ring-2 ring-rail ${dot}`} />}
-      </Button>
+      <Tip label={label}>
+        <Button
+          variant="ghost"
+          isIconOnly
+          aria-label={label}
+          className="relative size-11 rounded-control text-ink-3 hover:bg-raised hover:text-ink-1"
+        >
+          <Icon icon="lucide:bell" width={20} height={20} />
+          {dot && <span className={`absolute top-2 right-2 size-2 rounded-full ring-2 ring-rail ${dot}`} />}
+        </Button>
+      </Tip>
       <Popover.Content placement="right bottom" className="w-96 rounded-panel border border-line-strong bg-input">
         <Popover.Dialog aria-label="Activity" className="p-0">
           <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key) as ActivityTab)}>
@@ -53,7 +56,7 @@ export function ActivityMenu() {
                   </Tabs.Tab>
                   <Tabs.Tab id="tasks">
                     Tasks
-                    <CountBadge count={running} tone="cyan" />
+                    <CountBadge count={running} tone="green" />
                     <Tabs.Indicator />
                   </Tabs.Tab>
                 </Tabs.List>

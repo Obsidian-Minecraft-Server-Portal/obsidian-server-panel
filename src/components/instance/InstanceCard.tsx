@@ -25,7 +25,7 @@ export function InstanceCard({ view }: { view: InstanceView }) {
         <div className="-mt-7 flex items-end gap-3">
           <InstanceIcon instance={view} className="size-14 border-2 border-panel shadow-lift" />
           <div className="min-w-0 flex-1 pb-1">
-            <Link to={path} className="block truncate text-lg font-semibold text-ink-0 hover:underline">
+            <Link to={path} className="block truncate text-lg font-semibold text-ink-0">
               {view.name}
             </Link>
             <p className="truncate font-mono text-[11px] text-ink-3">:{view.port}</p>

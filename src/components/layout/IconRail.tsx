@@ -1,10 +1,11 @@
-import { initialsOf } from "../ui/UserAvatar";
 import { Button, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useCurrentUser } from "../../api/session";
-import { Logo } from "../ui/Logo";
 import { ActivityMenu } from "../activity/ActivityMenu";
+import { Logo } from "../ui/Logo";
+import { Tip } from "../ui/Tip";
+import { initialsOf } from "../ui/UserAvatar";
 
 interface RailItem {
   to: string;
@@ -28,22 +29,23 @@ const PRIMARY_ITEMS: RailItem[] = [
 function RailLink({ item }: { item: RailItem }) {
   const { pathname } = useLocation();
   return (
-    <NavLink
-      to={item.to}
-      end={item.end}
-      aria-label={item.label}
-      title={item.label}
-      className={({ isActive }) =>
-        cn(
-          "relative grid size-11 place-items-center rounded-control transition-colors",
-          (item.matches?.(pathname) ?? isActive)
-            ? "bg-raised text-ink-0 before:absolute before:top-2.5 before:-left-3 before:h-6 before:w-[3px] before:rounded-r-full before:bg-accent"
-            : "text-ink-3 hover:bg-raised hover:text-ink-1",
-        )
-      }
-    >
-      <Icon icon={item.icon} width={20} height={20} />
-    </NavLink>
+    <Tip label={item.label}>
+      <NavLink
+        to={item.to}
+        end={item.end}
+        aria-label={item.label}
+        className={({ isActive }) =>
+          cn(
+            "relative grid size-11 place-items-center rounded-control transition-colors",
+            (item.matches?.(pathname) ?? isActive)
+              ? "bg-raised text-ink-0 before:absolute before:top-2.5 before:-left-3 before:h-6 before:w-[3px] before:rounded-r-full before:bg-accent"
+              : "text-ink-3 hover:bg-raised hover:text-ink-1",
+          )
+        }
+      >
+        <Icon icon={item.icon} width={20} height={20} />
+      </NavLink>
+    </Tip>
   );
 }
 
@@ -68,16 +70,18 @@ export function IconRail() {
       <div className="mt-auto flex flex-col items-center gap-2">
         <ActivityMenu />
         <RailLink item={{ to: "/settings", icon: "lucide:settings", label: "Settings" }} />
-        <Button
-          variant="ghost"
-          isIconOnly
-          aria-label="Account"
-          onPress={() => navigate("/settings/account")}
-          className="relative mt-1 size-11 rounded-control border border-line-strong bg-raised font-mono text-sm font-semibold text-ink-1"
-        >
-          {initials}
-          <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-cyan ring-2 ring-rail" />
-        </Button>
+        <Tip label="Account">
+          <Button
+            variant="ghost"
+            isIconOnly
+            aria-label="Account"
+            onPress={() => navigate("/settings/account")}
+            className="relative mt-1 size-11 rounded-control border border-line-strong bg-raised font-mono text-sm font-semibold text-ink-1"
+          >
+            {initials}
+            <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-green ring-2 ring-rail" />
+          </Button>
+        </Tip>
       </div>
     </nav>
   );
