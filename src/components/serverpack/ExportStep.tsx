@@ -47,7 +47,7 @@ export function ExportStep({ draft, decisions, onBack, onDone }: ExportStepProps
     });
 
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
       <div className="max-w-xl space-y-5">
         {taskId === null ? (
           <>

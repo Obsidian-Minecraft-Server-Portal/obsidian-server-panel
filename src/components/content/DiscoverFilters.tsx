@@ -24,7 +24,7 @@ export function DiscoverTabs({ kind, platform, platforms, onKind }: DiscoverTabs
               key={entry}
               id={entry}
               isDisabled={!platformOffersKind(platforms, platform, entry)}
-              className="flex-1 font-medium text-ink-2 data-[disabled=true]:text-ink-4 data-[selected=true]:text-accent"
+              className="flex-1 whitespace-nowrap font-medium text-ink-2 data-[disabled=true]:text-ink-4 data-[selected=true]:text-accent"
             >
               {KIND_LABELS[entry]}
               <Tabs.Indicator />

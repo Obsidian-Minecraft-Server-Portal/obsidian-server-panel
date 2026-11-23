@@ -66,7 +66,7 @@ export function SoftwarePanel({ view }: { view: InstanceView }) {
     <Panel title="Server software">
       <div className="space-y-5">
         <LoaderPicker value={draft.loader} onChange={chooseLoader} isDisabled={busy} exclude={["custom"]} />
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <VersionSelect loader={draft.loader} value={draft.mcVersion} onChange={chooseVersion} isDisabled={busy} />
           <LoaderVersionSelect
             loader={draft.loader}

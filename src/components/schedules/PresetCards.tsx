@@ -8,7 +8,7 @@ interface PresetCardsProps {
 
 export function PresetCards({ onPick }: PresetCardsProps) {
   return (
-    <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid grid-cols-1 w-full gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {PRESETS.map((preset, index) => (
         <Button
           key={preset.id}

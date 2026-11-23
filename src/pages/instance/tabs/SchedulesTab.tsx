@@ -58,7 +58,7 @@ export function SchedulesTab() {
   const list = schedules.data ?? [];
 
   return (
-    <div className="space-y-6 px-8 pb-8">
+    <div className="space-y-6 px-4 sm:px-8 pb-8">
       <Panel
         title="Schedules"
         actions={

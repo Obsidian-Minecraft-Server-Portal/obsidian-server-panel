@@ -16,7 +16,7 @@ interface ProjectOverviewProps {
 
 export function ProjectOverview({ detail }: ProjectOverviewProps) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Description html={detail.body_html} />
       <aside className="space-y-5">
         <DetailsPanel detail={detail} />

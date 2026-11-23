@@ -92,7 +92,7 @@ export function ReviewStep({ draft, decisions, onDecisionsChange, onBack, onCont
       </div>
 
       {tab === "mods" ? (
-        <div className="grid gap-5 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-[14rem_minmax(0,1fr)]">
           <nav aria-label="Filter by detected side" className="flex flex-wrap gap-1.5 md:flex-col">
             {FILTERS.map((key) => (
               <button

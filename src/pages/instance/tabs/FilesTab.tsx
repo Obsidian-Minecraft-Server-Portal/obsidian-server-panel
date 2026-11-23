@@ -108,7 +108,7 @@ export function FilesTab() {
 
   if (editing) {
     return (
-      <div className="grid min-h-[30rem] flex-1 items-start gap-5 px-8 pb-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-1 lg:items-stretch">
+      <div className="grid grid-cols-1 min-h-[30rem] flex-1 items-start gap-5 px-4 sm:px-8 pb-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-1 lg:items-stretch">
         <section className="flex max-h-[50vh] min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-panel lg:max-h-none">
           <div className="shrink-0 border-b border-line p-3">
             <Breadcrumbs path={dir} onNavigate={navigate} />
@@ -143,7 +143,7 @@ export function FilesTab() {
   }
 
   return (
-    <div className="grid items-start gap-5 px-8 pb-8 xl:grid-cols-[1fr_20rem]">
+    <div className="grid grid-cols-1 items-start gap-5 px-4 sm:px-8 pb-8 xl:grid-cols-[1fr_20rem]">
       <FileDropZone label={dir ? `/${dir}` : "the instance root"} onFiles={upload}>
         <section className="overflow-hidden rounded-panel border border-line bg-panel">
           <div className="space-y-3 border-b border-line p-4">

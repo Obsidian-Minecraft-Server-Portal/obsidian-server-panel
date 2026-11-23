@@ -24,7 +24,7 @@ export function BackupsAndSchedulesTab() {
         tabs={canSchedule ? [BACKUPS, SCHEDULES] : [BACKUPS]}
         value={section}
         onChange={(next) => setParams({ section: next }, { replace: true })}
-        className="mx-8 mt-2"
+        className="mx-4 sm:mx-8 mt-2"
       />
       {section === "backups" ? <BackupsTab /> : <SchedulesTab />}
     </div>

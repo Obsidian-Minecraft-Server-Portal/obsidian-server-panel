@@ -22,14 +22,14 @@ export function MembersSection({ instanceId }: { instanceId: number }) {
   const failure = members.error ?? catalog.error;
   if (failure) {
     return (
-      <div className="px-8 pb-8">
+      <div className="px-4 sm:px-8 pb-8">
         <EmptyState icon="lucide:shield-alert" title="Members unavailable" description={failure.message} />
       </div>
     );
   }
   if (!members.data || !catalog.data) {
     return (
-      <div className="px-8 pb-8">
+      <div className="px-4 sm:px-8 pb-8">
         <p className="font-mono text-xs text-ink-3">LOADING MEMBERS…</p>
       </div>
     );

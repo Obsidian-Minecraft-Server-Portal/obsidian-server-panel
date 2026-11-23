@@ -13,7 +13,7 @@ interface PropertyFieldsProps {
 
 export function PropertyFields({ values, onChange, disabled }: PropertyFieldsProps) {
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
       {PROPERTY_SECTIONS.map((section) => (
         <Panel key={section.id} title={section.label}>
           <div className="space-y-5">

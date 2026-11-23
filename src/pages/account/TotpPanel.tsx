@@ -56,7 +56,7 @@ function TotpEnroll({ onCodes }: { onCodes: (codes: string[]) => void }) {
   }
 
   return (
-    <div className="grid gap-5 sm:grid-cols-[auto_1fr]">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-[auto_1fr]">
       <div className="justify-self-start rounded-control bg-white p-3">
         <QRCodeSVG value={setup.otpauth_url} size={152} />
       </div>

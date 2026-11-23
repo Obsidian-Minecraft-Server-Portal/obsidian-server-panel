@@ -81,7 +81,7 @@ export function InstalledRow({
         event.preventDefault();
         menu.openAt(event.clientX, event.clientY);
       }}
-      className="flex cursor-pointer flex-wrap items-center gap-4 rounded-panel border border-line bg-panel p-3.5 transition hover:border-line-strong hover:bg-raised"
+      className="flex min-w-0 cursor-pointer flex-wrap items-center gap-3 rounded-panel border border-line bg-panel p-3.5 transition hover:border-line-strong hover:bg-raised sm:gap-4"
     >
       <ProjectIcon src={contentIconUrl(item.instance_id, item.id)} alt="" className="size-12" />
       <div className="min-w-0 flex-1 basis-56 space-y-1">
@@ -101,7 +101,7 @@ export function InstalledRow({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-3" onClick={stopRowClick}>
+      <div className="flex max-w-full flex-wrap items-center gap-2 sm:gap-3" onClick={stopRowClick}>
         {update && (
           <PrimaryButton size="sm" isDisabled={busy} onPress={() => onApplyUpdate(update)}>
             Update

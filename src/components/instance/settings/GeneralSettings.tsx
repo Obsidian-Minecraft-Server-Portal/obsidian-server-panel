@@ -84,7 +84,7 @@ export function GeneralSettings({ view }: { view: InstanceView }) {
     <Panel title="General">
       <form onSubmit={submit} className="space-y-5">
         <FormField label="Name" value={form.name} onChange={(value) => set("name", value)} />
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <FormField
             label="Port"
             type="number"

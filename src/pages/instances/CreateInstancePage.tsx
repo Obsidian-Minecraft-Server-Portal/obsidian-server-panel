@@ -28,7 +28,7 @@ export function CreateInstancePage() {
         subtitle="Pick the software, version and resources. Everything can be changed later."
         actions={<GhostButton onPress={() => navigate("/")}>Cancel</GhostButton>}
       />
-      <div className="px-8 pb-10">
+      <div className="px-4 sm:px-8 pb-10">
         {created ? (
           <div className="mx-auto max-w-2xl space-y-4">
             {created.error && <p className="text-sm text-amber">{created.error}</p>}

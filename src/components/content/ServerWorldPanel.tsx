@@ -16,7 +16,7 @@ export function ServerWorldPanel({ instanceId, canRemove }: { instanceId: number
   const clear = useClearResourcePack(instanceId);
 
   return (
-    <div className="grid divide-y divide-line overflow-hidden rounded-panel border border-line bg-panel md:grid-cols-2 md:divide-x md:divide-y-0">
+    <div className="grid grid-cols-1 divide-y divide-line overflow-hidden rounded-panel border border-line bg-panel md:grid-cols-2 md:divide-x md:divide-y-0">
       <div className="flex items-center gap-3 px-4 py-3">
         <Icon icon="lucide:globe" width={18} height={18} className="text-ink-3" />
         <div className="min-w-0">

@@ -10,7 +10,7 @@ export function CrashHints({ status }: { status: InstanceStatus }) {
   if (status.state !== "crashed" || hints.length === 0 || dismissed === key) return null;
 
   return (
-    <section role="alert" className="mx-8 mt-6 flex gap-3 rounded-panel border border-rose/40 bg-rose/10 px-4 py-3">
+    <section role="alert" className="mx-4 sm:mx-8 mt-6 flex gap-3 rounded-panel border border-rose/40 bg-rose/10 px-4 py-3">
       <Icon icon="lucide:triangle-alert" width={18} height={18} className="mt-0.5 shrink-0 text-rose" />
       <div className="min-w-0 flex-1 space-y-2">
         <p className="font-mono text-[11px] tracking-wider text-rose uppercase">Crash hints</p>

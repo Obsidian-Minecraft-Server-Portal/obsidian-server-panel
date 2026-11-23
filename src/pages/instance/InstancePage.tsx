@@ -39,7 +39,7 @@ export function InstancePage() {
   if (!validId || instance.isError) {
     const notFound = !validId || (instance.error instanceof ApiError && (instance.error.status === 403 || instance.error.status === 404));
     return (
-      <div className="px-8 py-8">
+      <div className="px-4 sm:px-8 py-8">
         <EmptyState
           icon="lucide:search-x"
           title={notFound ? "Instance not found" : "Instance unavailable"}
@@ -50,7 +50,7 @@ export function InstancePage() {
   }
   if (tab === "files") return <Navigate to={`/instances/${id}/content?section=files`} replace />;
   const view = instance.data;
-  if (!view) return <p className="px-8 py-8 text-sm text-ink-3">Loading instance…</p>;
+  if (!view) return <p className="px-4 sm:px-8 py-8 text-sm text-ink-3">Loading instance…</p>;
 
   const visibleTabs = Object.entries(TABS).filter(([, entry]) => hasPermission(view, entry.permission));
   const active = visibleTabs.find(([key]) => key === tab)?.[1];
@@ -59,7 +59,7 @@ export function InstancePage() {
     return first ? (
       <Navigate to={`/instances/${id}/${first[0]}`} replace />
     ) : (
-      <div className="px-8 py-8">
+      <div className="px-4 sm:px-8 py-8">
         <EmptyState icon="lucide:lock" title="No access" description="You don't have permission to use this instance." />
       </div>
     );
@@ -70,7 +70,7 @@ export function InstancePage() {
     <div className="flex h-full min-h-full flex-col">
       <InstanceHero view={view} />
       <CrashHints status={view.status} />
-      <nav className="flex gap-7 overflow-x-auto border-b border-line px-8 [scrollbar-width:none]" aria-label="Instance sections">
+      <nav className="flex gap-7 overflow-x-auto border-b border-line px-4 sm:px-8 [scrollbar-width:none]" aria-label="Instance sections">
         {visibleTabs.map(([key, entry]) => (
           <Link
             key={key}

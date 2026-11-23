@@ -93,7 +93,7 @@ export function ProjectResults({ projects, view, onOpen, renderActions }: Projec
     );
   }
   return (
-    <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2200px]:grid-cols-4">
+    <div className="grid grid-cols-1 auto-rows-fr gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2200px]:grid-cols-4">
       {projects.map((project) => (
         <ProjectCard key={projectKey(project)} project={project} onOpen={onOpen} actions={renderActions(project)} />
       ))}

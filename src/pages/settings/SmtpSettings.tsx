@@ -92,7 +92,7 @@ function SmtpForm({ settings }: { settings: SettingsView }) {
             Email is configured through environment variables or the config file, so it is read-only here.
           </p>
         )}
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <FormField label="SMTP host" value={host} onChange={setHost} isDisabled={locked} autoComplete="off" isRequired />
           <FormField label="Port" inputMode="numeric" value={port} onChange={setPort} isDisabled={locked} maxLength={5} />
           <FormField label="Username" value={username} onChange={setUsername} isDisabled={locked} autoComplete="off" />

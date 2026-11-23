@@ -37,7 +37,7 @@ export function AccountSettings() {
           Sign out
         </GhostButton>
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Panel title="Email address">
           <EmailPanel user={user} />
         </Panel>

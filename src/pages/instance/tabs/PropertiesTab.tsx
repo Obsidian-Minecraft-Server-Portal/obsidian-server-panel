@@ -42,11 +42,11 @@ export function PropertiesTab() {
     setRaw(null);
   };
 
-  if (saved.isError) return <p className="px-8 text-sm text-rose">{saved.error.message}</p>;
-  if (!saved.data) return <p className="px-8 text-sm text-ink-3">Loading server.properties…</p>;
+  if (saved.isError) return <p className="px-4 sm:px-8 text-sm text-rose">{saved.error.message}</p>;
+  if (!saved.data) return <p className="px-4 sm:px-8 text-sm text-ink-3">Loading server.properties…</p>;
 
   return (
-    <div className="space-y-5 px-8 pb-8">
+    <div className="space-y-5 px-4 sm:px-8 pb-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="group" aria-label="Editor mode" className="flex rounded-control border border-line bg-input p-1">
           {(["Form", "Raw"] as const).map((label) => (

@@ -49,7 +49,7 @@ export function EmailStep({ value, onChange }: EmailStepProps) {
         onChange={set("enabled")}
       />
       {value.enabled && (
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <FormField label={t("setup.smtpHost")} value={value.host} onChange={set("host")} autoComplete="off" isRequired />
           <FormField label={t("setup.port")} inputMode="numeric" value={value.port} onChange={set("port")} maxLength={5} />
           <FormField label={t("common.username")} value={value.username} onChange={set("username")} autoComplete="off" />

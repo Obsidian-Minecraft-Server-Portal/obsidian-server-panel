@@ -49,14 +49,14 @@ export function BackupsTab() {
   const loadFailure = snapshots.error ?? stats.error ?? policy.error;
   if (loadFailure) {
     return (
-      <div className="px-8 pb-8">
+      <div className="px-4 sm:px-8 pb-8">
         <EmptyState icon="lucide:archive-x" title="Backups unavailable" description={loadFailure.message} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 px-8 pb-8">
+    <div className="space-y-6 px-4 sm:px-8 pb-8">
       <Panel
         title="Snapshots"
         actions={

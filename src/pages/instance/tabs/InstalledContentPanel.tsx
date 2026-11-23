@@ -88,7 +88,7 @@ export function InstalledContentPanel() {
   };
 
   return (
-    <div className="space-y-6 px-8 pb-8">
+    <div className="space-y-6 px-4 sm:px-8 pb-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="font-mono text-[11px] tracking-wider text-ink-3 uppercase">
           {items.length} installed · {enabledCount} enabled

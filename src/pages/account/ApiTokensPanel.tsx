@@ -27,7 +27,7 @@ export function ApiTokensPanel() {
   const [created, setCreated] = useState<NewApiToken | null>(null);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div className="space-y-5">
         <CreateToken onCreated={setCreated} />
         {created && <CreatedToken token={created} onDismiss={() => setCreated(null)} />}

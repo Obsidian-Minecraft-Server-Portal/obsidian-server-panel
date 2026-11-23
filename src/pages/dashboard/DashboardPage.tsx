@@ -60,7 +60,7 @@ export function DashboardPage() {
           </>
         }
       />
-      <div className="space-y-6 px-8 pb-8">
+      <div className="space-y-6 px-4 sm:px-8 pb-8">
         {instances.isError && <p className="text-sm text-rose">{instances.error.message}</p>}
         {!instances.data && !instances.isError && <p className="text-sm text-ink-3">Loading instances…</p>}
         {instances.data && !hasInstances && (

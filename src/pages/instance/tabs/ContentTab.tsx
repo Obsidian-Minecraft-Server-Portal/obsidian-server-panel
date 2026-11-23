@@ -21,7 +21,7 @@ export function ContentTab() {
         tabs={TABS}
         value={section}
         onChange={(next) => setParams({ section: next }, { replace: true })}
-        className="mx-8 mt-2"
+        className="mx-4 sm:mx-8 mt-2"
       />
       {section === "files" ? <FilesTab /> : <InstalledContentPanel />}
     </div>

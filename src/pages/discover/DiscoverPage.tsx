@@ -140,7 +140,7 @@ export function DiscoverPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 space-y-4 border-b border-line px-4 pt-5 pb-4 sm:px-8">
+      <div className="shrink-0 space-y-3 border-b border-line px-4 pt-4 pb-3 sm:space-y-4 sm:px-8 sm:pt-5 sm:pb-4">
         <PageHeader
           title="Discover"
           subtitle={`Search ${platformName} for ${KIND_LABELS[discover.kind].toLowerCase()}`}

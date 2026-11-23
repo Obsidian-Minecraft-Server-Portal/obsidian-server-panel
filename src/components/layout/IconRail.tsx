@@ -38,7 +38,7 @@ function RailLink({ item }: { item: RailItem }) {
           cn(
             "relative grid size-11 place-items-center rounded-control transition-colors",
             (item.matches?.(pathname) ?? isActive)
-              ? "bg-raised text-ink-0 before:absolute before:top-2.5 before:-left-3 before:h-6 before:w-[3px] before:rounded-r-full before:bg-accent"
+              ? "bg-raised text-ink-0 md:before:absolute md:before:-left-3 md:before:top-2.5 md:before:h-6 md:before:w-[3px] md:before:rounded-r-full md:before:bg-accent"
               : "text-ink-3 hover:bg-raised hover:text-ink-1",
           )
         }
@@ -55,19 +55,22 @@ export function IconRail() {
   const initials = user ? initialsOf(user.username) : "?";
 
   return (
-    <nav className="flex w-[68px] shrink-0 flex-col items-center gap-2 border-r border-line bg-rail py-4">
+    <nav
+      aria-label="Primary"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around gap-2 border-t border-line bg-rail px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:static md:h-full md:w-[68px] md:shrink-0 md:flex-col md:justify-start md:gap-2 md:border-t-0 md:border-r md:px-0 md:py-4"
+    >
       <NavLink
         to="/"
         aria-label="Obsidian home"
-        className="grid size-11 place-items-center rounded-control border border-line-strong bg-input"
+        className="hidden size-11 place-items-center rounded-control border border-line-strong bg-input md:grid"
       >
         <Logo size={28} />
       </NavLink>
-      <span className="my-2 h-px w-8 bg-line-strong" />
+      <span className="my-2 hidden h-px w-8 bg-line-strong md:block" />
       {PRIMARY_ITEMS.map((item) => (
         <RailLink key={item.to} item={item} />
       ))}
-      <div className="mt-auto flex flex-col items-center gap-2">
+      <div className="flex items-center gap-2 md:mt-auto md:flex-col">
         <ActivityMenu />
         <RailLink item={{ to: "/settings", icon: "lucide:settings", label: "Settings" }} />
         <Tip label="Account">
@@ -76,7 +79,7 @@ export function IconRail() {
             isIconOnly
             aria-label="Account"
             onPress={() => navigate("/settings/account")}
-            className="relative mt-1 size-11 rounded-control border border-line-strong bg-raised font-mono text-sm font-semibold text-ink-1"
+            className="relative size-11 rounded-control border border-line-strong bg-raised font-mono text-sm font-semibold text-ink-1 md:mt-1"
           >
             {initials}
             <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-green ring-2 ring-rail" />

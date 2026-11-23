@@ -28,7 +28,7 @@ export function ServerTypeSection({ draft, patch }: SectionProps) {
 export function VersionSection({ draft, patch }: SectionProps) {
   return (
     <FormSection index={2} title="Version & Java" description="Type to search. Java is picked from the Minecraft version unless you choose one.">
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {isCustom(draft) ? (
           <>
             <FormField
@@ -83,7 +83,7 @@ export function DetailsSection({ draft, patch }: SectionProps) {
   const suggested = nextPort.data?.port;
   return (
     <FormSection index={3} title="Details">
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
         <FormField
           label="Name"
           required

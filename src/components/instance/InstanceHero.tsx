@@ -25,7 +25,7 @@ export function InstanceHero({ view }: { view: InstanceView }) {
         <div className="grid-faint absolute inset-0 opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent from-35% to-canvas" />
       </div>
-      <div className="relative flex flex-col gap-6 px-8 pt-6">
+      <div className="relative flex flex-col gap-6 px-4 sm:px-8 pt-6">
         <div className="flex items-center gap-2">
           <GhostButton isIconOnly aria-label="Back to dashboard" onPress={() => navigate("/")} className="size-10">
             <Icon icon="lucide:chevron-left" width={18} height={18} />

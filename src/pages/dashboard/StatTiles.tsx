@@ -12,7 +12,7 @@ interface Totals {
 
 export function StatTiles({ totals }: { totals: Totals }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
       <Tile label="Servers running" value={`${totals.running} / ${totals.total}`} />
       <Tile label="Players online" value={String(totals.players)} />
       <Tile label="CPU" value={`${totals.cpuPercent.toFixed(0)}%`} hint="Summed across running servers" />

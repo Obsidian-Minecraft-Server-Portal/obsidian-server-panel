@@ -73,8 +73,11 @@ export function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-[1920px]">
       <PageHeader title="Settings" subtitle="Panel defaults, outgoing email, Java runtimes, users and your account." />
-      <div className="flex flex-col gap-8 px-8 pb-8 md:flex-row">
-        <nav className="flex shrink-0 gap-1 md:sticky md:top-6 md:h-fit md:w-52 md:flex-col" aria-label="Settings sections">
+      <div className="flex flex-col gap-8 px-4 sm:px-8 pb-8 md:flex-row">
+        <nav
+          className="flex max-w-full gap-1 overflow-x-auto [scrollbar-width:none] md:sticky md:top-6 md:h-fit md:w-52 md:shrink-0 md:flex-col md:overflow-visible"
+          aria-label="Settings sections"
+        >
           {Object.entries(sections).map(([key, entry]) => (
             <Link
               key={key}
@@ -82,7 +85,7 @@ export function SettingsPage() {
               onClick={jumpTo(key)}
               aria-current={key === active ? "page" : undefined}
               className={cn(
-                "rounded-control px-3 py-2 text-sm font-medium transition-colors",
+                "shrink-0 whitespace-nowrap rounded-control px-3 py-2 text-sm font-medium transition-colors",
                 key === active ? "bg-raised text-ink-0" : "text-ink-3 hover:bg-raised hover:text-ink-1",
               )}
             >
