@@ -364,6 +364,12 @@ GNU `screen` is not allowed.
   - Plugins: Modrinth, Hangar (PaperMC), CurseForge (Bukkit), Spiget
     (SpigotMC). Premium or external-download Spiget resources are shown as
     unavailable for automatic install.
+- **Project pages:** every Discover result opens a platform page with the
+  rendered README, gallery, changelog and versions. Modrinth and CurseForge
+  provide the full page; Hangar and Spiget show what their APIs return.
+  **Quick add** installs the newest build that fits the target instance with
+  its required dependencies. Descriptions and changelogs are sanitized on the
+  server before they reach the browser.
 - **CurseForge API key:** injected at **build time** through an env var for
   official builds. Never commit the key to the repo. Source builds without a key
   must disable CurseForge features cleanly.
@@ -373,11 +379,11 @@ GNU `screen` is not allowed.
 - **Instance pages:**
   - **Console** (primary): live output with ANSI colours, command input with
     history and autocomplete.
-  - **Content**: installed mods/plugins, updates, enable/disable, browse and
-    install.
-  - **Files**: a complete file browser with a Monaco editor, chunked and
+  - **Content**: one tab with two sections. *Mods & plugins* lists installed
+    content with updates, enable/disable and removal, and browses and installs.
+    *Files* is a complete file browser with a Monaco editor, chunked and
     resumable uploads of any size, multi-select, zip/unzip, rename, move, and
-    delete.
+    delete. The `files` tab redirects to `content?section=files`.
   - **Backups**, **Schedules**.
   - **Players**: ops, whitelist, bans.
   - **Properties**: a `server.properties` form editor with descriptions.
@@ -510,7 +516,9 @@ Port those designs to HeroUI v3 tokens and Tailwind v4 in `src/css/index.css`.
   - Text on accent: `#1A0629`
 - **Secondary glow:** ember orange `#FF6B3A` (nether lava). It takes the role
   Lodestone's violet had as the second aurora colour.
-- **Status colours:** cyan `#47D9FF`, amber `#FFB545`, red `#FF5A7A`.
+- **Status colours:** green `#4ADE80` for success, running and online (this is
+  the `--success` token), amber `#FFB545`, red `#FF5A7A`. Cyan is not a status
+  colour; informational chips use the secondary tone.
 - **HeroUI mapping:** wire these into the HeroUI v3 variables (`--accent`,
   `--accent-foreground`, `--background`, `--surface`, etc.) as un-layered
   `:root` overrides.

@@ -29,7 +29,6 @@
   --color-secondary-tint: var(--secondary-tint);
   --color-secondary-soft: var(--secondary-soft);
   --color-ember: var(--ember);
-  --color-cyan: var(--cyan);
   --color-green: var(--green);
   --color-amber: var(--amber);
   --color-rose: var(--rose);
@@ -77,7 +76,6 @@
   --secondary-soft: #b8c4ea;
 
   --ember: #ff6b3a;
-  --cyan: #47d9ff;
   --green: #4ade80;
   --amber: #ffb545;
   --rose: #ff5a7a;
