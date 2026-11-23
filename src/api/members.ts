@@ -47,6 +47,16 @@ export function useMembers(instanceId: number) {
   });
 }
 
+export function useMemberCandidates(instanceId: number, prefix: string) {
+  const trimmed = prefix.trim();
+  return useQuery({
+    queryKey: ["instances", instanceId, "member-candidates", trimmed],
+    queryFn: () => api.get<string[]>(`/instances/${instanceId}/member-candidates?q=${encodeURIComponent(trimmed)}`),
+    enabled: trimmed.length >= 2,
+    staleTime: 15_000,
+  });
+}
+
 export function useAddMember(instanceId: number) {
   const queryClient = useQueryClient();
   return useMutation({

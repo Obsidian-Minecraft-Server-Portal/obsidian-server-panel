@@ -13,6 +13,7 @@ interface SearchSelectProps {
   options: SearchOption[];
   value: string | null;
   onChange: (value: string | null) => void;
+  onSearch?: (text: string) => void;
   placeholder?: string;
   description?: ReactNode;
   emptyText?: string;
@@ -45,6 +46,7 @@ export function SearchSelect({
   options,
   value,
   onChange,
+  onSearch,
   placeholder,
   description,
   emptyText = "No matches",
@@ -70,7 +72,10 @@ export function SearchSelect({
     <ComboBox
       selectedKey={value}
       inputValue={inputValue}
-      onInputChange={setQuery}
+      onInputChange={(text: string) => {
+        setQuery(text);
+        onSearch?.(text);
+      }}
       onSelectionChange={(key: Key | null) => {
         setQuery(null);
         if (key !== null) onChange(String(key));

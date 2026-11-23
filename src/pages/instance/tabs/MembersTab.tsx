@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useCurrentUser } from "../../../api/session";
 import { useMembers, usePermissionCatalog, useRemoveMember } from "../../../api/members";
-import { InviteMemberPanel } from "../../../components/members/InviteMemberPanel";
+import { InviteMemberModal } from "../../../components/members/InviteMemberModal";
 import { MemberEditor } from "../../../components/members/MemberEditor";
 import { MemberRow } from "../../../components/members/MemberRow";
 import { Chip } from "../../../components/ui/Chip";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { Panel } from "../../../components/ui/Panel";
+import { PrimaryButton } from "../../../components/ui/PrimaryButton";
 
 export function MembersSection({ instanceId }: { instanceId: number }) {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export function MembersSection({ instanceId }: { instanceId: number }) {
   const members = useMembers(instanceId);
   const remove = useRemoveMember(instanceId);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   const failure = members.error ?? catalog.error;
   if (failure) {
@@ -50,8 +52,18 @@ export function MembersSection({ instanceId }: { instanceId: number }) {
   };
 
   return (
-    <div className="space-y-6">
-      <Panel title="Members" actions={<Chip>{list.length} {list.length === 1 ? "member" : "members"}</Chip>}>
+    <div>
+      <Panel
+        title="Members"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip>
+              {list.length} {list.length === 1 ? "member" : "members"}
+            </Chip>
+            {canManage && <PrimaryButton onPress={() => setInviting(true)}>Invite member</PrimaryButton>}
+          </div>
+        }
+      >
         <ul className="space-y-2">
           {list.map((member) => (
             <MemberRow
@@ -75,10 +87,10 @@ export function MembersSection({ instanceId }: { instanceId: number }) {
           member={selected}
           catalog={catalog.data}
           canEdit={canManage}
+          onClose={() => setSelectedId(null)}
         />
       )}
-
-      {canManage && <InviteMemberPanel instanceId={instanceId} catalog={catalog.data} />}
+      {inviting && <InviteMemberModal instanceId={instanceId} catalog={catalog.data} onClose={() => setInviting(false)} />}
     </div>
   );
 }
