@@ -12,7 +12,6 @@ import { GhostButton } from "../../components/ui/GhostButton";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { ViewToggle } from "../../components/ui/ViewToggle";
-import { ResourceOverview } from "./ResourceOverview";
 import { StatTiles } from "./StatTiles";
 import { useViewMode } from "./useViewMode";
 
@@ -75,7 +74,6 @@ export function DashboardPage() {
         {hasInstances && (
           <>
             <StatTiles totals={totalsOf(all, running, statsById)} />
-            {running.length > 0 && <ResourceOverview running={running} statsById={statsById} />}
             <section className="space-y-3">
               <h2 className="font-mono text-[11px] tracking-wider text-ink-3 uppercase">
                 Instances · {visible.length}
@@ -83,7 +81,7 @@ export function DashboardPage() {
               {visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-ink-3">No instances match “{search.trim()}”.</p>
               ) : (
-                <InstanceList mode={mode} instances={visible} />
+                <InstanceList mode={mode} instances={visible} stats={statsById} />
               )}
             </section>
           </>
