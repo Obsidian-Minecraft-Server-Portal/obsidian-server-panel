@@ -71,6 +71,11 @@ lines:
     if [ -n "$long" ]; then echo "Files over 750 lines:"; echo "$long"; exit 1; fi
     echo "All source files are within 750 lines."
 
+[group("check")]
+[windows]
+@lines:
+    $long = git ls-files '*.rs' '*.ts' '*.tsx' '*.css' '*.sql' '*.yml' '*.sh' | ForEach-Object { $n = (Get-Content -LiteralPath $_ | Measure-Object).Count; if ($n -gt 750) { '{0} {1}' -f $n, $_ } }; if ($long) { Write-Host 'Files over 750 lines:'; $long; exit 1 }; Write-Host 'All source files are within 750 lines.'
+
 # Run every Rust test, or only those matching a filter
 [group('check')]
 test *filter:
