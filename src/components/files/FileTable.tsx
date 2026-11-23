@@ -22,14 +22,14 @@ interface FileTableProps {
 export function FileTable({ entries, selected, onPick, onOpen, onContextMenu, compact = false }: FileTableProps) {
   return (
     <div className={compact ? undefined : "overflow-x-auto"}>
-      <table className={cn("w-full border-collapse text-left text-sm", compact ? "table-fixed" : "min-w-[32rem]")} aria-multiselectable="true">
+      <table className={cn("w-full border-collapse text-left text-sm", compact ? "table-fixed" : "sm:min-w-[32rem]")} aria-multiselectable="true">
         <thead>
           <tr className="border-b border-line font-mono text-[11px] tracking-wider text-ink-3 uppercase">
             <th scope="col" className="px-4 py-2.5 font-medium">Name</th>
             {!compact && (
               <>
                 <th scope="col" className="w-28 px-4 py-2.5 text-right font-medium">Size</th>
-                <th scope="col" className="w-48 px-4 py-2.5 font-medium">Modified</th>
+                <th scope="col" className="hidden w-48 px-4 py-2.5 font-medium sm:table-cell">Modified</th>
               </>
             )}
           </tr>
@@ -90,7 +90,7 @@ const FileRow = memo(function FileRow({ entry, selected, onPick, onOpen, onConte
           <td className="px-4 py-2.5 text-right font-mono text-xs text-ink-3 tabular-nums">
             {entry.is_dir ? "—" : formatBytes(entry.size)}
           </td>
-          <td className="px-4 py-2.5 font-mono text-xs text-ink-3">{formatModified(entry.modified)}</td>
+          <td className="hidden px-4 py-2.5 font-mono text-xs text-ink-3 sm:table-cell">{formatModified(entry.modified)}</td>
         </>
       )}
     </tr>
