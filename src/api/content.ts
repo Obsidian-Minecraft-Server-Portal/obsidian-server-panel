@@ -200,6 +200,7 @@ export interface ModpackInput {
 }
 
 export const SEARCH_PAGE_SIZE = 20;
+const SEARCH_STALE_MS = 5 * 60_000;
 
 export const contentKeys = {
   platforms: ["content", "platforms"] as const,
@@ -266,6 +267,7 @@ export function useContentSearch(params: SearchParams) {
       return api.get<SearchPage>(`/content/search?${query}`);
     },
     placeholderData: keepPreviousData,
+    staleTime: SEARCH_STALE_MS,
     initialPageParam: 0,
     getNextPageParam: (last, pages) =>
       pages.reduce((count, page) => count + page.items.length, 0) < last.total ? pages.length : undefined,
@@ -280,15 +282,16 @@ export function useProjectVersions(platform: PlatformId, projectId: string | nul
       return api.get<ProjectVersion[]>(`/content/${platform}/projects/${encodeURIComponent(projectId ?? "")}/versions${query ? `?${query}` : ""}`);
     },
     enabled: projectId !== null,
+    staleTime: SEARCH_STALE_MS,
   });
 }
 
-export function useInstalledContent(instanceId: number, enabled = true) {
+export function useInstalledContent(instanceId: number, enabled = true, poll = true) {
   return useQuery({
     queryKey: contentKeys.installed(instanceId),
     queryFn: () => api.get<InstalledContent[]>(`/instances/${instanceId}/content`),
     enabled,
-    refetchInterval: REFRESH_MS.list,
+    refetchInterval: poll ? REFRESH_MS.list : false,
   });
 }
 

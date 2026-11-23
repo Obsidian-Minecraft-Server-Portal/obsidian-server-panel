@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::platform::{Kind, Platform};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct SearchQuery {
 	pub text: String,
 	pub kind: Kind,
@@ -19,7 +19,7 @@ pub struct SearchQuery {
 	pub limit: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Side {
 	Client,
@@ -91,7 +91,7 @@ pub struct Project {
 	pub server_side: Option<SideSupport>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VersionFilter {
 	pub mc_version: Option<String>,
 	pub loader: Option<Loader>,

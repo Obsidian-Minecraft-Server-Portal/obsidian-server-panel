@@ -1,3 +1,4 @@
+mod cache;
 mod install;
 mod scan;
 pub(crate) mod store;
@@ -17,6 +18,7 @@ use obsidian_common::{CommonError, Paths, Result, TaskRegistry, UserId};
 use obsidian_db::Db;
 use tokio::sync::Mutex;
 
+use cache::{ContentCache, get_or_fetch};
 use crate::model::{Facets, InstalledContent, Project, ProjectDetail, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 use crate::platforms::{CurseForge, Hangar, Modrinth, Spiget};
@@ -30,8 +32,6 @@ pub(crate) const LEVEL_NAME_KEY: &str = "level-name";
 const DEFAULT_LEVEL_NAME: &str = "world";
 const SCAN_INTERVAL: Duration = Duration::from_secs(3);
 const SCANNED_INSTANCES: u64 = 1024;
-const DETAIL_TTL: Duration = Duration::from_secs(600);
-const DETAIL_CAPACITY: u64 = 256;
 
 #[derive(Clone)]
 pub struct ContentManager {
@@ -41,7 +41,7 @@ pub struct ContentManager {
 	pub(crate) http: reqwest::Client,
 	platforms: Arc<[Arc<dyn ContentPlatform>]>,
 	pub(crate) scanned: Cache<i64, ()>,
-	details: Cache<(Platform, String), ProjectDetail>,
+	caches: ContentCache,
 	files: Arc<Mutex<()>>,
 	pub(crate) drafts: DraftStore,
 }
@@ -67,10 +67,7 @@ impl ContentManager {
 				.time_to_live(SCAN_INTERVAL)
 				.max_capacity(SCANNED_INSTANCES)
 				.build(),
-			details: Cache::builder()
-				.time_to_live(DETAIL_TTL)
-				.max_capacity(DETAIL_CAPACITY)
-				.build(),
+			caches: ContentCache::new(),
 			files: Arc::new(Mutex::new(())),
 			drafts: DraftStore::new(),
 		}
@@ -106,7 +103,7 @@ impl ContentManager {
 				items: Vec::new(),
 			});
 		}
-		provider.search(query).await
+		get_or_fetch(&self.caches.search, (platform, query.clone()), provider.search(query)).await
 	}
 
 	pub async fn facets(&self, platform: Platform, kind: Kind) -> Result<Facets> {
@@ -114,29 +111,32 @@ impl ContentManager {
 		if !provider.supports(kind) {
 			return Ok(Facets::default());
 		}
-		provider.facets(kind).await
+		get_or_fetch(&self.caches.facets, (platform, kind), provider.facets(kind)).await
 	}
 
 	pub async fn project(&self, platform: Platform, id: &str) -> Result<Project> {
-		self.provider(platform)?.project(id).await
+		let provider = self.provider(platform)?;
+		get_or_fetch(&self.caches.projects, (platform, id.to_owned()), provider.project(id)).await
 	}
 
 	pub async fn versions(&self, platform: Platform, id: &str, filter: &VersionFilter) -> Result<Vec<ProjectVersion>> {
-		self.provider(platform)?.versions(id, filter).await
+		let provider = self.provider(platform)?;
+		get_or_fetch(&self.caches.versions, (platform, id.to_owned(), filter.clone()), provider.versions(id, filter)).await
 	}
 
 	pub async fn detail(&self, platform: Platform, id: &str) -> Result<ProjectDetail> {
-		let key = (platform, id.to_owned());
-		if let Some(cached) = self.details.get(&key) {
-			return Ok(cached);
-		}
-		let detail = self.provider(platform)?.detail(id).await?;
-		self.details.insert(key, detail.clone());
-		Ok(detail)
+		let provider = self.provider(platform)?;
+		get_or_fetch(&self.caches.details, (platform, id.to_owned()), provider.detail(id)).await
 	}
 
 	pub async fn changelog(&self, platform: Platform, project_id: &str, version_id: &str) -> Result<Option<String>> {
-		self.provider(platform)?.changelog(project_id, version_id).await
+		let provider = self.provider(platform)?;
+		get_or_fetch(
+			&self.caches.changelogs,
+			(platform, project_id.to_owned(), version_id.to_owned()),
+			provider.changelog(project_id, version_id),
+		)
+		.await
 	}
 
 	pub async fn list(&self, instance_id: i64) -> Result<Vec<InstalledContent>> {
