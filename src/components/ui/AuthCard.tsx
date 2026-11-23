@@ -44,9 +44,9 @@ export function AuthCard({ headline, subtitle, children, footer }: AuthCardProps
               {subtitle && <p className="text-sm text-ink-2">{subtitle}</p>}
             </div>
             {children}
-            <div className="flex items-center justify-between gap-4 border-t border-line pt-4 text-xs text-ink-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line pt-4 text-xs text-ink-4">
               <span>{t("auth.notAffiliated")}</span>
-              {footer}
+              {footer && <span className="whitespace-nowrap">{footer}</span>}
             </div>
           </div>
         </GlassCard>
