@@ -11,6 +11,8 @@ use crate::platform::Kind;
 
 const ICON_CONCURRENCY: usize = 4;
 
+type Scanned = (Kind, String, Option<Vec<u8>>, Option<String>);
+
 struct Folder {
 	kind: Kind,
 	dir: PathBuf,
@@ -35,6 +37,11 @@ impl ContentManager {
 		let pool = self.db.pool();
 		let (loader, _) = store::instance(pool, instance_id).await?;
 		let rows = store::list(pool, instance_id).await?;
+		for row in rows.iter().filter(|row| row.name.is_none()) {
+			let path = self.file_path(instance_id, row.kind, &row.filename).await?;
+			let (_, title) = self.extract_metadata(&path).await;
+			store::set_name(pool, row.id, title.as_deref().unwrap_or_default()).await?;
+		}
 		let mut folders = Vec::with_capacity(2);
 		for kind in [kind_for_loader(loader), Kind::DataPack] {
 			let dir = self.content_dir(instance_id, kind).await?;
@@ -62,8 +69,11 @@ impl ContentManager {
 		let fresh = folders
 			.iter()
 			.flat_map(|folder| folder.names.iter().map(move |name| (folder.kind, folder.dir.join(name), name.clone())));
-		let found: Vec<(Kind, String, Option<Vec<u8>>)> = stream::iter(fresh)
-			.map(|(kind, path, name)| async move { (kind, name, self.extract_icon(&path).await) })
+		let found: Vec<Scanned> = stream::iter(fresh)
+			.map(|(kind, path, filename)| async move {
+				let (icon, title) = self.extract_metadata(&path).await;
+				(kind, filename, icon, title)
+			})
 			.buffer_unordered(ICON_CONCURRENCY)
 			.collect()
 			.await;
@@ -79,8 +89,16 @@ impl ContentManager {
 		for id in stale {
 			store::delete(&mut *tx, id).await?;
 		}
-		for (kind, filename, icon) in &found {
-			store::insert_untracked(&mut *tx, instance_id, filename, *kind, icon.as_deref()).await?;
+		for (kind, filename, icon, title) in &found {
+			store::insert_untracked(
+				&mut *tx,
+				instance_id,
+				filename,
+				*kind,
+				icon.as_deref(),
+				title.as_deref().unwrap_or_default(),
+			)
+			.await?;
 		}
 		tx.commit().await?;
 		Ok(())

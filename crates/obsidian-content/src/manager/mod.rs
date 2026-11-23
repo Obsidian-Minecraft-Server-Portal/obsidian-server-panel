@@ -209,12 +209,13 @@ impl ContentManager {
 		outcome
 	}
 
-	pub async fn extract_icon(&self, jar: &Path) -> Option<Vec<u8>> {
-		let bytes = tokio::fs::read(jar).await.ok()?;
-		tokio::task::spawn_blocking(move || icon::extract(&bytes))
+	pub async fn extract_metadata(&self, jar: &Path) -> (Option<Vec<u8>>, Option<String>) {
+		let Ok(bytes) = tokio::fs::read(jar).await else {
+			return (None, None);
+		};
+		tokio::task::spawn_blocking(move || (icon::extract(&bytes), crate::name::extract(&bytes)))
 			.await
-			.ok()
-			.flatten()
+			.unwrap_or((None, None))
 	}
 
 	pub(crate) async fn by_filename(&self, instance_id: i64, filename: &str) -> Result<InstalledContent> {

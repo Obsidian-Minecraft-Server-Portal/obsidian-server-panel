@@ -10,6 +10,7 @@ pub const DISABLED_SUFFIX: &str = ".disabled";
 struct ModRow {
 	id: i64,
 	filename: String,
+	name: Option<String>,
 	project_id: Option<String>,
 	version_id: Option<String>,
 	platform: Option<i64>,
@@ -23,6 +24,7 @@ impl From<ModRow> for InstalledContent {
 			enabled: !row.filename.ends_with(DISABLED_SUFFIX),
 			id: row.id,
 			filename: row.filename,
+			name: row.name.filter(|value| !value.is_empty()),
 			project_id: row.project_id,
 			version_id: row.version_id,
 			platform: row.platform.and_then(Platform::from_id),
@@ -56,7 +58,7 @@ pub async fn instance(pool: &SqlitePool, instance_id: i64) -> Result<(Loader, St
 }
 
 pub async fn list(pool: &SqlitePool, instance_id: i64) -> Result<Vec<InstalledContent>> {
-	let rows: Vec<ModRow> = sqlx::query_as("SELECT id, filename, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? ORDER BY filename")
+	let rows: Vec<ModRow> = sqlx::query_as("SELECT id, filename, name, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? ORDER BY filename")
 		.bind(instance_id)
 		.fetch_all(pool)
 		.await?;
@@ -65,7 +67,7 @@ pub async fn list(pool: &SqlitePool, instance_id: i64) -> Result<Vec<InstalledCo
 
 pub async fn by_id(pool: &SqlitePool, instance_id: i64, mod_id: i64) -> Result<Option<InstalledContent>> {
 	let row: Option<ModRow> = sqlx::query_as(
-		"SELECT id, filename, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? AND id = ?",
+		"SELECT id, filename, name, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? AND id = ?",
 	)
 	.bind(instance_id)
 	.bind(mod_id)
@@ -75,7 +77,7 @@ pub async fn by_id(pool: &SqlitePool, instance_id: i64, mod_id: i64) -> Result<O
 }
 
 pub async fn by_filename(pool: &SqlitePool, instance_id: i64, filename: &str) -> Result<Option<InstalledContent>> {
-	let row: Option<ModRow> = sqlx::query_as("SELECT id, filename, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? AND filename = ?")
+	let row: Option<ModRow> = sqlx::query_as("SELECT id, filename, name, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? AND filename = ?")
 		.bind(instance_id)
 		.bind(filename)
 		.fetch_optional(pool)
@@ -115,16 +117,27 @@ pub async fn insert_untracked<'c>(
 	filename: &str,
 	kind: Kind,
 	icon: Option<&[u8]>,
+	name: &str,
 ) -> Result<()> {
 	sqlx::query(
-		"INSERT INTO mods (filename, icon, kind, instance_id) VALUES (?, ?, ?, ?) ON CONFLICT (instance_id, filename) DO NOTHING",
+		"INSERT INTO mods (filename, name, icon, kind, instance_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT (instance_id, filename) DO NOTHING",
 	)
 	.bind(filename)
+	.bind(name)
 	.bind(icon)
 	.bind(kind.db_value())
 	.bind(instance_id)
 	.execute(executor)
 	.await?;
+	Ok(())
+}
+
+pub async fn set_name(pool: &SqlitePool, mod_id: i64, name: &str) -> Result<()> {
+	sqlx::query("UPDATE mods SET name = ? WHERE id = ?")
+		.bind(name)
+		.bind(mod_id)
+		.execute(pool)
+		.await?;
 	Ok(())
 }
 

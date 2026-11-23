@@ -1,0 +1,1 @@
+ALTER TABLE mods ADD COLUMN name TEXT;

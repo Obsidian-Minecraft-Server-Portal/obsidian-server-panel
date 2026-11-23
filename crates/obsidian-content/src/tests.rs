@@ -31,6 +31,21 @@ fn fabric_icon_prefers_largest_declared_size() {
 }
 
 #[test]
+fn jar_display_names_come_from_each_loader_format() {
+	let cases = [
+		(jar(&[("fabric.mod.json", br#"{"name":"Sodium"}"#)]), "Sodium"),
+		(jar(&[("quilt.mod.json", br#"{"quilt_loader":{"metadata":{"name":"Quilted"}}}"#)]), "Quilted"),
+		(jar(&[("META-INF/mods.toml", b"[[mods]]\nmodId = \"x\"\ndisplayName = \"Forged\"\n")]), "Forged"),
+		(jar(&[("plugin.yml", b"name: 'Paper Thing'\nversion: 1\n")]), "Paper Thing"),
+		(jar(&[("paper-plugin.yml", b"name: Modern\n")]), "Modern"),
+	];
+	for (bytes, expected) in cases {
+		assert_eq!(crate::name::extract(&bytes).as_deref(), Some(expected));
+	}
+	assert_eq!(crate::name::extract(&jar(&[("readme.txt", b"no metadata")])), None);
+}
+
+#[test]
 fn platform_parses_names_and_ids() {
 	assert_eq!("modrinth".parse::<Platform>().unwrap(), Platform::Modrinth);
 	assert_eq!("3".parse::<Platform>().unwrap(), Platform::Spiget);

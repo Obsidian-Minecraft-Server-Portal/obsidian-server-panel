@@ -4,6 +4,7 @@ mod icon;
 mod manager;
 mod model;
 mod modpack;
+mod name;
 mod platform;
 mod platforms;
 mod serverpack;

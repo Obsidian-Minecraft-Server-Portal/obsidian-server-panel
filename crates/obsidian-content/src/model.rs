@@ -118,6 +118,7 @@ pub struct ProjectVersion {
 pub struct InstalledContent {
 	pub id: i64,
 	pub filename: String,
+	pub name: Option<String>,
 	pub project_id: Option<String>,
 	pub version_id: Option<String>,
 	#[schema(value_type = Option<u8>)]

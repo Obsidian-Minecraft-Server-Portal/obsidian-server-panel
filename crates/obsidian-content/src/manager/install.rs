@@ -8,6 +8,7 @@ use tokio::io::AsyncWriteExt;
 use super::store::{self, NewRecord};
 use super::{ContentManager, kind_for_loader};
 use crate::http;
+use crate::name;
 use crate::icon;
 use crate::model::{InstalledContent, ProjectVersion};
 use crate::platform::{ContentPlatform, Kind};
@@ -94,9 +95,12 @@ impl ContentManager {
 			let _ = store::delete(pool, id).await;
 			return Err(error);
 		}
+		let display_name = name::extract(bytes).unwrap_or_default();
+		store::set_name(pool, id, &display_name).await?;
 		Ok(InstalledContent {
 			id,
 			filename: record.filename.to_owned(),
+			name: Some(display_name).filter(|value| !value.is_empty()),
 			project_id: record.project_id.map(str::to_owned),
 			version_id: record.version_id.map(str::to_owned),
 			platform: record.platform,
