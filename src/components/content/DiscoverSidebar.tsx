@@ -10,6 +10,11 @@ import { LOADERS_BY_KIND } from "./meta";
 const SHOWN_CATEGORIES = 8;
 const SHOWN_VERSIONS = 10;
 
+const SIDES: { id: SideFilter; label: string }[] = [
+  { id: "client", label: "Client" },
+  { id: "server", label: "Server" },
+];
+
 interface DiscoverSidebarProps {
   kind: ContentKind;
   platformName: string;
@@ -54,7 +59,7 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
       </Section>
       {LOADERS_BY_KIND[kind].length > 0 && (
         <Section title="Loader" disabled={!facets?.loaders} hint={loading ? "Loading…" : `Not offered by ${platformName}`}>
-          {LOADERS_BY_KIND[kind].map((id) => (
+          {pinFirst(LOADERS_BY_KIND[kind], (id) => loader === id || filters.excludedLoaders.includes(id)).map((id) => (
             <FilterRow
               key={id}
               label={LOADER_META[id].label}
@@ -80,16 +85,14 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
           disabled={!facets?.environments}
           hint={loading ? "Loading…" : `Not offered by ${platformName}`}
         >
-          <FilterRow
-            label="Client"
-            picked={filters.environments.includes("client")}
-            onPress={() => props.onToggleEnvironment("client")}
-          />
-          <FilterRow
-            label="Server"
-            picked={filters.environments.includes("server")}
-            onPress={() => props.onToggleEnvironment("server")}
-          />
+          {pinFirst(SIDES, (side) => filters.environments.includes(side.id)).map((side) => (
+            <FilterRow
+              key={side.id}
+              label={side.label}
+              picked={filters.environments.includes(side.id)}
+              onPress={() => props.onToggleEnvironment(side.id)}
+            />
+          ))}
         </Section>
       )}
       <Section
@@ -142,7 +145,10 @@ function VersionList({ selected, onSelect }: { selected: string | null; onSelect
   const { data: versions = [] } = useMinecraftVersions("vanilla", snapshots);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const matching = versions.filter((version) => version.toLowerCase().includes(search.trim().toLowerCase()));
+  const matching = pinFirst(
+    versions.filter((version) => version.toLowerCase().includes(search.trim().toLowerCase())),
+    (version) => version === selected,
+  );
   const shown = expanded ? matching : matching.slice(0, SHOWN_VERSIONS);
 
   return (
@@ -181,7 +187,11 @@ interface CategorySectionProps {
 
 function CategorySection({ group, facets, filters, actions }: CategorySectionProps) {
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? group.categories : group.categories.slice(0, SHOWN_CATEGORIES);
+  const categories = pinFirst(
+    group.categories,
+    (category) => filters.categories.includes(category.id) || filters.excludedCategories.includes(category.id),
+  );
+  const shown = expanded ? categories : categories.slice(0, SHOWN_CATEGORIES);
 
   return (
     <Section title={titleize(group.header)}>
@@ -284,6 +294,10 @@ function titleize(text: string): string {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function pinFirst<T>(items: readonly T[], isPinned: (item: T) => boolean): T[] {
+  return [...items.filter(isPinned), ...items.filter((item) => !isPinned(item))];
 }
 
 function usesEnvironments(kind: ContentKind): boolean {
