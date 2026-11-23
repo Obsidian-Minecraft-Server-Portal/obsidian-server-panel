@@ -56,6 +56,7 @@ pub struct SearchParams {
 	mc_version: Option<String>,
 	categories: Option<String>,
 	excluded_categories: Option<String>,
+	excluded_loaders: Option<String>,
 	environments: Option<String>,
 	open_source: Option<bool>,
 	#[serde(default)]
@@ -145,6 +146,7 @@ pub async fn search(
 		loader: params.loader,
 		categories: split_list(params.categories),
 		excluded_categories: split_list(params.excluded_categories),
+		excluded_loaders: parse_loaders(params.excluded_loaders)?,
 		environments: parse_sides(params.environments.as_deref())?,
 		open_source: params.open_source.unwrap_or(false),
 		offset: params.page.saturating_mul(limit),
@@ -184,6 +186,13 @@ fn split_list(value: Option<String>) -> Vec<String> {
 		.map(str::trim)
 		.filter(|item| !item.is_empty())
 		.map(str::to_owned)
+		.collect()
+}
+
+fn parse_loaders(value: Option<String>) -> ApiResult<Vec<Loader>> {
+	split_list(value)
+		.iter()
+		.map(|name| name.parse::<Loader>().map_err(|_| CommonError::Invalid(format!("unknown loader '{name}'")).into()))
 		.collect()
 }
 

@@ -9,6 +9,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const VIEW_STORAGE_KEY = "obsidian.discover.view";
 const VIEWS: ResultView[] = ["grid", "compact", "table"];
 const NO_ENVIRONMENT = "none";
+const KNOWN_LOADERS = new Set<string>(Object.values(LOADERS_BY_KIND).flat());
 
 function readStoredView(): ResultView {
   try {
@@ -54,6 +55,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
   const filters: ContentFilters = {
     categories: readList(params.get("categories")),
     excludedCategories: readList(params.get("excluded")),
+    excludedLoaders: readList(params.get("excluded_loaders")).filter(isKnownLoader),
     environments: readList(params.get("environments")).filter(isSide),
     openSource: params.get("open") === "1",
   };
@@ -112,7 +114,13 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
         kind: platformOffersKind(platforms, next, kind) ? kind : "plugin",
         ...CLEARED_FILTERS,
       }),
-    setLoader: (next: LoaderKind | null) => update({ loader: next }),
+    setLoader: (next: LoaderKind | null) =>
+      update({ loader: next, excluded_loaders: joinList(filters.excludedLoaders.filter((entry) => entry !== next)) }),
+    toggleExcludedLoader: (target: LoaderKind) =>
+      update({
+        excluded_loaders: joinList(toggleItem(filters.excludedLoaders, target, true)),
+        loader: loader === target ? null : loader,
+      }),
     setMcVersion: (next: string | null) => update({ mc_version: next }),
     toggleCategory,
     toggleExcluded,
@@ -125,7 +133,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
   };
 }
 
-const CLEARED_FILTERS = { categories: null, excluded: null, environments: null, open: null } as const;
+const CLEARED_FILTERS = { categories: null, excluded: null, excluded_loaders: null, environments: null, open: null } as const;
 
 function readList(value: string | null): string[] {
   return value ? value.split(",").filter(Boolean) : [];
@@ -142,4 +150,8 @@ function toggleItem<T>(items: T[], item: T, multiple: boolean): T[] {
 
 function isSide(value: string): value is SideFilter {
   return value === "client" || value === "server";
+}
+
+function isKnownLoader(value: string): value is LoaderKind {
+  return KNOWN_LOADERS.has(value);
 }

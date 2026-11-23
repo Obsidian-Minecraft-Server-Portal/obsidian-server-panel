@@ -1,5 +1,6 @@
+import { Drawer } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Project, SideFilter } from "../../api/content";
 import { useContentFacets, useContentSearch, usePlatforms, useQuickAdd } from "../../api/content";
@@ -10,6 +11,7 @@ import { DiscoverSidebar } from "../../components/content/DiscoverSidebar";
 import { KIND_LABELS, LOADER_BOUND_KINDS, PLATFORM_NAMES, acceptsLoader } from "../../components/content/meta";
 import { ProjectResults } from "../../components/content/ProjectResults";
 import { ProjectTable } from "../../components/content/ProjectTable";
+import { useLoadMoreOnView } from "../../components/content/useLoadMoreOnView";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { GhostButton } from "../../components/ui/GhostButton";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -24,6 +26,8 @@ export function DiscoverPage() {
   const instance = useInstance(discover.instanceId ?? Number.NaN);
   const facets = useContentFacets(discover.platform, discover.kind).data;
   const quickAdd = useQuickAdd(discover.instanceId ?? 0);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const isModpack = discover.kind === "modpack";
   const loader = isModpack ? null : discover.loader;
@@ -45,9 +49,12 @@ export function DiscoverPage() {
     filters,
   });
   const projects = useMemo(() => search.data?.pages.flatMap((page) => page.items) ?? [], [search.data]);
+  const total = search.data?.pages[0]?.total ?? 0;
   const browsing = discover.debouncedQuery.trim() === "" && projects.length > 0;
   const hero = browsing ? projects[0] : null;
   const listed = hero ? projects.slice(1) : projects;
+  const loadNext = () => void search.fetchNextPage();
+  const sentinel = useLoadMoreOnView(resultsRef, search.hasNextPage && !search.isFetchingNextPage, loadNext);
 
   const quickAddTarget = instance.data && hasPermission(instance.data, "content.install") ? instance.data : null;
   const quickAddable = (project: Project) =>
@@ -78,53 +85,59 @@ export function DiscoverPage() {
     </>
   );
 
+  const sidebar = (
+    <DiscoverSidebar
+      kind={discover.kind}
+      platformName={platformName}
+      facets={facets}
+      filters={filters}
+      loader={discover.loader}
+      mcVersion={discover.mcVersion}
+      onLoader={discover.setLoader}
+      onToggleExcludedLoader={discover.toggleExcludedLoader}
+      onMcVersion={discover.setMcVersion}
+      onToggleCategory={discover.toggleCategory}
+      onToggleExcluded={discover.toggleExcluded}
+      onToggleEnvironment={(side) => discover.toggleEnvironment(side, environments)}
+      onOpenSource={discover.setOpenSource}
+      onClear={discover.clearFilters}
+    />
+  );
+
   return (
-    <>
-      <PageHeader
-        title="Discover"
-        subtitle={`Search ${platformName} for ${KIND_LABELS[discover.kind].toLowerCase()}`}
-        className="mb-0 border-b-0 pb-4"
-        search={{ value: discover.query, onChange: discover.setQuery, placeholder: "Search content" }}
-        actions={<ViewToggle label="Result view" value={discover.view} onChange={discover.setView} />}
-      />
-      <div className="space-y-5 px-8 pb-8">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <SourceChips
-              kind={discover.kind}
-              platform={discover.platform}
-              platforms={platforms}
-              onPlatform={discover.setPlatform}
-            />
-            {instance.data && (
-              <Link
-                to={`/instances/${instance.data.id}/content`}
-                className="inline-flex items-center gap-2 rounded-full bg-secondary-tint px-3 py-1.5 font-mono text-[11px] tracking-wider text-secondary-soft uppercase"
-              >
-                <Icon icon="lucide:crosshair" width={14} height={14} />
-                For {instance.data.name}
-              </Link>
-            )}
-          </div>
-          <DiscoverTabs kind={discover.kind} platform={discover.platform} platforms={platforms} onKind={discover.setKind} />
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 space-y-4 border-b border-line px-4 pt-5 pb-4 sm:px-8">
+        <PageHeader
+          title="Discover"
+          subtitle={`Search ${platformName} for ${KIND_LABELS[discover.kind].toLowerCase()}`}
+          className="mb-0 border-b-0 px-0 pt-0 pb-0"
+          search={{ value: discover.query, onChange: discover.setQuery, placeholder: "Search content" }}
+          actions={<ViewToggle label="Result view" value={discover.view} onChange={discover.setView} />}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <SourceChips kind={discover.kind} platform={discover.platform} platforms={platforms} onPlatform={discover.setPlatform} />
+          {instance.data && (
+            <Link
+              to={`/instances/${instance.data.id}/content`}
+              className="inline-flex items-center gap-2 rounded-full bg-secondary-tint px-3 py-1.5 font-mono text-[11px] tracking-wider text-secondary-soft uppercase"
+            >
+              <Icon icon="lucide:crosshair" width={14} height={14} />
+              For {instance.data.name}
+            </Link>
+          )}
         </div>
-        <div className="flex items-start gap-6">
-          <DiscoverSidebar
-            kind={discover.kind}
-            platformName={platformName}
-            facets={facets}
-            filters={filters}
-            loader={discover.loader}
-            mcVersion={discover.mcVersion}
-            onLoader={discover.setLoader}
-            onMcVersion={discover.setMcVersion}
-            onToggleCategory={discover.toggleCategory}
-            onToggleExcluded={discover.toggleExcluded}
-            onToggleEnvironment={(side) => discover.toggleEnvironment(side, environments)}
-            onOpenSource={discover.setOpenSource}
-            onClear={discover.clearFilters}
-          />
-          <div className="min-w-0 flex-1 space-y-5">
+        <DiscoverTabs kind={discover.kind} platform={discover.platform} platforms={platforms} onKind={discover.setKind} />
+      </div>
+      <div className="flex min-h-0 flex-1 gap-6 px-4 sm:px-8">
+        <div className="hidden w-60 shrink-0 overflow-y-auto py-5 lg:block">{sidebar}</div>
+        <div ref={resultsRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto py-5">
+          <div className="space-y-5 pb-8">
+            <div className="lg:hidden">
+              <GhostButton onPress={() => setFiltersOpen(true)}>
+                <Icon icon="lucide:sliders-horizontal" width={15} height={15} />
+                Filters
+              </GhostButton>
+            </div>
             {quickAdd.isSuccess && (
               <p className="flex items-center gap-2 text-sm text-green">
                 <Icon icon="lucide:circle-check" width={16} height={16} />
@@ -139,21 +152,32 @@ export function DiscoverPage() {
               isPending={search.isPending}
               isError={search.isError}
               errorMessage={search.error?.message}
-              total={search.data?.pages[0]?.total ?? 0}
+              total={total}
               onOpen={openProject}
               renderActions={renderActions}
             />
-            {search.hasNextPage && (
-              <div className="flex justify-center">
-                <GhostButton isDisabled={search.isFetchingNextPage} onPress={() => void search.fetchNextPage()}>
-                  {search.isFetchingNextPage ? "Loading…" : "Load more"}
-                </GhostButton>
-              </div>
-            )}
+            <div ref={sentinel} className="flex justify-center font-mono text-[11px] tracking-wider text-ink-3 uppercase">
+              {search.isFetchingNextPage
+                ? "Loading more…"
+                : !search.hasNextPage && projects.length > 0
+                  ? `All ${total.toLocaleString()} results loaded`
+                  : null}
+            </div>
           </div>
         </div>
       </div>
-    </>
+      <Drawer.Backdrop isOpen={filtersOpen} onOpenChange={setFiltersOpen}>
+        <Drawer.Content placement="left">
+          <Drawer.Dialog>
+            <Drawer.Header>
+              <Drawer.Heading>Filters</Drawer.Heading>
+              <Drawer.CloseTrigger />
+            </Drawer.Header>
+            <Drawer.Body>{sidebar}</Drawer.Body>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+    </div>
   );
 }
 

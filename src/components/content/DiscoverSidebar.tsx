@@ -1,9 +1,10 @@
-import { Button, cn } from "@heroui/react";
+import { Button, SearchField, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { CategoryGroup, ContentFilters, ContentKind, Facets, SideFilter } from "../../api/content";
 import { useMinecraftVersions, type LoaderKind } from "../../api/loaders";
 import { LOADER_META } from "../runtime/loaderMeta";
+import { CheckboxRow } from "../ui/CheckboxRow";
 import { LOADERS_BY_KIND } from "./meta";
 
 const SHOWN_CATEGORIES = 8;
@@ -17,6 +18,7 @@ interface DiscoverSidebarProps {
   loader: LoaderKind | null;
   mcVersion: string | null;
   onLoader: (loader: LoaderKind | null) => void;
+  onToggleExcludedLoader: (loader: LoaderKind) => void;
   onMcVersion: (version: string | null) => void;
   onToggleCategory: (id: string, multiple: boolean) => void;
   onToggleExcluded: (id: string) => void;
@@ -34,13 +36,15 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
     mcVersion !== null ||
     filters.categories.length > 0 ||
     filters.excludedCategories.length > 0 ||
+    filters.excludedLoaders.length > 0 ||
     filters.environments.length > 0 ||
     filters.openSource;
   const loading = facets === undefined;
   const hasGroups = (facets?.categories.length ?? 0) > 0;
+  const canExclude = facets?.exclusions ?? false;
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5">
       <Section
         title="Game version"
         disabled={!facets?.game_versions}
@@ -49,17 +53,16 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
         <VersionList selected={mcVersion} onSelect={props.onMcVersion} />
       </Section>
       {LOADERS_BY_KIND[kind].length > 0 && (
-        <Section
-          title="Loader"
-          disabled={!facets?.loaders}
-          hint={loading ? "Loading…" : `Not offered by ${platformName}`}
-        >
+        <Section title="Loader" disabled={!facets?.loaders} hint={loading ? "Loading…" : `Not offered by ${platformName}`}>
           {LOADERS_BY_KIND[kind].map((id) => (
             <FilterRow
               key={id}
               label={LOADER_META[id].label}
               picked={loader === id}
+              excluded={filters.excludedLoaders.includes(id)}
+              canExclude={canExclude}
               onPress={() => props.onLoader(loader === id ? null : id)}
+              onExclude={() => props.onToggleExcludedLoader(id)}
             />
           ))}
         </Section>
@@ -105,7 +108,7 @@ export function DiscoverSidebar(props: DiscoverSidebarProps) {
           Reset filters
         </Button>
       )}
-    </aside>
+    </div>
   );
 }
 
@@ -135,7 +138,8 @@ function Section({ title, disabled = false, hint, children }: SectionProps) {
 
 function VersionList({ selected, onSelect }: { selected: string | null; onSelect: (version: string | null) => void }) {
   const disabled = useContext(SectionDisabled);
-  const { data: versions = [] } = useMinecraftVersions("vanilla");
+  const [snapshots, setSnapshots] = useState(false);
+  const { data: versions = [] } = useMinecraftVersions("vanilla", snapshots);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
   const matching = versions.filter((version) => version.toLowerCase().includes(search.trim().toLowerCase()));
@@ -143,14 +147,16 @@ function VersionList({ selected, onSelect }: { selected: string | null; onSelect
 
   return (
     <>
-      <input
-        type="search"
-        value={search}
-        disabled={disabled}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search versions"
-        className="mb-1 w-full rounded-control border border-line bg-raised px-2.5 py-1.5 text-xs text-ink-1 outline-none placeholder:text-ink-4 focus:border-accent/50 disabled:cursor-not-allowed"
-      />
+      <SearchField aria-label="Search game versions" value={search} onChange={setSearch} isDisabled={disabled} className="mb-1 w-full">
+        <SearchField.Group>
+          <SearchField.SearchIcon />
+          <SearchField.Input placeholder="Search versions" />
+          <SearchField.ClearButton />
+        </SearchField.Group>
+      </SearchField>
+      <CheckboxRow isSelected={snapshots} onChange={setSnapshots} isDisabled={disabled} className="px-2 py-1 text-xs text-ink-2">
+        Show all versions
+      </CheckboxRow>
       {shown.map((version) => (
         <FilterRow
           key={version}
@@ -185,7 +191,7 @@ function CategorySection({ group, facets, filters, actions }: CategorySectionPro
           label={titleize(category.name)}
           picked={filters.categories.includes(category.id)}
           excluded={filters.excludedCategories.includes(category.id)}
-          signed={facets.exclusions}
+          canExclude={facets.exclusions}
           onPress={() => actions.onToggleCategory(category.id, facets.multiple)}
           onExclude={() => actions.onToggleExcluded(category.id)}
         />
@@ -205,12 +211,12 @@ interface FilterRowProps {
   label: string;
   picked: boolean;
   excluded?: boolean;
-  signed?: boolean;
+  canExclude?: boolean;
   onPress: () => void;
   onExclude?: () => void;
 }
 
-function FilterRow({ label, picked, excluded = false, signed = false, onPress, onExclude }: FilterRowProps) {
+function FilterRow({ label, picked, excluded = false, canExclude = false, onPress, onExclude }: FilterRowProps) {
   const disabled = useContext(SectionDisabled);
   return (
     <div className="group flex min-w-0 items-center gap-1 rounded-control">
@@ -219,30 +225,38 @@ function FilterRow({ label, picked, excluded = false, signed = false, onPress, o
         isDisabled={disabled}
         onPress={onPress}
         className={cn(
-          "h-auto min-w-0 flex-1 justify-start gap-2.5 rounded-control px-2 py-1.5 text-left text-[13px] font-normal",
+          "h-auto min-w-0 flex-1 justify-start rounded-control px-2 py-1.5 text-left text-[13px] font-normal",
           picked ? "bg-accent-tint text-ink-0" : excluded ? "text-ink-3 line-through" : "text-ink-2 hover:bg-raised",
         )}
       >
-        <Icon
-          icon={picked ? "lucide:square-check" : "lucide:square"}
-          width={15}
-          height={15}
-          className={cn("shrink-0", picked ? "text-accent" : "text-ink-4")}
-        />
         <span className="truncate">{label}</span>
       </Button>
-      {signed && onExclude && (
+      <Button
+        variant="ghost"
+        isDisabled={disabled}
+        aria-label={picked ? `Clear ${label}` : `Include ${label}`}
+        aria-pressed={picked}
+        onPress={onPress}
+        className={cn(
+          "size-6 min-w-0 shrink-0 rounded-md p-0",
+          picked ? "bg-green/15 text-green" : "text-ink-4 hover:bg-raised hover:text-ink-1",
+        )}
+      >
+        <Icon icon="lucide:plus" width={13} height={13} />
+      </Button>
+      {canExclude && onExclude && (
         <Button
           variant="ghost"
           isDisabled={disabled}
           aria-label={excluded ? `Stop excluding ${label}` : `Exclude ${label}`}
+          aria-pressed={excluded}
           onPress={onExclude}
           className={cn(
             "size-6 min-w-0 shrink-0 rounded-md p-0",
             excluded ? "bg-rose/15 text-rose" : "text-ink-4 hover:bg-raised hover:text-ink-1",
           )}
         >
-          <Icon icon="lucide:minus" width={12} height={12} />
+          <Icon icon="lucide:minus" width={13} height={13} />
         </Button>
       )}
     </div>

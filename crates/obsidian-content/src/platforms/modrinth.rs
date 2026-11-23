@@ -56,6 +56,11 @@ impl ContentPlatform for Modrinth {
 		for category in &query.excluded_categories {
 			facets.push(vec![custom("categories", "!=", category)]);
 		}
+		for loader in &query.excluded_loaders {
+			for category in loader_categories(*loader) {
+				facets.push(vec![custom("categories", "!=", category)]);
+			}
+		}
 		for side in &query.environments {
 			facets.push(vec![custom(side_facet(*side), "!=", "unsupported")]);
 		}

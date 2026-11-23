@@ -54,6 +54,7 @@ export interface Facets {
 export interface ContentFilters {
   categories: string[];
   excludedCategories: string[];
+  excludedLoaders: LoaderKind[];
   environments: SideFilter[];
   openSource: boolean;
 }
@@ -245,6 +246,7 @@ function searchFilterQuery(filters: ContentFilters | undefined): Record<string, 
   const params: Record<string, string> = {};
   if (filters.categories.length) params.categories = filters.categories.join(",");
   if (filters.excludedCategories.length) params.excluded_categories = filters.excludedCategories.join(",");
+  if (filters.excludedLoaders.length) params.excluded_loaders = filters.excludedLoaders.join(",");
   if (filters.environments.length) params.environments = filters.environments.join(",");
   if (filters.openSource) params.open_source = "true";
   return params;

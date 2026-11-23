@@ -13,6 +13,7 @@ pub struct SearchQuery {
 	pub loader: Option<Loader>,
 	pub categories: Vec<String>,
 	pub excluded_categories: Vec<String>,
+	pub excluded_loaders: Vec<Loader>,
 	pub environments: Vec<Side>,
 	pub open_source: bool,
 	pub offset: u32,

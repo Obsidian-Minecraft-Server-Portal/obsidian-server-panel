@@ -3,6 +3,7 @@ use std::str::FromStr;
 use actix_web::{HttpResponse, get, web};
 use obsidian_common::{CommonError, Loader};
 use obsidian_loaders::{LOADER_KINDS, loader};
+use serde::Deserialize;
 
 use crate::auth::AuthUser;
 use crate::error::ApiResult;
@@ -23,16 +24,34 @@ pub async fn list_loaders(_user: AuthUser) -> ApiResult<HttpResponse> {
 	get,
 	path = "/api/v1/loaders/{kind}/versions",
 	tag = "loaders",
-	params(("kind" = String, Path, description = "Loader kind, e.g. fabric")),
+	params(
+		("kind" = String, Path, description = "Loader kind, e.g. fabric"),
+		("include_snapshots" = Option<bool>, Query, description = "Also list snapshot versions"),
+	),
 	responses(
 		(status = 200, description = "Minecraft versions supported by the loader", body = Vec<String>),
 		(status = 400, description = "Unknown loader kind")
 	)
 )]
 #[get("/loaders/{kind}/versions")]
-pub async fn minecraft_versions(_user: AuthUser, kind: web::Path<String>) -> ApiResult<HttpResponse> {
-	let versions = loader(parse_kind(&kind)?).mc_versions().await?;
+pub async fn minecraft_versions(
+	_user: AuthUser,
+	kind: web::Path<String>,
+	web::Query(params): web::Query<MinecraftVersionsParams>,
+) -> ApiResult<HttpResponse> {
+	let server_loader = loader(parse_kind(&kind)?);
+	let versions = if params.include_snapshots {
+		server_loader.mc_versions_with_snapshots().await?
+	} else {
+		server_loader.mc_versions().await?
+	};
 	Ok(HttpResponse::Ok().json(versions))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MinecraftVersionsParams {
+	#[serde(default)]
+	include_snapshots: bool,
 }
 
 #[utoipa::path(

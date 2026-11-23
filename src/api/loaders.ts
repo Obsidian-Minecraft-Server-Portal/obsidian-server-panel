@@ -23,10 +23,10 @@ export function useLoaderKinds() {
   });
 }
 
-export function useMinecraftVersions(kind: LoaderKind | null) {
+export function useMinecraftVersions(kind: LoaderKind | null, includeSnapshots = false) {
   return useQuery({
-    queryKey: ["loaders", kind, "versions"],
-    queryFn: () => api.get<string[]>(`/loaders/${kind}/versions`),
+    queryKey: ["loaders", kind, "minecraft-versions", includeSnapshots],
+    queryFn: () => api.get<string[]>(`/loaders/${kind}/versions${includeSnapshots ? "?include_snapshots=true" : ""}`),
     enabled: kind !== null,
     staleTime: Infinity,
   });

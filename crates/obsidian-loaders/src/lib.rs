@@ -55,6 +55,9 @@ impl LaunchSpec {
 pub trait ServerLoader: Send + Sync {
 	fn kind(&self) -> Loader;
 	async fn mc_versions(&self) -> Result<Vec<String>>;
+	async fn mc_versions_with_snapshots(&self) -> Result<Vec<String>> {
+		self.mc_versions().await
+	}
 	async fn loader_versions(&self, mc_version: &str) -> Result<Vec<String>>;
 	async fn install(&self, request: &InstallRequest, task: &TaskHandle) -> Result<LaunchSpec>;
 }

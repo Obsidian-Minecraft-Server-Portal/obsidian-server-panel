@@ -53,6 +53,19 @@ impl ServerLoader for Vanilla {
 		.await
 	}
 
+	async fn mc_versions_with_snapshots(&self) -> Result<Vec<String>> {
+		cache::versions("vanilla:mc:snapshots".into(), async {
+			let index = index().await?;
+			Ok(index
+				.versions
+				.iter()
+				.filter(|version| matches!(version.release_type, ReleaseType::Release | ReleaseType::Snapshot))
+				.map(|version| version.id.clone())
+				.collect())
+		})
+		.await
+	}
+
 	async fn loader_versions(&self, _mc_version: &str) -> Result<Vec<String>> {
 		Ok(Vec::new())
 	}
