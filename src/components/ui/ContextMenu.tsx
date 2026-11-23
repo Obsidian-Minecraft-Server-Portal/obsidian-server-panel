@@ -66,7 +66,7 @@ export function ContextMenu({ x, y, label, actions, onClose }: ContextMenuProps)
             id={action.key}
             textValue={action.label}
             className={cn(
-              "flex w-full cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none data-[focused=true]:bg-raised",
+              "flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none data-[hovered=true]:bg-line-strong data-[focus-visible=true]:bg-line-strong",
               action.danger ? "text-rose" : "text-ink-1",
               index > 0 && action.danger && "mt-1 border-t border-line pt-2",
             )}
