@@ -130,6 +130,45 @@ Examples of what to record:
 - Shared state and synchronization mechanisms
 - Build configuration and feature flag relationships
 
+### Recorded notes
+
+- **Scrollbars:** `src/scrollbars.ts` attaches OverlayScrollbars to every
+  scroll area automatically:
+  - It runs a `MutationObserver` on `document.body` and rescans on resize.
+  - It uses the element itself as the viewport, so DOM, refs, Lenis and
+    console auto-follow are untouched.
+  - It skips Monaco and anything with `scrollbar-width: none`.
+  - The theme is `.os-scrollbar.os-theme-obsidian` in `src/css/index.css`. The
+    double class is required, because the library's own defaults load later.
+- **Smooth scroll:** `src/components/layout/SmoothScroll.tsx` (Lenis).
+  - Areas that must keep native wheel behaviour carry `data-native-scroll`.
+  - Programmatic scrolls inside Lenis wrappers use `lenis.scrollTo`.
+  - Instant writes use `scrollTo({ behavior: "instant" })`.
+- **HeroUI v3 Checkbox:** only `Checkbox.Content` is clickable, so
+  `Checkbox.Control` must sit inside it.
+- **React Aria menus:** a menu item is focused on hover. Highlight with
+  `data-hovered` and `data-focus-visible`, never `data-focused`.
+- **Server migration:**
+  - The `obsidian-migration` crate holds the orchestration. Compatibility
+    lives in `obsidian-content/src/manager/compat.rs`, and jar Minecraft
+    ranges in `metadata.rs` and `range.rs`.
+  - `InstanceManager::begin_migration` blocks `start()` while a migration
+    runs.
+  - `update_and_wait` awaits the install task.
+  - Rollback restores the snapshot, the software fields and the `mods` rows.
+- **Dev server quirks:**
+  - `just dev` proxies the page to a Vite it starts itself on port 3000. If
+    something else holds 3000, every page returns 500.
+  - After a dependency change, Vite's cold optimise can take more than 60s,
+    which exceeds the proxy timeout, so the first load fails. Wait and reload.
+  - To verify UI without touching a running `just dev`, run a second Vite on
+    another port. Give it its own `cacheDir`, because a shared
+    `node_modules/.vite` makes the two servers re-optimise each other. Give it
+    an `/api` proxy that rewrites `Origin`.
+- **Windows tests:** `obsidian-runner::runner_round_trip` (needs `/bin/sh`)
+  fails on Windows. `obsidian-backups::snapshot_deduplicates_and_restores` can
+  fail intermittently with "Access is denied". Neither is a regression.
+
 ---
 
 # Obsidian — Project Specification
@@ -546,6 +585,16 @@ Port those designs to HeroUI v3 tokens and Tailwind v4 in `src/css/index.css`.
 - A faint 64px grid with a radial mask on hero areas.
 - Animations: `pulse-ring`, `shimmer` (progress), `aurora-float`,
   `tick-in`, `blink-cursor`. Respect `prefers-reduced-motion`.
+- Scrollbars are custom and identical in every browser, drawn by
+  OverlayScrollbars (never native `::-webkit-scrollbar` or `scrollbar-color`):
+  - A 4px thumb on a transparent 14px track, slightly brighter than the
+    background.
+  - It animates to 6px and brightens over 0.15s **only while the pointer is
+    over the track**. Hovering the content does nothing.
+  - Keep at least 5px between the thumb and content. The scrollbar overlays
+    content, so a scroll area flush against its edge needs right padding
+    (`pr-4`).
+- Smooth wheel scrolling uses Lenis on the main scroller and the Discover lists.
 
 ### Login (Drew's favourite — replicate Lodestone's, in purple)
 
