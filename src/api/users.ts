@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { UserProfile } from "./auth";
 import { currentUserKey } from "./session";
+import { REFRESH_MS } from "./polling";
 
 export interface NewUserInput {
   username: string;
@@ -41,7 +42,11 @@ const usersKey = ["users"] as const;
 const invitesKey = ["invites"] as const;
 
 export function useUsers() {
-  return useQuery({ queryKey: usersKey, queryFn: () => api.get<UserProfile[]>("/users") });
+  return useQuery({
+    queryKey: usersKey,
+    queryFn: () => api.get<UserProfile[]>("/users"),
+    refetchInterval: REFRESH_MS.slow,
+  });
 }
 
 export function useCreateUser() {
@@ -73,7 +78,11 @@ export function useDeleteUser() {
 }
 
 export function useInvites() {
-  return useQuery({ queryKey: invitesKey, queryFn: () => api.get<Invite[]>("/invites") });
+  return useQuery({
+    queryKey: invitesKey,
+    queryFn: () => api.get<Invite[]>("/invites"),
+    refetchInterval: REFRESH_MS.slow,
+  });
 }
 
 export function useCreateInvite() {

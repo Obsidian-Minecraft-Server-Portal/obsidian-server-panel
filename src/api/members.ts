@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { REFRESH_MS } from "./polling";
 
 export interface MemberView {
   user_id: number;
@@ -44,6 +45,7 @@ export function useMembers(instanceId: number) {
   return useQuery({
     queryKey: membersKey(instanceId),
     queryFn: () => api.get<MemberView[]>(`/instances/${instanceId}/members`),
+    refetchInterval: REFRESH_MS.list,
   });
 }
 

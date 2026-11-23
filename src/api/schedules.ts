@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { REFRESH_MS } from "./polling";
 
 export type Weekday = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 
@@ -68,6 +69,7 @@ export function useSchedules(instanceId: number) {
   return useQuery({
     queryKey: schedulesKey(instanceId),
     queryFn: () => api.get<ScheduleRecord[]>(`/instances/${instanceId}/schedules`),
+    refetchInterval: REFRESH_MS.list,
   });
 }
 
@@ -103,10 +105,12 @@ export function useCreateSchedule(instanceId: number) {
 }
 
 export function useUpdateSchedule(instanceId: number) {
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateSchedules(instanceId);
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Partial<Schedule> }) =>
       api.patch<ScheduleRecord>(`/schedules/${id}`, patch),
+    onMutate: () => queryClient.cancelQueries({ queryKey: schedulesKey(instanceId) }),
     onSettled: invalidate,
   });
 }

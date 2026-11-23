@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, upload } from "./client";
+import { REFRESH_MS } from "./polling";
 import type { LoaderKind } from "./loaders";
 
 export type RunState = "starting" | "running" | "stopping" | "stopped" | "crashed";
@@ -169,6 +170,7 @@ export function useInstances() {
   return useQuery({
     queryKey: instancesKey,
     queryFn: () => api.get<InstanceView[]>("/instances"),
+    refetchInterval: REFRESH_MS.list,
   });
 }
 
@@ -176,6 +178,7 @@ export function useInstance(id: number) {
   return useQuery({
     queryKey: instanceKey(id),
     queryFn: () => api.get<InstanceView>(`/instances/${id}`),
+    refetchInterval: REFRESH_MS.list,
     enabled: isInstanceId(id),
   });
 }

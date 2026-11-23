@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, BASE, CSRF_HEADER, api, csrfToken, messageFrom } from "./client";
+import { REFRESH_MS } from "./polling";
 
 export interface FileEntry {
   name: string;
@@ -120,6 +121,7 @@ export function useDirectory(id: number, path: string) {
   return useQuery({
     queryKey: directoryKey(id, path),
     queryFn: () => listDirectory(id, path),
+    refetchInterval: REFRESH_MS.list,
   });
 }
 

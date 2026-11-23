@@ -1,5 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, upload } from "./client";
+import { REFRESH_MS } from "./polling";
 import type { LoaderKind } from "./loaders";
 
 export type PlatformId = 0 | 1 | 2 | 3;
@@ -210,6 +211,7 @@ export function useInstalledContent(instanceId: number, enabled = true) {
     queryKey: contentKeys.installed(instanceId),
     queryFn: () => api.get<InstalledContent[]>(`/instances/${instanceId}/content`),
     enabled,
+    refetchInterval: REFRESH_MS.list,
   });
 }
 
@@ -294,6 +296,7 @@ export function useToggleContent(instanceId: number) {
   return useMutation({
     mutationFn: (input: { modId: number; enabled: boolean }) =>
       api.post<InstalledContent>(`/instances/${instanceId}/content/${input.modId}/toggle`, { enabled: input.enabled }),
+    onMutate: () => queryClient.cancelQueries({ queryKey: contentKeys.installed(instanceId) }),
     onSuccess: (item) =>
       queryClient.setQueryData<InstalledContent[]>(contentKeys.installed(instanceId), (list) =>
         list?.map((entry) => (entry.id === item.id ? item : entry)),

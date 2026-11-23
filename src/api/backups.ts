@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { REFRESH_MS } from "./polling";
 import { useTopic } from "./ws";
 
 export interface SnapshotInfo {
@@ -44,6 +45,7 @@ export function useSnapshots(instanceId: number, enabled = true) {
     queryKey: [...backupsKey(instanceId), "list"],
     queryFn: () => api.get<SnapshotInfo[]>(`/instances/${instanceId}/backups`),
     enabled,
+    refetchInterval: REFRESH_MS.slow,
   });
 }
 
@@ -51,6 +53,7 @@ export function useBackupStats(instanceId: number) {
   return useQuery({
     queryKey: [...backupsKey(instanceId), "stats"],
     queryFn: () => api.get<StoreStats>(`/instances/${instanceId}/backups/stats`),
+    refetchInterval: REFRESH_MS.slow,
   });
 }
 
@@ -68,6 +71,7 @@ export function useBackupPolicy(instanceId: number) {
   return useQuery({
     queryKey: policyKey(instanceId),
     queryFn: () => api.get<BackupPolicy>(`/instances/${instanceId}/backup-policy`),
+    refetchInterval: REFRESH_MS.slow,
   });
 }
 
