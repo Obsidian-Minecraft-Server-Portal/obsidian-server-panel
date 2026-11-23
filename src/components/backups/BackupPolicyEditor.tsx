@@ -1,6 +1,7 @@
 import { Input, Label, TextField } from "@heroui/react";
 import { useState, type FormEvent } from "react";
 import { useSaveBackupPolicy, type BackupPolicy } from "../../api/backups";
+import { mergeEdits } from "../ui/mergeEdits";
 import { PrimaryButton } from "../ui/PrimaryButton";
 
 const RETENTION_FIELDS = [
@@ -55,7 +56,13 @@ function describeRetention(policy: BackupPolicy): string {
 
 export function BackupPolicyEditor({ instanceId, policy }: BackupPolicyEditorProps) {
   const save = useSaveBackupPolicy(instanceId);
-  const [draft, setDraft] = useState(() => toDraft(policy));
+  const server = toDraft(policy);
+  const [draft, setDraft] = useState(server);
+  const [base, setBase] = useState(server);
+  if (JSON.stringify(server) !== JSON.stringify(base)) {
+    setBase(server);
+    setDraft((current) => mergeEdits(base, current, server));
+  }
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

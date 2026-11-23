@@ -1,5 +1,5 @@
 import { Modal } from "@heroui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useUpdateMember, type MemberView, type PermissionCatalog } from "../../api/members";
 import { GhostButton } from "../ui/GhostButton";
 import { PrimaryButton } from "../ui/PrimaryButton";
@@ -18,10 +18,11 @@ interface MemberEditorProps {
 export function MemberEditor({ instanceId, member, catalog, canEdit, onClose }: MemberEditorProps) {
   const update = useUpdateMember(instanceId);
   const [draft, setDraft] = useState(member.permissions);
-
-  useEffect(() => {
-    setDraft(member.permissions);
-  }, [member.permissions]);
+  const [synced, setSynced] = useState(member.permissions);
+  if (!sameMembers(member.permissions, synced)) {
+    setSynced(member.permissions);
+    if (sameMembers(draft, synced)) setDraft(member.permissions);
+  }
 
   const dirty = !sameMembers(draft, member.permissions);
   const roles = catalog.roles.map((preset) => preset.role);

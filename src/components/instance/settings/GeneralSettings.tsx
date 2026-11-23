@@ -8,6 +8,7 @@ import { SwitchRow } from "../../ui/SwitchRow";
 import { isMemoryRange, isPortValid } from "../create/draft";
 import { useMemoryLimits } from "../../../api/system";
 import { MemoryRange } from "../../ui/MemoryRange";
+import { mergeEdits } from "../../ui/mergeEdits";
 
 interface Form {
   name: string;
@@ -51,13 +52,19 @@ function memoryValid(form: Form): boolean {
   return isMemoryRange(Number(form.memoryMinMb), Number(form.memoryMaxMb));
 }
 
-export function generalSettingsKey(view: InstanceView): string {
+function generalSettingsKey(view: InstanceView): string {
   return JSON.stringify(initialForm(view));
 }
 
 export function GeneralSettings({ view }: { view: InstanceView }) {
-  const [form, setForm] = useState(() => initialForm(view));
+  const server = initialForm(view);
+  const [form, setForm] = useState(server);
+  const [base, setBase] = useState(server);
   const update = useUpdateInstance(view.id);
+  if (generalSettingsKey(view) !== JSON.stringify(base)) {
+    setBase(server);
+    setForm((current) => mergeEdits(base, current, server));
+  }
   const patch = changes(view, form);
   const dirty = Object.keys(patch).length > 0;
   const memoryOk = memoryValid(form);

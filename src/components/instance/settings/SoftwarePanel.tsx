@@ -6,6 +6,7 @@ import { LOADER_META } from "../../runtime/loaderMeta";
 import { LoaderPicker } from "../../runtime/LoaderPicker";
 import { LoaderVersionSelect } from "../../runtime/LoaderVersionSelect";
 import { VersionSelect } from "../../runtime/VersionSelect";
+import { mergeEdits } from "../../ui/mergeEdits";
 import { GhostButton } from "../../ui/GhostButton";
 import { Panel } from "../../ui/Panel";
 import { PrimaryButton } from "../../ui/PrimaryButton";
@@ -21,13 +22,19 @@ function currentSoftware(view: InstanceView): Software {
   return { loader: view.loader, mcVersion: view.mc_version, loaderVersion: view.loader_version };
 }
 
-export function softwareKey(view: InstanceView): string {
+function softwareKey(view: InstanceView): string {
   return JSON.stringify(currentSoftware(view));
 }
 
 export function SoftwarePanel({ view }: { view: InstanceView }) {
+  const server = currentSoftware(view);
   const update = useUpdateInstance(view.id);
-  const [draft, setDraft] = useState<Software>(() => currentSoftware(view));
+  const [draft, setDraft] = useState<Software>(server);
+  const [base, setBase] = useState<Software>(server);
+  if (softwareKey(view) !== JSON.stringify(base)) {
+    setBase(server);
+    setDraft((current) => mergeEdits(base, current, server));
+  }
   const [confirming, setConfirming] = useState(false);
   const busy = isActive(view.status) || view.status.installing || update.isPending;
   const changed = draft.loader !== view.loader || draft.mcVersion !== view.mc_version || draft.loaderVersion !== view.loader_version;
