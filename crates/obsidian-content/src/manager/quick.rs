@@ -78,6 +78,11 @@ async fn plan(
 	project_id: &str,
 	main: ProjectVersion,
 ) -> Result<Vec<Planned>> {
+	if installed.contains(project_id) {
+		return Err(CommonError::Conflict(
+			"this project is already installed on the instance; update it from the Content tab instead".into(),
+		));
+	}
 	let mut seen = HashSet::from([project_id.to_owned()]);
 	let mut planned = Vec::new();
 	let mut pending = vec![(main.clone(), 0usize)];
@@ -248,6 +253,11 @@ mod tests {
 	fn plan_installs_required_dependencies_first_and_skips_the_rest() {
 		assert_eq!(run(&[]).unwrap(), ["core", "lib", "app"]);
 		assert_eq!(run(&["core"]).unwrap(), ["lib", "app"]);
+	}
+
+	#[test]
+	fn plan_refuses_a_project_that_is_already_installed() {
+		assert!(matches!(run(&["app"]), Err(CommonError::Conflict(_))));
 	}
 
 	#[test]
