@@ -4,6 +4,7 @@ version = "0.0.0"
 edition = "2024"
 
 [dependencies]
+ammonia = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 ferinth = { workspace = true }
@@ -15,6 +16,7 @@ moka = { workspace = true, features = ["sync"] }
 obsidian-common = { workspace = true }
 obsidian-db = { workspace = true }
 obsidian-instances = { workspace = true }
+pulldown-cmark = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

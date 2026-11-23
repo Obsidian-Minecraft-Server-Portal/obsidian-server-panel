@@ -232,5 +232,8 @@ fn to_version(project_id: &str, version: HangarVersion) -> Option<ProjectVersion
 		sha256: file_info.sha256_hash.clone(),
 		published_at: version.created_at,
 		has_server_pack: false,
+		channel: "release".to_owned(),
+		downloads: 0,
+		dependencies: Vec::new(),
 	})
 }

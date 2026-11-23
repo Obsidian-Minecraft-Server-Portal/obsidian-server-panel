@@ -46,6 +46,14 @@ fn jar_display_names_come_from_each_loader_format() {
 }
 
 #[test]
+fn rendered_markdown_is_sanitized_and_links_are_hardened() {
+	let rendered = crate::render::markdown("# Title\n\n<script>alert(1)</script>\n\n[link](https://example.com)");
+	assert!(rendered.contains("<h1>Title</h1>"));
+	assert!(!rendered.contains("<script"));
+	assert!(rendered.contains("rel=\"noopener noreferrer nofollow\""));
+}
+
+#[test]
 fn platform_parses_names_and_ids() {
 	assert_eq!("modrinth".parse::<Platform>().unwrap(), Platform::Modrinth);
 	assert_eq!("3".parse::<Platform>().unwrap(), Platform::Spiget);

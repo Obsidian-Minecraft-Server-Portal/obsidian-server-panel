@@ -4,7 +4,7 @@ use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, Loader};
 use obsidian_content::{
-	ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectVersion, SearchPage,
+	ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectDetail, ProjectVersion, SearchPage,
 	SearchQuery, Side, VersionFilter, icon_mime,
 };
 use serde::{Deserialize, Serialize};
@@ -24,8 +24,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(facets)
 		.service(project)
 		.service(project_versions)
+		.service(project_detail)
+		.service(project_changelog)
 		.service(list_content)
 		.service(install_content)
+		.service(quick_add)
 		.service(content_updates)
 		.service(update_all_content)
 		.service(update_content)
@@ -514,6 +517,92 @@ pub async fn content_icon(
 		.await?
 		.ok_or_else(|| CommonError::NotFound("icon".into()))?;
 	Ok(HttpResponse::Ok().content_type(icon_mime(&bytes)).body(bytes))
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/content/{platform}/projects/{id}/detail",
+	tag = "content",
+	params(
+		("platform" = String, Path, description = "Platform name or numeric id"),
+		("id" = String, Path, description = "Project id on the platform"),
+	),
+	responses(
+		(status = 200, description = "Project page with rendered README, gallery, links and details", body = ProjectDetail),
+		(status = 404, description = "Project not found"),
+	)
+)]
+#[get("/content/{platform}/projects/{id}/detail")]
+pub async fn project_detail(
+	state: web::Data<AppState>,
+	_user: AuthUser,
+	path: web::Path<(String, String)>,
+) -> ApiResult<web::Json<ProjectDetail>> {
+	let (platform, id) = path.into_inner();
+	let platform: Platform = platform.parse()?;
+	Ok(web::Json(state.content.detail(platform, &id).await?))
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/content/{platform}/projects/{id}/versions/{version}/changelog",
+	tag = "content",
+	params(
+		("platform" = String, Path, description = "Platform name or numeric id"),
+		("id" = String, Path, description = "Project id on the platform"),
+		("version" = String, Path, description = "Version id on the platform"),
+	),
+	responses(
+		(status = 200, description = "Rendered changelog, or null when the platform publishes none", body = Option<String>),
+		(status = 404, description = "Project or version not found"),
+	)
+)]
+#[get("/content/{platform}/projects/{id}/versions/{version}/changelog")]
+pub async fn project_changelog(
+	state: web::Data<AppState>,
+	_user: AuthUser,
+	path: web::Path<(String, String, String)>,
+) -> ApiResult<web::Json<Option<String>>> {
+	let (platform, id, version) = path.into_inner();
+	let platform: Platform = platform.parse()?;
+	Ok(web::Json(state.content.changelog(platform, &id, &version).await?))
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct QuickAddRequest {
+	#[schema(value_type = u8)]
+	pub platform: Platform,
+	pub project_id: String,
+	pub version_id: Option<String>,
+}
+
+#[utoipa::path(
+	post,
+	path = "/api/v1/instances/{id}/content/quick-add",
+	tag = "content",
+	params(("id" = i64, Path, description = "Instance id")),
+	request_body = QuickAddRequest,
+	responses(
+		(status = 201, description = "Installed the version and its required dependencies", body = Vec<InstalledContent>),
+		(status = 403, description = "Missing content.install permission"),
+		(status = 404, description = "No compatible version"),
+		(status = 409, description = "A required dependency has no compatible version"),
+	)
+)]
+#[post("/instances/{id}/content/quick-add")]
+pub async fn quick_add(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<i64>,
+	web::Json(request): web::Json<QuickAddRequest>,
+) -> ApiResult<HttpResponse> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::CONTENT_INSTALL).await?;
+	let installed = state
+		.content
+		.quick_add(id, request.platform, &request.project_id, request.version_id.as_deref(), Some(user.id))
+		.await?;
+	Ok(HttpResponse::Created().json(installed))
 }
 
 fn invalid_upload(error: actix_multipart::MultipartError) -> CommonError {

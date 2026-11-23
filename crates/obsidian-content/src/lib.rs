@@ -7,6 +7,7 @@ mod modpack;
 mod name;
 mod platform;
 mod platforms;
+mod render;
 mod serverpack;
 #[cfg(test)]
 mod tests;
@@ -14,8 +15,8 @@ mod tests;
 pub use icon::mime as icon_mime;
 pub use manager::{ContentManager, InstalledWorld, ServerResourcePack};
 pub use model::{
-	Category, CategoryGroup, ContentUpdate, Facets, InstallRequest, InstalledContent, ModpackRequest, PackSource, Project, ProjectVersion,
-	SearchPage, SearchQuery, Side, VersionFilter,
+	Category, CategoryGroup, ContentUpdate, DependencyKind, Facets, GalleryImage, InstallRequest, InstalledContent, ModpackRequest, PackSource,
+	Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage, SearchQuery, Side, VersionDependency, VersionFilter,
 };
 pub use platform::{ContentPlatform, Kind, Platform};
 pub use serverpack::{

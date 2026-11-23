@@ -112,6 +112,79 @@ pub struct ProjectVersion {
 	pub sha256: Option<String>,
 	pub published_at: DateTime<Utc>,
 	pub has_server_pack: bool,
+	pub channel: String,
+	pub downloads: u64,
+	pub dependencies: Vec<VersionDependency>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DependencyKind {
+	Required,
+	Optional,
+	Incompatible,
+	Embedded,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct VersionDependency {
+	pub project_id: Option<String>,
+	pub version_id: Option<String>,
+	pub kind: DependencyKind,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ProjectDetail {
+	pub project: Project,
+	pub body_html: String,
+	pub gallery: Vec<GalleryImage>,
+	pub links: ProjectLinks,
+	pub authors: Vec<String>,
+	pub license: Option<String>,
+	pub categories: Vec<String>,
+	pub game_versions: Vec<String>,
+	pub loaders: Vec<String>,
+	pub followers: Option<u64>,
+	pub published_at: Option<DateTime<Utc>>,
+	pub updated_at: Option<DateTime<Utc>>,
+	pub web_url: Option<String>,
+}
+
+impl ProjectDetail {
+	pub fn summary(project: Project) -> Self {
+		Self {
+			project,
+			body_html: String::new(),
+			gallery: Vec::new(),
+			links: ProjectLinks::default(),
+			authors: Vec::new(),
+			license: None,
+			categories: Vec::new(),
+			game_versions: Vec::new(),
+			loaders: Vec::new(),
+			followers: None,
+			published_at: None,
+			updated_at: None,
+			web_url: None,
+		}
+	}
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct GalleryImage {
+	pub url: String,
+	pub title: Option<String>,
+	pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, ToSchema)]
+pub struct ProjectLinks {
+	pub website: Option<String>,
+	pub issues: Option<String>,
+	pub source: Option<String>,
+	pub wiki: Option<String>,
+	pub discord: Option<String>,
+	pub donate: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]

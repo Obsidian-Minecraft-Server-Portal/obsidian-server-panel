@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use utoipa::ToSchema;
 
-use crate::model::{Facets, HashMatch, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Facets, HashMatch, Project, ProjectDetail, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -105,6 +105,12 @@ pub trait ContentPlatform: Send + Sync {
 	async fn versions(&self, id: &str, filter: &VersionFilter) -> Result<Vec<ProjectVersion>>;
 	async fn version(&self, project_id: &str, version_id: &str) -> Result<ProjectVersion>;
 	async fn server_pack(&self, _project_id: &str, _version_id: &str) -> Result<Option<ProjectVersion>> {
+		Ok(None)
+	}
+	async fn detail(&self, id: &str) -> Result<ProjectDetail> {
+		Ok(ProjectDetail::summary(self.project(id).await?))
+	}
+	async fn changelog(&self, _project_id: &str, _version_id: &str) -> Result<Option<String>> {
 		Ok(None)
 	}
 	async fn lookup_hashes(&self, _sha1s: &[String]) -> Result<Vec<HashMatch>> {

@@ -1,16 +1,20 @@
 use async_trait::async_trait;
 use ferinth::Ferinth;
-use ferinth::structures::project::{ProjectType, SideType};
+use ferinth::structures::project::{Project as FerinthProject, ProjectType, SideType};
 use ferinth::structures::search::SearchHit;
 use ferinth::structures::search::{Facet, Sort};
 use ferinth::structures::tag::Category as ModrinthCategory;
-use ferinth::structures::version::{Version, VersionFile};
+use ferinth::structures::version::{DependencyType, Version, VersionFile, VersionType};
 use obsidian_common::{CommonError, Loader, Result};
 use reqwest::StatusCode;
 
 use crate::http::{segment, upstream};
-use crate::model::{Category, CategoryGroup, Facets, HashMatch, Project, ProjectVersion, SearchPage, SearchQuery, Side, SideSupport, VersionFilter};
+use crate::model::{
+	Category, CategoryGroup, DependencyKind, Facets, GalleryImage, HashMatch, Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage,
+	SearchQuery, Side, SideSupport, VersionDependency, VersionFilter,
+};
 use crate::platform::{ContentPlatform, Kind, Platform};
+use crate::render;
 
 const DATAPACK_LOADER: &[&str] = &["datapack"];
 const HASH_BATCH: usize = 100;
@@ -53,7 +57,7 @@ impl ContentPlatform for Modrinth {
 			facets.push(vec![custom("categories", "!=", category)]);
 		}
 		for side in &query.environments {
-			facets.push(vec![custom(side_facet(*side), ":", "required")]);
+			facets.push(vec![custom(side_facet(*side), "!=", "unsupported")]);
 		}
 		if query.open_source {
 			facets.push(vec![Facet::OpenSource(true)]);
@@ -76,19 +80,49 @@ impl ContentPlatform for Modrinth {
 
 	async fn project(&self, id: &str) -> Result<Project> {
 		let project = self.api.project_get(segment(id)?).await.map_err(map_error)?;
-		Ok(Project {
-			platform: Platform::Modrinth,
-			id: project.id,
-			slug: project.slug,
-			name: project.title,
-			summary: project.description,
-			icon_url: project.icon_url.map(|url| url.to_string()),
-			banner_url: project.gallery.first().map(|item| item.url.to_string()),
-			downloads: project.downloads as u64,
-			kind: kind_of(project.project_type),
-			client_side: Some(side_support(project.client_side)),
-			server_side: Some(side_support(project.server_side)),
+		Ok(to_project(&project))
+	}
+
+	async fn detail(&self, id: &str) -> Result<ProjectDetail> {
+		let project = self.api.project_get(segment(id)?).await.map_err(map_error)?;
+		Ok(ProjectDetail {
+			project: to_project(&project),
+			body_html: render::markdown(&project.body),
+			gallery: project
+				.gallery
+				.iter()
+				.map(|item| GalleryImage {
+					url: item.url.to_string(),
+					title: item.title.clone(),
+					description: item.description.clone(),
+				})
+				.collect(),
+			links: ProjectLinks {
+				website: None,
+				issues: project.issues_url.as_ref().map(ToString::to_string),
+				source: project.source_url.as_ref().map(ToString::to_string),
+				wiki: project.wiki_url.as_ref().map(ToString::to_string),
+				discord: project.discord_url.as_ref().map(ToString::to_string),
+				donate: project.donation_urls.iter().map(|link| link.url.to_string()).collect(),
+			},
+			authors: Vec::new(),
+			license: Some(project.license.name.clone()),
+			categories: project.categories.clone(),
+			game_versions: project.game_versions.clone(),
+			loaders: project.loaders.clone(),
+			followers: Some(project.followers as u64),
+			published_at: Some(project.published),
+			updated_at: Some(project.updated),
+			web_url: Some(format!("https://modrinth.com/project/{}", project.slug)),
 		})
+	}
+
+	async fn changelog(&self, project_id: &str, version_id: &str) -> Result<Option<String>> {
+		let version = self.api.version_get(segment(version_id)?).await.map_err(map_error)?;
+		if version.project_id != segment(project_id)? {
+			return Err(CommonError::NotFound("version does not belong to this project".into()));
+		}
+		Ok(version.changelog.map(|markdown| render::markdown(&markdown)))
 	}
 
 	async fn facets(&self, kind: Kind) -> Result<Facets> {
@@ -163,6 +197,9 @@ impl ContentPlatform for Modrinth {
 			sha256: None,
 			published_at: version.date_published,
 			has_server_pack: false,
+			channel: channel_of(version.version_type).to_owned(),
+			downloads: version.downloads as u64,
+			dependencies: dependencies_of(&version),
 		}))
 	}
 
@@ -325,6 +362,9 @@ fn to_version(version: Version) -> Option<ProjectVersion> {
 	let file_name = file.filename.clone();
 	let download_url = Some(file.url.to_string());
 	let sha1 = Some(file.hashes.sha1.clone());
+	let channel = channel_of(version.version_type).to_owned();
+	let downloads = version.downloads as u64;
+	let dependencies = dependencies_of(&version);
 	Some(ProjectVersion {
 		id: version.id,
 		project_id: version.project_id,
@@ -341,7 +381,55 @@ fn to_version(version: Version) -> Option<ProjectVersion> {
 			.files
 			.iter()
 			.any(|file| !file.primary && is_server_pack_name(&file.filename)),
+		channel,
+		downloads,
+		dependencies,
 	})
+}
+
+fn channel_of(kind: VersionType) -> &'static str {
+	match kind {
+		VersionType::Release => "release",
+		VersionType::Beta => "beta",
+		VersionType::Alpha => "alpha",
+	}
+}
+
+fn dependencies_of(version: &Version) -> Vec<VersionDependency> {
+	version
+		.dependencies
+		.iter()
+		.map(|dependency| VersionDependency {
+			project_id: dependency.project_id.clone(),
+			version_id: dependency.version_id.clone(),
+			kind: dependency_kind(dependency.dependency_type),
+		})
+		.collect()
+}
+
+fn dependency_kind(kind: DependencyType) -> DependencyKind {
+	match kind {
+		DependencyType::Required => DependencyKind::Required,
+		DependencyType::Optional | DependencyType::Other => DependencyKind::Optional,
+		DependencyType::Incompatible => DependencyKind::Incompatible,
+		DependencyType::Embedded => DependencyKind::Embedded,
+	}
+}
+
+fn to_project(project: &FerinthProject) -> Project {
+	Project {
+		platform: Platform::Modrinth,
+		id: project.id.clone(),
+		slug: project.slug.clone(),
+		name: project.title.clone(),
+		summary: project.description.clone(),
+		icon_url: project.icon_url.as_ref().map(ToString::to_string),
+		banner_url: project.gallery.first().map(|item| item.url.to_string()),
+		downloads: project.downloads as u64,
+		kind: kind_of(project.project_type),
+		client_side: Some(side_support(project.client_side)),
+		server_side: Some(side_support(project.server_side)),
+	}
 }
 
 fn map_error(error: ferinth::Error) -> CommonError {

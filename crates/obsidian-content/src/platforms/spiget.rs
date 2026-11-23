@@ -152,6 +152,9 @@ fn to_version(resource: &Resource, version: SpigetVersion) -> ProjectVersion {
 		sha256: None,
 		published_at: DateTime::<Utc>::from_timestamp(version.release_date, 0).unwrap_or_default(),
 		has_server_pack: false,
+		channel: "release".to_owned(),
+		downloads: 0,
+		dependencies: Vec::new(),
 	}
 }
 

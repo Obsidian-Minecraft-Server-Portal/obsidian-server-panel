@@ -4,6 +4,7 @@ pub(crate) mod store;
 pub(crate) mod targets;
 
 pub use targets::{InstalledWorld, ServerResourcePack};
+mod quick;
 mod update;
 
 use std::collections::BTreeMap;
@@ -16,7 +17,7 @@ use obsidian_common::{CommonError, Paths, Result, TaskRegistry, UserId};
 use obsidian_db::Db;
 use tokio::sync::Mutex;
 
-use crate::model::{Facets, InstalledContent, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Facets, InstalledContent, Project, ProjectDetail, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 use crate::platforms::{CurseForge, Hangar, Modrinth, Spiget};
 use crate::serverpack::DraftStore;
@@ -29,6 +30,8 @@ pub(crate) const LEVEL_NAME_KEY: &str = "level-name";
 const DEFAULT_LEVEL_NAME: &str = "world";
 const SCAN_INTERVAL: Duration = Duration::from_secs(3);
 const SCANNED_INSTANCES: u64 = 1024;
+const DETAIL_TTL: Duration = Duration::from_secs(600);
+const DETAIL_CAPACITY: u64 = 256;
 
 #[derive(Clone)]
 pub struct ContentManager {
@@ -38,6 +41,7 @@ pub struct ContentManager {
 	pub(crate) http: reqwest::Client,
 	platforms: Arc<[Arc<dyn ContentPlatform>]>,
 	pub(crate) scanned: Cache<i64, ()>,
+	details: Cache<(Platform, String), ProjectDetail>,
 	files: Arc<Mutex<()>>,
 	pub(crate) drafts: DraftStore,
 }
@@ -62,6 +66,10 @@ impl ContentManager {
 			scanned: Cache::builder()
 				.time_to_live(SCAN_INTERVAL)
 				.max_capacity(SCANNED_INSTANCES)
+				.build(),
+			details: Cache::builder()
+				.time_to_live(DETAIL_TTL)
+				.max_capacity(DETAIL_CAPACITY)
 				.build(),
 			files: Arc::new(Mutex::new(())),
 			drafts: DraftStore::new(),
@@ -115,6 +123,20 @@ impl ContentManager {
 
 	pub async fn versions(&self, platform: Platform, id: &str, filter: &VersionFilter) -> Result<Vec<ProjectVersion>> {
 		self.provider(platform)?.versions(id, filter).await
+	}
+
+	pub async fn detail(&self, platform: Platform, id: &str) -> Result<ProjectDetail> {
+		let key = (platform, id.to_owned());
+		if let Some(cached) = self.details.get(&key) {
+			return Ok(cached);
+		}
+		let detail = self.provider(platform)?.detail(id).await?;
+		self.details.insert(key, detail.clone());
+		Ok(detail)
+	}
+
+	pub async fn changelog(&self, platform: Platform, project_id: &str, version_id: &str) -> Result<Option<String>> {
+		self.provider(platform)?.changelog(project_id, version_id).await
 	}
 
 	pub async fn list(&self, instance_id: i64) -> Result<Vec<InstalledContent>> {

@@ -5,8 +5,12 @@ use reqwest::RequestBuilder;
 use serde::Deserialize;
 
 use crate::http::{self, segment};
-use crate::model::{Category, CategoryGroup, Facets, Project, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{
+	Category, CategoryGroup, DependencyKind, Facets, GalleryImage, Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage,
+	SearchQuery, VersionDependency, VersionFilter,
+};
 use crate::platform::{ContentPlatform, Kind, Platform};
+use crate::render;
 
 const BASE_URL: &str = "https://api.curseforge.com/v1";
 const MINECRAFT_GAME_ID: u32 = 432;
@@ -123,6 +127,54 @@ impl ContentPlatform for CurseForge {
 		Ok(versions)
 	}
 
+	async fn detail(&self, id: &str) -> Result<ProjectDetail> {
+		let project: Single<Mod> = http::json(self.get(&format!("mods/{}", numeric(id)?))).await?;
+		let description: Single<String> = http::json(self.get(&format!("mods/{}/description", numeric(id)?))).await?;
+		let item = project.data;
+		let gallery = item
+			.screenshots
+			.iter()
+			.map(|shot| GalleryImage {
+				url: shot.url.clone(),
+				title: shot.title.clone(),
+				description: shot.description.clone(),
+			})
+			.collect();
+		let authors = item.authors.iter().map(|author| author.name.clone()).collect();
+		let web_url = item.links.website_url.clone();
+		let links = ProjectLinks {
+			website: web_url.clone(),
+			..ProjectLinks::default()
+		};
+		let published_at = item.date_created;
+		let updated_at = item.date_modified;
+		Ok(ProjectDetail {
+			project: to_project(item),
+			body_html: render::html(&description.data),
+			gallery,
+			links,
+			authors,
+			license: None,
+			categories: Vec::new(),
+			game_versions: Vec::new(),
+			loaders: Vec::new(),
+			followers: None,
+			published_at,
+			updated_at,
+			web_url,
+		})
+	}
+
+	async fn changelog(&self, project_id: &str, version_id: &str) -> Result<Option<String>> {
+		let changelog: Single<String> = http::json(self.get(&format!(
+			"mods/{}/files/{}/changelog",
+			numeric(project_id)?,
+			numeric(version_id)?
+		)))
+		.await?;
+		Ok(Some(render::html(&changelog.data)))
+	}
+
 	async fn server_pack(&self, project_id: &str, version_id: &str) -> Result<Option<ProjectVersion>> {
 		let file: Single<File> =
 			http::json(self.get(&format!("mods/{}/files/{}", numeric(project_id)?, numeric(version_id)?))).await?;
@@ -182,11 +234,35 @@ struct Mod {
 	logo: Option<Logo>,
 	#[serde(default)]
 	screenshots: Vec<Screenshot>,
+	#[serde(default)]
+	links: Links,
+	#[serde(default)]
+	authors: Vec<Author>,
+	#[serde(default)]
+	date_created: Option<DateTime<Utc>>,
+	#[serde(default)]
+	date_modified: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize)]
 struct Screenshot {
 	url: String,
+	#[serde(default)]
+	title: Option<String>,
+	#[serde(default)]
+	description: Option<String>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Links {
+	#[serde(default)]
+	website_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Author {
+	name: String,
 }
 
 #[derive(Deserialize)]
@@ -207,6 +283,19 @@ struct File {
 	hashes: Vec<Hash>,
 	is_server_pack: Option<bool>,
 	server_pack_file_id: Option<u64>,
+	#[serde(default)]
+	release_type: u8,
+	#[serde(default)]
+	download_count: f64,
+	#[serde(default)]
+	dependencies: Vec<FileDependency>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileDependency {
+	mod_id: u64,
+	relation_type: u8,
 }
 
 #[derive(Deserialize)]
@@ -287,6 +376,15 @@ fn to_version(file: File) -> ProjectVersion {
 		.map(|name| name.to_ascii_lowercase())
 		.filter(|name| LOADER_NAMES.contains(&name.as_str()))
 		.collect();
+	let dependencies = file
+		.dependencies
+		.iter()
+		.map(|dependency| VersionDependency {
+			project_id: Some(dependency.mod_id.to_string()),
+			version_id: None,
+			kind: relation_kind(dependency.relation_type),
+		})
+		.collect();
 	ProjectVersion {
 		id: file.id.to_string(),
 		project_id: file.mod_id.to_string(),
@@ -300,5 +398,25 @@ fn to_version(file: File) -> ProjectVersion {
 		sha256: None,
 		published_at: file.file_date,
 		has_server_pack: file.server_pack_file_id.is_some(),
+		channel: channel_of(file.release_type).to_owned(),
+		downloads: file.download_count as u64,
+		dependencies,
+	}
+}
+
+fn channel_of(release_type: u8) -> &'static str {
+	match release_type {
+		2 => "beta",
+		3 => "alpha",
+		_ => "release",
+	}
+}
+
+fn relation_kind(relation_type: u8) -> DependencyKind {
+	match relation_type {
+		1 | 6 => DependencyKind::Embedded,
+		3 => DependencyKind::Required,
+		5 => DependencyKind::Incompatible,
+		_ => DependencyKind::Optional,
 	}
 }
