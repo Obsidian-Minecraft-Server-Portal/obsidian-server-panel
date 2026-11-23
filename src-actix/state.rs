@@ -10,6 +10,7 @@ use obsidian_content::ContentManager;
 use obsidian_db::Db;
 use obsidian_instances::InstanceManager;
 use obsidian_java::JavaManager;
+use obsidian_migration::MigrationManager;
 use obsidian_net::UpnpManager;
 use obsidian_scheduler::Scheduler;
 
@@ -29,6 +30,7 @@ pub struct AppState {
 	pub content: Arc<ContentManager>,
 	pub backups: Arc<BackupStore>,
 	pub scheduler: Arc<Scheduler>,
+	pub migrations: Arc<MigrationManager>,
 }
 
 impl AppState {
@@ -61,6 +63,14 @@ impl AppState {
 			bus.clone(),
 		));
 		let scheduler = Arc::new(Scheduler::new(db.clone(), bus.clone(), executor, tz));
+		let migrations = Arc::new(MigrationManager::new(
+			db.clone(),
+			tasks.clone(),
+			Arc::clone(&instances),
+			Arc::clone(&content),
+			Arc::clone(&backups),
+		));
+		migrations.recover().await?;
 		if let (Some(username), Some(password)) = (&config.admin.username, &config.admin.password) {
 			auth.bootstrap_admin(username, config.admin.email.as_deref(), password).await?;
 		}
@@ -76,6 +86,7 @@ impl AppState {
 			content,
 			backups,
 			scheduler,
+			migrations,
 		})
 	}
 }

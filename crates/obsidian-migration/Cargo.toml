@@ -1,0 +1,21 @@
+[package]
+name = "obsidian-migration"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+obsidian-backups = { workspace = true }
+obsidian-common = { workspace = true }
+obsidian-content = { workspace = true }
+obsidian-db = { workspace = true }
+obsidian-instances = { workspace = true }
+obsidian-loaders = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

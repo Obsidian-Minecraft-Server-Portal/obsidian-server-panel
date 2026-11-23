@@ -11,6 +11,7 @@ pub mod java;
 pub mod system;
 pub mod loaders;
 pub mod members;
+pub mod migration;
 pub mod modpacks;
 pub mod serverpack;
 pub mod notifications;
@@ -44,6 +45,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(modpacks::configure)
 			.configure(serverpack::configure)
 			.configure(backups::configure)
+			.configure(migration::configure)
 			.configure(schedules::configure)
 			.configure(members::configure)
 			.configure(tasks::configure)

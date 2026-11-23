@@ -199,6 +199,7 @@ Workspace crates in `crates/`:
 | `obsidian-scheduler`  | User-friendly schedules and event triggers (§8)                                                                                    |
 | `obsidian-net`        | UPnP port forwarding (`igd-next`)                                                                                                  |
 | `obsidian-sftp`       | Embedded SFTP server (`russh` + `russh-sftp`)                                                                                      |
+| `obsidian-migration`  | Server software migration: compatibility scan, guarded upgrade with optional backup, rollback                                      |
 
 The frontend lives in `src/` (Vite root at the repo root) and builds into
 `target/wwwroot`. Actix embeds it with `include_dir`. In debug builds,

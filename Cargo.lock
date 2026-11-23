@@ -4279,6 +4279,7 @@ dependencies = [
  "obsidian-instances",
  "obsidian-java",
  "obsidian-loaders",
+ "obsidian-migration",
  "obsidian-net",
  "obsidian-runner",
  "obsidian-scheduler",
@@ -4470,6 +4471,25 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "obsidian-migration"
+version = "0.0.0"
+dependencies = [
+ "obsidian-backups",
+ "obsidian-common",
+ "obsidian-content",
+ "obsidian-db",
+ "obsidian-instances",
+ "obsidian-loaders",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "utoipa",
 ]
 
 [[package]]

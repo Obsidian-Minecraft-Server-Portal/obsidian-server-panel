@@ -38,6 +38,7 @@ obsidian-backups = { path = "crates/obsidian-backups" }
 obsidian-scheduler = { path = "crates/obsidian-scheduler" }
 obsidian-net = { path = "crates/obsidian-net" }
 obsidian-sftp = { path = "crates/obsidian-sftp" }
+obsidian-migration = { path = "crates/obsidian-migration" }
 
 actix-web = "4.20"
 actix-files = "0.7"
@@ -123,6 +124,7 @@ obsidian-scheduler = { workspace = true }
 async-trait = { workspace = true }
 obsidian-net = { workspace = true }
 obsidian-sftp = { workspace = true }
+obsidian-migration = { workspace = true }
 actix-web = { workspace = true }
 actix-files = { workspace = true }
 actix-governor = { workspace = true }
