@@ -1,6 +1,7 @@
 import { Button } from "@heroui/react";
 import type { ReactNode } from "react";
 import type { Project } from "../../api/content";
+import { openUnlessInteractive, stopRowClick } from "../ui/openUnlessInteractive";
 import { PLATFORM_NAMES, formatDownloads, projectKey } from "./meta";
 
 interface ProjectTableProps {
@@ -27,7 +28,11 @@ export function ProjectTable({ projects, onOpen, renderActions }: ProjectTablePr
         </thead>
         <tbody>
           {projects.map((project) => (
-            <tr key={projectKey(project)} className="border-b border-line last:border-0 hover:bg-raised/60">
+            <tr
+              key={projectKey(project)}
+              onClick={(event) => openUnlessInteractive(event, () => onOpen(project))}
+              className="cursor-pointer border-b border-line last:border-0 hover:bg-raised"
+            >
               <td className="px-4 py-3">
                 <Button
                   variant="ghost"
@@ -45,7 +50,7 @@ export function ProjectTable({ projects, onOpen, renderActions }: ProjectTablePr
                 {formatDownloads(project.downloads)}
               </td>
               <td className="px-4 py-3">
-                <div className="flex justify-end gap-2">{renderActions(project)}</div>
+                <div className="ml-auto flex w-fit cursor-default gap-2" onClick={stopRowClick}>{renderActions(project)}</div>
               </td>
             </tr>
           ))}

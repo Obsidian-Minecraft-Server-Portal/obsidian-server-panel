@@ -2,6 +2,7 @@ import { cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import type { ReactNode } from "react";
 import type { Project } from "../../api/content";
+import { openUnlessInteractive, stopRowClick } from "../ui/openUnlessInteractive";
 import { PLATFORM_NAMES, formatDownloads, projectKey } from "./meta";
 import { ProjectBanner } from "./ProjectBanner";
 import { ProjectIcon } from "./ProjectIcon";
@@ -34,15 +35,16 @@ export function PlatformChip({ platform }: { platform: Project["platform"] }) {
 
 function ProjectCard({ project, onOpen, actions }: ProjectItemProps) {
   return (
-    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-panel border border-line bg-panel transition-colors duration-150 hover:border-line-strong hover:bg-raised/40">
-      <button type="button" onClick={() => onOpen(project)} className="block text-left">
-        <ProjectBanner src={project.banner_url} seed={projectKey(project)} className="h-36 shrink-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent" />
-          <div className="absolute top-3 left-3">
-            <PlatformChip platform={project.platform} />
-          </div>
-        </ProjectBanner>
-      </button>
+    <article
+      onClick={(event) => openUnlessInteractive(event, () => onOpen(project))}
+      className="group flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-panel border border-line bg-panel transition-colors duration-150 hover:border-line-strong hover:bg-raised"
+    >
+      <ProjectBanner src={project.banner_url} seed={projectKey(project)} className="h-36 shrink-0">
+        <div className="absolute inset-0 bg-gradient-to-t from-panel via-transparent to-transparent" />
+        <div className="absolute top-3 left-3">
+          <PlatformChip platform={project.platform} />
+        </div>
+      </ProjectBanner>
       <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
         <div className="flex min-w-0 items-center gap-3">
           <ProjectIcon src={project.icon_url} alt="" className="size-9 shrink-0" />
@@ -60,7 +62,7 @@ function ProjectCard({ project, onOpen, actions }: ProjectItemProps) {
             <Icon icon="lucide:download" width={12} height={12} />
             {formatDownloads(project.downloads)}
           </span>
-          <div className="flex flex-wrap gap-2">{actions}</div>
+          <div className="flex cursor-default flex-wrap gap-2" onClick={stopRowClick}>{actions}</div>
         </div>
       </div>
     </article>
@@ -69,15 +71,22 @@ function ProjectCard({ project, onOpen, actions }: ProjectItemProps) {
 
 function ProjectRow({ project, onOpen, actions }: ProjectItemProps) {
   return (
-    <div className="flex w-full min-w-0 items-center gap-4 rounded-control border border-line bg-panel px-4 py-3 transition duration-200 hover:border-line-strong hover:bg-raised">
+    <div
+      onClick={(event) => openUnlessInteractive(event, () => onOpen(project))}
+      className="flex w-full min-w-0 cursor-pointer items-center gap-4 rounded-control border border-line bg-panel px-4 py-3 transition duration-200 hover:border-line-strong hover:bg-raised"
+    >
       <ProjectIcon src={project.icon_url} alt="" className="size-9 shrink-0" />
-      <button type="button" onClick={() => onOpen(project)} className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
+      <button
+        type="button"
+        onClick={() => onOpen(project)}
+        className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left"
+      >
         <span className="max-w-full truncate font-medium text-ink-0">{project.name}</span>
         <span className="max-w-full truncate text-xs text-ink-3">{project.summary}</span>
       </button>
       <span className={cn(META_CLASS, "hidden sm:block")}>{PLATFORM_NAMES[project.platform]}</span>
       <span className={cn(META_CLASS, "w-20 text-right")}>{formatDownloads(project.downloads)}</span>
-      <div className="flex shrink-0 gap-2">{actions}</div>
+      <div className="flex shrink-0 cursor-default gap-2" onClick={stopRowClick}>{actions}</div>
     </div>
   );
 }
