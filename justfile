@@ -64,7 +64,7 @@ tsc: install
 # Fail if any source file is longer than 750 lines
 [group('check')]
 [unix]
-lines:
+@lines:
     #!/usr/bin/env bash
     set -euo pipefail
     long=$(git ls-files '*.rs' '*.ts' '*.tsx' '*.css' '*.sql' '*.yml' '*.sh' | xargs wc -l | awk '$2 != "total" && $1 > 750')
