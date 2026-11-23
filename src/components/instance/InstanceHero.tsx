@@ -33,7 +33,7 @@ export function InstanceHero({ view }: { view: InstanceView }) {
         </div>
         <div className="flex flex-wrap items-end gap-6 pt-16 pb-2">
           <InstanceIcon instance={view} className="size-28 rounded-panel shadow-lift" />
-          <div className="min-w-0 flex-1 space-y-3">
+          <div className="order-last w-full min-w-0 space-y-3 sm:order-none sm:w-auto sm:flex-1">
             <div className="flex flex-wrap gap-2">
               <StatusChip instance={view} />
               <LoaderChip instance={view} />
@@ -45,7 +45,7 @@ export function InstanceHero({ view }: { view: InstanceView }) {
               {[view.directory, canDownloadBackups && backupSummary(snapshots.data)].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <div className="pb-1">
+          <div className="ml-auto pb-1 sm:ml-0">
             <PowerControls view={view} />
           </div>
         </div>
