@@ -3,8 +3,9 @@ import type { Project, useQuickAdd } from "../../../api/content";
 import type { InstanceView } from "../../../api/instances";
 import { LOADER_META } from "../../runtime/loaderMeta";
 import { OptionSelect } from "../../runtime/OptionSelect";
+import { GhostButton } from "../../ui/GhostButton";
 import { PrimaryButton } from "../../ui/PrimaryButton";
-import { LOADER_BOUND_KINDS, PLATFORM_NAMES, httpUrl } from "../meta";
+import { LOADER_BOUND_KINDS, PLATFORM_NAMES, QUICK_ADD_KINDS, httpUrl } from "../meta";
 
 export type QuickAdd = ReturnType<typeof useQuickAdd>;
 
@@ -14,6 +15,7 @@ interface ProjectActionsProps {
   installTargets: InstanceView[];
   isLoading: boolean;
   target: InstanceView | null;
+  isInstalled: boolean;
   onTargetChange: (id: number | null) => void;
   quickAdd: QuickAdd;
   onChooseVersion: () => void;
@@ -25,6 +27,7 @@ export function ProjectActions({
   installTargets,
   isLoading,
   target,
+  isInstalled,
   onTargetChange,
   quickAdd,
   onChooseVersion,
@@ -51,20 +54,33 @@ export function ProjectActions({
         isDisabled={isLoading || options.length === 0}
         className="w-full sm:w-64"
       />
-      {LOADER_BOUND_KINDS.has(project.kind) ? (
-        <PrimaryButton
-          isDisabled={target === null || quickAdd.isPending}
-          onPress={() => quickAdd.mutate({ platform: project.platform, projectId: project.id })}
-        >
-          <Icon icon="lucide:zap" width={14} height={14} />
-          {quickAdd.isPending ? "Adding…" : "Quick add"}
-        </PrimaryButton>
-      ) : (
-        <PrimaryButton onPress={onChooseVersion}>
-          <Icon icon="lucide:list" width={14} height={14} />
-          Choose a version
-        </PrimaryButton>
-      )}
+      {QUICK_ADD_KINDS.has(project.kind) &&
+        (isInstalled ? (
+          <GhostButton isDisabled>
+            <Icon icon="lucide:check" width={14} height={14} />
+            Installed
+          </GhostButton>
+        ) : (
+          <PrimaryButton
+            isDisabled={target === null || quickAdd.isPending}
+            onPress={() => quickAdd.mutate({ platform: project.platform, projectId: project.id, kind: project.kind })}
+          >
+            <Icon icon="lucide:zap" width={14} height={14} />
+            {quickAdd.isPending ? "Adding…" : "Quick add"}
+          </PrimaryButton>
+        ))}
+      {!LOADER_BOUND_KINDS.has(project.kind) &&
+        (QUICK_ADD_KINDS.has(project.kind) ? (
+          <GhostButton onPress={onChooseVersion}>
+            <Icon icon="lucide:list" width={14} height={14} />
+            Choose a version
+          </GhostButton>
+        ) : (
+          <PrimaryButton onPress={onChooseVersion}>
+            <Icon icon="lucide:list" width={14} height={14} />
+            Choose a version
+          </PrimaryButton>
+        ))}
       {external && (
         <a
           href={external}

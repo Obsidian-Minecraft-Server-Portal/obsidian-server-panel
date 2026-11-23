@@ -8,9 +8,10 @@ import { hasPermission, useInstance } from "../../api/instances";
 import { DiscoverTabs, SourceChips } from "../../components/content/DiscoverFilters";
 import { DiscoverHero } from "../../components/content/DiscoverHero";
 import { DiscoverSidebar } from "../../components/content/DiscoverSidebar";
-import { KIND_LABELS, LOADER_BOUND_KINDS, PLATFORM_NAMES, acceptsLoader } from "../../components/content/meta";
+import { KIND_LABELS, PLATFORM_NAMES, QUICK_ADD_KINDS, acceptsLoader, quickAddSummary } from "../../components/content/meta";
 import { ProjectResults } from "../../components/content/ProjectResults";
 import { ProjectTable } from "../../components/content/ProjectTable";
+import { useInstalledProjects } from "../../components/content/useInstalledProjects";
 import { useLoadMoreOnView } from "../../components/content/useLoadMoreOnView";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { GhostButton } from "../../components/ui/GhostButton";
@@ -26,6 +27,7 @@ export function DiscoverPage() {
   const instance = useInstance(discover.instanceId ?? Number.NaN);
   const facets = useContentFacets(discover.platform, discover.kind).data;
   const quickAdd = useQuickAdd(discover.instanceId ?? 0);
+  const installed = useInstalledProjects(discover.instanceId);
   const resultsRef = useRef<HTMLDivElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -59,7 +61,7 @@ export function DiscoverPage() {
   const quickAddTarget = instance.data && hasPermission(instance.data, "content.install") ? instance.data : null;
   const quickAddable = (project: Project) =>
     quickAddTarget !== null &&
-    LOADER_BOUND_KINDS.has(project.kind) &&
+    QUICK_ADD_KINDS.has(project.kind) &&
     acceptsLoader(project.kind, quickAddTarget.loader);
 
   const openProject = (project: Project) => {
@@ -69,15 +71,22 @@ export function DiscoverPage() {
 
   const renderActions = (project: Project) => (
     <>
-      {quickAddable(project) && (
-        <PrimaryButton
-          size="sm"
-          isDisabled={quickAdd.isPending}
-          onPress={() => quickAdd.mutate({ platform: project.platform, projectId: project.id })}
-        >
-          <Icon icon="lucide:zap" width={14} height={14} />
-          Quick add
-        </PrimaryButton>
+      {installed.has(project.platform, project.id) ? (
+        <GhostButton size="sm" isDisabled>
+          <Icon icon="lucide:check" width={14} height={14} />
+          Installed
+        </GhostButton>
+      ) : (
+        quickAddable(project) && (
+          <PrimaryButton
+            size="sm"
+            isDisabled={quickAdd.isPending}
+            onPress={() => quickAdd.mutate({ platform: project.platform, projectId: project.id, kind: project.kind })}
+          >
+            <Icon icon="lucide:zap" width={14} height={14} />
+            Quick add
+          </PrimaryButton>
+        )
       )}
       <GhostButton size="sm" onPress={() => openProject(project)}>
         View more
@@ -141,7 +150,7 @@ export function DiscoverPage() {
             {quickAdd.isSuccess && (
               <p className="flex items-center gap-2 text-sm text-green">
                 <Icon icon="lucide:circle-check" width={16} height={16} />
-                Added {quickAdd.data.length} {quickAdd.data.length === 1 ? "file" : "files"} to {instance.data?.name ?? "the instance"}.
+                {quickAddSummary(quickAdd.data, instance.data?.name ?? "the instance")}
               </p>
             )}
             {quickAdd.error && <p className="text-sm text-rose">{quickAdd.error.message}</p>}

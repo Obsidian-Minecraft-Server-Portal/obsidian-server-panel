@@ -1,9 +1,12 @@
 mod cache;
 mod install;
 mod scan;
+mod sources;
 pub(crate) mod store;
 pub(crate) mod targets;
 
+pub use quick::QuickAdded;
+pub use sources::ContentSource;
 pub use targets::{InstalledWorld, ServerResourcePack};
 mod quick;
 mod update;

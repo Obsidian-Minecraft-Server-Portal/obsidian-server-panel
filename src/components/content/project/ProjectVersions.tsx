@@ -34,11 +34,20 @@ interface ProjectVersionsProps {
   gameVersions: string[];
   target: InstanceView | null;
   quickAdd: QuickAdd;
+  isInstalledVersion: (versionId: string) => boolean;
   onModpack: (action: ModpackAction) => void;
   onInstall: (action: InstallAction) => void;
 }
 
-export function ProjectVersions({ project, gameVersions, target, quickAdd, onModpack, onInstall }: ProjectVersionsProps) {
+export function ProjectVersions({
+  project,
+  gameVersions,
+  target,
+  quickAdd,
+  isInstalledVersion,
+  onModpack,
+  onInstall,
+}: ProjectVersionsProps) {
   const [channel, setChannel] = useState<Channel>("all");
   const [gameVersion, setGameVersion] = useState<string | null>(null);
   const [matchTarget, setMatchTarget] = useState(true);
@@ -104,8 +113,8 @@ export function ProjectVersions({ project, gameVersions, target, quickAdd, onMod
             <VersionRow
               key={version.id}
               version={version}
-              actionLabel={actionLabel(isModpack, installing(version))}
-              actionDisabled={(loaderBound && target === null) || installing(version)}
+              actionLabel={actionLabel(isModpack, installing(version), isInstalledVersion(version.id))}
+              actionDisabled={(loaderBound && target === null) || installing(version) || isInstalledVersion(version.id)}
               onAction={() => install(version)}
             />
           ))}
@@ -127,7 +136,8 @@ function versionFilter(kind: ContentKind, target: InstanceView | null, gameVersi
   };
 }
 
-function actionLabel(isModpack: boolean, installing: boolean): string {
+function actionLabel(isModpack: boolean, installing: boolean, installed: boolean): string {
+  if (installed) return "Installed";
   if (isModpack) return "Create instance";
   return installing ? "Installing…" : "Install";
 }

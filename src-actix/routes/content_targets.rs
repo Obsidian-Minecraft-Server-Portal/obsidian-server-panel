@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, delete, get, post, put, web};
 use obsidian_auth::Permission;
-use obsidian_content::{InstalledWorld, Platform, ServerResourcePack};
+use obsidian_content::{ContentSource, InstalledWorld, Platform, ServerResourcePack};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -27,6 +27,7 @@ pub struct VersionRef {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CurrentWorld {
 	pub level_name: String,
+	pub source: Option<ContentSource>,
 }
 
 #[utoipa::path(
@@ -119,9 +120,9 @@ pub async fn get_world(
 ) -> ApiResult<web::Json<CurrentWorld>> {
 	let id = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::FILES_READ).await?;
-	Ok(web::Json(CurrentWorld {
-		level_name: state.content.level_name(id).await?,
-	}))
+	let level_name = state.content.level_name(id).await?;
+	let source = state.content.world_source(id, &level_name).await?;
+	Ok(web::Json(CurrentWorld { level_name, source }))
 }
 
 #[utoipa::path(

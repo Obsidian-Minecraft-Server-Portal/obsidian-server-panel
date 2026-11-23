@@ -5,13 +5,14 @@ import { type PlatformId, type ProjectDetail, useProjectDetail, useQuickAdd } fr
 import { hasPermission, useInstances } from "../../api/instances";
 import { InstallTargetModal, type InstallAction } from "../../components/content/InstallTargetModal";
 import { ModpackModal, type ModpackAction } from "../../components/content/ModpackModal";
-import { acceptsLoader, parsePlatform } from "../../components/content/meta";
+import { acceptsLoader, parsePlatform, quickAddSummary } from "../../components/content/meta";
 import { ProjectActions, type QuickAdd } from "../../components/content/project/ProjectActions";
 import { ProjectChangelog } from "../../components/content/project/ProjectChangelog";
 import { ProjectGallery } from "../../components/content/project/ProjectGallery";
 import { ProjectHeader } from "../../components/content/project/ProjectHeader";
 import { ProjectOverview } from "../../components/content/project/ProjectOverview";
 import { ProjectVersions } from "../../components/content/project/ProjectVersions";
+import { useInstalledProjects } from "../../components/content/useInstalledProjects";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { SectionTabs, type SectionTab } from "../../components/ui/SectionTabs";
 
@@ -66,6 +67,7 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
   );
   const target = installTargets.find((entry) => entry.id === Number.parseInt(params.get("instance") ?? "", 10)) ?? null;
   const quickAdd = useQuickAdd(target?.id ?? 0);
+  const installed = useInstalledProjects(target?.id ?? null);
   const tab = TABS.find((entry) => entry.id === params.get("tab"))?.id ?? "overview";
 
   const update = (patch: Record<string, string | null>) =>
@@ -100,6 +102,7 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
           installTargets={installTargets}
           isLoading={instances.isPending}
           target={target}
+          isInstalled={installed.has(project.platform, project.id)}
           onTargetChange={(id) => update({ instance: id === null ? null : String(id) })}
           quickAdd={quickAdd}
           onChooseVersion={() => update({ tab: "versions" })}
@@ -113,7 +116,7 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
           onChange={(next) => update({ tab: next })}
           className="max-w-full overflow-x-auto"
         />
-        <QuickAddNotice quickAdd={quickAdd} />
+        <QuickAddNotice quickAdd={quickAdd} instanceName={target?.name ?? "the instance"} />
         {tab === "overview" && <ProjectOverview detail={detail} />}
         {tab === "gallery" && <ProjectGallery name={project.name} images={detail.gallery} />}
         {tab === "changelog" && <ProjectChangelog platform={project.platform} projectId={project.id} />}
@@ -123,6 +126,7 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
             gameVersions={detail.game_versions}
             target={target}
             quickAdd={quickAdd}
+            isInstalledVersion={(versionId) => installed.hasVersion(project.platform, project.id, versionId)}
             onModpack={setModpackAction}
             onInstall={setInstallAction}
           />
@@ -138,14 +142,13 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
   );
 }
 
-function QuickAddNotice({ quickAdd }: { quickAdd: QuickAdd }) {
+function QuickAddNotice({ quickAdd, instanceName }: { quickAdd: QuickAdd; instanceName: string }) {
   if (quickAdd.error) return <p className="text-sm text-rose">{quickAdd.error.message}</p>;
   if (!quickAdd.isSuccess) return null;
-  const added = quickAdd.data.length;
   return (
     <p className="flex items-center gap-2 text-sm text-green">
       <Icon icon="lucide:circle-check" width={16} height={16} />
-      Added {added} {added === 1 ? "file" : "files"} to the instance.
+      {quickAddSummary(quickAdd.data, instanceName)}
     </p>
   );
 }

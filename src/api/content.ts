@@ -139,18 +139,26 @@ export function useProjectChangelog(platform: PlatformId, projectId: string, ver
   });
 }
 
+export interface QuickAddResult {
+  added: InstalledContent[];
+  resource_pack: ServerResourcePack | null;
+}
+
 export function useQuickAdd(instanceId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { platform: PlatformId; projectId: string; versionId?: string | null }) =>
-      api.post<InstalledContent[]>(`/instances/${instanceId}/content/quick-add`, {
+    mutationFn: (input: { platform: PlatformId; projectId: string; versionId?: string | null; kind?: ContentKind }) =>
+      api.post<QuickAddResult>(`/instances/${instanceId}/content/quick-add`, {
         platform: input.platform,
         project_id: input.projectId,
         version_id: input.versionId ?? null,
+        kind: input.kind ?? null,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: contentKeys.installed(instanceId) });
       void queryClient.invalidateQueries({ queryKey: contentKeys.updates(instanceId) });
+      void queryClient.invalidateQueries({ queryKey: resourcePackKey(instanceId) });
+      void queryClient.invalidateQueries({ queryKey: worldKey(instanceId) });
     },
   });
 }
@@ -400,9 +408,21 @@ export function useInstallModpack() {
   });
 }
 
+export interface ContentSource {
+  platform: PlatformId;
+  project_id: string;
+  version_id: string;
+}
+
 export interface ServerResourcePack {
   url: string;
   sha1: string | null;
+  source: ContentSource | null;
+}
+
+export interface CurrentWorld {
+  level_name: string;
+  source: ContentSource | null;
 }
 
 export interface VersionRef {
@@ -418,10 +438,11 @@ function versionBody(input: VersionRef) {
 const resourcePackKey = (instanceId: number) => ["instances", instanceId, "resource-pack"] as const;
 const worldKey = (instanceId: number) => ["instances", instanceId, "world"] as const;
 
-export function useResourcePack(instanceId: number) {
+export function useResourcePack(instanceId: number, enabled = true) {
   return useQuery({
     queryKey: resourcePackKey(instanceId),
     queryFn: () => api.get<ServerResourcePack | null>(`/instances/${instanceId}/resource-pack`),
+    enabled,
   });
 }
 
@@ -442,10 +463,11 @@ export function useClearResourcePack(instanceId: number) {
   });
 }
 
-export function useCurrentWorld(instanceId: number) {
+export function useCurrentWorld(instanceId: number, enabled = true) {
   return useQuery({
     queryKey: worldKey(instanceId),
-    queryFn: () => api.get<{ level_name: string }>(`/instances/${instanceId}/world`),
+    queryFn: () => api.get<CurrentWorld>(`/instances/${instanceId}/world`),
+    enabled,
   });
 }
 
@@ -453,7 +475,7 @@ export function useInstallWorld(instanceId: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: VersionRef) =>
-      api.post<{ level_name: string }>(`/instances/${instanceId}/world`, versionBody(input)),
+      api.post<CurrentWorld>(`/instances/${instanceId}/world`, versionBody(input)),
     onSuccess: (world) => {
       queryClient.setQueryData(worldKey(instanceId), world);
       void queryClient.invalidateQueries({ queryKey: contentKeys.installed(instanceId) });

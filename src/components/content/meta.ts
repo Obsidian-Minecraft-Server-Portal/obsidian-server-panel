@@ -1,4 +1,4 @@
-import type { ContentKind, PlatformId, PlatformInfo, Project, SideSupport } from "../../api/content";
+import type { ContentKind, PlatformId, PlatformInfo, Project, QuickAddResult, SideSupport } from "../../api/content";
 import type { LoaderKind } from "../../api/loaders";
 
 export const PLATFORM_NAMES: Record<PlatformId, string> = {
@@ -77,6 +77,14 @@ export function projectKey(project: Project): string {
 }
 
 export const LOADER_BOUND_KINDS: ReadonlySet<ContentKind> = new Set<ContentKind>(["mod", "plugin"]);
+
+export const QUICK_ADD_KINDS: ReadonlySet<ContentKind> = new Set<ContentKind>(["mod", "plugin", "datapack", "resourcepack"]);
+
+export function quickAddSummary(result: QuickAddResult, instanceName: string): string {
+  if (result.resource_pack) return `Set as the server resource pack on ${instanceName}.`;
+  const count = result.added.length;
+  return `Added ${count} ${count === 1 ? "file" : "files"} to ${instanceName}.`;
+}
 
 export const SIDE_LABELS: Record<SideSupport, string> = {
   required: "Required",

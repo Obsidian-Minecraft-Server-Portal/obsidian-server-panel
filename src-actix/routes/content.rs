@@ -4,8 +4,8 @@ use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, Loader};
 use obsidian_content::{
-	ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectDetail, ProjectVersion, SearchPage,
-	SearchQuery, Side, VersionFilter, icon_mime,
+	ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectDetail, ProjectVersion, QuickAdded,
+	SearchPage, SearchQuery, Side, VersionFilter, icon_mime,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -583,6 +583,7 @@ pub struct QuickAddRequest {
 	pub platform: Platform,
 	pub project_id: String,
 	pub version_id: Option<String>,
+	pub kind: Option<Kind>,
 }
 
 #[utoipa::path(
@@ -592,7 +593,7 @@ pub struct QuickAddRequest {
 	params(("id" = i64, Path, description = "Instance id")),
 	request_body = QuickAddRequest,
 	responses(
-		(status = 201, description = "Installed the version and its required dependencies", body = Vec<InstalledContent>),
+		(status = 201, description = "Installed the version and its required dependencies, or set the resource pack", body = QuickAdded),
 		(status = 403, description = "Missing content.install permission"),
 		(status = 404, description = "No compatible version"),
 		(status = 409, description = "A required dependency has no compatible version"),
@@ -609,7 +610,14 @@ pub async fn quick_add(
 	require_instance_perm(&state, &user, id, Permission::CONTENT_INSTALL).await?;
 	let installed = state
 		.content
-		.quick_add(id, request.platform, &request.project_id, request.version_id.as_deref(), Some(user.id))
+		.quick_add(
+			id,
+			request.platform,
+			&request.project_id,
+			request.version_id.as_deref(),
+			request.kind,
+			Some(user.id),
+		)
 		.await?;
 	Ok(HttpResponse::Created().json(installed))
 }

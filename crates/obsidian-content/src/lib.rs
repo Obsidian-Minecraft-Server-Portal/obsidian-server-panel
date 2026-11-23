@@ -13,7 +13,7 @@ mod serverpack;
 mod tests;
 
 pub use icon::mime as icon_mime;
-pub use manager::{ContentManager, InstalledWorld, ServerResourcePack};
+pub use manager::{ContentManager, ContentSource, InstalledWorld, QuickAdded, ServerResourcePack};
 pub use model::{
 	Category, CategoryGroup, ContentUpdate, DependencyKind, Facets, GalleryImage, InstallRequest, InstalledContent, ModpackRequest, PackSource,
 	Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage, SearchQuery, Side, VersionDependency, VersionFilter,

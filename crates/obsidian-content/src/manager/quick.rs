@@ -1,12 +1,21 @@
 use std::collections::HashSet;
 
 use obsidian_common::{CommonError, Result, TaskHandle, UserId};
+use serde::Serialize;
+use utoipa::ToSchema;
 
-use super::{ContentManager, store};
+use super::sources::{self, RESOURCE_PACK};
+use super::{ContentManager, ServerResourcePack, store};
 use crate::model::{DependencyKind, InstalledContent, ProjectVersion, SideSupport, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
 const MAX_DEPENDENCY_DEPTH: usize = 3;
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct QuickAdded {
+	pub added: Vec<InstalledContent>,
+	pub resource_pack: Option<ServerResourcePack>,
+}
 
 struct Planned {
 	project_id: String,
@@ -20,17 +29,78 @@ impl ContentManager {
 		platform: Platform,
 		project_id: &str,
 		version_id: Option<&str>,
+		kind_hint: Option<Kind>,
 		owner: Option<UserId>,
-	) -> Result<Vec<InstalledContent>> {
+	) -> Result<QuickAdded> {
 		let provider = self.provider(platform)?.clone();
 		let project = provider.project(project_id).await?;
 		let project_id = project.id.as_str();
 		let (loader, mc_version) = store::instance(self.db.pool(), instance_id).await?;
-		let filter = VersionFilter {
-			mc_version: Some(mc_version.clone()),
-			loader: Some(loader),
-			kind: Some(Kind::Mod),
-		};
+		match kind_hint.unwrap_or(project.kind) {
+			Kind::Mod | Kind::Plugin => {
+				let filter = VersionFilter {
+					mc_version: Some(mc_version),
+					loader: Some(loader),
+					kind: Some(Kind::Mod),
+				};
+				let added = self
+					.quick_install(instance_id, platform, &filter, project_id, version_id, owner)
+					.await?;
+				Ok(QuickAdded { added, resource_pack: None })
+			}
+			Kind::DataPack => {
+				let filter = VersionFilter {
+					mc_version: Some(mc_version),
+					loader: None,
+					kind: Some(Kind::DataPack),
+				};
+				let added = self
+					.quick_install(instance_id, platform, &filter, project_id, version_id, owner)
+					.await?;
+				Ok(QuickAdded { added, resource_pack: None })
+			}
+			Kind::ResourcePack => {
+				let filter = VersionFilter {
+					mc_version: Some(mc_version.clone()),
+					loader: None,
+					kind: Some(Kind::ResourcePack),
+				};
+				let version = match version_id {
+					Some(version) => version.to_owned(),
+					None => newest(provider.versions(project_id, &filter).await?)
+						.ok_or_else(|| {
+							CommonError::NotFound(format!("no version of {project_id} is available for Minecraft {mc_version}"))
+						})?
+						.id,
+				};
+				if let Some((current, _)) = sources::get(self.db.pool(), instance_id, RESOURCE_PACK).await? {
+					if current.platform == platform && current.project_id == project_id && current.version_id == version {
+						return Err(CommonError::Conflict("this resource pack is already the server pack".into()));
+					}
+				}
+				let pack = self.set_resource_pack(instance_id, platform, project_id, &version).await?;
+				Ok(QuickAdded {
+					added: Vec::new(),
+					resource_pack: Some(pack),
+				})
+			}
+			Kind::Modpack | Kind::World => Err(CommonError::Conflict(
+				"use Choose a version to add this kind of content".into(),
+			)),
+		}
+	}
+
+	async fn quick_install(
+		&self,
+		instance_id: i64,
+		platform: Platform,
+		filter: &VersionFilter,
+		project_id: &str,
+		version_id: Option<&str>,
+		owner: Option<UserId>,
+	) -> Result<Vec<InstalledContent>> {
+		let provider = self.provider(platform)?.clone();
+		let kind = filter.kind.unwrap_or(Kind::Mod);
 		let installed: HashSet<String> = store::list(self.db.pool(), instance_id)
 			.await?
 			.into_iter()
@@ -39,14 +109,25 @@ impl ContentManager {
 			.collect();
 		let main = match version_id {
 			Some(version) => provider.version(project_id, version).await?,
-			None => newest(provider.versions(project_id, &filter).await?).ok_or_else(|| {
-				CommonError::NotFound(format!("no version of {project_id} is available for Minecraft {mc_version}"))
-			})?,
+			None => {
+				let candidates = provider
+					.versions(project_id, filter)
+					.await?
+					.into_iter()
+					.filter(|version| kind != Kind::DataPack || version.file_name.to_ascii_lowercase().ends_with(".zip"))
+					.collect();
+				newest(candidates).ok_or_else(|| {
+					CommonError::NotFound(format!(
+						"no version of {project_id} is available for Minecraft {}",
+						filter.mc_version.as_deref().unwrap_or_default()
+					))
+				})?
+			}
 		};
-		let plan = plan(provider.as_ref(), &filter, &installed, project_id, main).await?;
+		let plan = plan(provider.as_ref(), filter, &installed, project_id, main).await?;
 
 		let task = self.tasks.create("content.quick_add", format!("Adding {project_id}"), owner);
-		let outcome = self.install_plan(instance_id, provider.as_ref(), &plan, &task).await;
+		let outcome = self.install_plan(instance_id, provider.as_ref(), &plan, kind, &task).await;
 		match &outcome {
 			Ok(installed) => task.finish(serde_json::to_value(installed).unwrap_or_default()),
 			Err(error) => task.fail(error),
@@ -59,13 +140,14 @@ impl ContentManager {
 		instance_id: i64,
 		provider: &dyn ContentPlatform,
 		plan: &[Planned],
+		kind: Kind,
 		task: &TaskHandle,
 	) -> Result<Vec<InstalledContent>> {
 		let mut added = Vec::with_capacity(plan.len());
 		for step in plan {
 			let version_id = step.version.id.clone();
 			added.push(
-				self.install_version(instance_id, provider, &step.project_id, &version_id, Kind::Mod, task)
+				self.install_version(instance_id, provider, &step.project_id, &version_id, kind, task)
 					.await?,
 			);
 		}

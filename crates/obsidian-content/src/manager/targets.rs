@@ -6,6 +6,7 @@ use serde::Serialize;
 use sha1::{Digest, Sha1};
 use utoipa::ToSchema;
 
+use super::sources::{self, ContentSource, RESOURCE_PACK, WORLD};
 use super::{ContentManager, LEVEL_NAME_KEY, level_name, safe_filename};
 use crate::archive;
 use crate::http;
@@ -19,26 +20,36 @@ const LEVEL_DAT: &str = "level.dat";
 pub struct ServerResourcePack {
 	pub url: String,
 	pub sha1: Option<String>,
+	pub source: Option<ContentSource>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct InstalledWorld {
 	pub level_name: String,
+	pub source: Option<ContentSource>,
 }
 
 impl ContentManager {
 	pub async fn resource_pack(&self, instance_id: i64) -> Result<Option<ServerResourcePack>> {
 		let properties = read_server_properties(&self.paths.instance_dir(instance_id)).await?;
-		let url = properties
+		let Some(url) = properties
 			.get(RESOURCE_PACK_KEY)
 			.map(|url| url.trim())
-			.filter(|url| !url.is_empty());
-		Ok(url.map(|url| ServerResourcePack {
+			.filter(|url| !url.is_empty())
+		else {
+			return Ok(None);
+		};
+		let source = sources::get(self.db.pool(), instance_id, RESOURCE_PACK)
+			.await?
+			.filter(|(_, target)| target == url)
+			.map(|(source, _)| source);
+		Ok(Some(ServerResourcePack {
 			url: url.to_owned(),
 			sha1: properties
 				.get(RESOURCE_PACK_SHA1_KEY)
 				.filter(|sha1| !sha1.is_empty())
 				.cloned(),
+			source,
 		}))
 	}
 
@@ -58,11 +69,22 @@ impl ContentManager {
 			None => hex::encode(Sha1::digest(http::download(&self.http, &url).await?)),
 		};
 		self.write_resource_pack(instance_id, &url, &sha1).await?;
-		Ok(ServerResourcePack { url, sha1: Some(sha1) })
+		let source = ContentSource {
+			platform,
+			project_id: project_id.to_owned(),
+			version_id: version_id.to_owned(),
+		};
+		sources::set(self.db.pool(), instance_id, RESOURCE_PACK, &source, &url).await?;
+		Ok(ServerResourcePack {
+			url,
+			sha1: Some(sha1),
+			source: Some(source),
+		})
 	}
 
 	pub async fn clear_resource_pack(&self, instance_id: i64) -> Result<()> {
-		self.write_resource_pack(instance_id, "", "").await
+		self.write_resource_pack(instance_id, "", "").await?;
+		sources::clear(self.db.pool(), instance_id, RESOURCE_PACK).await
 	}
 
 	async fn write_resource_pack(&self, instance_id: i64, url: &str, sha1: &str) -> Result<()> {
@@ -125,11 +147,27 @@ impl ContentManager {
 		let mut properties = read_server_properties(&dir).await?;
 		properties.insert(LEVEL_NAME_KEY.to_owned(), level.clone());
 		write_server_properties(&dir, &properties).await?;
-		Ok(InstalledWorld { level_name: level })
+		let source = ContentSource {
+			platform,
+			project_id: project_id.to_owned(),
+			version_id: version_id.to_owned(),
+		};
+		sources::set(self.db.pool(), instance_id, WORLD, &source, &level).await?;
+		Ok(InstalledWorld {
+			level_name: level,
+			source: Some(source),
+		})
 	}
 
 	pub async fn level_name(&self, instance_id: i64) -> Result<String> {
 		Ok(level_name(&read_server_properties(&self.paths.instance_dir(instance_id)).await?))
+	}
+
+	pub async fn world_source(&self, instance_id: i64, level_name: &str) -> Result<Option<ContentSource>> {
+		Ok(sources::get(self.db.pool(), instance_id, WORLD)
+			.await?
+			.filter(|(_, target)| target == level_name)
+			.map(|(source, _)| source))
 	}
 }
 
