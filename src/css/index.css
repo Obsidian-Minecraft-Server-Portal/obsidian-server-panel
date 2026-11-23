@@ -217,40 +217,6 @@
     outline: none;
   }
 
-  @supports not selector(::-webkit-scrollbar) {
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: var(--line-strong) transparent;
-    }
-  }
-
-  ::-webkit-scrollbar {
-    width: 14px;
-    height: 14px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--line-strong);
-    border: 5px solid transparent;
-    border-radius: 999px;
-    background-clip: padding-box;
-    transition: background-color 150ms ease;
-  }
-
-  *:hover::-webkit-scrollbar-thumb {
-    border-width: 3px;
-    background: #4a4a52;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    border-width: 3px;
-    background: #6a6a74;
-  }
-
   .lenis.lenis-smooth {
     scroll-behavior: auto !important;
   }
@@ -359,6 +325,35 @@
   50% {
     opacity: 0;
   }
+}
+
+.os-scrollbar.os-theme-obsidian {
+  --os-size: 14px;
+  --os-padding-perpendicular: 3px;
+  --os-padding-axis: 4px;
+  --os-track-bg: transparent;
+  --os-track-bg-hover: transparent;
+  --os-track-bg-active: transparent;
+  --os-track-border-radius: 999px;
+  --os-handle-border-radius: 999px;
+  --os-handle-bg: rgba(255, 255, 255, 0.16);
+  --os-handle-bg-hover: rgba(255, 255, 255, 0.28);
+  --os-handle-bg-active: rgba(255, 255, 255, 0.34);
+  --os-handle-perpendicular-size: 50%;
+  --os-handle-perpendicular-size-hover: 75%;
+  --os-handle-perpendicular-size-active: 75%;
+  --os-handle-min-size: 32px;
+  --os-handle-interactive-area-offset: 0px;
+}
+
+.os-scrollbar.os-theme-obsidian:hover {
+  --os-handle-perpendicular-size: 75%;
+  --os-handle-bg: rgba(255, 255, 255, 0.24);
+}
+
+.os-theme-obsidian.os-scrollbar-vertical .os-scrollbar-handle {
+  right: 0;
+  left: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

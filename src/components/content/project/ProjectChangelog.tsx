@@ -34,7 +34,7 @@ export function ProjectChangelog({ platform, projectId }: ProjectChangelogProps)
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <ol className="max-h-[70vh] space-y-1.5 overflow-y-auto pr-1">
+      <ol className="max-h-[70vh] space-y-1.5 overflow-y-auto pr-4">
         {list.map((entry) => (
           <VersionButton
             key={entry.id}

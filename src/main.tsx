@@ -6,6 +6,9 @@ import "./css/index.css";
 import "./i18n";
 import { queryClient } from "./api/queryClient";
 import { router } from "./routes";
+import { installScrollbars } from "./scrollbars";
+
+installScrollbars();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

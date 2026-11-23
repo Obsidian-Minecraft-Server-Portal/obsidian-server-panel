@@ -167,8 +167,8 @@ export function DiscoverPage() {
         <DiscoverTabs kind={discover.kind} platform={discover.platform} platforms={platforms} onKind={discover.setKind} />
       </div>
       <div className="flex min-h-0 flex-1 gap-6 px-4 sm:px-8">
-        <div ref={sidebarRef} className="hidden w-60 shrink-0 overflow-y-auto py-5 lg:block">{sidebar}</div>
-        <div ref={resultsRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto py-5">
+        <div ref={sidebarRef} className="hidden w-64 shrink-0 overflow-y-auto py-5 pr-4 lg:block">{sidebar}</div>
+        <div ref={resultsRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto py-5 pr-4">
           <div className="space-y-5 pb-8">
             <div className="lg:hidden">
               <GhostButton onPress={() => setFiltersOpen(true)}>
