@@ -32,6 +32,26 @@ pub struct Instance {
 	pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct SoftwareState {
+	#[schema(value_type = String)]
+	pub loader: Loader,
+	pub mc_version: String,
+	pub loader_version: Option<String>,
+	pub java_runtime_id: Option<i64>,
+}
+
+impl From<&Instance> for SoftwareState {
+	fn from(instance: &Instance) -> Self {
+		Self {
+			loader: instance.loader,
+			mc_version: instance.mc_version.clone(),
+			loader_version: instance.loader_version.clone(),
+			java_runtime_id: instance.java_runtime_id,
+		}
+	}
+}
+
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct CreateInstance {
 	pub name: String,

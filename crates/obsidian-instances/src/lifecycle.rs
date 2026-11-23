@@ -72,6 +72,9 @@ impl InstanceManager {
 		if self.is_installing(id) {
 			return Err(CommonError::Conflict("the server is still installing".into()));
 		}
+		if self.is_migrating(id) {
+			return Err(CommonError::Conflict("a migration is running for this server".into()));
+		}
 		let instance = self.get(id).await?;
 		self.reserve(id, instance.port)?;
 		match self.launch(&instance).await {

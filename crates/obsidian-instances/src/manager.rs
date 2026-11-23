@@ -8,10 +8,12 @@ use obsidian_db::Db;
 use obsidian_java::JavaManager;
 use obsidian_net::UpnpManager;
 
+use crate::install::InstallOutcome;
 use crate::live::Live;
+use crate::migration_lock::MigrationLock;
 use crate::settings::UPNP_DEFAULT_KEY;
 use crate::software::software_change;
-use crate::model::{CreateInstance, Instance, UpdateInstance};
+use crate::model::{CreateInstance, Instance, SoftwareState, UpdateInstance};
 use crate::store::{self, instance_select};
 
 const DEFAULT_PORT: u16 = 25565;
@@ -29,6 +31,7 @@ pub struct InstanceManager {
 	pub(crate) upnp: Arc<UpnpManager>,
 	pub(crate) live: Arc<Mutex<HashMap<InstanceId, Live>>>,
 	pub(crate) installing: Arc<Mutex<HashSet<InstanceId>>>,
+	pub(crate) migrating: Arc<Mutex<HashSet<InstanceId>>>,
 	pub(crate) monitor: Arc<AtomicBool>,
 }
 
@@ -50,6 +53,7 @@ impl InstanceManager {
 			upnp,
 			live: Arc::default(),
 			installing: Arc::default(),
+			migrating: Arc::default(),
 			monitor: Arc::new(AtomicBool::new(false)),
 		}
 	}
@@ -144,6 +148,20 @@ impl InstanceManager {
 	}
 
 	pub async fn update(&self, id: InstanceId, patch: UpdateInstance) -> Result<Instance> {
+		Ok(self.apply_update(id, patch).await?.0)
+	}
+
+	pub async fn update_and_wait(&self, id: InstanceId, patch: UpdateInstance) -> Result<Instance> {
+		let (instance, install) = self.apply_update(id, patch).await?;
+		if let Some(install) = install {
+			install
+				.await
+				.map_err(|_| CommonError::Other("the install task ended without a result".into()))??;
+		}
+		Ok(instance)
+	}
+
+	async fn apply_update(&self, id: InstanceId, patch: UpdateInstance) -> Result<(Instance, Option<InstallOutcome>)> {
 		let current = self.get(id).await?;
 		let software = software_change(&current, &patch)?;
 		if software.is_some() && (self.is_active_instance(id) || self.is_installing(id)) {
@@ -197,10 +215,47 @@ impl InstanceManager {
 			crate::properties::sync_port(&updated.directory, port).await?;
 		}
 		self.refresh_upnp(&current, &updated).await;
-		if software.is_some() && !self.spawn_install(updated.clone()) {
-			return Err(CommonError::Conflict("the server is already installing".into()));
+		let install = match software {
+			Some(_) => Some(
+				self.spawn_install(updated.clone())
+					.ok_or_else(|| CommonError::Conflict("the server is already installing".into()))?,
+			),
+			None => None,
+		};
+		Ok((updated, install))
+	}
+
+	pub fn begin_migration(&self, id: InstanceId) -> Result<MigrationLock> {
+		let lock = MigrationLock::acquire(&self.migrating, id)?;
+		if self.is_active_instance(id) {
+			return Err(CommonError::Conflict("stop the server before migrating it".into()));
 		}
-		Ok(updated)
+		if self.is_installing(id) {
+			return Err(CommonError::Conflict("the server is still installing".into()));
+		}
+		Ok(lock)
+	}
+
+	pub async fn restore_software(&self, lock: &MigrationLock, state: &SoftwareState) -> Result<()> {
+		let id = lock.instance_id();
+		if self.is_active_instance(id) || self.is_installing(id) {
+			return Err(CommonError::Conflict("stop the server before restoring its software".into()));
+		}
+		sqlx::query(
+			"UPDATE instances SET loader = ?, mc_version = ?, loader_version = ?, java_runtime_id = ?, java_component = NULL, updated_at = unixepoch() WHERE id = ?",
+		)
+		.bind(state.loader.to_string())
+		.bind(&state.mc_version)
+		.bind(&state.loader_version)
+		.bind(state.java_runtime_id)
+		.bind(id)
+		.execute(self.db.pool())
+		.await?;
+		Ok(())
+	}
+
+	pub(crate) fn is_migrating(&self, id: InstanceId) -> bool {
+		self.migrating.lock().unwrap_or_else(PoisonError::into_inner).contains(&id)
 	}
 
 	pub async fn delete(&self, id: InstanceId) -> Result<()> {

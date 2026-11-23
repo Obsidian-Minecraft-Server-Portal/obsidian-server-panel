@@ -4,12 +4,15 @@ use obsidian_common::{CommonError, InstanceId, Result, TaskHandle};
 use obsidian_loaders::InstallRequest;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tokio::sync::oneshot;
 
 use crate::manager::InstanceManager;
 use crate::model::Instance;
 use crate::properties;
 
 const LAUNCH_FILE: &str = "launch.json";
+
+pub(crate) type InstallOutcome = oneshot::Receiver<Result<()>>;
 
 #[derive(Serialize, Deserialize)]
 struct LaunchFile {
@@ -22,15 +25,15 @@ impl InstanceManager {
 			return Err(CommonError::Conflict("stop the server before reinstalling it".into()));
 		}
 		let instance = self.get(id).await?;
-		if !self.spawn_install(instance) {
+		if self.spawn_install(instance).is_none() {
 			return Err(CommonError::Conflict("the server is already installing".into()));
 		}
 		Ok(())
 	}
 
-	pub(crate) fn spawn_install(&self, instance: Instance) -> bool {
+	pub(crate) fn spawn_install(&self, instance: Instance) -> Option<InstallOutcome> {
 		if !self.installing().insert(instance.id) {
-			return false;
+			return None;
 		}
 		self.publish_install_state(instance.id);
 		let task = self.tasks.create(
@@ -39,20 +42,22 @@ impl InstanceManager {
 			Some(instance.owner_id),
 		);
 		let manager = self.clone();
+		let (done, outcome) = oneshot::channel();
 		tokio::spawn(async move {
 			let id = instance.id;
 			let result = manager.install(&instance, &task).await;
 			manager.installing().remove(&id);
 			manager.publish_install_state(id);
-			match result {
+			match &result {
 				Ok(()) => task.finish(json!({ "instance_id": id })),
 				Err(error) => {
 					tracing::error!(%error, instance = id, "server installation failed");
-					task.fail(&error);
+					task.fail(error);
 				}
 			}
+			let _ = done.send(result);
 		});
-		true
+		Some(outcome)
 	}
 
 	fn publish_install_state(&self, id: InstanceId) {
