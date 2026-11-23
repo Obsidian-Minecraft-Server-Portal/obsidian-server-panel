@@ -38,10 +38,12 @@ export function RunStep({ instanceId, started, canStart, onOpenInstance }: RunSt
   const finished = task?.status === "finished";
   const failed = task?.status === "failed";
   const report = task?.result?.report as RunReport | undefined;
+  const rollbackTask = rollback.data ? tasks.data?.find((entry) => entry.id === rollback.data.task_id) : undefined;
+  const rollbackSettled = rollbackTask?.status === "finished" || rollbackTask?.status === "failed";
 
   useEffect(() => {
-    if (finished || failed) void queryClient.invalidateQueries({ queryKey: ["instances"] });
-  }, [finished, failed, queryClient]);
+    if (finished || failed || rollbackSettled) void queryClient.invalidateQueries({ queryKey: ["instances"] });
+  }, [finished, failed, rollbackSettled, queryClient]);
 
   return (
     <Panel title="Upgrade">
@@ -60,13 +62,21 @@ export function RunStep({ instanceId, started, canStart, onOpenInstance }: RunSt
           </p>
         )}
         {failed && <p className="text-sm text-rose">{task?.error ?? record?.error ?? "The migration failed."}</p>}
-        {rollback.isSuccess && <p className="text-sm text-ink-2">Rollback started as task {rollback.data.task_id}.</p>}
+        {rollback.isSuccess && (
+          <p className="text-sm text-ink-2">
+            {rollbackSettled
+              ? rollbackTask?.status === "failed"
+                ? `Rollback failed: ${rollbackTask.error ?? "see the task list"}`
+                : "Rollback complete."
+              : `Rolling back as task ${rollback.data?.task_id ?? ""}…`}
+          </p>
+        )}
         {rollback.error && <p className="text-sm text-rose">{rollback.error.message}</p>}
 
         <div className="flex flex-wrap justify-between gap-2">
           <GhostButton onPress={onOpenInstance}>Open instance</GhostButton>
           <div className="flex flex-wrap gap-2">
-            {record?.can_roll_back && (finished || failed) && (
+            {record?.can_roll_back && (finished || failed) && !rollback.isSuccess && (
               <GhostButton isDisabled={rollback.isPending} onPress={() => rollback.mutate(record.id)}>
                 Roll back
               </GhostButton>
