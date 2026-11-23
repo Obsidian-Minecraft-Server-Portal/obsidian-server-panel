@@ -81,6 +81,7 @@ export interface ProjectVersion {
 export interface InstalledContent {
   id: number;
   filename: string;
+  name: string | null;
   project_id: string | null;
   version_id: string | null;
   platform: PlatformId | null;
