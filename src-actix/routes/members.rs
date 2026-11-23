@@ -13,6 +13,7 @@ use model::{PermissionCatalog, RolePreset, permission_names};
 pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(permissions)
 		.service(handlers::list_members)
+		.service(handlers::member_candidates)
 		.service(handlers::add_member)
 		.service(handlers::update_member)
 		.service(handlers::remove_member);

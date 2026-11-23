@@ -29,6 +29,25 @@ pub async fn user_by_name(pool: &SqlitePool, username: &str) -> sqlx::Result<Opt
 		.await
 }
 
+pub async fn candidates(pool: &SqlitePool, instance: InstanceId, prefix: &str, limit: u32) -> sqlx::Result<Vec<String>> {
+	sqlx::query_scalar(
+		"SELECT u.username FROM users u WHERE u.username LIKE ? ESCAPE '\\' \
+		 AND u.id NOT IN (SELECT user_id FROM instance_members WHERE instance_id = ?) \
+		 AND u.id NOT IN (SELECT owner_id FROM instances WHERE id = ?) \
+		 ORDER BY u.username LIMIT ?",
+	)
+	.bind(format!("{}%", escape_like(prefix)))
+	.bind(instance)
+	.bind(instance)
+	.bind(limit)
+	.fetch_all(pool)
+	.await
+}
+
+fn escape_like(value: &str) -> String {
+	value.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+}
+
 pub async fn members(pool: &SqlitePool, instance: InstanceId) -> sqlx::Result<Vec<MemberRow>> {
 	sqlx::query_as(
 		"SELECT m.user_id, u.username, m.role, m.permissions FROM instance_members m \
@@ -94,4 +113,14 @@ pub async fn delete_member(pool: &SqlitePool, instance: InstanceId, user: UserId
 		.execute(pool)
 		.await?;
 	Ok(result.rows_affected() == 1)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::escape_like;
+
+	#[test]
+	fn escapes_like_wildcards_and_backslashes() {
+		assert_eq!(escape_like("a%_\\b"), "a\\%\\_\\\\b");
+	}
 }

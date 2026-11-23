@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, delete, get, patch, post, web};
 use obsidian_auth::{Permission, Role};
+use serde::Deserialize;
 use obsidian_common::{CommonError, InstanceId, UserId};
 
 use super::access::{Access, load};
@@ -8,6 +9,46 @@ use super::store::{self, MemberRow};
 use crate::auth::AuthUser;
 use crate::error::ApiResult;
 use crate::state::AppState;
+
+const MIN_CANDIDATE_PREFIX: usize = 2;
+const CANDIDATE_LIMIT: u32 = 10;
+
+#[derive(Debug, Deserialize)]
+pub struct CandidateQuery {
+	#[serde(default)]
+	pub q: String,
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/{id}/member-candidates",
+	tag = "members",
+	params(
+		("id" = i64, Path, description = "Instance id"),
+		("q" = Option<String>, Query, description = "Username prefix, at least two characters"),
+	),
+	responses(
+		(status = 200, description = "Up to ten panel usernames that can be invited", body = Vec<String>),
+		(status = 403, description = "Missing members.manage"),
+		(status = 404, description = "Instance not found"),
+	)
+)]
+#[get("/instances/{id}/member-candidates")]
+pub async fn member_candidates(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<InstanceId>,
+	web::Query(query): web::Query<CandidateQuery>,
+) -> ApiResult<web::Json<Vec<String>>> {
+	let instance = path.into_inner();
+	let access = load(&state, &user, instance).await?;
+	access.require(Permission::MEMBERS_MANAGE)?;
+	let prefix = query.q.trim();
+	if prefix.chars().count() < MIN_CANDIDATE_PREFIX {
+		return Ok(web::Json(Vec::new()));
+	}
+	Ok(web::Json(store::candidates(state.db.pool(), instance, prefix, CANDIDATE_LIMIT).await?))
+}
 
 #[utoipa::path(
 	get,

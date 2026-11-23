@@ -20,6 +20,7 @@ const SPEC_PATH: &str = "/api/docs/openapi.json";
 		crate::routes::health::health,
 		crate::routes::members::permissions,
 		crate::routes::members::handlers::list_members,
+		crate::routes::members::handlers::member_candidates,
 		crate::routes::members::handlers::add_member,
 		crate::routes::members::handlers::update_member,
 		crate::routes::members::handlers::remove_member,
