@@ -6,9 +6,11 @@ pub(crate) mod store;
 pub(crate) mod targets;
 
 pub use quick::QuickAdded;
+pub use relations::{ContentRelations, DependencyEntry, DependentEntry};
 pub use sources::ContentSource;
 pub use targets::{InstalledWorld, ServerResourcePack};
 mod quick;
+mod relations;
 mod update;
 
 use std::collections::BTreeMap;
@@ -22,6 +24,7 @@ use obsidian_db::Db;
 use tokio::sync::Mutex;
 
 use cache::{ContentCache, get_or_fetch};
+use crate::metadata::{self, Metadata};
 use crate::model::{Facets, InstalledContent, Project, ProjectDetail, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 use crate::platforms::{CurseForge, Hangar, Modrinth, Spiget};
@@ -234,13 +237,13 @@ impl ContentManager {
 		outcome
 	}
 
-	pub async fn extract_metadata(&self, jar: &Path) -> (Option<Vec<u8>>, Option<String>) {
+	pub async fn extract_metadata(&self, jar: &Path) -> (Option<Vec<u8>>, Metadata) {
 		let Ok(bytes) = tokio::fs::read(jar).await else {
-			return (None, None);
+			return (None, Metadata::default());
 		};
-		tokio::task::spawn_blocking(move || (icon::extract(&bytes), crate::name::extract(&bytes)))
+		tokio::task::spawn_blocking(move || (icon::extract(&bytes), metadata::extract(&bytes)))
 			.await
-			.unwrap_or((None, None))
+			.unwrap_or_default()
 	}
 
 	pub(crate) async fn by_filename(&self, instance_id: i64, filename: &str) -> Result<InstalledContent> {

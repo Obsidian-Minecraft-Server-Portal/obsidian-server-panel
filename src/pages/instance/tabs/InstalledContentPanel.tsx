@@ -13,6 +13,7 @@ import {
 import type { ContentKind, InstalledContent } from "../../../api/content";
 import { hasPermission, useInstance } from "../../../api/instances";
 import { InstalledRow } from "../../../components/content/InstalledRow";
+import { RelationsModal, type RelationsTarget } from "../../../components/content/RelationsModal";
 import { ServerWorldPanel } from "../../../components/content/ServerWorldPanel";
 import { kindForLoader } from "../../../components/content/meta";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -46,6 +47,7 @@ export function InstalledContentPanel() {
   const upload = useUploadContent(instanceId);
   const remove = useRemoveContent(instanceId);
   const [pendingRemove, setPendingRemove] = useState<number | null>(null);
+  const [relations, setRelations] = useState<RelationsTarget | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -154,12 +156,14 @@ export function InstalledContentPanel() {
                   onToggle={(enabled) => toggle.mutate({ modId: item.id, enabled })}
                   onApplyUpdate={(entry) => applyUpdate.mutate({ modId: entry.mod_id, versionId: entry.latest.id })}
                   onRemove={() => removeItem(item.id)}
+                  onRelations={(tab) => setRelations({ item, tab })}
                 />
               ))}
             </section>
           ))}
         </div>
       )}
+      <RelationsModal instanceId={instanceId} target={relations} onClose={() => setRelations(null)} />
     </div>
   );
 }

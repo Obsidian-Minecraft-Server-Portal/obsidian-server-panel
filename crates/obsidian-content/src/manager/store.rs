@@ -1,6 +1,7 @@
 use obsidian_common::{CommonError, Loader, Result};
 use sqlx::{SqliteExecutor, SqlitePool};
 
+use crate::metadata::{Dependency, METADATA_VERSION, Metadata};
 use crate::model::InstalledContent;
 use crate::platform::{Kind, Platform};
 
@@ -117,28 +118,60 @@ pub async fn insert_untracked<'c>(
 	filename: &str,
 	kind: Kind,
 	icon: Option<&[u8]>,
-	name: &str,
+	metadata: &Metadata,
 ) -> Result<()> {
 	sqlx::query(
-		"INSERT INTO mods (filename, name, icon, kind, instance_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT (instance_id, filename) DO NOTHING",
+		"INSERT INTO mods (filename, name, icon, kind, instance_id, mod_id, depends, metadata_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (instance_id, filename) DO NOTHING",
 	)
 	.bind(filename)
-	.bind(name)
+	.bind(metadata.name.as_deref())
 	.bind(icon)
 	.bind(kind.db_value())
 	.bind(instance_id)
+	.bind(metadata.mod_id.as_deref())
+	.bind(depends_json(&metadata.depends))
+	.bind(METADATA_VERSION)
 	.execute(executor)
 	.await?;
 	Ok(())
 }
 
-pub async fn set_name(pool: &SqlitePool, mod_id: i64, name: &str) -> Result<()> {
-	sqlx::query("UPDATE mods SET name = ? WHERE id = ?")
-		.bind(name)
+pub async fn set_metadata(pool: &SqlitePool, mod_id: i64, metadata: &Metadata) -> Result<()> {
+	sqlx::query("UPDATE mods SET name = ?, mod_id = ?, depends = ?, metadata_version = ? WHERE id = ?")
+		.bind(metadata.name.as_deref())
+		.bind(metadata.mod_id.as_deref())
+		.bind(depends_json(&metadata.depends))
+		.bind(METADATA_VERSION)
 		.bind(mod_id)
 		.execute(pool)
 		.await?;
 	Ok(())
+}
+
+pub async fn needing_metadata(pool: &SqlitePool, instance_id: i64) -> Result<Vec<InstalledContent>> {
+	let rows: Vec<ModRow> = sqlx::query_as(
+		"SELECT id, filename, name, project_id, version_id, platform, kind, instance_id FROM mods WHERE instance_id = ? AND metadata_version < ?",
+	)
+	.bind(instance_id)
+	.bind(METADATA_VERSION)
+	.fetch_all(pool)
+	.await?;
+	Ok(rows.into_iter().map(InstalledContent::from).collect())
+}
+
+pub async fn metadata_index(pool: &SqlitePool, instance_id: i64) -> Result<Vec<(i64, Option<String>, Vec<Dependency>)>> {
+	let rows: Vec<(i64, Option<String>, String)> = sqlx::query_as("SELECT id, mod_id, depends FROM mods WHERE instance_id = ?")
+		.bind(instance_id)
+		.fetch_all(pool)
+		.await?;
+	Ok(rows
+		.into_iter()
+		.map(|(id, mod_id, depends)| (id, mod_id, serde_json::from_str(&depends).unwrap_or_default()))
+		.collect())
+}
+
+fn depends_json(depends: &[Dependency]) -> String {
+	serde_json::to_string(depends).unwrap_or_else(|_| "[]".to_owned())
 }
 
 pub async fn delete<'c>(executor: impl SqliteExecutor<'c>, mod_id: i64) -> Result<()> {

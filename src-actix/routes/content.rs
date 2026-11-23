@@ -4,8 +4,8 @@ use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, Loader};
 use obsidian_content::{
-	ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectDetail, ProjectVersion, QuickAdded,
-	SearchPage, SearchQuery, Side, VersionFilter, icon_mime,
+	ContentRelations, ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectDetail,
+	ProjectVersion, QuickAdded, SearchPage, SearchQuery, Side, VersionFilter, icon_mime,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -35,7 +35,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(upload_content)
 		.service(remove_content)
 		.service(toggle_content)
-		.service(content_icon);
+		.service(content_icon)
+		.service(content_relations);
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -620,6 +621,31 @@ pub async fn quick_add(
 		)
 		.await?;
 	Ok(HttpResponse::Created().json(installed))
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/{id}/content/{mod_id}/relations",
+	tag = "content",
+	params(
+		("id" = i64, Path, description = "Instance id"),
+		("mod_id" = i64, Path, description = "Installed content id"),
+	),
+	responses(
+		(status = 200, description = "What the item depends on and what depends on it", body = ContentRelations),
+		(status = 403, description = "Missing files.read permission"),
+		(status = 404, description = "Content not found"),
+	)
+)]
+#[get("/instances/{id}/content/{mod_id}/relations")]
+pub async fn content_relations(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(i64, i64)>,
+) -> ApiResult<web::Json<ContentRelations>> {
+	let (id, mod_id) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::FILES_READ).await?;
+	Ok(web::Json(state.content.relations(id, mod_id).await?))
 }
 
 fn invalid_upload(error: actix_multipart::MultipartError) -> CommonError {

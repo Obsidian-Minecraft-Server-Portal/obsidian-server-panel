@@ -10,6 +10,7 @@ import { PrimaryButton } from "../ui/PrimaryButton";
 import { useContextMenu } from "../ui/useContextMenu";
 import { PLATFORM_NAMES } from "./meta";
 import { ProjectIcon } from "./ProjectIcon";
+import type { RelationsTab } from "./RelationsModal";
 
 interface InstalledRowProps {
   item: InstalledContent;
@@ -19,11 +20,21 @@ interface InstalledRowProps {
   onToggle: (enabled: boolean) => void;
   onApplyUpdate: (update: ContentUpdate) => void;
   onRemove: () => void;
+  onRelations: (tab: RelationsTab) => void;
 }
 
 const DISABLED_SUFFIX = /\.disabled$/;
 
-export function InstalledRow({ item, update, busy, confirmingRemove, onToggle, onApplyUpdate, onRemove }: InstalledRowProps) {
+export function InstalledRow({
+  item,
+  update,
+  busy,
+  confirmingRemove,
+  onToggle,
+  onApplyUpdate,
+  onRemove,
+  onRelations,
+}: InstalledRowProps) {
   const filename = item.filename.replace(DISABLED_SUFFIX, "");
   const title = item.name ?? filename;
   const menu = useContextMenu();
@@ -45,6 +56,8 @@ export function InstalledRow({ item, update, busy, confirmingRemove, onToggle, o
           },
         ]
       : []),
+    { key: "dependencies", label: "Show dependencies", icon: "lucide:list-tree", run: () => onRelations("dependencies") },
+    { key: "dependents", label: "Show dependents", icon: "lucide:network", run: () => onRelations("dependents") },
     { key: "copy", label: "Copy filename", icon: "lucide:copy", run: () => void copyToClipboard(filename, { fallbackToPrompt: true }) },
     {
       key: "remove",

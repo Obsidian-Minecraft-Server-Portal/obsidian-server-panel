@@ -4,7 +4,7 @@ mod icon;
 mod manager;
 mod model;
 mod modpack;
-mod name;
+mod metadata;
 mod platform;
 mod platforms;
 mod render;
@@ -13,7 +13,9 @@ mod serverpack;
 mod tests;
 
 pub use icon::mime as icon_mime;
-pub use manager::{ContentManager, ContentSource, InstalledWorld, QuickAdded, ServerResourcePack};
+pub use manager::{
+	ContentManager, ContentRelations, ContentSource, DependencyEntry, DependentEntry, InstalledWorld, QuickAdded, ServerResourcePack,
+};
 pub use model::{
 	Category, CategoryGroup, ContentUpdate, DependencyKind, Facets, GalleryImage, InstallRequest, InstalledContent, ModpackRequest, PackSource,
 	Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage, SearchQuery, Side, VersionDependency, VersionFilter,

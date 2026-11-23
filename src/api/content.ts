@@ -315,6 +315,30 @@ export function useContentUpdates(instanceId: number) {
   });
 }
 
+export interface DependencyEntry {
+  id: string;
+  required: boolean;
+  installed: InstalledContent | null;
+}
+
+export interface DependentEntry {
+  installed: InstalledContent;
+  required: boolean;
+}
+
+export interface ContentRelations {
+  dependencies: DependencyEntry[];
+  dependents: DependentEntry[];
+}
+
+export function useContentRelations(instanceId: number, contentId: number | null) {
+  return useQuery({
+    queryKey: ["instances", instanceId, "content", contentId, "relations"],
+    queryFn: () => api.get<ContentRelations>(`/instances/${instanceId}/content/${contentId}/relations`),
+    enabled: contentId !== null,
+  });
+}
+
 function useInvalidateInstalled(instanceId: number, includeUpdates: boolean) {
   const queryClient = useQueryClient();
   return () =>

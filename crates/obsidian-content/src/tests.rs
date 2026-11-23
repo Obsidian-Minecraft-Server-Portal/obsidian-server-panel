@@ -40,9 +40,44 @@ fn jar_display_names_come_from_each_loader_format() {
 		(jar(&[("paper-plugin.yml", b"name: Modern\n")]), "Modern"),
 	];
 	for (bytes, expected) in cases {
-		assert_eq!(crate::name::extract(&bytes).as_deref(), Some(expected));
+		assert_eq!(crate::metadata::extract(&bytes).name.as_deref(), Some(expected));
 	}
-	assert_eq!(crate::name::extract(&jar(&[("readme.txt", b"no metadata")])), None);
+	assert_eq!(crate::metadata::extract(&jar(&[("readme.txt", b"no metadata")])).name, None);
+}
+
+#[test]
+fn jar_mod_ids_and_dependencies_come_from_each_loader_format() {
+	let fabric = crate::metadata::extract(&jar(&[(
+		"fabric.mod.json",
+		br#"{"id":"sodium","depends":{"fabricloader":">=0.14","fabric-api":"*"},"recommends":{"modmenu":"*"}}"#,
+	)]));
+	assert_eq!(fabric.mod_id.as_deref(), Some("sodium"));
+	assert_eq!(fabric.depends, vec![dependency("fabric-api", true), dependency("modmenu", false)]);
+
+	let forge = crate::metadata::extract(&jar(&[(
+		"META-INF/mods.toml",
+		b"[[mods]]\nmodId = \"create\"\n[[dependencies.create]]\nmodId = \"forge\"\nmandatory = true\n[[dependencies.create]]\nmodId = \"flywheel\"\nmandatory = false\n",
+	)]));
+	assert_eq!(forge.mod_id.as_deref(), Some("create"));
+	assert_eq!(forge.depends, vec![dependency("flywheel", false)]);
+
+	let quilt = crate::metadata::extract(&jar(&[(
+		"quilt.mod.json",
+		br#"{"quilt_loader":{"id":"qsl","depends":["quilted_fabric_api",{"id":"lib","optional":true}]}}"#,
+	)]));
+	assert_eq!(quilt.mod_id.as_deref(), Some("qsl"));
+	assert_eq!(quilt.depends, vec![dependency("quilted_fabric_api", true), dependency("lib", false)]);
+
+	let plugin = crate::metadata::extract(&jar(&[("plugin.yml", b"name: Shop\ndepend: [Vault]\nsoftdepend:\n  - PlaceholderAPI\n")]));
+	assert_eq!(plugin.mod_id.as_deref(), Some("Shop"));
+	assert_eq!(plugin.depends, vec![dependency("Vault", true), dependency("PlaceholderAPI", false)]);
+}
+
+fn dependency(id: &str, required: bool) -> crate::metadata::Dependency {
+	crate::metadata::Dependency {
+		id: id.to_owned(),
+		required,
+	}
 }
 
 #[test]

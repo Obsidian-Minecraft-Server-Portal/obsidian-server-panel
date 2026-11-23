@@ -7,11 +7,12 @@ use tokio::fs;
 
 use super::store::{self, DISABLED_SUFFIX};
 use super::{ContentManager, content_filename, kind_for_loader, subdirectory};
+use crate::metadata::Metadata;
 use crate::platform::Kind;
 
 const ICON_CONCURRENCY: usize = 4;
 
-type Scanned = (Kind, String, Option<Vec<u8>>, Option<String>);
+type Scanned = (Kind, String, Option<Vec<u8>>, Metadata);
 
 struct Folder {
 	kind: Kind,
@@ -37,10 +38,13 @@ impl ContentManager {
 		let pool = self.db.pool();
 		let (loader, _) = store::instance(pool, instance_id).await?;
 		let rows = store::list(pool, instance_id).await?;
-		for row in rows.iter().filter(|row| row.name.is_none()) {
+		for row in store::needing_metadata(pool, instance_id).await? {
 			let path = self.file_path(instance_id, row.kind, &row.filename).await?;
-			let (_, title) = self.extract_metadata(&path).await;
-			store::set_name(pool, row.id, title.as_deref().unwrap_or_default()).await?;
+			if !fs::try_exists(&path).await? {
+				continue;
+			}
+			let (_, metadata) = self.extract_metadata(&path).await;
+			store::set_metadata(pool, row.id, &metadata).await?;
 		}
 		let mut folders = Vec::with_capacity(2);
 		for kind in [kind_for_loader(loader), Kind::DataPack] {
@@ -71,8 +75,8 @@ impl ContentManager {
 			.flat_map(|folder| folder.names.iter().map(move |name| (folder.kind, folder.dir.join(name), name.clone())));
 		let found: Vec<Scanned> = stream::iter(fresh)
 			.map(|(kind, path, filename)| async move {
-				let (icon, title) = self.extract_metadata(&path).await;
-				(kind, filename, icon, title)
+				let (icon, metadata) = self.extract_metadata(&path).await;
+				(kind, filename, icon, metadata)
 			})
 			.buffer_unordered(ICON_CONCURRENCY)
 			.collect()
@@ -89,16 +93,8 @@ impl ContentManager {
 		for id in stale {
 			store::delete(&mut *tx, id).await?;
 		}
-		for (kind, filename, icon, title) in &found {
-			store::insert_untracked(
-				&mut *tx,
-				instance_id,
-				filename,
-				*kind,
-				icon.as_deref(),
-				title.as_deref().unwrap_or_default(),
-			)
-			.await?;
+		for (kind, filename, icon, metadata) in &found {
+			store::insert_untracked(&mut *tx, instance_id, filename, *kind, icon.as_deref(), metadata).await?;
 		}
 		tx.commit().await?;
 		Ok(())
