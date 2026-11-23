@@ -19,7 +19,7 @@ export function UpnpPanel({ view }: { view: InstanceView }) {
           isDisabled={update.isPending}
           onChange={(upnp_enabled) => update.mutate({ upnp_enabled })}
         />
-        <dl className="grid grid-cols-3 gap-3 rounded-control border border-line bg-input/60 p-4">
+        <dl className="grid grid-cols-1 gap-3 rounded-control border border-line bg-input/60 p-4 sm:grid-cols-3">
           <Stat label="Mapping">
             <span className="flex items-center gap-2">
               <StatusDot tone={info?.mapped ? "green" : "neutral"} pulse={info?.mapped} />

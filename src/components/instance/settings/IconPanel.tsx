@@ -54,7 +54,7 @@ export function IconPanel({ view }: { view: InstanceView }) {
   return (
     <Panel title="Server icon">
       <div className="space-y-5">
-        <div className="flex items-center gap-5">
+        <div className="flex flex-wrap items-center gap-5">
           <InstanceIcon instance={view} className="size-20 rounded-panel" />
           <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-control border border-line-strong bg-input px-4 py-2 text-sm font-medium text-ink-1 transition-colors hover:bg-raised">
             <Icon icon="lucide:image-up" width={16} height={16} />
@@ -69,7 +69,7 @@ export function IconPanel({ view }: { view: InstanceView }) {
               }}
             />
           </label>
-          <p className="text-xs text-ink-3">Any image size. It is cropped square and saved as 64×64.</p>
+          <p className="basis-full text-xs text-ink-3 sm:basis-auto">Any image size. It is cropped square and saved as 64×64.</p>
         </div>
         {fileError && <p className="text-sm text-rose">{fileError}</p>}
         {source && (
