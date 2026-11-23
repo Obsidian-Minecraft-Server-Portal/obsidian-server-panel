@@ -2,6 +2,23 @@
 <module type="EMPTY_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-auth/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-auth/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-backups/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-common/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-content/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-db/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-db/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-instances/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-instances/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-java/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-loaders/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-net/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-runner/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-runner/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-scheduler/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-sftp/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/obsidian-sftp/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
