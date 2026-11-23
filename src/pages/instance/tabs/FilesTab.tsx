@@ -45,7 +45,16 @@ export function FilesTab() {
   const [target, setTarget] = useState<ContextTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const navigate = useCallback((path: string) => setParams(path ? { path } : {}), [setParams]);
+  const navigate = useCallback(
+    (path: string) =>
+      setParams((previous) => {
+        const next = new URLSearchParams(previous);
+        if (path) next.set("path", path);
+        else next.delete("path");
+        return next;
+      }),
+    [setParams],
+  );
   const closeMenu = useCallback(() => setTarget(null), []);
   const closeDialog = useCallback(() => setDialog(null), []);
   const openFile = useCallback((path: string) => setEditing(path), []);

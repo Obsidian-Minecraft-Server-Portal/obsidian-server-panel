@@ -10,7 +10,6 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { BackupsAndSchedulesTab } from "./tabs/BackupsAndSchedulesTab";
 import { ConsoleTab } from "./tabs/ConsoleTab";
 import { ContentTab } from "./tabs/ContentTab";
-import { FilesTab } from "./tabs/FilesTab";
 import { PropertiesTab } from "./tabs/PropertiesTab";
 import { SettingsTab } from "./tabs/SettingsTab";
 
@@ -23,7 +22,6 @@ interface TabEntry {
 const TABS: Record<string, TabEntry> = {
   console: { label: "Console", permission: "console.read", component: ConsoleTab },
   content: { label: "Content", permission: "files.read", component: ContentTab },
-  files: { label: "Files", permission: "files.read", component: FilesTab },
   backups: { label: "Backups & schedules", permission: "backups.download", component: BackupsAndSchedulesTab },
   properties: { label: "Properties", permission: "settings.edit", component: PropertiesTab },
   settings: { label: "Settings", permission: "settings.edit", component: SettingsTab },
@@ -50,6 +48,7 @@ export function InstancePage() {
       </div>
     );
   }
+  if (tab === "files") return <Navigate to={`/instances/${id}/content?section=files`} replace />;
   const view = instance.data;
   if (!view) return <p className="px-8 py-8 text-sm text-ink-3">Loading instance…</p>;
 

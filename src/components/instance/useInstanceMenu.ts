@@ -13,7 +13,7 @@ interface SectionLink {
 
 const SECTION_LINKS: SectionLink[] = [
   { key: "console", label: "Console", icon: "lucide:terminal", path: "/console", permission: "console.read" },
-  { key: "files", label: "Files", icon: "lucide:folder-open", path: "/files", permission: "files.read" },
+  { key: "files", label: "Files", icon: "lucide:folder-open", path: "/content?section=files", permission: "files.read" },
   { key: "backups", label: "Backups", icon: "lucide:archive", path: "/backups", permission: "backups.download" },
   { key: "settings", label: "Settings", icon: "lucide:settings", path: "/settings", permission: "settings.edit" },
 ];
