@@ -1,6 +1,7 @@
 import { Switch, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import copyToClipboard from "copy-to-clipboard";
+import type { MouseEvent } from "react";
 import type { ContentUpdate, InstalledContent } from "../../api/content";
 import { contentIconUrl } from "../../api/content";
 import { ContextMenu, MenuButton, type MenuAction } from "../ui/ContextMenu";
@@ -21,9 +22,12 @@ interface InstalledRowProps {
   onApplyUpdate: (update: ContentUpdate) => void;
   onRemove: () => void;
   onRelations: (tab: RelationsTab) => void;
+  onAssociate: () => void;
 }
 
 const DISABLED_SUFFIX = /\.disabled$/;
+
+const stopRowClick = (event: MouseEvent) => event.stopPropagation();
 
 export function InstalledRow({
   item,
@@ -34,6 +38,7 @@ export function InstalledRow({
   onApplyUpdate,
   onRemove,
   onRelations,
+  onAssociate,
 }: InstalledRowProps) {
   const filename = item.filename.replace(DISABLED_SUFFIX, "");
   const title = item.name ?? filename;
@@ -58,6 +63,7 @@ export function InstalledRow({
       : []),
     { key: "dependencies", label: "Show dependencies", icon: "lucide:list-tree", run: () => onRelations("dependencies") },
     { key: "dependents", label: "Show dependents", icon: "lucide:network", run: () => onRelations("dependents") },
+    { key: "associate", label: "Associate with…", icon: "lucide:link", run: onAssociate },
     { key: "copy", label: "Copy filename", icon: "lucide:copy", run: () => void copyToClipboard(filename, { fallbackToPrompt: true }) },
     {
       key: "remove",
@@ -70,11 +76,12 @@ export function InstalledRow({
 
   return (
     <div
+      onClick={(event) => menu.openAt(event.clientX, event.clientY)}
       onContextMenu={(event) => {
         event.preventDefault();
         menu.openAt(event.clientX, event.clientY);
       }}
-      className="flex flex-wrap items-center gap-4 rounded-panel border border-line bg-panel p-3.5 transition hover:border-line-strong"
+      className="flex cursor-pointer flex-wrap items-center gap-4 rounded-panel border border-line bg-panel p-3.5 transition hover:border-line-strong hover:bg-raised"
     >
       <ProjectIcon src={contentIconUrl(item.instance_id, item.id)} alt="" className="size-12" />
       <div className="min-w-0 flex-1 basis-56 space-y-1">
@@ -82,7 +89,11 @@ export function InstalledRow({
         {item.name && <p className="truncate font-mono text-[11px] text-ink-3">{filename}</p>}
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <Chip>{item.kind === "plugin" ? "Plugin" : item.kind === "datapack" ? "Data pack" : "Mod"}</Chip>
-          {item.platform !== null && <Chip tone="secondary">{PLATFORM_NAMES[item.platform]}</Chip>}
+          {item.platform !== null ? (
+            <Chip tone="secondary">{PLATFORM_NAMES[item.platform]}</Chip>
+          ) : (
+            <Chip tone="amber">Not linked</Chip>
+          )}
           {update && (
             <Chip tone="amber" pulse>
               Update · {update.latest.version_number}
@@ -90,7 +101,7 @@ export function InstalledRow({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" onClick={stopRowClick}>
         {update && (
           <PrimaryButton size="sm" isDisabled={busy} onPress={() => onApplyUpdate(update)}>
             Update
@@ -115,13 +126,15 @@ export function InstalledRow({
         <MenuButton label={`${title} actions`} onOpen={menu.openAt} />
       </div>
       {menu.menu && (
-        <ContextMenu
-          x={menu.menu.x}
-          y={menu.menu.y}
-          label={`${title} actions`}
-          actions={actions}
-          onClose={menu.close}
-        />
+        <span onClick={stopRowClick}>
+          <ContextMenu
+            x={menu.menu.x}
+            y={menu.menu.y}
+            label={`${title} actions`}
+            actions={actions}
+            onClose={menu.close}
+          />
+        </span>
       )}
     </div>
   );

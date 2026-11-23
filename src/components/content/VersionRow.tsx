@@ -9,13 +9,14 @@ interface VersionRowProps {
   version: ProjectVersion;
   actionLabel: string;
   actionDisabled: boolean;
+  matchesFile?: boolean;
   onAction: () => void;
 }
 
 const VISIBLE_MC_VERSIONS = 3;
 const CHANNEL_TONE: Record<string, Tone> = { beta: "amber", alpha: "rose" };
 
-export function VersionRow({ version, actionLabel, actionDisabled, onAction }: VersionRowProps) {
+export function VersionRow({ version, actionLabel, actionDisabled, matchesFile = false, onAction }: VersionRowProps) {
   const mcVersions = version.mc_versions.slice(0, VISIBLE_MC_VERSIONS);
   const hiddenMc = version.mc_versions.length - mcVersions.length;
   const published = format(new Date(version.published_at), "d MMM yyyy");
@@ -27,6 +28,7 @@ export function VersionRow({ version, actionLabel, actionDisabled, onAction }: V
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate font-medium text-ink-0">{version.name || version.version_number}</p>
           {version.channel !== "release" && <Chip tone={CHANNEL_TONE[version.channel] ?? "neutral"}>{version.channel}</Chip>}
+          {matchesFile && <Chip tone="green">Matches your file</Chip>}
         </div>
         <p className="truncate font-mono text-[11px] text-ink-3">
           {version.file_name} · {published}

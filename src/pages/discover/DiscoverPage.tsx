@@ -3,10 +3,11 @@ import { Icon } from "@iconify-icon/react";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Project, SideFilter } from "../../api/content";
-import { useContentFacets, useContentSearch, usePlatforms, useQuickAdd } from "../../api/content";
+import { useContentFacets, useContentSearch, useInstalledContent, usePlatforms, useQuickAdd } from "../../api/content";
 import { hasPermission, useInstance } from "../../api/instances";
 import { DiscoverTabs, SourceChips } from "../../components/content/DiscoverFilters";
 import { DiscoverHero } from "../../components/content/DiscoverHero";
+import { AssociateBanner } from "../../components/content/AssociateBanner";
 import { DiscoverSidebar } from "../../components/content/DiscoverSidebar";
 import { KIND_LABELS, PLATFORM_NAMES, QUICK_ADD_KINDS, acceptsLoader, quickAddSummary } from "../../components/content/meta";
 import { ProjectResults } from "../../components/content/ProjectResults";
@@ -28,6 +29,10 @@ export function DiscoverPage() {
   const facets = useContentFacets(discover.platform, discover.kind).data;
   const quickAdd = useQuickAdd(discover.instanceId ?? 0);
   const installed = useInstalledProjects(discover.instanceId);
+  const installedContent = useInstalledContent(discover.instanceId ?? 0, discover.instanceId !== null, false);
+  const associating = discover.associateId !== null && discover.instanceId !== null;
+  const associateFilename =
+    installedContent.data?.find((item) => item.id === discover.associateId)?.filename ?? "the selected file";
   const resultsRef = useRef<HTMLDivElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -64,12 +69,30 @@ export function DiscoverPage() {
     QUICK_ADD_KINDS.has(project.kind) &&
     acceptsLoader(project.kind, quickAddTarget.loader);
 
-  const openProject = (project: Project) => {
-    const query = discover.instanceId === null ? "" : `?instance=${discover.instanceId}`;
-    navigate(`/discover/projects/${project.platform}/${encodeURIComponent(project.id)}${query}`);
+  const projectHref = (project: Project, toVersions: boolean) => {
+    const params = new URLSearchParams();
+    if (discover.instanceId !== null) params.set("instance", String(discover.instanceId));
+    if (associating && discover.associateId !== null) params.set("associate", String(discover.associateId));
+    if (toVersions) params.set("tab", "versions");
+    const query = params.toString();
+    return `/discover/projects/${project.platform}/${encodeURIComponent(project.id)}${query ? `?${query}` : ""}`;
   };
 
-  const renderActions = (project: Project) => (
+  const openProject = (project: Project) => navigate(projectHref(project, false));
+
+  const associateActions = (project: Project) => (
+    <>
+      <PrimaryButton size="sm" onPress={() => navigate(projectHref(project, true))}>
+        <Icon icon="lucide:list" width={14} height={14} />
+        Choose version
+      </PrimaryButton>
+      <GhostButton size="sm" onPress={() => openProject(project)}>
+        View more
+      </GhostButton>
+    </>
+  );
+
+  const browseActions = (project: Project) => (
     <>
       {installed.has(project.platform, project.id) ? (
         <GhostButton size="sm" isDisabled>
@@ -93,6 +116,8 @@ export function DiscoverPage() {
       </GhostButton>
     </>
   );
+
+  const renderActions = (project: Project) => (associating ? associateActions(project) : browseActions(project));
 
   const sidebar = (
     <DiscoverSidebar
@@ -147,6 +172,7 @@ export function DiscoverPage() {
                 Filters
               </GhostButton>
             </div>
+            {associating && <AssociateBanner filename={associateFilename} onCancel={discover.cancelAssociate} />}
             {quickAdd.isSuccess && (
               <p className="flex items-center gap-2 text-sm text-green">
                 <Icon icon="lucide:circle-check" width={16} height={16} />

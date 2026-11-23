@@ -136,6 +136,23 @@ pub async fn insert_untracked<'c>(
 	Ok(())
 }
 
+pub async fn set_association(
+	pool: &SqlitePool,
+	mod_id: i64,
+	platform: Platform,
+	project_id: &str,
+	version_id: &str,
+) -> Result<()> {
+	sqlx::query("UPDATE mods SET platform = ?, project_id = ?, version_id = ? WHERE id = ?")
+		.bind(platform as i64)
+		.bind(project_id)
+		.bind(version_id)
+		.bind(mod_id)
+		.execute(pool)
+		.await?;
+	Ok(())
+}
+
 pub async fn set_metadata(pool: &SqlitePool, mod_id: i64, metadata: &Metadata) -> Result<()> {
 	sqlx::query("UPDATE mods SET name = ?, mod_id = ?, depends = ?, metadata_version = ? WHERE id = ?")
 		.bind(metadata.name.as_deref())

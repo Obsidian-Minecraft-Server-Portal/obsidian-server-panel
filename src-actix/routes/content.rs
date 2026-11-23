@@ -1,5 +1,5 @@
 use actix_multipart::Multipart;
-use actix_web::{HttpResponse, delete, get, post, web};
+use actix_web::{HttpResponse, delete, get, post, put, web};
 use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, Loader};
@@ -10,6 +10,7 @@ use obsidian_content::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::content_targets::VersionRef;
 use crate::auth::{AuthUser, require_instance_perm};
 use crate::error::ApiResult;
 use crate::state::AppState;
@@ -36,7 +37,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(remove_content)
 		.service(toggle_content)
 		.service(content_icon)
-		.service(content_relations);
+		.service(content_relations)
+		.service(associate_content);
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -646,6 +648,38 @@ pub async fn content_relations(
 	let (id, mod_id) = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::FILES_READ).await?;
 	Ok(web::Json(state.content.relations(id, mod_id).await?))
+}
+
+#[utoipa::path(
+	put,
+	path = "/api/v1/instances/{id}/content/{mod_id}/association",
+	tag = "content",
+	params(
+		("id" = i64, Path, description = "Instance id"),
+		("mod_id" = i64, Path, description = "Installed content id"),
+	),
+	request_body = VersionRef,
+	responses(
+		(status = 200, description = "The file is now linked to this project and version", body = InstalledContent),
+		(status = 403, description = "Missing content.install permission"),
+		(status = 409, description = "Another file on this instance is already linked to the project"),
+	)
+)]
+#[put("/instances/{id}/content/{mod_id}/association")]
+pub async fn associate_content(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(i64, i64)>,
+	web::Json(request): web::Json<VersionRef>,
+) -> ApiResult<web::Json<InstalledContent>> {
+	let (id, mod_id) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::CONTENT_INSTALL).await?;
+	Ok(web::Json(
+		state
+			.content
+			.associate(id, mod_id, request.platform, &request.project_id, &request.version_id)
+			.await?,
+	))
 }
 
 fn invalid_upload(error: actix_multipart::MultipartError) -> CommonError {

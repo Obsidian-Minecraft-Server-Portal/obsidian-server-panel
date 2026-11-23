@@ -33,6 +33,7 @@ const SPEC_PATH: &str = "/api/docs/openapi.json";
 		crate::routes::content::project_changelog,
 		crate::routes::content::quick_add,
 		crate::routes::content::content_relations,
+		crate::routes::content::associate_content,
 		crate::routes::content::list_content,
 		crate::routes::content::install_content,
 		crate::routes::content::content_updates,

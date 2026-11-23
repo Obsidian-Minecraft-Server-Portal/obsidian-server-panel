@@ -1,3 +1,4 @@
+mod association;
 mod cache;
 mod install;
 mod scan;

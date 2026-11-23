@@ -1,7 +1,7 @@
 import { Icon } from "@iconify-icon/react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { type PlatformId, type ProjectDetail, useProjectDetail, useQuickAdd } from "../../api/content";
+import { type PlatformId, type ProjectDetail, useInstalledContent, useProjectDetail, useQuickAdd } from "../../api/content";
 import { hasPermission, useInstances } from "../../api/instances";
 import { InstallTargetModal, type InstallAction } from "../../components/content/InstallTargetModal";
 import { ModpackModal, type ModpackAction } from "../../components/content/ModpackModal";
@@ -68,6 +68,13 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
   const target = installTargets.find((entry) => entry.id === Number.parseInt(params.get("instance") ?? "", 10)) ?? null;
   const quickAdd = useQuickAdd(target?.id ?? 0);
   const installed = useInstalledProjects(target?.id ?? null);
+  const associateId = Number.parseInt(params.get("associate") ?? "", 10) || null;
+  const installedContent = useInstalledContent(target?.id ?? 0, target !== null && associateId !== null, false);
+  const associateItem = installedContent.data?.find((item) => item.id === associateId) ?? null;
+  const association =
+    target !== null && associateItem !== null
+      ? { instanceId: target.id, contentId: associateItem.id, filename: associateItem.filename }
+      : null;
   const tab = TABS.find((entry) => entry.id === params.get("tab"))?.id ?? "overview";
 
   const update = (patch: Record<string, string | null>) =>
@@ -85,6 +92,7 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
 
   const back = new URLSearchParams({ kind: project.kind, platform: String(project.platform) });
   if (target) back.set("instance", String(target.id));
+  if (associateId !== null) back.set("associate", String(associateId));
 
   return (
     <div className="space-y-6 px-4 py-6 sm:px-8">
@@ -127,6 +135,7 @@ function ProjectBody({ detail }: { detail: ProjectDetail }) {
             target={target}
             quickAdd={quickAdd}
             isInstalledVersion={(versionId) => installed.hasVersion(project.platform, project.id, versionId)}
+            association={association}
             onModpack={setModpackAction}
             onInstall={setInstallAction}
           />

@@ -51,6 +51,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
   const loader = LOADERS_BY_KIND[kind].find((entry) => entry === params.get("loader")) ?? null;
   const mcVersion = params.get("mc_version");
   const instanceId = Number.parseInt(params.get("instance") ?? "", 10) || null;
+  const associateId = Number.parseInt(params.get("associate") ?? "", 10) || null;
   const environmentsChosen = params.has("environments");
   const filters: ContentFilters = {
     categories: readList(params.get("categories")),
@@ -102,6 +103,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
     instanceId,
     filters,
     environmentsChosen,
+    associateId,
     query,
     debouncedQuery,
     view,
@@ -130,6 +132,7 @@ export function useDiscoverState(platforms: PlatformInfo[]) {
     },
     setOpenSource: (on: boolean) => update({ open: on ? "1" : null }),
     clearFilters: () => update({ loader: null, mc_version: null, ...CLEARED_FILTERS }),
+    cancelAssociate: () => update({ associate: null }),
   };
 }
 

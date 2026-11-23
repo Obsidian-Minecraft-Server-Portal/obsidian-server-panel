@@ -359,6 +359,17 @@ export function useInstallContent(instanceId: number) {
   });
 }
 
+export function useAssociateContent(instanceId: number) {
+  const invalidate = useInvalidateInstalled(instanceId, true);
+  return useMutation({
+    mutationFn: (input: VersionRef & { contentId: number }) =>
+      api.put<InstalledContent>(`/instances/${instanceId}/content/${input.contentId}/association`, versionBody(input)),
+    onSuccess: () => {
+      void invalidate();
+    },
+  });
+}
+
 export function useApplyContentUpdate(instanceId: number) {
   const invalidate = useInvalidateInstalled(instanceId, true);
   return useMutation({

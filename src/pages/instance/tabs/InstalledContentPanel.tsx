@@ -1,6 +1,6 @@
 import { Icon } from "@iconify-icon/react";
 import { useRef, useState, type ChangeEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   useApplyContentUpdate,
   useContentUpdates,
@@ -48,6 +48,8 @@ export function InstalledContentPanel() {
   const remove = useRemoveContent(instanceId);
   const [pendingRemove, setPendingRemove] = useState<number | null>(null);
   const [relations, setRelations] = useState<RelationsTarget | null>(null);
+  const [searchParams] = useSearchParams();
+  const associated = searchParams.get("associated");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -65,6 +67,9 @@ export function InstalledContentPanel() {
     if (instance.data) params.set("mc_version", instance.data.mc_version);
     navigate(`/discover?${params}`);
   };
+
+  const associate = (item: InstalledContent) =>
+    navigate(`/discover?${new URLSearchParams({ kind: item.kind, instance: id, associate: String(item.id) })}`);
 
   const onFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -124,6 +129,12 @@ export function InstalledContentPanel() {
         </div>
       )}
       {error && <p className="text-sm text-rose">{error.message}</p>}
+      {associated && (
+        <p className="flex items-center gap-2 text-sm text-green">
+          <Icon icon="lucide:circle-check" width={16} height={16} />
+          Linked {associated} to its project. Updates now check that project.
+        </p>
+      )}
 
       {installed.isPending ? (
         <p className="font-mono text-xs text-ink-3">Loading content…</p>
@@ -157,6 +168,7 @@ export function InstalledContentPanel() {
                   onApplyUpdate={(entry) => applyUpdate.mutate({ modId: entry.mod_id, versionId: entry.latest.id })}
                   onRemove={() => removeItem(item.id)}
                   onRelations={(tab) => setRelations({ item, tab })}
+                  onAssociate={() => associate(item)}
                 />
               ))}
             </section>

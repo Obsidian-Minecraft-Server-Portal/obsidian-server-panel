@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   type ContentKind,
   type Project,
   type ProjectVersion,
   type VersionFilter,
+  useAssociateContent,
   useProjectVersions,
 } from "../../../api/content";
 import type { InstanceView } from "../../../api/instances";
@@ -29,12 +31,19 @@ const CHANNEL_TABS: SectionTab<Channel>[] = [
 
 const PAGE_SIZE = 20;
 
+export interface AssociationTarget {
+  instanceId: number;
+  contentId: number;
+  filename: string;
+}
+
 interface ProjectVersionsProps {
   project: Project;
   gameVersions: string[];
   target: InstanceView | null;
   quickAdd: QuickAdd;
   isInstalledVersion: (versionId: string) => boolean;
+  association: AssociationTarget | null;
   onModpack: (action: ModpackAction) => void;
   onInstall: (action: InstallAction) => void;
 }
@@ -45,6 +54,7 @@ export function ProjectVersions({
   target,
   quickAdd,
   isInstalledVersion,
+  association,
   onModpack,
   onInstall,
 }: ProjectVersionsProps) {
@@ -52,6 +62,15 @@ export function ProjectVersions({
   const [gameVersion, setGameVersion] = useState<string | null>(null);
   const [matchTarget, setMatchTarget] = useState(true);
   const [limit, setLimit] = useState(PAGE_SIZE);
+  const navigate = useNavigate();
+  const associate = useAssociateContent(association?.instanceId ?? 0);
+  const associateInstanceId = association?.instanceId;
+  const associateFilename = association?.filename;
+  useEffect(() => {
+    if (associate.isSuccess && associateInstanceId !== undefined && associateFilename !== undefined) {
+      navigate(`/instances/${associateInstanceId}/content?associated=${encodeURIComponent(associateFilename)}`);
+    }
+  }, [associate.isSuccess, associateInstanceId, associateFilename, navigate]);
   const isModpack = project.kind === "modpack";
   const loaderBound = LOADER_BOUND_KINDS.has(project.kind);
   const versions = useProjectVersions(
@@ -62,13 +81,19 @@ export function ProjectVersions({
   const gameVersionOptions = [...gameVersions]
     .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
     .map((version) => ({ id: version, label: version }));
-  const listed = (versions.data ?? []).filter((version) => channel === "all" || version.channel === channel);
+  const matchesFile = (version: ProjectVersion) => association !== null && version.file_name === association.filename;
+  const listed = (versions.data ?? [])
+    .filter((version) => channel === "all" || version.channel === channel)
+    .sort((a, b) => Number(matchesFile(b)) - Number(matchesFile(a)));
   const shown = listed.slice(0, limit);
 
   const installing = (version: ProjectVersion) => quickAdd.isPending && quickAdd.variables?.versionId === version.id;
+  const linking = (version: ProjectVersion) => associate.isPending && associate.variables?.versionId === version.id;
 
   const install = (version: ProjectVersion) => {
-    if (isModpack) onModpack({ project, version });
+    if (association) {
+      associate.mutate({ contentId: association.contentId, platform: project.platform, projectId: project.id, versionId: version.id });
+    } else if (isModpack) onModpack({ project, version });
     else if (loaderBound) quickAdd.mutate({ platform: project.platform, projectId: project.id, versionId: version.id });
     else onInstall({ project, version, kind: project.kind });
   };
@@ -113,8 +138,19 @@ export function ProjectVersions({
             <VersionRow
               key={version.id}
               version={version}
-              actionLabel={actionLabel(isModpack, installing(version), isInstalledVersion(version.id))}
-              actionDisabled={(loaderBound && target === null) || installing(version) || isInstalledVersion(version.id)}
+              actionLabel={
+                association
+                  ? linking(version)
+                    ? "Linking…"
+                    : "Associate"
+                  : actionLabel(isModpack, installing(version), isInstalledVersion(version.id))
+              }
+              actionDisabled={
+                association
+                  ? linking(version)
+                  : (loaderBound && target === null) || installing(version) || isInstalledVersion(version.id)
+              }
+              matchesFile={matchesFile(version)}
               onAction={() => install(version)}
             />
           ))}
