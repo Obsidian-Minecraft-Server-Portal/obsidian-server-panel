@@ -15,12 +15,14 @@ export function CheckboxRow({ children, isSelected, onChange, isDisabled, classN
       isSelected={isSelected}
       onChange={onChange}
       isDisabled={isDisabled}
-      className={cn("!flex !flex-row !items-start w-full gap-3", isDisabled ? "opacity-60" : "cursor-pointer", className)}
+      className={cn("w-full", isDisabled ? "opacity-60" : "cursor-pointer", className)}
     >
-      <Checkbox.Control className="mt-0.5 size-4 shrink-0 rounded-[5px] border border-ink-4 bg-input data-[selected=true]:border-accent data-[selected=true]:bg-accent">
-        <Checkbox.Indicator />
-      </Checkbox.Control>
-      <Checkbox.Content className="!block min-w-0 flex-1 text-sm leading-snug text-ink-1">{children}</Checkbox.Content>
+      <Checkbox.Content className="flex w-full min-w-0 items-start gap-3 text-sm leading-snug text-ink-1">
+        <Checkbox.Control className="mt-0.5 size-4 shrink-0 rounded-[5px] border border-ink-4 bg-input data-[selected=true]:border-accent data-[selected=true]:bg-accent">
+          <Checkbox.Indicator />
+        </Checkbox.Control>
+        <span className="min-w-0 flex-1">{children}</span>
+      </Checkbox.Content>
     </Checkbox>
   );
 }
