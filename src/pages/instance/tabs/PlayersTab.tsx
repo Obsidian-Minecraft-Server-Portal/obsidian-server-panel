@@ -28,7 +28,7 @@ export function PlayersPanels() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       <Panel
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-fit flex-1 flex-col"
         title={`Players${players.data ? ` · ${players.data.length}` : ""}`}
         actions={
           <input
@@ -37,16 +37,16 @@ export function PlayersPanels() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Filter"
             aria-label="Filter players"
-            className="h-9 w-48 rounded-control border border-line bg-input px-3 text-sm text-ink-1 placeholder:text-ink-4 focus:border-accent"
+            className="h-9 w-32 rounded-control border border-line bg-input px-3 text-sm text-ink-1 placeholder:text-ink-4 focus:border-accent"
           />
         }
       >
         {error && <p className="mb-4 text-sm text-rose">{error.message}</p>}
         {players.isPending && <p className="text-sm text-ink-3">Loading players…</p>}
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-fit flex-1 flex-col">
           {players.data && visible.length === 0 && (
             <EmptyState
-              className="flex-1 py-0"
+              className="flex-1 py-8"
               icon="lucide:users"
               title="No players yet"
               description="Players appear once they join, or when you add them by name."
