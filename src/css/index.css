@@ -121,6 +121,9 @@
   --success-foreground: #04131a;
   --warning: var(--amber);
   --warning-foreground: #1a1204;
+
+  --scrollbar-thumb: var(--line-strong);
+  --scrollbar-track: transparent;
 }
 
 .rendered-html {
@@ -212,6 +215,37 @@
   input:focus-visible,
   textarea:focus-visible {
     outline: none;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--line-strong) transparent;
+    }
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
   }
 }
 

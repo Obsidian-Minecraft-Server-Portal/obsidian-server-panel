@@ -22,6 +22,7 @@ const EDITOR_OPTIONS: EditorProps["options"] = {
   wordWrap: "on",
   tabSize: 4,
   smoothScrolling: true,
+  scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
 };
 
 interface FileEditorProps {
@@ -117,7 +118,7 @@ function EditorBody({ path, initial, ops, onClose, onDownload }: EditorBodyProps
         onSave={() => void save()}
         error={error}
       >
-        <div className="h-[68vh] min-h-80 lg:h-auto lg:min-h-0 lg:flex-1">
+        <div data-native-scroll className="h-[68vh] min-h-80 lg:h-auto lg:min-h-0 lg:flex-1">
           <Suspense fallback={<p className="p-6 text-sm text-ink-3">Loading editor…</p>}>
             <MonacoEditor
               height="100%"

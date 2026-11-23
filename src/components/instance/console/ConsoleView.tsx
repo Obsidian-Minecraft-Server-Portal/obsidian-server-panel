@@ -21,7 +21,7 @@ export function ConsoleView({ lines }: { lines: string[] }) {
 
   useLayoutEffect(() => {
     const element = viewport.current;
-    if (pinned && element) element.scrollTop = element.scrollHeight;
+    if (pinned && element) element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
   }, [lines, pinned]);
 
   const onScroll = () => {
@@ -32,7 +32,7 @@ export function ConsoleView({ lines }: { lines: string[] }) {
 
   const jumpToLatest = () => {
     const element = viewport.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    if (element) element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
     setPinned(true);
   };
 
@@ -43,7 +43,8 @@ export function ConsoleView({ lines }: { lines: string[] }) {
         onScroll={onScroll}
         role="log"
         aria-live="polite"
-        className="h-96 min-h-0 overflow-y-auto rounded-panel border border-line bg-canvas p-4 font-mono text-[12.5px] leading-relaxed text-ink-1 xl:h-auto xl:flex-1 [scrollbar-color:var(--line-strong)_transparent]"
+        data-native-scroll
+        className="h-96 min-h-0 overflow-y-auto rounded-panel border border-line bg-canvas p-4 font-mono text-[12.5px] leading-relaxed text-ink-1 xl:h-auto xl:flex-1"
       >
         {lines.length === 0 ? (
           <p className="text-ink-4">No output yet. Start the server to see its console.</p>

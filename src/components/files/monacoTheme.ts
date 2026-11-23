@@ -24,6 +24,9 @@ export function defineObsidianTheme(monaco: Monaco): void {
       "editorGutter.background": "#151517",
       "editorWidget.background": "#232327",
       "editorWidget.border": "#FFFFFF1F",
+      "scrollbarSlider.background": "#FFFFFF1F",
+      "scrollbarSlider.hoverBackground": "#FFFFFF33",
+      "scrollbarSlider.activeBackground": "#FFFFFF4D",
     },
   });
 }

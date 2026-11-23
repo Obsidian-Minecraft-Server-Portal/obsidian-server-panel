@@ -2,6 +2,7 @@ import { cn } from "@heroui/react";
 import { useEffect, type ComponentType, type MouseEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useCurrentUser, useHealth } from "../../api/session";
+import { useSmoothScroll } from "../../components/layout/SmoothScroll";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { AccountSettings } from "./AccountSettings";
 import { GeneralSettings } from "./GeneralSettings";
@@ -36,6 +37,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const health = useHealth();
   const currentUser = useCurrentUser();
+  const smoothScroll = useSmoothScroll();
   const isAdmin = currentUser.data?.is_admin === true;
   const showUpdates = health.data?.updater_enabled === true && isAdmin;
   const sections: Record<string, Section> = {
@@ -67,7 +69,10 @@ export function SettingsPage() {
 
   const jumpTo = (key: string) => (event: MouseEvent) => {
     event.preventDefault();
-    document.getElementById(key)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const target = document.getElementById(key);
+    if (!target) return;
+    if (smoothScroll) smoothScroll.scrollTo(target, { offset: 0 });
+    else target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
