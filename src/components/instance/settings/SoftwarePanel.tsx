@@ -1,5 +1,6 @@
 import { Icon } from "@iconify-icon/react";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { useUpdateInstance, type InstanceView } from "../../../api/instances";
 import type { LoaderKind } from "../../../api/loaders";
 import { LOADER_META } from "../../runtime/loaderMeta";
@@ -28,6 +29,7 @@ function softwareKey(view: InstanceView): string {
 
 export function SoftwarePanel({ view }: { view: InstanceView }) {
   const server = currentSoftware(view);
+  const navigate = useNavigate();
   const update = useUpdateInstance(view.id);
   const [draft, setDraft] = useState<Software>(server);
   const [base, setBase] = useState<Software>(server);
@@ -39,6 +41,7 @@ export function SoftwarePanel({ view }: { view: InstanceView }) {
   const busy = isActive(view.status) || view.status.installing || update.isPending;
   const changed = draft.loader !== view.loader || draft.mcVersion !== view.mc_version || draft.loaderVersion !== view.loader_version;
   const ready = draft.mcVersion !== null && draft.mcVersion.trim() !== "";
+  const migrate = ready && draft.loader === view.loader && draft.mcVersion !== view.mc_version;
   const risks = [
     draft.mcVersion !== view.mc_version
       ? "Worlds saved by a newer Minecraft version cannot be opened by an older one. Back up first."
@@ -99,8 +102,15 @@ export function SoftwarePanel({ view }: { view: InstanceView }) {
         ) : (
           <div className="flex justify-end gap-2">
             {changed && <GhostButton onPress={() => setDraft(currentSoftware(view))}>Discard</GhostButton>}
-            <PrimaryButton isDisabled={!changed || !ready || busy} onPress={() => setConfirming(true)}>
-              Review changes
+            <PrimaryButton
+              isDisabled={!changed || !ready || busy}
+              onPress={() =>
+                migrate
+                  ? navigate(`/instances/${view.id}/migrate?mc_version=${encodeURIComponent(draft.mcVersion ?? "")}`)
+                  : setConfirming(true)
+              }
+            >
+              {migrate ? "Continue to migration" : "Review changes"}
             </PrimaryButton>
           </div>
         )}

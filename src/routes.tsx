@@ -24,6 +24,7 @@ export const router = createBrowserRouter([
             path: "instances/new",
             lazy: page(() => import("./pages/instances/CreateInstancePage"), "CreateInstancePage"),
           },
+          { path: "instances/:id/migrate", lazy: page(() => import("./pages/migration/MigrationPage"), "MigrationPage") },
           { path: "instances/:id/:tab?", lazy: page(() => import("./pages/instance/InstancePage"), "InstancePage") },
           { path: "discover", lazy: page(() => import("./pages/discover/DiscoverPage"), "DiscoverPage") },
           {
