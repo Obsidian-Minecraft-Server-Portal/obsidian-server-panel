@@ -98,7 +98,7 @@ export function SetupPage() {
       <ol className="flex flex-wrap gap-2" aria-label={t("setup.progress")}>
         {STEPS.map((key, index) => (
           <li key={key}>
-            <Chip tone={index === step ? "accent" : index < step ? "cyan" : "neutral"}>
+            <Chip tone={index === step ? "accent" : index < step ? "green" : "neutral"}>
               {index + 1} {t(`setup.steps.${key}`)}
             </Chip>
           </li>

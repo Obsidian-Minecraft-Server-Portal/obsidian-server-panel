@@ -98,7 +98,7 @@ export function BackupPolicyEditor({ instanceId, policy }: BackupPolicyEditorPro
         <div className="space-y-1">
           <p className="font-mono text-xs text-ink-3">{describeRetention(toPolicy(draft))}</p>
           {save.isError && <p className="text-sm text-rose">{save.error.message}</p>}
-          {save.isSuccess && !save.isPending && <p className="text-sm text-cyan">Retention saved</p>}
+          {save.isSuccess && !save.isPending && <p className="text-sm text-green">Retention saved</p>}
         </div>
         <PrimaryButton type="submit" isDisabled={save.isPending}>
           Save policy

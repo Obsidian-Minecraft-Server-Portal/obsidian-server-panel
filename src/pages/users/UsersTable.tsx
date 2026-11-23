@@ -28,7 +28,7 @@ export function UsersTable({ onEdit }: UsersTableProps) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-ink-0">{user.username}</span>
               {user.is_admin && <Chip tone="secondary">Admin</Chip>}
-              {user.totp_enabled && <Chip tone="cyan">2FA</Chip>}
+              {user.totp_enabled && <Chip tone="green">2FA</Chip>}
             </div>
             <p className="truncate font-mono text-[11px] text-ink-3 uppercase">
               {user.email ?? "no email"} · {user.instance_limit} instance limit · joined{" "}

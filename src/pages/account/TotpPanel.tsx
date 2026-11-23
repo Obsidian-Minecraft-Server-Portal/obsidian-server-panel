@@ -88,7 +88,7 @@ function TotpEnroll({ onCodes }: { onCodes: (codes: string[]) => void }) {
 function TotpManage({ onCodes }: { onCodes: (codes: string[]) => void }) {
   return (
     <div className="space-y-6">
-      <Chip tone="cyan" pulse>
+      <Chip tone="green" pulse>
         Enabled
       </Chip>
       <RegenerateCodes onCodes={onCodes} />

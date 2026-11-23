@@ -11,7 +11,7 @@ export function StoreStats({ stats }: StoreStatsProps) {
     <div className="flex flex-wrap gap-2">
       <Chip tone="secondary">{stats.snapshots} snapshots</Chip>
       <Chip>{formatBytes(stats.total_bytes)} logical</Chip>
-      <Chip tone="cyan">{formatBytes(stats.stored_bytes)} stored</Chip>
+      <Chip tone="secondary">{formatBytes(stats.stored_bytes)} stored</Chip>
       <Chip tone="ember">{formatRatio(stats.dedup_ratio)} dedup</Chip>
     </div>
   );

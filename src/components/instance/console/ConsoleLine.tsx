@@ -24,7 +24,7 @@ function toneOf(text: string): string {
   if (/\b(ERROR|FATAL|SEVERE)\b|Exception|^\s*at /.test(text)) return "text-rose";
   if (/\bWARN(ING)?\b/.test(text)) return "text-amber";
   if (/\bDEBUG\b/.test(text)) return "text-ink-4";
-  if (/\bDone \(/.test(text)) return "text-cyan";
+  if (/\bDone \(/.test(text)) return "text-green";
   return "text-ink-2";
 }
 

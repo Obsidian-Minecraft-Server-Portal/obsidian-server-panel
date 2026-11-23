@@ -4,8 +4,8 @@ import { Chip } from "../ui/Chip";
 import type { Tone } from "../ui/tone";
 
 const RUN_TONE: Record<RunStatus, Tone> = {
-  running: "cyan",
-  succeeded: "cyan",
+  running: "amber",
+  succeeded: "green",
   failed: "rose",
 };
 

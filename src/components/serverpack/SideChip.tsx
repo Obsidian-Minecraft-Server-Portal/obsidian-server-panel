@@ -2,7 +2,7 @@ import type { DetectedSide, LeaningSide } from "../../api/serverpack";
 import { SIDE_LABELS } from "./model";
 
 const TONE: Record<DetectedSide, string> = {
-  client: "bg-cyan/12 text-cyan",
+  client: "bg-secondary-tint text-secondary-soft",
   server: "bg-accent-tint text-accent",
   both: "bg-raised text-ink-2",
   unsure: "bg-amber/12 text-amber",

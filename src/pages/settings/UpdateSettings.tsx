@@ -61,7 +61,7 @@ export function UpdateSettings() {
                 Update available
               </Chip>
             ) : (
-              <Chip tone="cyan">Up to date</Chip>
+              <Chip tone="green">Up to date</Chip>
             )}
           </div>
         )}

@@ -1,15 +1,37 @@
+import { Button, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 import { hasPermission, usePowerAction, type InstanceView, type PowerAction } from "../../api/instances";
-import { GhostButton } from "../ui/GhostButton";
-import { PrimaryButton } from "../ui/PrimaryButton";
 import { isActive, isTransitioning } from "./status";
 
 const KILL_ARM_MS = 4000;
 
+const TONE: Record<PowerAction, string> = {
+  start: "border-accent bg-accent text-accent-ink hover:bg-accent-hover",
+  restart: "border-amber/40 bg-amber/10 text-amber hover:bg-amber/20",
+  stop: "border-rose/40 bg-rose/10 text-rose hover:bg-rose/20",
+  kill: "border-rose bg-rose text-white hover:bg-rose/90",
+};
+
 interface PowerControlsProps {
   view: InstanceView;
   size?: "sm" | "md";
+}
+
+type PowerButtonProps = ComponentProps<typeof Button> & { action: PowerAction };
+
+function PowerButton({ action, className, ...props }: PowerButtonProps) {
+  return (
+    <Button
+      variant="ghost"
+      className={cn(
+        "rounded-control border font-semibold transition-colors duration-150 active:scale-[0.98]",
+        TONE[action],
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function PowerControls({ view, size = "md" }: PowerControlsProps) {
@@ -44,34 +66,36 @@ export function PowerControls({ view, size = "md" }: PowerControlsProps) {
       {isActive(status) ? (
         <>
           {canStop && (
-            <GhostButton size={size} isDisabled={busy} onPress={() => act("stop")}>
+            <PowerButton action="stop" size={size} isDisabled={busy} onPress={() => act("stop")}>
               <Icon icon="lucide:square" width={iconSize} height={iconSize} />
               {status.state === "stopping" ? "Stopping…" : "Stop"}
-            </GhostButton>
+            </PowerButton>
           )}
           {canRestart && (
-            <GhostButton size={size} isDisabled={busy} onPress={() => act("restart")}>
+            <PowerButton action="restart" size={size} isDisabled={busy} onPress={() => act("restart")}>
               <Icon icon="lucide:rotate-cw" width={iconSize} height={iconSize} />
               Restart
-            </GhostButton>
+            </PowerButton>
           )}
           {canKill && (
-            <GhostButton
-              size={size}
-              onPress={() => (killArmed ? act("kill") : setKillArmed(true))}
-              className="text-rose"
-            >
+            <PowerButton action="kill" size={size} onPress={() => (killArmed ? act("kill") : setKillArmed(true))}>
               <Icon icon="lucide:zap-off" width={iconSize} height={iconSize} />
               {killArmed ? "Confirm kill" : "Kill"}
-            </GhostButton>
+            </PowerButton>
           )}
         </>
       ) : (
         canStart && (
-          <PrimaryButton size={size} isDisabled={busy} isPending={power.isPending} onPress={() => act("start")}>
+          <PowerButton
+            action="start"
+            size={size}
+            isDisabled={busy}
+            isPending={power.isPending}
+            onPress={() => act("start")}
+          >
             <Icon icon="lucide:play" width={iconSize} height={iconSize} />
             Start
-          </PrimaryButton>
+          </PowerButton>
         )
       )}
       {power.error && <span className="text-xs text-rose">{power.error.message}</span>}

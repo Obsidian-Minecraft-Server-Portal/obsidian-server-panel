@@ -52,7 +52,7 @@ export function StatsStrip({ running, stats, cpu, memory, memoryMaxMb }: StatsSt
 }
 
 function tpsClass(tps: number): string {
-  if (tps >= 19) return "text-cyan";
+  if (tps >= 19) return "text-green";
   if (tps >= 15) return "text-amber";
   return "text-rose";
 }

@@ -3,7 +3,7 @@ import { cn } from "@heroui/react";
 const TINTS = [
   "from-secondary to-[#6276b8] text-[#0d1224]",
   "from-ember to-[#c2401c] text-[#2a0c03]",
-  "from-cyan to-[#1e9fc2] text-[#04131a]",
+  "from-green to-[#2fae62] text-[#04180c]",
   "from-amber to-[#d1891c] text-[#1a1204]",
   "from-rose to-[#d13a5c] text-[#2a0610]",
 ];

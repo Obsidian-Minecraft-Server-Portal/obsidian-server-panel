@@ -10,7 +10,7 @@ import type { Tone } from "../../components/ui/tone";
 
 const STATUS: Record<TaskStatus, { label: string; tone: Tone; icon: string; badge: string }> = {
   running: { label: "Running", tone: "secondary", icon: "lucide:loader-circle", badge: "bg-secondary-tint text-secondary" },
-  finished: { label: "Done", tone: "cyan", icon: "lucide:check", badge: "bg-cyan/12 text-cyan" },
+  finished: { label: "Done", tone: "green", icon: "lucide:check", badge: "bg-green/12 text-green" },
   failed: { label: "Failed", tone: "rose", icon: "lucide:x", badge: "bg-rose/12 text-rose" },
 };
 

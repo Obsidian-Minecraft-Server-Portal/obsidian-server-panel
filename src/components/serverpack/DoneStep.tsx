@@ -5,7 +5,7 @@ import type { ServerPackReceipt } from "../../api/serverpack";
 export function DoneStep({ receipt }: { receipt: ServerPackReceipt }) {
   return (
     <div className="max-w-xl space-y-4">
-      <p className="flex items-center gap-2 text-sm text-cyan">
+      <p className="flex items-center gap-2 text-sm text-green">
         <Icon icon="lucide:circle-check" width={16} height={16} />
         Server created with {receipt.included} mods. {receipt.excluded} were left out.
       </p>

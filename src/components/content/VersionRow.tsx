@@ -31,7 +31,7 @@ export function VersionRow({ version, kind, onAction }: VersionRowProps) {
           ))}
           {hiddenMc > 0 && <Chip>+{hiddenMc}</Chip>}
           {version.loaders.slice(0, 2).map((loader) => (
-            <Chip key={loader} tone="cyan">
+            <Chip key={loader} tone="secondary">
               {loader}
             </Chip>
           ))}

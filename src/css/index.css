@@ -30,6 +30,7 @@
   --color-secondary-soft: var(--secondary-soft);
   --color-ember: var(--ember);
   --color-cyan: var(--cyan);
+  --color-green: var(--green);
   --color-amber: var(--amber);
   --color-rose: var(--rose);
 
@@ -77,6 +78,7 @@
 
   --ember: #ff6b3a;
   --cyan: #47d9ff;
+  --green: #4ade80;
   --amber: #ffb545;
   --rose: #ff5a7a;
 
@@ -117,7 +119,7 @@
   --danger-foreground: #ffffff;
   --danger-soft: rgba(255, 90, 122, 0.12);
   --danger-soft-foreground: var(--rose);
-  --success: var(--cyan);
+  --success: var(--green);
   --success-foreground: #04131a;
   --warning: var(--amber);
   --warning-foreground: #1a1204;

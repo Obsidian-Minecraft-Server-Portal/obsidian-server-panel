@@ -11,7 +11,7 @@ const LABEL: Record<RunState, string> = {
 
 const TONE: Record<RunState, Tone> = {
   starting: "amber",
-  running: "cyan",
+  running: "green",
   stopping: "amber",
   stopped: "neutral",
   crashed: "rose",

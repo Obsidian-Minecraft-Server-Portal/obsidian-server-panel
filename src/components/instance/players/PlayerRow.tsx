@@ -16,7 +16,7 @@ export function PlayerRow({ player, disabled, onAction }: PlayerRowProps) {
         <span
           className={cn(
             "grid size-9 shrink-0 place-items-center rounded-control font-mono text-sm font-semibold uppercase",
-            player.online ? "bg-cyan/12 text-cyan" : "bg-raised text-ink-3",
+            player.online ? "bg-green/12 text-green" : "bg-raised text-ink-3",
           )}
         >
           {player.name.charAt(0)}
@@ -29,7 +29,7 @@ export function PlayerRow({ player, disabled, onAction }: PlayerRowProps) {
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {player.online && <Chip tone="cyan" pulse>Online</Chip>}
+        {player.online && <Chip tone="green" pulse>Online</Chip>}
         {player.op && <Chip tone="secondary">Op</Chip>}
         {player.whitelisted && <Chip>Whitelisted</Chip>}
         {player.banned && <Chip tone="rose">Banned</Chip>}

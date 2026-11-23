@@ -18,7 +18,7 @@ export function RuntimeRow({ runtime, canManage, confirming, removing, onRemove,
       <div className="flex min-w-48 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-sm font-semibold text-ink-0">Java {runtime.version}</span>
-          <Chip tone={runtime.source === "piston" ? "secondary" : "cyan"}>
+          <Chip tone={runtime.source === "piston" ? "secondary" : "neutral"}>
             {runtime.source === "piston" ? "Managed" : "System"}
           </Chip>
           <Chip>{runtime.arch}</Chip>

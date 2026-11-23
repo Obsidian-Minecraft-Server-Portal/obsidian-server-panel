@@ -24,7 +24,7 @@ const FILTER_LABELS: Record<Filter, string> = {
 };
 const FILTER_DOTS: Record<Filter, string> = {
   all: "bg-ink-2",
-  client: "bg-cyan",
+  client: "bg-secondary",
   server: "bg-accent",
   both: "bg-ink-3",
   unsure: "bg-amber",

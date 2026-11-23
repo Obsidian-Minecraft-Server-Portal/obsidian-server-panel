@@ -22,7 +22,7 @@ export function UpnpPanel({ view }: { view: InstanceView }) {
         <dl className="grid grid-cols-3 gap-3 rounded-control border border-line bg-input/60 p-4">
           <Stat label="Mapping">
             <span className="flex items-center gap-2">
-              <StatusDot tone={info?.mapped ? "cyan" : "neutral"} pulse={info?.mapped} />
+              <StatusDot tone={info?.mapped ? "green" : "neutral"} pulse={info?.mapped} />
               {info?.mapped ? "Mapped" : "Not mapped"}
             </span>
           </Stat>

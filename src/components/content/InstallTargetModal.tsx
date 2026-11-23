@@ -86,7 +86,7 @@ function InstallForm({ action, defaultInstanceId, onClose }: InstallFormProps) {
       </Modal.Header>
       <Modal.Body className="space-y-4">
         {install.isSuccess ? (
-          <p className="flex items-center gap-2 text-sm text-cyan">
+          <p className="flex items-center gap-2 text-sm text-green">
             <Icon icon="lucide:circle-check" width={16} height={16} />
             {SUCCESS_VERBS[action.kind] ?? "Installed to"} {installedTo?.name ?? "the instance"}.
           </p>
