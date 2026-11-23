@@ -331,53 +331,6 @@
   }
 }
 
-.memory-range {
-  -webkit-appearance: none;
-  appearance: none;
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  pointer-events: none;
-  margin: 0;
-}
-
-.memory-range::-webkit-slider-runnable-track {
-  background: transparent;
-}
-
-.memory-range::-moz-range-track {
-  background: transparent;
-}
-
-.memory-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  pointer-events: auto;
-  width: 18px;
-  height: 18px;
-  margin-top: -2px;
-  border-radius: 9999px;
-  border: 2px solid var(--ink-0);
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint), 0 0 14px var(--accent-glow);
-  cursor: grab;
-}
-
-.memory-range::-moz-range-thumb {
-  pointer-events: auto;
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  border: 2px solid var(--ink-0);
-  background: var(--accent);
-  cursor: grab;
-}
-
-.memory-range:disabled::-webkit-slider-thumb {
-  opacity: 0.5;
-}
-
 [data-entering="true"] {
   animation: none !important;
 }

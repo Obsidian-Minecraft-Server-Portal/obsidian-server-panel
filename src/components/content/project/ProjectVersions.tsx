@@ -7,10 +7,10 @@ import {
   useProjectVersions,
 } from "../../../api/content";
 import type { InstanceView } from "../../../api/instances";
-import { OptionSelect } from "../../runtime/OptionSelect";
 import { CheckboxRow } from "../../ui/CheckboxRow";
 import { EmptyState } from "../../ui/EmptyState";
 import { GhostButton } from "../../ui/GhostButton";
+import { SearchSelect } from "../../ui/SearchSelect";
 import { SectionTabs, type SectionTab } from "../../ui/SectionTabs";
 import type { InstallAction } from "../InstallTargetModal";
 import { LOADER_BOUND_KINDS } from "../meta";
@@ -50,7 +50,9 @@ export function ProjectVersions({ project, gameVersions, target, quickAdd, onMod
     project.id,
     versionFilter(project.kind, !isModpack && matchTarget ? target : null, gameVersion),
   );
-  const gameVersionOptions = gameVersions.map((version) => ({ id: version, label: version }));
+  const gameVersionOptions = [...gameVersions]
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+    .map((version) => ({ id: version, label: version }));
   const listed = (versions.data ?? []).filter((version) => channel === "all" || version.channel === channel);
   const shown = listed.slice(0, limit);
 
@@ -65,13 +67,14 @@ export function ProjectVersions({ project, gameVersions, target, quickAdd, onMod
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-4">
-        <OptionSelect
+        <SearchSelect
           label="Minecraft version"
           options={gameVersionOptions}
           value={gameVersion}
           onChange={setGameVersion}
           placeholder="Any version"
           isDisabled={gameVersionOptions.length === 0}
+          isClearable
           className="w-44"
         />
         <SectionTabs

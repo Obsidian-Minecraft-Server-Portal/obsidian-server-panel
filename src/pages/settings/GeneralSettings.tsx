@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useSettings, useUpdateSettings, type SettingsView } from "../../api/settings";
-import { OptionSelect } from "../../components/runtime/OptionSelect";
 import { Panel } from "../../components/ui/Panel";
+import { SearchSelect } from "../../components/ui/SearchSelect";
 import { PrimaryButton } from "../../components/ui/PrimaryButton";
 import { FormField } from "../account/FormField";
 import { Feedback } from "../account/Feedback";
@@ -55,11 +55,13 @@ function GeneralForm({ settings }: { settings: SettingsView }) {
   return (
     <Panel title="Panel defaults">
       <form onSubmit={submit} className="space-y-6">
-        <OptionSelect
+        <SearchSelect
           label="Timezone"
           options={options}
           value={timezone}
           onChange={(next) => next && setTimezone(next)}
+          placeholder="Search timezones"
+          emptyText="No timezone matches"
         />
         <FormField
           label="Public URL"

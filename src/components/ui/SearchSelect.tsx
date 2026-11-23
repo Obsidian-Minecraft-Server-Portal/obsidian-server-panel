@@ -1,4 +1,4 @@
-import { ComboBox, Description, Header, Input, Label, ListBox, cn } from "@heroui/react";
+import { Autocomplete, Description, Header, Label, ListBox, SearchField, cn } from "@heroui/react";
 import { useMemo, useState, type Key, type ReactNode } from "react";
 
 export interface SearchOption {
@@ -19,6 +19,7 @@ interface SearchSelectProps {
   emptyText?: string;
   isDisabled?: boolean;
   isRequired?: boolean;
+  isClearable?: boolean;
   className?: string;
 }
 
@@ -52,69 +53,86 @@ export function SearchSelect({
   emptyText = "No matches",
   isDisabled,
   isRequired,
+  isClearable,
   className,
 }: SearchSelectProps) {
+  const [query, setQuery] = useState("");
   const selected = options.find((option) => option.id === value);
-  const [query, setQuery] = useState<string | null>(null);
-  const inputValue = query ?? selected?.label ?? "";
 
   const filtered = useMemo(() => {
-    const needle = (query ?? "").trim().toLowerCase();
-    if (!needle || needle === selected?.label.toLowerCase()) return options;
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
     return options.filter((option) =>
       `${option.label} ${option.detail ?? ""} ${option.section ?? ""}`.toLowerCase().includes(needle),
     );
-  }, [options, query, selected]);
+  }, [options, query]);
   const groups = useMemo(() => groupBySection(filtered), [filtered]);
   const sectioned = groups.some(([section]) => section !== "");
 
   return (
-    <ComboBox
+    <Autocomplete
       selectedKey={value}
-      inputValue={inputValue}
-      onInputChange={(text: string) => {
-        setQuery(text);
-        onSearch?.(text);
-      }}
       onSelectionChange={(key: Key | null) => {
-        setQuery(null);
+        setQuery("");
         if (key !== null) onChange(String(key));
       }}
       onOpenChange={(open) => {
-        if (!open) setQuery(null);
+        if (!open) setQuery("");
       }}
-      menuTrigger="focus"
-      allowsEmptyCollection
+      onClear={isClearable ? () => onChange(null) : undefined}
       isDisabled={isDisabled}
+      isRequired={isRequired}
       className={cn("flex w-full flex-col gap-1.5", className)}
     >
       <Label className="text-sm font-medium text-ink-2">
         {label}
         {isRequired && <span className="ml-0.5 text-rose">*</span>}
       </Label>
-      <ComboBox.InputGroup>
-        <Input placeholder={placeholder} />
-        <ComboBox.Trigger />
-      </ComboBox.InputGroup>
+      <Autocomplete.Trigger>
+        <Autocomplete.Value>
+          {value === null ? (
+            <span className="truncate text-ink-4">{placeholder}</span>
+          ) : (
+            <span className="truncate">{selected?.label ?? ""}</span>
+          )}
+        </Autocomplete.Value>
+        {isClearable && value !== null && <Autocomplete.ClearButton />}
+        <Autocomplete.Indicator />
+      </Autocomplete.Trigger>
       {description && <Description className="text-xs text-ink-3">{description}</Description>}
-      <ComboBox.Popover className="max-h-80">
-        <ListBox renderEmptyState={() => <p className="px-3 py-2 text-sm text-ink-3">{emptyText}</p>}>
-          {sectioned
-            ? groups.map(([section, items]) => (
-                <ListBox.Section key={section || "default"}>
-                  {section && (
-                    <Header className="px-3 pt-2 pb-1 font-mono text-[10px] tracking-widest text-ink-4 uppercase">
-                      {section}
-                    </Header>
-                  )}
-                  {items.map((option) => (
-                    <OptionItem key={option.id} option={option} />
-                  ))}
-                </ListBox.Section>
-              ))
-            : filtered.map((option) => <OptionItem key={option.id} option={option} />)}
-        </ListBox>
-      </ComboBox.Popover>
-    </ComboBox>
+      <Autocomplete.Popover className="max-h-80">
+        <Autocomplete.Filter
+          inputValue={query}
+          onInputChange={(text: string) => {
+            setQuery(text);
+            onSearch?.(text);
+          }}
+        >
+          <SearchField autoFocus aria-label={`Search ${label}`} className="p-2">
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder={placeholder ?? "Search"} />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+          <ListBox renderEmptyState={() => <p className="px-3 py-2 text-sm text-ink-3">{emptyText}</p>}>
+            {sectioned
+              ? groups.map(([section, items]) => (
+                  <ListBox.Section key={section || "default"}>
+                    {section && (
+                      <Header className="px-3 pt-2 pb-1 font-mono text-[10px] tracking-widest text-ink-4 uppercase">
+                        {section}
+                      </Header>
+                    )}
+                    {items.map((option) => (
+                      <OptionItem key={option.id} option={option} />
+                    ))}
+                  </ListBox.Section>
+                ))
+              : filtered.map((option) => <OptionItem key={option.id} option={option} />)}
+          </ListBox>
+        </Autocomplete.Filter>
+      </Autocomplete.Popover>
+    </Autocomplete>
   );
 }

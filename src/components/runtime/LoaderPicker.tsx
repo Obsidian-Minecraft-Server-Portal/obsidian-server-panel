@@ -32,7 +32,7 @@ export function LoaderPicker({ value, onChange, isDisabled, exclude }: LoaderPic
             key={kind}
             value={kind}
             className={cn(
-              "group relative w-full !flex-row !items-center gap-3 cursor-pointer rounded-control border p-3 transition duration-150 data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-60",
+              "group relative w-full !mt-0 !flex-row !items-center gap-3 cursor-pointer rounded-control border p-3 transition duration-150 data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-60",
               active
                 ? "border-accent/60 bg-raised"
                 : "border-line bg-input/50 hover:border-line-strong hover:bg-raised",
