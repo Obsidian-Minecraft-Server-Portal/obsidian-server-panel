@@ -82,6 +82,7 @@ pub async fn change_password(
 			&client(&req),
 		)
 		.await?;
+	crate::ws::access_changed(&state.bus, user.id);
 	Ok(HttpResponse::NoContent().finish())
 }
 

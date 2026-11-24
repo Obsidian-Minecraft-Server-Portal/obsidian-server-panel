@@ -66,7 +66,11 @@ pub async fn login(
 )]
 pub async fn logout(state: web::Data<AppState>, req: HttpRequest) -> ApiResult<HttpResponse> {
 	if let Some(cookie) = req.cookie(SESSION_COOKIE) {
+		let signed_in = state.auth.user_for_session(cookie.value()).await?;
 		state.auth.logout(cookie.value()).await?;
+		if let Some(user) = signed_in {
+			crate::ws::access_changed(&state.bus, user.id);
+		}
 	}
 	Ok(HttpResponse::NoContent()
 		.cookie(cleared_session_cookie(&state.config, &req))

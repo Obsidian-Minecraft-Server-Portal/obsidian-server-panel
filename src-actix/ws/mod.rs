@@ -1,4 +1,7 @@
+mod access;
 mod topics;
+
+pub use access::access_changed;
 
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
@@ -12,10 +15,13 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::broadcast::{self, error::RecvError};
 
+use self::access::Revalidation;
+use crate::auth::Credential;
 use crate::state::AppState;
 
 const HEARTBEAT: Duration = Duration::from_secs(20);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(60);
+const REVALIDATE: Duration = Duration::from_secs(60);
 const MAX_TOPICS: usize = 128;
 const TASKS_TOPIC: &str = "tasks";
 
@@ -33,9 +39,10 @@ pub async fn socket(
 	state: web::Data<AppState>,
 	user: crate::auth::AuthUser,
 ) -> Result<HttpResponse, actix_web::Error> {
+	let credential = crate::auth::credential(&req).ok_or(crate::error::ApiError::Unauthorized)?;
 	let (response, session, stream) = actix_ws::handle(&req, payload)?;
 	let events = state.bus.subscribe();
-	rt::spawn(serve(session, stream, events, state.into_inner(), user.0));
+	rt::spawn(serve(session, stream, events, state.into_inner(), credential, user.0));
 	Ok(response)
 }
 
@@ -44,10 +51,12 @@ async fn serve(
 	mut stream: MessageStream,
 	mut events: broadcast::Receiver<Event>,
 	state: std::sync::Arc<AppState>,
-	user: AuthUser,
+	credential: Credential,
+	mut user: AuthUser,
 ) {
 	let mut topics = HashSet::new();
 	let mut heartbeat = tokio::time::interval(HEARTBEAT);
+	let mut revalidation = tokio::time::interval_at(tokio::time::Instant::now() + REVALIDATE, REVALIDATE);
 	let mut last_seen = Instant::now();
 	loop {
 		let delivered = tokio::select! {
@@ -65,12 +74,17 @@ async fn serve(
 				}
 			}
 			event = events.recv() => match event {
+				Ok(event) if access::concerns(&event, &user) => {
+					revalidation.reset();
+					revalidate(&mut session, &state, &credential, &mut user, &mut topics).await
+				}
 				Ok(event) if visible(&event, &user, &topics) => {
 					session.text(json!({ "topic": event.topic, "data": event.data }).to_string()).await
 				}
 				Ok(_) | Err(RecvError::Lagged(_)) => Ok(()),
 				Err(RecvError::Closed) => break,
 			},
+			_ = revalidation.tick() => revalidate(&mut session, &state, &credential, &mut user, &mut topics).await,
 			_ = heartbeat.tick() => {
 				if last_seen.elapsed() > CLIENT_TIMEOUT {
 					break;
@@ -83,6 +97,24 @@ async fn serve(
 		}
 	}
 	let _ = session.close(None).await;
+}
+
+async fn revalidate(
+	session: &mut Session,
+	state: &AppState,
+	credential: &Credential,
+	user: &mut AuthUser,
+	topics: &mut HashSet<String>,
+) -> Result<(), actix_ws::Closed> {
+	match access::revalidate(state, credential, user, topics).await {
+		Revalidation::Close => Err(actix_ws::Closed),
+		Revalidation::Keep { revoked } => {
+			for reason in revoked {
+				session.text(error_frame(&reason)).await?;
+			}
+			Ok(())
+		}
+	}
 }
 
 fn visible(event: &Event, user: &AuthUser, topics: &HashSet<String>) -> bool {

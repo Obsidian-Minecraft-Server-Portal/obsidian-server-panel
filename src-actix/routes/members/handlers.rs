@@ -167,6 +167,7 @@ pub async fn update_member(
 	if !store::update_member(pool, instance, target, &role_name, bits).await? {
 		return Err(CommonError::NotFound(format!("member {target}")).into());
 	}
+	crate::ws::access_changed(&state.bus, target);
 	let row = MemberRow {
 		user_id: target,
 		username: current.username,
@@ -213,6 +214,7 @@ pub async fn remove_member(
 	if !store::delete_member(pool, instance, target).await? {
 		return Err(CommonError::NotFound(format!("member {target}")).into());
 	}
+	crate::ws::access_changed(&state.bus, target);
 	Ok(HttpResponse::NoContent().finish())
 }
 

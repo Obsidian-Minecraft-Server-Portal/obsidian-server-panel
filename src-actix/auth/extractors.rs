@@ -61,12 +61,13 @@ impl FromRequest for AdminUser {
 	}
 }
 
-enum Credential {
+#[derive(Clone)]
+pub enum Credential {
 	ApiToken(String),
 	Session(String),
 }
 
-fn credential(req: &HttpRequest) -> Option<Credential> {
+pub fn credential(req: &HttpRequest) -> Option<Credential> {
 	let bearer = req
 		.headers()
 		.get(AUTHORIZATION)
@@ -83,10 +84,17 @@ fn authenticate(req: &HttpRequest) -> Authenticating<obsidian_auth::AuthUser> {
 	let credential = credential(req);
 	Box::pin(async move {
 		let state = state.ok_or_else(|| CommonError::Other("application state is not registered".into()))?;
-		let user = match credential.ok_or(ApiError::Unauthorized)? {
-			Credential::ApiToken(token) => state.auth.user_for_api_token(&token).await?,
-			Credential::Session(token) => state.auth.user_for_session(&token).await?,
-		};
+		let user = credential.ok_or(ApiError::Unauthorized)?.resolve(&state).await?;
 		user.ok_or(ApiError::Unauthorized)
 	})
+}
+
+impl Credential {
+	pub async fn resolve(&self, state: &AppState) -> ApiResult<Option<obsidian_auth::AuthUser>> {
+		let user = match self {
+			Self::ApiToken(token) => state.auth.user_for_api_token(token).await?,
+			Self::Session(token) => state.auth.user_for_session(token).await?,
+		};
+		Ok(user)
+	}
 }

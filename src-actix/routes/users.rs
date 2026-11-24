@@ -63,7 +63,9 @@ pub async fn update_user(
 	id: web::Path<i64>,
 	body: web::Json<UserUpdate>,
 ) -> ApiResult<HttpResponse> {
-	let profile = state.auth.update_user(admin.id, id.into_inner(), &body).await?;
+	let id = id.into_inner();
+	let profile = state.auth.update_user(admin.id, id, &body).await?;
+	crate::ws::access_changed(&state.bus, id);
 	Ok(HttpResponse::Ok().json(profile))
 }
 
@@ -75,7 +77,9 @@ pub async fn update_user(
 	responses((status = 204, description = "Account deleted"), (status = 409, description = "User owns instances or is the last administrator"))
 )]
 pub async fn delete_user(state: web::Data<AppState>, admin: AdminUser, id: web::Path<i64>) -> ApiResult<HttpResponse> {
-	state.auth.delete_user(admin.id, id.into_inner()).await?;
+	let id = id.into_inner();
+	state.auth.delete_user(admin.id, id).await?;
+	crate::ws::access_changed(&state.bus, id);
 	Ok(HttpResponse::NoContent().finish())
 }
 
@@ -93,10 +97,9 @@ pub async fn set_password(
 	id: web::Path<i64>,
 	body: web::Json<SetPasswordRequest>,
 ) -> ApiResult<HttpResponse> {
-	state
-		.auth
-		.set_user_password(admin.id, id.into_inner(), &body.password)
-		.await?;
+	let id = id.into_inner();
+	state.auth.set_user_password(admin.id, id, &body.password).await?;
+	crate::ws::access_changed(&state.bus, id);
 	Ok(HttpResponse::NoContent().finish())
 }
 
