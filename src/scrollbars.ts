@@ -6,6 +6,7 @@ const OPTIONS: PartialOptions = {
 };
 const CANDIDATES = '[class*="overflow-"], [data-slot], pre';
 const SKIP = ".monaco-editor, [data-overlayscrollbars-contents]";
+const INSTANCES = "[data-overlayscrollbars]";
 
 function scrolls(element: HTMLElement): boolean {
   if (element.closest(SKIP)) return false;
@@ -19,31 +20,47 @@ function attach(element: HTMLElement) {
   OverlayScrollbars({ target: element, elements: { viewport: element } }, OPTIONS);
 }
 
-function scan(root: ParentNode) {
-  if (root instanceof HTMLElement) attach(root);
+function scan(root: HTMLElement) {
+  attach(root);
   root.querySelectorAll<HTMLElement>(CANDIDATES).forEach(attach);
 }
 
+// Instances subscribe to a global environment listener, so a detached one keeps its whole subtree alive.
+function release(root: HTMLElement) {
+  OverlayScrollbars(root)?.destroy();
+  root.querySelectorAll<HTMLElement>(INSTANCES).forEach((element) => OverlayScrollbars(element)?.destroy());
+}
+
 export function installScrollbars() {
-  let pending: Set<ParentNode> | null = null;
+  let added = new Set<HTMLElement>();
+  let removed = new Set<HTMLElement>();
+  let scheduled = false;
+
   const flush = () => {
-    const roots = pending;
-    pending = null;
-    roots?.forEach((root) => root.isConnected && scan(root));
+    const [addedRoots, removedRoots] = [added, removed];
+    added = new Set();
+    removed = new Set();
+    scheduled = false;
+    removedRoots.forEach((root) => !root.isConnected && release(root));
+    addedRoots.forEach((root) => root.isConnected && scan(root));
   };
-  const queue = (root: ParentNode) => {
-    if (!pending) {
-      pending = new Set();
-      requestAnimationFrame(flush);
-    }
-    pending.add(root);
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(flush);
   };
 
   new MutationObserver((records) => {
     for (const record of records) {
-      record.addedNodes.forEach((node) => node instanceof HTMLElement && queue(node));
+      record.addedNodes.forEach((node) => node instanceof HTMLElement && added.add(node));
+      record.removedNodes.forEach((node) => node instanceof HTMLElement && removed.add(node));
     }
+    if (added.size || removed.size) schedule();
   }).observe(document.body, { childList: true, subtree: true });
-  window.addEventListener("resize", () => queue(document.body));
-  queue(document.body);
+  window.addEventListener("resize", () => {
+    added.add(document.body);
+    schedule();
+  });
+  added.add(document.body);
+  schedule();
 }
