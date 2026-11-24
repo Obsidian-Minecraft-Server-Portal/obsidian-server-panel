@@ -1,11 +1,13 @@
 mod association;
 mod cache;
 mod install;
+mod matching;
 mod scan;
 mod sources;
 pub(crate) mod store;
 pub(crate) mod targets;
 
+pub use matching::MatchSummary;
 pub use quick::QuickAdded;
 pub use records::ContentRecord;
 pub use relations::{ContentRelations, DependencyEntry, DependentEntry};
@@ -51,6 +53,7 @@ pub struct ContentManager {
 	pub(crate) http: reqwest::Client,
 	platforms: Arc<[Arc<dyn ContentPlatform>]>,
 	pub(crate) scanned: Cache<i64, ()>,
+	matching: Cache<i64, Arc<Mutex<()>>>,
 	caches: ContentCache,
 	files: Arc<Mutex<()>>,
 	pub(crate) drafts: DraftStore,
@@ -86,6 +89,7 @@ impl ContentManager {
 				.time_to_live(SCAN_INTERVAL)
 				.max_capacity(SCANNED_INSTANCES)
 				.build(),
+			matching: Cache::new(SCANNED_INSTANCES),
 			caches: ContentCache::new(),
 			files: Arc::new(Mutex::new(())),
 			drafts: DraftStore::new(),
@@ -224,7 +228,9 @@ impl ContentManager {
 			kind: kind_for_loader(loader),
 			icon: icon::extract(&bytes),
 		};
-		self.add_file(&record, &bytes).await
+		let added = self.add_file(&record, &bytes).await?;
+		self.spawn_auto_link(instance_id);
+		Ok(added)
 	}
 
 	pub async fn install(

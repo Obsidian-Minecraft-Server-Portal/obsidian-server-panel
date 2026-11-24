@@ -164,7 +164,7 @@ fn modrinth_pack_hosts_are_allowlisted() {
 	assert!(modpack::ensure_trusted("https://169.254.169.254/latest").is_err());
 }
 
-async fn seed_instance(db: &Db) -> i64 {
+pub(crate) async fn seed_instance(db: &Db) -> i64 {
 	let pool = db.pool();
 	let owner: i64 = sqlx::query_scalar("INSERT INTO users (username, password_hash) VALUES ('owner', 'hash') RETURNING id")
 		.fetch_one(pool)
@@ -184,7 +184,7 @@ async fn list_reconciles_jars_dropped_on_disk() {
 	let dir = tempfile::tempdir().unwrap();
 	let paths = Paths::new(dir.path()).unwrap();
 	let db = Db::open(&paths).await.unwrap();
-	let manager = ContentManager::new(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()));
+	let manager = ContentManager::with_platforms(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()), Vec::new());
 	let instance_id = seed_instance(&db).await;
 	let mods = paths.instance_dir(instance_id).join("mods");
 	tokio::fs::create_dir_all(&mods).await.unwrap();
@@ -222,7 +222,7 @@ async fn restore_records_returns_rows_to_their_saved_state() {
 	let dir = tempfile::tempdir().unwrap();
 	let paths = Paths::new(dir.path()).unwrap();
 	let db = Db::open(&paths).await.unwrap();
-	let manager = ContentManager::new(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()));
+	let manager = ContentManager::with_platforms(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()), Vec::new());
 	let instance_id = seed_instance(&db).await;
 	let sodium = NewRecord {
 		instance_id,
@@ -328,7 +328,7 @@ async fn datapacks_resolve_into_the_configured_level() {
 	let dir = tempfile::tempdir().unwrap();
 	let paths = Paths::new(dir.path()).unwrap();
 	let db = Db::open(&paths).await.unwrap();
-	let manager = ContentManager::new(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()));
+	let manager = ContentManager::with_platforms(db.clone(), paths.clone(), TaskRegistry::new(EventBus::default()), Vec::new());
 	let instance_id = seed_instance(&db).await;
 	let root = paths.instance_dir(instance_id);
 	tokio::fs::create_dir_all(&root).await.unwrap();

@@ -15,8 +15,8 @@ mod tests;
 
 pub use icon::mime as icon_mime;
 pub use manager::{
-	ContentManager, ContentRecord, ContentRelations, ContentSource, DependencyEntry, DependentEntry, InstalledWorld, QuickAdded,
-	ServerResourcePack,
+	ContentManager, ContentRecord, ContentRelations, ContentSource, DependencyEntry, DependentEntry, InstalledWorld, MatchSummary,
+	QuickAdded, ServerResourcePack,
 };
 pub use model::{
 	Category, CategoryGroup, Compatibility, CompatibilityEntry, ContentUpdate, DependencyKind, Facets, GalleryImage, InstallRequest,

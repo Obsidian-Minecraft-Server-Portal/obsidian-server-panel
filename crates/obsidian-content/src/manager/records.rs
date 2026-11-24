@@ -86,7 +86,7 @@ impl ContentManager {
 				.await?;
 			if exists.is_some() {
 				sqlx::query(
-					"UPDATE mods SET filename = ?, name = ?, project_id = ?, version_id = ?, platform = ?, kind = ?, mod_id = ?, depends = ?, minecraft_range = ?, metadata_version = ? WHERE id = ?",
+					"UPDATE mods SET filename = ?, name = ?, project_id = ?, version_id = ?, platform = ?, kind = ?, mod_id = ?, depends = ?, minecraft_range = ?, metadata_version = ?, match_attempted = 1 WHERE id = ?",
 				)
 				.bind(&record.filename)
 				.bind(&record.name)
@@ -103,7 +103,7 @@ impl ContentManager {
 				.await?;
 			} else {
 				sqlx::query(
-					"INSERT INTO mods (id, instance_id, filename, name, project_id, version_id, platform, kind, mod_id, depends, minecraft_range, metadata_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					"INSERT INTO mods (id, instance_id, filename, name, project_id, version_id, platform, kind, mod_id, depends, minecraft_range, metadata_version, match_attempted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
 				)
 				.bind(record.id)
 				.bind(instance_id)

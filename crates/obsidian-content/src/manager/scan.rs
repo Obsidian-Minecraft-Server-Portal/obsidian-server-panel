@@ -6,6 +6,7 @@ use obsidian_common::Result;
 use tokio::fs;
 
 use super::store::{self, DISABLED_SUFFIX};
+use super::matching;
 use super::{ContentManager, content_filename, kind_for_loader, subdirectory};
 use crate::metadata::Metadata;
 use crate::platform::Kind;
@@ -31,6 +32,9 @@ impl ContentManager {
 		}
 		self.sync_disk(instance_id).await?;
 		self.scanned.insert(instance_id, ());
+		if matching::store::has_pending(self.db.pool(), instance_id).await? {
+			self.spawn_auto_link(instance_id);
+		}
 		Ok(())
 	}
 
