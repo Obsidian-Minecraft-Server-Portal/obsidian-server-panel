@@ -25,7 +25,12 @@ export function consoleTopic(id: number) {
   return `instance.${id}.console`;
 }
 
-export function useLiveInstances(ids: readonly number[], { stats = false }: { stats?: boolean } = {}) {
+interface LiveOptions {
+  status?: boolean;
+  stats?: boolean;
+}
+
+export function useLiveInstances(ids: readonly number[], { status = true, stats = false }: LiveOptions = {}) {
   const queryClient = useQueryClient();
   const { subscribe } = useWebSocket();
   const idKey = ids.join(",");
@@ -36,9 +41,12 @@ export function useLiveInstances(ids: readonly number[], { stats = false }: { st
       .filter(Boolean)
       .flatMap((raw) => {
         const id = Number(raw);
-        const subscriptions = [
-          subscribe(statusTopic(id), (payload) => patchInstanceStatus(queryClient, id, payload as InstanceStatus)),
-        ];
+        const subscriptions: (() => void)[] = [];
+        if (status) {
+          subscriptions.push(
+            subscribe(statusTopic(id), (payload) => patchInstanceStatus(queryClient, id, payload as InstanceStatus)),
+          );
+        }
         if (stats) {
           subscriptions.push(
             subscribe(statsTopic(id), (payload) =>
@@ -49,7 +57,7 @@ export function useLiveInstances(ids: readonly number[], { stats = false }: { st
         return subscriptions;
       });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, [idKey, stats, subscribe, queryClient]);
+  }, [idKey, status, stats, subscribe, queryClient]);
 }
 
 export function useLiveConsole(id: number) {

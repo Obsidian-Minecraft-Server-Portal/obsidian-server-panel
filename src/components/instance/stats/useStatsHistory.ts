@@ -26,7 +26,7 @@ function append(values: number[], value: number): number[] {
 }
 
 export function useStatsHistory(id: number, running: boolean): StatsHistory {
-  useLiveInstances([id], { stats: true });
+  useLiveInstances([id], { status: false, stats: true });
   const queryClient = useQueryClient();
   const { data, dataUpdatedAt } = useInstanceStats(id, running);
   const [series, setSeries] = useState<Series>(EMPTY_SERIES);

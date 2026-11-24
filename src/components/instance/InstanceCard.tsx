@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link, useNavigate } from "react-router";
 import type { InstanceStats, InstanceView } from "../../api/instances";
 import { ContextMenu, MenuButton } from "../ui/ContextMenu";
@@ -15,7 +16,7 @@ interface InstanceCardProps {
   stats: InstanceStats | undefined;
 }
 
-export function InstanceCard({ view, stats }: InstanceCardProps) {
+export const InstanceCard = memo(function InstanceCard({ view, stats }: InstanceCardProps) {
   const navigate = useNavigate();
   const path = `/instances/${view.id}`;
   const actions = useInstanceMenu(view);
@@ -68,4 +69,4 @@ export function InstanceCard({ view, stats }: InstanceCardProps) {
       )}
     </GlassCard>
   );
-}
+});

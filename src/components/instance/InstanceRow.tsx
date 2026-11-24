@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link } from "react-router";
 import type { InstanceStats, InstanceView } from "../../api/instances";
 import { ContextMenu, MenuButton } from "../ui/ContextMenu";
@@ -13,7 +14,7 @@ interface InstanceRowProps {
   stats: InstanceStats | undefined;
 }
 
-export function InstanceRow({ view, stats }: InstanceRowProps) {
+export const InstanceRow = memo(function InstanceRow({ view, stats }: InstanceRowProps) {
   const actions = useInstanceMenu(view);
   const menu = useContextMenu();
 
@@ -49,4 +50,4 @@ export function InstanceRow({ view, stats }: InstanceRowProps) {
       )}
     </div>
   );
-}
+});

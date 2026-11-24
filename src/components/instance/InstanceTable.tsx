@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { memo } from "react";
 import { Link } from "react-router";
 import type { InstanceStats, InstanceView } from "../../api/instances";
 import { ContextMenu, MenuButton } from "../ui/ContextMenu";
@@ -44,7 +45,7 @@ interface InstanceTableRowProps {
   stats: InstanceStats | undefined;
 }
 
-function InstanceTableRow({ view, stats }: InstanceTableRowProps) {
+const InstanceTableRow = memo(function InstanceTableRow({ view, stats }: InstanceTableRowProps) {
   const actions = useInstanceMenu(view);
   const menu = useContextMenu();
   const readout = readoutOf(view, stats);
@@ -89,4 +90,4 @@ function InstanceTableRow({ view, stats }: InstanceTableRowProps) {
       </td>
     </tr>
   );
-}
+});
