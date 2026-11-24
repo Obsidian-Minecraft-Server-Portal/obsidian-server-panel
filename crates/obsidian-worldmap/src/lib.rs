@@ -2,6 +2,7 @@
 
 pub mod chunk;
 pub mod error;
+pub mod level;
 pub mod region;
 pub mod tiles;
 
