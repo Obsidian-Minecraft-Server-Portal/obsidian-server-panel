@@ -1,0 +1,15 @@
+[package]
+name = "obsidian-worldmap"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+fastnbt = { workspace = true }
+flate2 = { workspace = true }
+image = { workspace = true }
+lz4_flex = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,247 @@
+mod palette;
+
+use std::collections::BTreeMap;
+
+use fastnbt::LongArray;
+use serde::Deserialize;
+
+use crate::error::{Result, WorldmapError};
+
+const SECTION_SIDE: usize = 16;
+const BLOCKS_PER_SECTION: usize = SECTION_SIDE * SECTION_SIDE * SECTION_SIDE;
+/// DataVersion of 1.16. Before it, a packed block-state entry may straddle two longs.
+const PACKED_WITHOUT_SPANNING: i32 = 2566;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockState {
+	pub name: String,
+	pub properties: BTreeMap<String, String>,
+}
+
+#[derive(Debug)]
+pub struct Section {
+	y: i32,
+	palette: Vec<BlockState>,
+	indices: Vec<u16>,
+}
+
+impl Section {
+	pub fn y(&self) -> i32 {
+		self.y
+	}
+
+	fn state_at(&self, x: usize, y: usize, z: usize) -> &BlockState {
+		&self.palette[usize::from(self.indices[(y << 8) | (z << 4) | x])]
+	}
+}
+
+/// A parsed chunk. Sections are kept highest first, so the top of a column is found without a full scan.
+#[derive(Debug)]
+pub struct Chunk {
+	pub x: i32,
+	pub z: i32,
+	pub data_version: i32,
+	sections: Vec<Section>,
+}
+
+impl Chunk {
+	pub fn parse(nbt: &[u8]) -> Result<Self> {
+		let raw: RawChunk = fastnbt::from_bytes(nbt)?;
+		let level = raw.level;
+		let x = raw
+			.x_pos
+			.or(level.as_ref().and_then(|level| level.x_pos))
+			.ok_or_else(|| WorldmapError::Chunk("chunk has no xPos".into()))?;
+		let z = raw
+			.z_pos
+			.or(level.as_ref().and_then(|level| level.z_pos))
+			.ok_or_else(|| WorldmapError::Chunk("chunk has no zPos".into()))?;
+		let raw_sections = raw.sections.or_else(|| level.map(|level| level.sections)).unwrap_or_default();
+		let spanning = raw.data_version < PACKED_WITHOUT_SPANNING;
+		let mut sections = raw_sections
+			.into_iter()
+			.filter_map(|section| decode_section(section, spanning).transpose())
+			.collect::<Result<Vec<_>>>()?;
+		sections.sort_by_key(|section| std::cmp::Reverse(section.y));
+		Ok(Self {
+			x,
+			z,
+			data_version: raw.data_version,
+			sections,
+		})
+	}
+
+	/// Highest non-air block in a column, as (world y, block). `x` and `z` are section-local, 0..16.
+	pub fn column_top(&self, x: usize, z: usize) -> Option<(i32, &BlockState)> {
+		self.sections.iter().find_map(|section| {
+			(0..SECTION_SIDE).rev().find_map(|local_y| {
+				let state = section.state_at(x, local_y, z);
+				(!is_air(&state.name)).then(|| (section.y * SECTION_SIDE as i32 + local_y as i32, state))
+			})
+		})
+	}
+}
+
+pub fn is_air(name: &str) -> bool {
+	matches!(name, "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air")
+}
+
+fn decode_section(raw: RawSection, spanning: bool) -> Result<Option<Section>> {
+	let (palette, longs) = match (raw.block_states, raw.palette) {
+		(Some(container), _) => (container.palette, container.data),
+		(None, Some(palette)) => (palette, raw.packed),
+		(None, None) => return Ok(None),
+	};
+	if palette.is_empty() {
+		return Ok(None);
+	}
+	let longs = longs.map(LongArray::into_inner).unwrap_or_default();
+	let palette: Vec<BlockState> = palette.into_iter().map(RawBlockState::into_block_state).collect();
+	let indices = if palette.len() == 1 {
+		vec![0; BLOCKS_PER_SECTION]
+	} else {
+		palette::unpack(&longs, palette.len(), spanning)
+	};
+	if indices.iter().any(|index| usize::from(*index) >= palette.len()) {
+		return Err(WorldmapError::Chunk(format!("section {} points past its palette", raw.y)));
+	}
+	Ok(Some(Section {
+		y: i32::from(raw.y),
+		palette,
+		indices,
+	}))
+}
+
+#[derive(Deserialize)]
+struct RawChunk {
+	#[serde(rename = "DataVersion", default)]
+	data_version: i32,
+	#[serde(rename = "xPos", default)]
+	x_pos: Option<i32>,
+	#[serde(rename = "zPos", default)]
+	z_pos: Option<i32>,
+	#[serde(default)]
+	sections: Option<Vec<RawSection>>,
+	#[serde(rename = "Level", default)]
+	level: Option<RawLevel>,
+}
+
+/// Chunks from 1.13 to 1.17 nest everything under `Level`.
+#[derive(Deserialize)]
+struct RawLevel {
+	#[serde(rename = "xPos", default)]
+	x_pos: Option<i32>,
+	#[serde(rename = "zPos", default)]
+	z_pos: Option<i32>,
+	#[serde(rename = "Sections", default)]
+	sections: Vec<RawSection>,
+}
+
+#[derive(Deserialize)]
+struct RawSection {
+	#[serde(rename = "Y")]
+	y: i8,
+	/// 1.18 and later.
+	#[serde(default)]
+	block_states: Option<RawContainer>,
+	/// 1.13 to 1.17 keep the palette and packed data beside `Y`.
+	#[serde(rename = "Palette", default)]
+	palette: Option<Vec<RawBlockState>>,
+	#[serde(rename = "BlockStates", default)]
+	packed: Option<LongArray>,
+}
+
+#[derive(Deserialize)]
+struct RawContainer {
+	palette: Vec<RawBlockState>,
+	#[serde(default)]
+	data: Option<LongArray>,
+}
+
+/// Palette entries come in four shapes: a bare name, a `{"": name}` wrapper, 26.x's `{id, properties}`
+/// compound, and the classic `{Name, Properties}` compound used from 1.13 to 1.21.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum RawBlockState {
+	Name(String),
+	Anonymous {
+		#[serde(rename = "")]
+		name: String,
+	},
+	Compact {
+		id: String,
+		#[serde(default)]
+		properties: BTreeMap<String, String>,
+	},
+	Classic {
+		#[serde(rename = "Name")]
+		name: String,
+		#[serde(rename = "Properties", default)]
+		properties: BTreeMap<String, String>,
+	},
+}
+
+impl RawBlockState {
+	fn into_block_state(self) -> BlockState {
+		let (name, properties) = match self {
+			Self::Name(name) | Self::Anonymous { name } => (name, BTreeMap::new()),
+			Self::Compact { id: name, properties } | Self::Classic { name, properties } => (name, properties),
+		};
+		BlockState { name, properties }
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::HashMap;
+
+	use fastnbt::Value;
+
+	use super::*;
+	use crate::test_support::{chunk_nbt, chunk_nbt_bare};
+
+	#[test]
+	fn reads_every_palette_entry_shape() {
+		let compact = Value::Compound(HashMap::from([
+			("id".to_owned(), Value::String("minecraft:oak_leaves".into())),
+			("properties".to_owned(), Value::Compound(HashMap::from([("distance".to_owned(), Value::String("4".into()))]))),
+		]));
+		let entries = [
+			Value::String("minecraft:air".into()),
+			Value::Compound(HashMap::from([("".to_owned(), Value::String("minecraft:stone".into()))])),
+			compact,
+			Value::Compound(HashMap::from([("Name".to_owned(), Value::String("minecraft:dirt".into()))])),
+		];
+		let states: Vec<BlockState> = entries
+			.iter()
+			.map(|entry| fastnbt::from_value::<RawBlockState>(entry).unwrap().into_block_state())
+			.collect();
+		let names: Vec<&str> = states.iter().map(|state| state.name.as_str()).collect();
+		assert_eq!(names, ["minecraft:air", "minecraft:stone", "minecraft:oak_leaves", "minecraft:dirt"]);
+		assert_eq!(states[2].properties.get("distance").map(String::as_str), Some("4"));
+	}
+
+	#[test]
+	fn accepts_bare_palette_names_written_by_newer_versions() {
+		let nbt = chunk_nbt_bare(0, 0, 4000, &[((2, 4, 2), "minecraft:oak_log")]);
+		let chunk = Chunk::parse(&nbt).unwrap();
+		assert_eq!(chunk.column_top(2, 2).map(|(y, state)| (y, state.name.as_str())), Some((4, "minecraft:oak_log")));
+	}
+
+	#[test]
+	fn finds_the_highest_solid_block_in_a_column() {
+		let nbt = chunk_nbt(3, -2, 3955, &[((0, 0, 0), "minecraft:stone"), ((0, 1, 0), "minecraft:grass_block")]);
+		let chunk = Chunk::parse(&nbt).unwrap();
+		assert_eq!((chunk.x, chunk.z), (3, -2));
+		let (y, state) = chunk.column_top(0, 0).unwrap();
+		assert_eq!((y, state.name.as_str()), (1, "minecraft:grass_block"));
+		assert!(chunk.column_top(1, 0).is_none());
+	}
+
+	#[test]
+	fn treats_cave_air_as_empty() {
+		let nbt = chunk_nbt(0, 0, 3955, &[((5, 3, 5), "minecraft:cave_air"), ((5, 2, 5), "minecraft:dirt")]);
+		let chunk = Chunk::parse(&nbt).unwrap();
+		assert_eq!(chunk.column_top(5, 5).map(|(y, state)| (y, state.name.as_str())), Some((2, "minecraft:dirt")));
+	}
+}
