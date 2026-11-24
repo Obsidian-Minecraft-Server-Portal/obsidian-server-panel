@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use obsidian_common::{InstanceId, Loader, UserId};
 use obsidian_runner::RunState;
 use serde::{Deserialize, Serialize};
+use strum::EnumString;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -130,8 +131,9 @@ pub struct Player {
 	pub banned: bool,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema, EnumString)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PlayerAction {
 	Op,
 	Deop,

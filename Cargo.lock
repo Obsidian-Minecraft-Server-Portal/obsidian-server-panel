@@ -4432,6 +4432,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "strum",
  "sysinfo",
  "tokio",
  "tracing",

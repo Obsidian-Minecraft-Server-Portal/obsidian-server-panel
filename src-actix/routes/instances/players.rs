@@ -2,7 +2,6 @@ use actix_web::{HttpResponse, get, post, web};
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
 use obsidian_instances::PlayerAction;
-use serde_json::Value;
 
 use super::dto::PlayerNameRequest;
 use crate::auth::{AuthUser, require_instance_perm};
@@ -38,7 +37,7 @@ pub async fn player_action(
 	body: web::Json<PlayerNameRequest>,
 ) -> ApiResult<HttpResponse> {
 	let (id, action) = path.into_inner();
-	let action = serde_json::from_value::<PlayerAction>(Value::String(action))
+	let action = action.parse::<PlayerAction>()
 		.map_err(|_| ApiError::from(CommonError::Invalid("unknown player action".into())))?;
 	require_instance_perm(&state, &user, id, Permission::PLAYERS_MANAGE).await?;
 	state.instances.player_action(id, &body.name, action).await?;
