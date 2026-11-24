@@ -91,7 +91,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
- "zstd 0.14.4",
+ "zstd",
 ]
 
 [[package]]
@@ -3649,9 +3649,9 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lzma-rust2"
-version = "0.16.5"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca93e534d1142d1d0dcca6d25fe302508a5dfb40b302802904577725ea0b695b"
+checksum = "ef1d73c59a56771343712b22ea5615092c612c16ba291c0979e3105dfeec4890"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -4305,7 +4305,7 @@ dependencies = [
  "walkdir",
  "windows-service",
  "xz2",
- "zip 9.8.1",
+ "zip",
 ]
 
 [[package]]
@@ -4351,8 +4351,8 @@ dependencies = [
  "tracing",
  "utoipa",
  "walkdir",
- "zip 9.8.1",
- "zstd 0.14.4",
+ "zip",
+ "zstd",
 ]
 
 [[package]]
@@ -4400,7 +4400,7 @@ dependencies = [
  "toml 0.8.2",
  "tracing",
  "utoipa",
- "zip 9.8.1",
+ "zip",
 ]
 
 [[package]]
@@ -5881,7 +5881,7 @@ dependencies = [
  "tempfile",
  "ureq",
  "urlencoding",
- "zip 9.8.1",
+ "zip",
  "zipsign-api",
 ]
 
@@ -6120,7 +6120,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 [[package]]
 name = "sievemc_lib"
 version = "0.2.1"
-source = "git+https://github.com/Drew-Chase/sievemc?rev=4b15baeb486b8a1773309cb4950df8e6fdd0c6dc#4b15baeb486b8a1773309cb4950df8e6fdd0c6dc"
+source = "git+https://github.com/Drew-Chase/sievemc?rev=de0a0a0adbbbd8781e520e8912d469469e3be4c4#de0a0a0adbbbd8781e520e8912d469469e3be4c4"
 dependencies = [
  "base64 0.22.1",
  "rayon",
@@ -6129,7 +6129,7 @@ dependencies = [
  "thiserror 2.0.21",
  "toml 1.2.2+spec-1.1.0",
  "tracing",
- "zip 8.6.0",
+ "zip",
 ]
 
 [[package]]
@@ -7203,12 +7203,6 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "typed-path"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ec2755506471f54baf5e4bb5499d8e510cc1caf271270e778a736bd2d7336c"
-
-[[package]]
-name = "typed-path"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ce898823d8cd0f028662d2f349694b1af0a5cc9be83f1d213a00d3147445e1e"
@@ -8190,50 +8184,32 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "8.6.0"
+version = "9.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
+checksum = "a9534624d547e3f516ecde0ed9a70d37788f01d340efcfdd03bf3ea8e163c1d0"
 dependencies = [
  "aes",
  "bzip2",
- "constant_time_eq 0.4.2",
+ "constant_time_eq 0.6.1",
  "crc32fast",
  "deflate64",
  "flate2",
  "getrandom 0.4.3",
  "hmac",
  "indexmap",
+ "libc",
  "lzma-rust2",
  "memchr",
+ "nix 0.32.0",
  "pbkdf2",
  "ppmd-rust",
  "sha1",
  "time",
- "typed-path 0.12.4",
- "zeroize",
- "zopfli",
- "zstd 0.13.5",
-]
-
-[[package]]
-name = "zip"
-version = "9.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9534624d547e3f516ecde0ed9a70d37788f01d340efcfdd03bf3ea8e163c1d0"
-dependencies = [
- "constant_time_eq 0.6.1",
- "crc32fast",
- "flate2",
- "getrandom 0.4.3",
- "indexmap",
- "libc",
- "memchr",
- "nix 0.32.0",
- "time",
- "typed-path 0.13.0",
+ "typed-path",
  "windows-sys 0.61.2",
  "zeroize",
  "zopfli",
+ "zstd",
 ]
 
 [[package]]
@@ -8273,29 +8249,11 @@ dependencies = [
 
 [[package]]
 name = "zstd"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50adf04cf3ec914b0b9905c9dde90c80fe74bfd701e331fc80a39c512c525278"
-dependencies = [
- "zstd-safe 7.4.1",
-]
-
-[[package]]
-name = "zstd"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad5020ab8f27bfc0024ad0a07aed6bf022a16208f479686fbed4fdd0c85eb0b3"
 dependencies = [
- "zstd-safe 8.3.0",
-]
-
-[[package]]
-name = "zstd-safe"
-version = "7.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "498d94ad68720c89b4fbe41b9090850651e68cb2dd9210ce7ffbff3a94653819"
-dependencies = [
- "zstd-sys",
+ "zstd-safe",
 ]
 
 [[package]]

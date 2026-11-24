@@ -77,7 +77,7 @@ ferinth = "2.13"
 ammonia = "4"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 memchr = "2"
-sievemc = { package = "sievemc_lib", git = "https://github.com/Drew-Chase/sievemc", rev = "4b15baeb486b8a1773309cb4950df8e6fdd0c6dc" }
+sievemc = { package = "sievemc_lib", git = "https://github.com/Drew-Chase/sievemc", rev = "de0a0a0adbbbd8781e520e8912d469469e3be4c4" }
 sha1 = "0.11"
 sha2 = "0.11"
 toml = "0.8"
