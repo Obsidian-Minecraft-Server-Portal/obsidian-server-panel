@@ -101,6 +101,14 @@ You may create commits. When you do, follow this rule exactly:
 Do not add "Co-Authored-By", "Generated with", or any other AI attribution to
 commit messages — write only the message content.
 
+## Changelogs and Release Notes
+
+When asked to write a changelog or release notes, update the associated
+release with the text. The associated release is the GitHub release for the
+version being documented (its `vX.Y.Z` tag); write the text with
+`gh release edit <tag> --notes-file <file>`. Always use the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) standard.
+
 ## Code Rules
 
 These apply to every file written in this repo, by humans or agents:
