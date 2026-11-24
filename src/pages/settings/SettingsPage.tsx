@@ -1,8 +1,9 @@
 import { cn } from "@heroui/react";
-import { useEffect, type ComponentType, type MouseEvent } from "react";
+import { useEffect, useMemo, type ComponentType, type MouseEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useCurrentUser, useHealth } from "../../api/session";
 import { useSmoothScroll } from "../../components/layout/SmoothScroll";
+import { KEEP_SCROLL } from "../../components/layout/useScrollReset";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { AccountSettings } from "./AccountSettings";
 import { GeneralSettings } from "./GeneralSettings";
@@ -29,7 +30,6 @@ const ACCOUNT_SECTION: Section = { label: "Account", component: AccountSettings 
 
 const ADMIN_ONLY_KEYS = ["updates", "users"];
 const DEFAULT_SECTION = "general";
-const SCROLL_SPY_NAVIGATION = { fromScrollSpy: true };
 
 export function SettingsPage() {
   const { section = DEFAULT_SECTION } = useParams();
@@ -40,22 +40,37 @@ export function SettingsPage() {
   const smoothScroll = useSmoothScroll();
   const isAdmin = currentUser.data?.is_admin === true;
   const showUpdates = health.data?.updater_enabled === true && isAdmin;
-  const sections: Record<string, Section> = {
-    ...SECTIONS,
-    ...(showUpdates ? { updates: UPDATES_SECTION } : {}),
-    ...(isAdmin ? { users: USERS_SECTION } : {}),
-    account: ACCOUNT_SECTION,
-  };
+  const sections = useMemo<Record<string, Section>>(
+    () => ({
+      ...SECTIONS,
+      ...(showUpdates ? { updates: UPDATES_SECTION } : {}),
+      ...(isAdmin ? { users: USERS_SECTION } : {}),
+      account: ACCOUNT_SECTION,
+    }),
+    [showUpdates, isAdmin],
+  );
   const keys = Object.keys(sections);
   const keysKey = keys.join("|");
   const active = useSettingsScrollSpy(keys, section);
+  const content = useMemo(
+    () =>
+      Object.entries(sections).map(([key, entry]) => {
+        const Component = entry.component;
+        return (
+          <section key={key} id={key} className="scroll-mt-6">
+            <Component />
+          </section>
+        );
+      }),
+    [sections],
+  );
 
   useEffect(() => {
-    if (active !== section) navigate(`/settings/${active}`, { replace: true, state: SCROLL_SPY_NAVIGATION });
+    if (active !== section) navigate(`/settings/${active}`, { replace: true, state: KEEP_SCROLL });
   }, [active]);
 
   useEffect(() => {
-    if (location.state?.fromScrollSpy) return;
+    if (location.state?.keepScroll) return;
     document.getElementById(section)?.scrollIntoView({ block: "start" });
   }, [location.key, keysKey]);
 
@@ -98,16 +113,7 @@ export function SettingsPage() {
             </Link>
           ))}
         </nav>
-        <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-1 flex-col gap-8">
-          {Object.entries(sections).map(([key, entry]) => {
-            const Component = entry.component;
-            return (
-              <section key={key} id={key} className="scroll-mt-6">
-                <Component />
-              </section>
-            );
-          })}
-        </div>
+        <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-1 flex-col gap-8">{content}</div>
       </div>
     </div>
   );

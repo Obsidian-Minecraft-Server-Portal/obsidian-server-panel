@@ -8,9 +8,7 @@ function scrollContainerOf(element: HTMLElement): HTMLElement | null {
   return node;
 }
 
-function currentSection(ids: string[]): string {
-  const last = document.getElementById(ids[ids.length - 1]);
-  const container = last ? scrollContainerOf(last) : null;
+function currentSection(ids: string[], container: HTMLElement | null): string {
   if (container && container.scrollTop + container.clientHeight >= container.scrollHeight - 4) {
     return ids[ids.length - 1];
   }
@@ -33,13 +31,24 @@ export function useSettingsScrollSpy(ids: string[], initial: string): string {
 
   useEffect(() => {
     const list = key.split("|");
-    const update = () => setActive(currentSection(list));
-    update();
-    document.addEventListener("scroll", update, { capture: true, passive: true });
-    window.addEventListener("resize", update);
+    const last = document.getElementById(list[list.length - 1]);
+    const container = last ? scrollContainerOf(last) : null;
+    const target: HTMLElement | Window = container ?? window;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      setActive(currentSection(list, container));
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    schedule();
+    target.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      document.removeEventListener("scroll", update, { capture: true });
-      window.removeEventListener("resize", update);
+      cancelAnimationFrame(frame);
+      target.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
     };
   }, [key]);
 
