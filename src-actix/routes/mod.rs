@@ -4,6 +4,7 @@ pub mod backups;
 pub mod content;
 pub mod content_matching;
 pub mod content_targets;
+pub mod resource_packs;
 pub mod files;
 pub mod health;
 pub mod instances;
@@ -43,6 +44,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(files::configure)
 			.configure(content::configure)
 			.configure(content_targets::configure)
+			.configure(resource_packs::configure)
 			.configure(content_matching::configure)
 			.configure(modpacks::configure)
 			.configure(serverpack::configure)

@@ -3,25 +3,14 @@ use std::path::Path;
 use obsidian_common::{CommonError, Result, TaskHandle, UserId};
 use obsidian_instances::{InstanceManager, read_server_properties, write_server_properties};
 use serde::Serialize;
-use sha1::{Digest, Sha1};
 use utoipa::ToSchema;
 
-use super::sources::{self, ContentSource, RESOURCE_PACK, WORLD};
+use super::sources::{self, ContentSource, WORLD};
 use super::{ContentManager, LEVEL_NAME_KEY, level_name, safe_filename};
 use crate::archive;
-use crate::http;
 use crate::platform::Platform;
 
-const RESOURCE_PACK_KEY: &str = "resource-pack";
-const RESOURCE_PACK_SHA1_KEY: &str = "resource-pack-sha1";
 const LEVEL_DAT: &str = "level.dat";
-
-#[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct ServerResourcePack {
-	pub url: String,
-	pub sha1: Option<String>,
-	pub source: Option<ContentSource>,
-}
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct InstalledWorld {
@@ -30,71 +19,6 @@ pub struct InstalledWorld {
 }
 
 impl ContentManager {
-	pub async fn resource_pack(&self, instance_id: i64) -> Result<Option<ServerResourcePack>> {
-		let properties = read_server_properties(&self.paths.instance_dir(instance_id)).await?;
-		let Some(url) = properties
-			.get(RESOURCE_PACK_KEY)
-			.map(|url| url.trim())
-			.filter(|url| !url.is_empty())
-		else {
-			return Ok(None);
-		};
-		let source = sources::get(self.db.pool(), instance_id, RESOURCE_PACK)
-			.await?
-			.filter(|(_, target)| target == url)
-			.map(|(source, _)| source);
-		Ok(Some(ServerResourcePack {
-			url: url.to_owned(),
-			sha1: properties
-				.get(RESOURCE_PACK_SHA1_KEY)
-				.filter(|sha1| !sha1.is_empty())
-				.cloned(),
-			source,
-		}))
-	}
-
-	pub async fn set_resource_pack(
-		&self,
-		instance_id: i64,
-		platform: Platform,
-		project_id: &str,
-		version_id: &str,
-	) -> Result<ServerResourcePack> {
-		let version = self.provider(platform)?.version(project_id, version_id).await?;
-		let url = version
-			.download_url
-			.ok_or_else(|| CommonError::Conflict("this resource pack must be downloaded manually".into()))?;
-		let sha1 = match version.sha1 {
-			Some(sha1) => sha1,
-			None => hex::encode(Sha1::digest(http::download(&self.http, &url).await?)),
-		};
-		self.write_resource_pack(instance_id, &url, &sha1).await?;
-		let source = ContentSource {
-			platform,
-			project_id: project_id.to_owned(),
-			version_id: version_id.to_owned(),
-		};
-		sources::set(self.db.pool(), instance_id, RESOURCE_PACK, &source, &url).await?;
-		Ok(ServerResourcePack {
-			url,
-			sha1: Some(sha1),
-			source: Some(source),
-		})
-	}
-
-	pub async fn clear_resource_pack(&self, instance_id: i64) -> Result<()> {
-		self.write_resource_pack(instance_id, "", "").await?;
-		sources::clear(self.db.pool(), instance_id, RESOURCE_PACK).await
-	}
-
-	async fn write_resource_pack(&self, instance_id: i64, url: &str, sha1: &str) -> Result<()> {
-		let dir = self.paths.instance_dir(instance_id);
-		let mut properties = read_server_properties(&dir).await?;
-		properties.insert(RESOURCE_PACK_KEY.to_owned(), url.to_owned());
-		properties.insert(RESOURCE_PACK_SHA1_KEY.to_owned(), sha1.to_owned());
-		write_server_properties(&dir, &properties).await
-	}
-
 	pub async fn install_world(
 		&self,
 		instances: &InstanceManager,

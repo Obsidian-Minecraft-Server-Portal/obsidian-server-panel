@@ -75,6 +75,11 @@ impl InstanceManager {
 		if self.is_migrating(id) {
 			return Err(CommonError::Conflict("a migration is running for this server".into()));
 		}
+		if let Some(hook) = self.pre_start.get()
+			&& let Err(error) = hook.before_start(id).await
+		{
+			tracing::warn!(%error, instance = id, "pre-start hook failed");
+		}
 		let instance = self.get(id).await?;
 		self.reserve(id, instance.port)?;
 		match self.launch(&instance).await {

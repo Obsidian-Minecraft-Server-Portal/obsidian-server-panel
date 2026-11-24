@@ -1,9 +1,10 @@
 use actix_multipart::Multipart;
-use actix_web::{HttpResponse, delete, get, post, put, web};
+use actix_web::{HttpRequest, HttpResponse, delete, get, post, put, web};
 use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, Loader};
 use obsidian_content::{
+	PublicBase,
 	ContentRelations, ContentUpdate, Facets, InstallRequest, InstalledContent, Kind, Platform, Project, ProjectDetail,
 	ProjectVersion, QuickAdded, SearchPage, SearchQuery, Side, VersionFilter, icon_mime,
 };
@@ -12,6 +13,7 @@ use utoipa::ToSchema;
 
 use super::content_targets::VersionRef;
 use crate::auth::{AuthUser, require_instance_perm};
+use crate::routes::auth::support::{public_url, request_origin};
 use crate::error::ApiResult;
 use crate::state::AppState;
 
@@ -606,11 +608,14 @@ pub struct QuickAddRequest {
 pub async fn quick_add(
 	state: web::Data<AppState>,
 	user: AuthUser,
+	req: HttpRequest,
 	path: web::Path<i64>,
 	web::Json(request): web::Json<QuickAddRequest>,
 ) -> ApiResult<HttpResponse> {
 	let id = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::CONTENT_INSTALL).await?;
+	let configured = public_url(&state).await?;
+	let origin = request_origin(&req);
 	let installed = state
 		.content
 		.quick_add(
@@ -620,6 +625,10 @@ pub async fn quick_add(
 			request.version_id.as_deref(),
 			request.kind,
 			Some(user.id),
+			PublicBase {
+				configured: configured.as_deref(),
+				origin: Some(&origin),
+			},
 		)
 		.await?;
 	Ok(HttpResponse::Created().json(installed))

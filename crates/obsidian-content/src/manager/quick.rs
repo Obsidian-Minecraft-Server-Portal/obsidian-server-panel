@@ -4,8 +4,7 @@ use obsidian_common::{CommonError, Result, TaskHandle, UserId};
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use super::sources::{self, RESOURCE_PACK};
-use super::{ContentManager, ServerResourcePack, store};
+use super::{ContentManager, PublicBase, ResourcePack, store};
 use crate::model::{DependencyKind, InstalledContent, ProjectVersion, SideSupport, VersionFilter};
 use crate::platform::{ContentPlatform, Kind, Platform};
 
@@ -14,7 +13,7 @@ const MAX_DEPENDENCY_DEPTH: usize = 3;
 #[derive(Debug, Serialize, ToSchema)]
 pub struct QuickAdded {
 	pub added: Vec<InstalledContent>,
-	pub resource_pack: Option<ServerResourcePack>,
+	pub resource_pack: Option<ResourcePack>,
 }
 
 pub(super) struct Planned {
@@ -23,6 +22,7 @@ pub(super) struct Planned {
 }
 
 impl ContentManager {
+	#[allow(clippy::too_many_arguments)]
 	pub async fn quick_add(
 		&self,
 		instance_id: i64,
@@ -31,6 +31,7 @@ impl ContentManager {
 		version_id: Option<&str>,
 		kind_hint: Option<Kind>,
 		owner: Option<UserId>,
+		base: PublicBase<'_>,
 	) -> Result<QuickAdded> {
 		let provider = self.provider(platform)?.clone();
 		let project = provider.project(project_id).await?;
@@ -73,18 +74,13 @@ impl ContentManager {
 						})?
 						.id,
 				};
-				let already_set = sources::get(self.db.pool(), instance_id, RESOURCE_PACK)
-					.await?
-					.is_some_and(|(current, _)| {
-						current.platform == platform && current.project_id == project_id && current.version_id == version
-					});
-				if already_set {
-					return Err(CommonError::Conflict("this resource pack is already the server pack".into()));
+				if self.has_platform_resource_pack(instance_id, platform, project_id, &version).await? {
+					return Err(CommonError::Conflict("this resource pack is already in the server's list".into()));
 				}
-				let pack = self.set_resource_pack(instance_id, platform, project_id, &version).await?;
+				let list = self.add_platform_resource_pack(instance_id, platform, project_id, &version, base).await?;
 				Ok(QuickAdded {
 					added: Vec::new(),
-					resource_pack: Some(pack),
+					resource_pack: list.packs.into_iter().next(),
 				})
 			}
 			Kind::Modpack | Kind::World => Err(CommonError::Conflict(

@@ -1,6 +1,6 @@
-use actix_web::{HttpResponse, delete, get, post, put, web};
+use actix_web::{HttpResponse, get, post, web};
 use obsidian_auth::Permission;
-use obsidian_content::{ContentSource, InstalledWorld, Platform, ServerResourcePack};
+use obsidian_content::{ContentSource, InstalledWorld, Platform};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -9,10 +9,7 @@ use crate::error::ApiResult;
 use crate::state::AppState;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-	cfg.service(get_resource_pack)
-		.service(set_resource_pack)
-		.service(clear_resource_pack)
-		.service(get_world)
+	cfg.service(get_world)
 		.service(install_world);
 }
 
@@ -28,78 +25,6 @@ pub struct VersionRef {
 pub struct CurrentWorld {
 	pub level_name: String,
 	pub source: Option<ContentSource>,
-}
-
-#[utoipa::path(
-	get,
-	path = "/api/v1/instances/{id}/resource-pack",
-	tag = "content",
-	params(("id" = i64, Path, description = "Instance id")),
-	responses(
-		(status = 200, description = "The server resource pack, or null when none is set", body = Option<ServerResourcePack>),
-		(status = 403, description = "Missing files.read permission"),
-	)
-)]
-#[get("/instances/{id}/resource-pack")]
-pub async fn get_resource_pack(
-	state: web::Data<AppState>,
-	user: AuthUser,
-	path: web::Path<i64>,
-) -> ApiResult<web::Json<Option<ServerResourcePack>>> {
-	let id = path.into_inner();
-	require_instance_perm(&state, &user, id, Permission::FILES_READ).await?;
-	Ok(web::Json(state.content.resource_pack(id).await?))
-}
-
-#[utoipa::path(
-	put,
-	path = "/api/v1/instances/{id}/resource-pack",
-	tag = "content",
-	params(("id" = i64, Path, description = "Instance id")),
-	request_body = VersionRef,
-	responses(
-		(status = 200, description = "server.properties now points at this resource pack", body = ServerResourcePack),
-		(status = 403, description = "Missing content.install permission"),
-		(status = 409, description = "The pack must be downloaded manually"),
-	)
-)]
-#[put("/instances/{id}/resource-pack")]
-pub async fn set_resource_pack(
-	state: web::Data<AppState>,
-	user: AuthUser,
-	path: web::Path<i64>,
-	web::Json(request): web::Json<VersionRef>,
-) -> ApiResult<web::Json<ServerResourcePack>> {
-	let id = path.into_inner();
-	require_instance_perm(&state, &user, id, Permission::CONTENT_INSTALL).await?;
-	Ok(web::Json(
-		state
-			.content
-			.set_resource_pack(id, request.platform, &request.project_id, &request.version_id)
-			.await?,
-	))
-}
-
-#[utoipa::path(
-	delete,
-	path = "/api/v1/instances/{id}/resource-pack",
-	tag = "content",
-	params(("id" = i64, Path, description = "Instance id")),
-	responses(
-		(status = 204, description = "Resource pack cleared"),
-		(status = 403, description = "Missing content.remove permission"),
-	)
-)]
-#[delete("/instances/{id}/resource-pack")]
-pub async fn clear_resource_pack(
-	state: web::Data<AppState>,
-	user: AuthUser,
-	path: web::Path<i64>,
-) -> ApiResult<HttpResponse> {
-	let id = path.into_inner();
-	require_instance_perm(&state, &user, id, Permission::CONTENT_REMOVE).await?;
-	state.content.clear_resource_pack(id).await?;
-	Ok(HttpResponse::NoContent().finish())
 }
 
 #[utoipa::path(

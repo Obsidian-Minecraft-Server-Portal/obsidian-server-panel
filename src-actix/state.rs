@@ -15,6 +15,7 @@ use obsidian_net::UpnpManager;
 use obsidian_scheduler::Scheduler;
 
 use crate::config::Config;
+use crate::resource_pack_start::ResourcePackStart;
 use crate::schedule_executor::ScheduleExecutor;
 
 #[derive(Clone)]
@@ -74,7 +75,7 @@ impl AppState {
 		if let (Some(username), Some(password)) = (&config.admin.username, &config.admin.password) {
 			auth.bootstrap_admin(username, config.admin.email.as_deref(), password).await?;
 		}
-		Ok(Self {
+		let state = Self {
 			config: Arc::new(config),
 			paths: Arc::new(paths),
 			db,
@@ -87,6 +88,8 @@ impl AppState {
 			backups,
 			scheduler,
 			migrations,
-		})
+		};
+		state.instances.set_pre_start_hook(Arc::new(ResourcePackStart::new(state.clone())));
+		Ok(state)
 	}
 }

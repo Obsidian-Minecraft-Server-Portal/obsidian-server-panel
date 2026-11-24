@@ -8,6 +8,7 @@ mod openapi;
 mod routes;
 mod schedule_executor;
 mod service;
+mod resource_pack_start;
 mod sftp_auth;
 mod state;
 mod util;

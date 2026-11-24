@@ -12,11 +12,13 @@ pub use quick::QuickAdded;
 pub use records::ContentRecord;
 pub use relations::{ContentRelations, DependencyEntry, DependentEntry};
 pub use sources::ContentSource;
-pub use targets::{InstalledWorld, ServerResourcePack};
+pub use resource_packs::{PublicBase, ResourcePack, ResourcePackList};
+pub use targets::InstalledWorld;
 mod compat;
 mod quick;
 mod records;
 mod relations;
+mod resource_packs;
 mod update;
 
 use std::collections::BTreeMap;

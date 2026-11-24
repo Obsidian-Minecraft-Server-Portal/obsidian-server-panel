@@ -4424,6 +4424,7 @@ dependencies = [
 name = "obsidian-instances"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "craftping",
  "futures-util",

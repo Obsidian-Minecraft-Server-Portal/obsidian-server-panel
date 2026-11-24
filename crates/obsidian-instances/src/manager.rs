@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 
 use obsidian_common::{CommonError, EventBus, InstanceId, Loader, Paths, Result, TaskRegistry, UserId};
 use obsidian_db::Db;
 use obsidian_java::JavaManager;
 use obsidian_net::UpnpManager;
 
+use crate::hooks::PreStartHook;
 use crate::install::InstallOutcome;
 use crate::live::Live;
 use crate::migration_lock::MigrationLock;
@@ -33,6 +34,7 @@ pub struct InstanceManager {
 	pub(crate) installing: Arc<Mutex<HashSet<InstanceId>>>,
 	pub(crate) migrating: Arc<Mutex<HashSet<InstanceId>>>,
 	pub(crate) monitor: Arc<AtomicBool>,
+	pub(crate) pre_start: OnceLock<Arc<dyn PreStartHook>>,
 }
 
 impl InstanceManager {
@@ -55,7 +57,12 @@ impl InstanceManager {
 			installing: Arc::default(),
 			migrating: Arc::default(),
 			monitor: Arc::new(AtomicBool::new(false)),
+			pre_start: OnceLock::new(),
 		}
+	}
+
+	pub fn set_pre_start_hook(&self, hook: Arc<dyn PreStartHook>) {
+		let _ = self.pre_start.set(hook);
 	}
 
 	pub async fn create(&self, request: CreateInstance, owner: UserId) -> Result<Instance> {
