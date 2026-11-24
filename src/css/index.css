@@ -49,6 +49,7 @@
 }
 
 :root {
+  --mobile-nav-h: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   --bg-0: #111113;
   --bg-1: #151517;
   --bg-2: #1b1b1e;
