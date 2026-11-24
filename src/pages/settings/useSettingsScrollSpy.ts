@@ -8,7 +8,9 @@ function scrollContainerOf(element: HTMLElement): HTMLElement | null {
   return node;
 }
 
-function currentSection(ids: string[], container: HTMLElement | null): string {
+function currentSection(ids: string[]): string {
+  const last = document.getElementById(ids[ids.length - 1]);
+  const container = last ? scrollContainerOf(last) : null;
   if (container && container.scrollTop + container.clientHeight >= container.scrollHeight - 4) {
     return ids[ids.length - 1];
   }
@@ -31,23 +33,21 @@ export function useSettingsScrollSpy(ids: string[], initial: string): string {
 
   useEffect(() => {
     const list = key.split("|");
-    const last = document.getElementById(list[list.length - 1]);
-    const container = last ? scrollContainerOf(last) : null;
-    const target: HTMLElement | Window = container ?? window;
     let frame = 0;
     const update = () => {
       frame = 0;
-      setActive(currentSection(list, container));
+      setActive(currentSection(list));
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(update);
     };
     schedule();
-    target.addEventListener("scroll", schedule, { passive: true });
+    // The scroller is resolved per update: OverlayScrollbars hides its overflow until the page first overflows.
+    document.addEventListener("scroll", schedule, { capture: true, passive: true });
     window.addEventListener("resize", schedule);
     return () => {
       cancelAnimationFrame(frame);
-      target.removeEventListener("scroll", schedule);
+      document.removeEventListener("scroll", schedule, { capture: true });
       window.removeEventListener("resize", schedule);
     };
   }, [key]);
