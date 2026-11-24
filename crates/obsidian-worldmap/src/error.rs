@@ -12,6 +12,8 @@ pub enum WorldmapError {
 	Compression(u8),
 	#[error("asset: {0}")]
 	Asset(String),
+	#[error("section mesh: {0}")]
+	Mesh(String),
 	#[error(transparent)]
 	Zip(#[from] zip::result::ZipError),
 	#[error(transparent)]

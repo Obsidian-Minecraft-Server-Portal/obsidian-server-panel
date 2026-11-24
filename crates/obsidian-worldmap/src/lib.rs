@@ -1,10 +1,12 @@
 //! Reads Minecraft region files and renders them into map tiles.
 
 pub mod assets;
+pub mod atlas;
 pub mod chunk;
 pub mod colour;
 pub mod error;
 pub mod level;
+pub mod mesh;
 pub mod models;
 pub mod players;
 pub mod region;

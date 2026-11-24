@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use image::{ImageFormat, Rgba, RgbaImage};
 
-use crate::chunk::Chunk;
+use crate::chunk::{BlockDefaults, Chunk};
 use crate::colour::BlockColours;
 use crate::error::Result;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
@@ -11,13 +11,14 @@ const CHUNK_PIXELS: i32 = 16;
 pub const REGION_PIXELS: u32 = CHUNKS_PER_SIDE as u32 * CHUNK_PIXELS as u32;
 
 /// Top-down image of one region at one pixel per block. Columns without a generated chunk stay transparent.
-pub fn render_region(region: &RegionFile, colours: &mut BlockColours) -> Result<RgbaImage> {
+pub fn render_region(region: &RegionFile, colours: &mut BlockColours, defaults: &BlockDefaults) -> Result<RgbaImage> {
 	let (region_x, region_z) = region.region_coords();
 	let mut image = RgbaImage::new(REGION_PIXELS, REGION_PIXELS);
 	for local_z in 0..CHUNKS_PER_SIDE {
 		for local_x in 0..CHUNKS_PER_SIDE {
 			if let Some(nbt) = region.chunk_nbt(local_x, local_z)? {
-				let chunk = Chunk::parse(&nbt)?;
+				let mut chunk = Chunk::parse(&nbt)?;
+				chunk.fill_default_properties(defaults);
 				let origin_x = region_x * CHUNKS_PER_SIDE as i32;
 				let origin_z = region_z * CHUNKS_PER_SIDE as i32;
 				draw_chunk(&mut image, &chunk, origin_x, origin_z, colours);

@@ -1,6 +1,9 @@
+mod defaults;
 mod palette;
 
 use std::collections::BTreeMap;
+
+pub use defaults::BlockDefaults;
 
 use fastnbt::LongArray;
 use serde::Deserialize;
@@ -30,7 +33,11 @@ impl Section {
 		self.y
 	}
 
-	fn state_at(&self, x: usize, y: usize, z: usize) -> &BlockState {
+	pub fn palette(&self) -> &[BlockState] {
+		&self.palette
+	}
+
+	pub fn state_at(&self, x: usize, y: usize, z: usize) -> &BlockState {
 		&self.palette[usize::from(self.indices[(y << 8) | (z << 4) | x])]
 	}
 }
@@ -69,6 +76,28 @@ impl Chunk {
 			data_version: raw.data_version,
 			sections,
 		})
+	}
+
+	pub fn sections(&self) -> &[Section] {
+		&self.sections
+	}
+
+	pub fn fill_default_properties(&mut self, defaults: &BlockDefaults) {
+		for section in &mut self.sections {
+			for state in &mut section.palette {
+				defaults.fill(state);
+			}
+		}
+	}
+
+	pub fn section(&self, section_y: i32) -> Option<&Section> {
+		self.sections.iter().find(|section| section.y == section_y)
+	}
+
+	/// The block at chunk-local `x` and `z` (0..16) and absolute height `y`; `None` when no section covers it.
+	pub fn state_at(&self, x: usize, y: i32, z: usize) -> Option<&BlockState> {
+		let section = self.section(y.div_euclid(SECTION_SIDE as i32))?;
+		Some(section.state_at(x, y.rem_euclid(SECTION_SIDE as i32) as usize, z))
 	}
 
 	/// Highest non-air block in a column, as (world y, block). `x` and `z` are section-local, 0..16.

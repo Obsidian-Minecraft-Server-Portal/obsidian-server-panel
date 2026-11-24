@@ -1,39 +1,29 @@
-//! Block colours from the texture of each block's top face, tinted for grass and leaves.
+//! Block colours from the texture of each block's top face, tinted from the biome colormaps.
 
 mod texture;
+mod tints;
 
 use std::collections::HashMap;
 
 use crate::assets::AssetStore;
 use crate::chunk::BlockState;
+use crate::models::geometry::{TintKind, tint_kind_for_block};
 use crate::models::{Blockstate, Face, ResolvedModel, resolve_model, split_id};
 
-/// Vanilla's default temperature and humidity for plains, where the colormaps are sampled.
-const PLAINS_TEMPERATURE: f32 = 0.8;
-const PLAINS_HUMIDITY: f32 = 0.4;
-/// Vanilla's plains water colour, used because fluids have no blockstate to read it from.
-const PLAINS_WATER: [u8; 3] = [63, 118, 228];
-
-#[derive(Clone, Copy)]
-enum Tint {
-	Grass,
-	Foliage,
-}
+pub use tints::Tints;
 
 pub struct BlockColours<'a> {
 	assets: &'a AssetStore,
+	tints: Tints<'a>,
 	cache: HashMap<String, [u8; 3]>,
-	grass: Option<[u8; 3]>,
-	foliage: Option<[u8; 3]>,
 }
 
 impl<'a> BlockColours<'a> {
 	pub fn new(assets: &'a AssetStore) -> Self {
 		Self {
 			assets,
+			tints: Tints::new(assets),
 			cache: HashMap::new(),
-			grass: None,
-			foliage: None,
 		}
 	}
 
@@ -50,7 +40,7 @@ impl<'a> BlockColours<'a> {
 	fn lookup(&mut self, state: &BlockState) -> Option<[u8; 3]> {
 		if state.name == "minecraft:water" {
 			let base = self.texture_colour("minecraft:block/water_still")?;
-			return Some(multiply(base, PLAINS_WATER));
+			return Some(multiply(base, self.tints.colour(TintKind::Water)));
 		}
 		let (namespace, path) = split_id(&state.name);
 		let json = self.assets.get(namespace, &format!("blockstates/{path}.json"))?;
@@ -58,9 +48,8 @@ impl<'a> BlockColours<'a> {
 		let model = resolve_model(self.assets, &variant.model).ok()?;
 		let face = top_face(&model)?;
 		let base = self.texture_colour(&face_texture(&model, face)?)?;
-		match (face.tintindex.is_some(), tint_for(&state.name)) {
-			(true, Some(Tint::Grass)) => Some(multiply(base, self.tint(Tint::Grass)?)),
-			(true, Some(Tint::Foliage)) => Some(multiply(base, self.tint(Tint::Foliage)?)),
+		match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
+			(true, Some(kind)) => Some(multiply(base, self.tints.colour(kind))),
 			_ => Some(base),
 		}
 	}
@@ -74,23 +63,6 @@ impl<'a> BlockColours<'a> {
 		let png = self.assets.get(namespace, &format!("textures/{path}.png"))?;
 		let colour = texture::average(png).ok().flatten()?;
 		self.cache.insert(key, colour);
-		Some(colour)
-	}
-
-	fn tint(&mut self, kind: Tint) -> Option<[u8; 3]> {
-		let (slot, name) = match kind {
-			Tint::Grass => (self.grass, "grass"),
-			Tint::Foliage => (self.foliage, "foliage"),
-		};
-		if let Some(colour) = slot {
-			return Some(colour);
-		}
-		let png = self.assets.get("minecraft", &format!("textures/colormap/{name}.png"))?;
-		let colour = texture::sample_colormap(png, PLAINS_TEMPERATURE, PLAINS_HUMIDITY).ok()?;
-		match kind {
-			Tint::Grass => self.grass = Some(colour),
-			Tint::Foliage => self.foliage = Some(colour),
-		}
 		Some(colour)
 	}
 }
@@ -126,17 +98,6 @@ fn face_texture(model: &ResolvedModel, face: &Face) -> Option<String> {
 	match face.texture.strip_prefix('#') {
 		Some(variable) => model.textures.get(variable).cloned(),
 		None => Some(face.texture.clone()),
-	}
-}
-
-/// Grass and leaves are the tinted blocks the rest of this crate handles; other tinted blocks stay untinted.
-fn tint_for(name: &str) -> Option<Tint> {
-	if name.ends_with("_leaves") {
-		Some(Tint::Foliage)
-	} else if ["grass_block", "grass", "fern", "tall_grass"].iter().any(|grass| name.ends_with(grass)) {
-		Some(Tint::Grass)
-	} else {
-		None
 	}
 }
 
