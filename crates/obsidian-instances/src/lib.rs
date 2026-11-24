@@ -6,6 +6,7 @@ mod install;
 mod lifecycle;
 mod live;
 mod manager;
+mod map_upnp;
 mod migration_lock;
 mod model;
 mod monitor;

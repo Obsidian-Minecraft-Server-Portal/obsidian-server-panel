@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 async-trait = { workspace = true }
+obsidian-maps = { workspace = true }
 chrono = { workspace = true }
 craftping = { workspace = true }
 futures-util = { workspace = true }

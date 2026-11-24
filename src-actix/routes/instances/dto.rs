@@ -41,8 +41,17 @@ pub struct PlayerNameRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct MapUpnpInfo {
+	pub port: u16,
+	#[serde(flatten)]
+	pub status: UpnpStatus,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct UpnpInfo {
 	pub enabled: bool,
 	#[serde(flatten)]
 	pub status: UpnpStatus,
+	pub map_enabled: bool,
+	pub maps: Vec<MapUpnpInfo>,
 }

@@ -6,6 +6,8 @@ use actix_web::{HttpRequest, HttpResponse, get, put, web};
 use futures_util::StreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
+use serde::Deserialize;
+use utoipa::ToSchema;
 use obsidian_maps::{DetectedMap, MapKind, MapSettingsUpdate, apply_settings, config_text, detect};
 use obsidian_runner::RunState;
 
@@ -45,6 +47,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(list_maps)
 		.service(update_map)
 		.service(map_root)
+		.service(set_map_upnp)
 		.service(proxy_map);
 }
 
@@ -105,6 +108,35 @@ pub async fn update_map(
 	let map = detect(&dir).await?.into_iter().find(|map| map.kind == kind);
 	let map = map.ok_or_else(|| CommonError::NotFound(format!("{} map", kind.label())))?;
 	Ok(web::Json(map))
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct MapUpnpUpdate {
+	pub enabled: bool,
+}
+
+#[utoipa::path(
+	put,
+	path = "/api/v1/instances/{id}/map-upnp",
+	tag = "instances",
+	params(("id" = i64, Path, description = "Instance id")),
+	request_body = MapUpnpUpdate,
+	responses(
+		(status = 204, description = "Forwarding of the web map ports is updated"),
+		(status = 403, description = "Missing settings.edit permission"),
+	)
+)]
+#[put("/instances/{id}/map-upnp")]
+pub async fn set_map_upnp(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<InstanceId>,
+	web::Json(update): web::Json<MapUpnpUpdate>,
+) -> ApiResult<HttpResponse> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
+	state.instances.set_map_upnp(id, update.enabled).await?;
+	Ok(HttpResponse::NoContent().finish())
 }
 
 #[get("/instances/{id}/map/{kind}")]

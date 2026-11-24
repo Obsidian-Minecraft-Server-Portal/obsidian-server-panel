@@ -4622,6 +4622,7 @@ dependencies = [
  "obsidian-db",
  "obsidian-java",
  "obsidian-loaders",
+ "obsidian-maps",
  "obsidian-net",
  "obsidian-runner",
  "regex",

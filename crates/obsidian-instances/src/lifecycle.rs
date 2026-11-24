@@ -444,17 +444,18 @@ impl InstanceManager {
 	}
 
 	async fn map_upnp(&self, instance: &Instance) {
-		if !instance.upnp_enabled {
-			return;
+		if instance.upnp_enabled {
+			let description = format!("Obsidian {}", instance.name);
+			match self.upnp.map(instance.port, Protocol::Tcp, &description).await {
+				Ok(()) => self.live().entry(instance.id).or_default().upnp_port = Some(instance.port),
+				Err(error) => tracing::warn!(%error, instance = instance.id, "UPnP port mapping failed"),
+			}
 		}
-		let description = format!("Obsidian {}", instance.name);
-		match self.upnp.map(instance.port, Protocol::Tcp, &description).await {
-			Ok(()) => self.live().entry(instance.id).or_default().upnp_port = Some(instance.port),
-			Err(error) => tracing::warn!(%error, instance = instance.id, "UPnP port mapping failed"),
-		}
+		self.sync_map_upnp(instance.id).await;
 	}
 
 	async fn unmap_upnp(&self, id: InstanceId) {
+		self.unmap_map_upnp(id).await;
 		let port = self.live().get_mut(&id).and_then(|live| live.upnp_port.take());
 		let Some(port) = port else {
 			return;

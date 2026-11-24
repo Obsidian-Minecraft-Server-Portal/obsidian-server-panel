@@ -1,0 +1,1 @@
+ALTER TABLE instances ADD COLUMN map_upnp_enabled INTEGER NOT NULL DEFAULT 0;

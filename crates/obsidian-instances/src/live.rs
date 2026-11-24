@@ -14,6 +14,7 @@ pub struct Live {
 	pub console: VecDeque<String>,
 	pub stats: InstanceStats,
 	pub upnp_port: Option<u16>,
+	pub map_upnp_ports: Vec<u16>,
 }
 
 impl Live {
