@@ -15,6 +15,7 @@ import type { ContentKind, InstalledContent } from "../../../api/content";
 import { hasPermission, useInstance } from "../../../api/instances";
 import { InstalledRow } from "../../../components/content/InstalledRow";
 import { RelationsModal, type RelationsTarget } from "../../../components/content/RelationsModal";
+import { SwitchVersionModal } from "../../../components/content/SwitchVersionModal";
 import { ServerWorldPanel } from "../../../components/content/ServerWorldPanel";
 import { kindForLoader } from "../../../components/content/meta";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -54,6 +55,7 @@ export function InstalledContentPanel() {
   const matches = useFindContentMatches(instanceId);
   const [pendingRemove, setPendingRemove] = useState<number | null>(null);
   const [relations, setRelations] = useState<RelationsTarget | null>(null);
+  const [switching, setSwitching] = useState<InstalledContent | null>(null);
   const [searchParams] = useSearchParams();
   const associated = searchParams.get("associated");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -191,6 +193,7 @@ export function InstalledContentPanel() {
                   onRemove={() => removeItem(item.id)}
                   onRelations={(tab) => setRelations({ item, tab })}
                   onAssociate={() => associate(item)}
+                  onSwitchVersion={() => setSwitching(item)}
                 />
               ))}
             </section>
@@ -198,6 +201,7 @@ export function InstalledContentPanel() {
         </div>
       )}
       <RelationsModal instanceId={instanceId} target={relations} onClose={() => setRelations(null)} />
+      <SwitchVersionModal instance={instance.data ?? null} item={switching} onClose={() => setSwitching(null)} />
     </div>
   );
 }

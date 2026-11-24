@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  type ContentKind,
   type Project,
   type ProjectVersion,
-  type VersionFilter,
   useAssociateContent,
   useProjectVersions,
 } from "../../../api/content";
@@ -13,21 +11,13 @@ import { CheckboxRow } from "../../ui/CheckboxRow";
 import { EmptyState } from "../../ui/EmptyState";
 import { GhostButton } from "../../ui/GhostButton";
 import { SearchSelect } from "../../ui/SearchSelect";
-import { SectionTabs, type SectionTab } from "../../ui/SectionTabs";
+import { SectionTabs } from "../../ui/SectionTabs";
 import type { InstallAction } from "../InstallTargetModal";
 import { LOADER_BOUND_KINDS } from "../meta";
 import type { ModpackAction } from "../ModpackModal";
 import { VersionRow } from "../VersionRow";
+import { CHANNEL_TABS, versionFilter, type VersionChannel as Channel } from "../versionFilters";
 import type { QuickAdd } from "./ProjectActions";
-
-type Channel = "all" | "release" | "beta" | "alpha";
-
-const CHANNEL_TABS: SectionTab<Channel>[] = [
-  { id: "all", label: "All" },
-  { id: "release", label: "Release" },
-  { id: "beta", label: "Beta" },
-  { id: "alpha", label: "Alpha" },
-];
 
 const PAGE_SIZE = 20;
 
@@ -163,13 +153,6 @@ export function ProjectVersions({
       )}
     </div>
   );
-}
-
-function versionFilter(kind: ContentKind, target: InstanceView | null, gameVersion: string | null): VersionFilter {
-  return {
-    loader: target !== null && LOADER_BOUND_KINDS.has(kind) ? target.loader : null,
-    mcVersion: gameVersion ?? target?.mc_version ?? null,
-  };
 }
 
 function actionLabel(isModpack: boolean, installing: boolean, installed: boolean): string {

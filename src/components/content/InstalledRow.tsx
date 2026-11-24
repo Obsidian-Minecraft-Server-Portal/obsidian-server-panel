@@ -23,6 +23,7 @@ interface InstalledRowProps {
   onRemove: () => void;
   onRelations: (tab: RelationsTab) => void;
   onAssociate: () => void;
+  onSwitchVersion: () => void;
 }
 
 const DISABLED_SUFFIX = /\.disabled$/;
@@ -37,6 +38,7 @@ export function InstalledRow({
   onRemove,
   onRelations,
   onAssociate,
+  onSwitchVersion,
 }: InstalledRowProps) {
   const filename = item.filename.replace(DISABLED_SUFFIX, "");
   const title = item.name ?? filename;
@@ -58,6 +60,9 @@ export function InstalledRow({
             run: () => onApplyUpdate(update),
           },
         ]
+      : []),
+    ...(item.platform !== null && item.project_id !== null
+      ? [{ key: "versions", label: "Switch version…", icon: "lucide:history", run: onSwitchVersion }]
       : []),
     { key: "dependencies", label: "Show dependencies", icon: "lucide:list-tree", run: () => onRelations("dependencies") },
     { key: "dependents", label: "Show dependents", icon: "lucide:network", run: () => onRelations("dependents") },
