@@ -6,6 +6,7 @@ pub mod colour;
 pub mod error;
 pub mod level;
 pub mod models;
+pub mod players;
 pub mod region;
 pub mod tiles;
 
