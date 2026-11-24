@@ -279,3 +279,10 @@ pub struct HashMatch {
 	pub client_side: SideSupport,
 	pub server_side: SideSupport,
 }
+
+#[derive(Debug, Clone)]
+pub struct FingerprintMatch {
+	pub fingerprint: u32,
+	pub project_id: String,
+	pub version_id: String,
+}

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use utoipa::ToSchema;
 
-use crate::model::{Facets, HashMatch, Project, ProjectDetail, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
+use crate::model::{Facets, FingerprintMatch, HashMatch, Project, ProjectDetail, ProjectVersion, SearchPage, SearchQuery, VersionFilter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -114,6 +114,9 @@ pub trait ContentPlatform: Send + Sync {
 		Ok(None)
 	}
 	async fn lookup_hashes(&self, _sha1s: &[String]) -> Result<Vec<HashMatch>> {
+		Ok(Vec::new())
+	}
+	async fn lookup_fingerprints(&self, _fingerprints: &[u32]) -> Result<Vec<FingerprintMatch>> {
 		Ok(Vec::new())
 	}
 }

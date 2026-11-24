@@ -13,6 +13,7 @@ futures-util = { workspace = true }
 hex = { workspace = true }
 memchr = { workspace = true }
 moka = { workspace = true, features = ["sync"] }
+murmur2 = { workspace = true }
 obsidian-common = { workspace = true }
 obsidian-db = { workspace = true }
 obsidian-instances = { workspace = true }

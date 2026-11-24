@@ -78,6 +78,7 @@ ammonia = "4"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 memchr = "2"
 sievemc = { package = "sievemc_lib", git = "https://github.com/Drew-Chase/sievemc", rev = "de0a0a0adbbbd8781e520e8912d469469e3be4c4" }
+murmur2 = "0.1"
 sha1 = "0.11"
 sha2 = "0.11"
 toml = "0.8"

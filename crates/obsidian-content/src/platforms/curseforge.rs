@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use crate::http::{self, segment};
 use crate::model::{
-	Category, CategoryGroup, DependencyKind, Facets, GalleryImage, Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage,
+	Category, CategoryGroup, DependencyKind, Facets, FingerprintMatch, GalleryImage, Project, ProjectDetail, ProjectLinks, ProjectVersion, SearchPage,
 	SearchQuery, VersionDependency, VersionFilter,
 };
 use crate::platform::{ContentPlatform, Kind, Platform};
@@ -17,6 +17,7 @@ const MINECRAFT_GAME_ID: u32 = 432;
 const SORT_BY_POPULARITY: u8 = 2;
 const SHA1_ALGORITHM: u8 = 1;
 const PAGE_SIZE: u32 = 50;
+const FINGERPRINT_BATCH: usize = 100;
 const LOADER_NAMES: [&str; 6] = ["forge", "fabric", "quilt", "neoforge", "paper", "purpur"];
 
 pub struct CurseForge {
@@ -35,6 +36,12 @@ impl CurseForge {
 	fn get(&self, path: &str) -> RequestBuilder {
 		self.http
 			.get(format!("{BASE_URL}/{path}"))
+			.header("x-api-key", self.api_key.as_str())
+	}
+
+	fn post(&self, path: &str) -> RequestBuilder {
+		self.http
+			.post(format!("{BASE_URL}/{path}"))
 			.header("x-api-key", self.api_key.as_str())
 	}
 }
@@ -189,6 +196,24 @@ impl ContentPlatform for CurseForge {
 			http::json(self.get(&format!("mods/{}/files/{}", numeric(project_id)?, numeric(version_id)?))).await?;
 		Ok(to_version(file.data))
 	}
+
+	async fn lookup_fingerprints(&self, fingerprints: &[u32]) -> Result<Vec<FingerprintMatch>> {
+		let mut matches = Vec::new();
+		for chunk in fingerprints.chunks(FINGERPRINT_BATCH) {
+			let body = serde_json::json!({ "fingerprints": chunk });
+			let found: Single<FingerprintResult> =
+				http::json(self.post(&format!("fingerprints/{MINECRAFT_GAME_ID}")).json(&body)).await?;
+			matches.extend(found.data.exact_matches.into_iter().filter_map(|hit| {
+				let fingerprint = u32::try_from(hit.file.file_fingerprint).ok()?;
+				chunk.contains(&fingerprint).then(|| FingerprintMatch {
+					fingerprint,
+					project_id: hit.id.to_string(),
+					version_id: hit.file.id.to_string(),
+				})
+			}));
+		}
+		Ok(matches)
+	}
 }
 
 #[derive(Deserialize)]
@@ -220,6 +245,19 @@ struct CategoryItem {
 #[derive(Deserialize)]
 struct Single<T> {
 	data: T,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FingerprintResult {
+	#[serde(default)]
+	exact_matches: Vec<FingerprintHit>,
+}
+
+#[derive(Deserialize)]
+struct FingerprintHit {
+	id: u64,
+	file: File,
 }
 
 #[derive(Deserialize)]
@@ -289,6 +327,8 @@ struct File {
 	download_count: f64,
 	#[serde(default)]
 	dependencies: Vec<FileDependency>,
+	#[serde(default)]
+	file_fingerprint: u64,
 }
 
 #[derive(Deserialize)]
