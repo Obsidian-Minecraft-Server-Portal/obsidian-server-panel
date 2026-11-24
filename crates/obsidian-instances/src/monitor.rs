@@ -11,6 +11,7 @@ use tokio::task::JoinSet;
 use crate::live::{is_active, stats_topic};
 use crate::manager::InstanceManager;
 use crate::model::InstanceStats;
+use crate::roster::ANONYMOUS_UUID;
 
 const SAMPLE_EVERY: Duration = Duration::from_secs(2);
 const PROBE_EVERY_TICKS: u64 = 5;
@@ -106,7 +107,13 @@ async fn probe_server(port: u16) -> Option<Probe> {
 			online: response.online_players as u32,
 			max: response.max_players as u32,
 			motd: response.description.as_ref().map(plain_text).unwrap_or_default(),
-			names: response.sample.unwrap_or_default().into_iter().map(|player| player.name).collect(),
+			names: response
+				.sample
+				.unwrap_or_default()
+				.into_iter()
+				.filter(|player| player.id != ANONYMOUS_UUID)
+				.map(|player| player.name)
+				.collect(),
 		})
 	};
 	tokio::time::timeout(PROBE_TIMEOUT, attempt).await.ok().flatten()

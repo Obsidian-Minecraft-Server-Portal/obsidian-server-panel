@@ -12,6 +12,7 @@ mod model;
 mod monitor;
 mod players;
 mod properties;
+mod roster;
 pub mod settings;
 mod software;
 mod store;

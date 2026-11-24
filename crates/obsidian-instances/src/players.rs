@@ -112,6 +112,14 @@ impl InstanceManager {
 				.or_insert_with(|| Player { name, uuid: None, online: false, op: false, whitelisted: false, banned: false })
 				.online = true;
 		}
+		if players.values().any(|player| player.uuid.is_none()) {
+			for entry in read_entries(dir, USERCACHE).await? {
+				let Some(name) = entry.get("name").and_then(Value::as_str) else { continue };
+				if let Some(player) = players.get_mut(&name.to_ascii_lowercase()).filter(|player| player.uuid.is_none()) {
+					player.uuid = entry.get("uuid").and_then(Value::as_str).map(str::to_owned);
+				}
+			}
+		}
 		Ok(players.into_values().collect())
 	}
 
@@ -160,7 +168,10 @@ impl InstanceManager {
 		if self.current_status(id).state != RunState::Running {
 			return Ok(Vec::new());
 		}
-		Ok(self.live().get(&id).and_then(|live| live.stats.player_names.clone()).unwrap_or_default())
+		let live = self.live();
+		let Some(live) = live.get(&id) else { return Ok(Vec::new()) };
+		let sampled = live.stats.player_names.iter().flatten();
+		Ok(sampled.chain(live.roster.names()).cloned().collect())
 	}
 }
 

@@ -331,6 +331,7 @@ impl InstanceManager {
 			if let Some(tps) = parse_tps(&text) {
 				entry.stats.tps = Some(tps);
 			}
+			entry.roster.observe(&text);
 			entry.push_console(text.clone());
 		}
 		self.bus.publish(console_topic(id), json!({ "line": text }));
@@ -342,6 +343,7 @@ impl InstanceManager {
 			let entry = live.entry(id).or_default();
 			if !live::is_active(status.state) {
 				entry.stats = InstanceStats::default();
+				entry.roster.clear();
 			}
 			entry.status = status.clone();
 		}
@@ -355,6 +357,7 @@ impl InstanceManager {
 			live::is_active(entry.status.state).then(|| {
 				let since = entry.status.started_at;
 				entry.stats = InstanceStats::default();
+				entry.roster.clear();
 				entry.status = InstanceStatus { state: RunState::Crashed, ..InstanceStatus::default() };
 				(entry.status.clone(), since)
 			})

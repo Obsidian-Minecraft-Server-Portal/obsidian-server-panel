@@ -4,6 +4,7 @@ use obsidian_common::InstanceId;
 use obsidian_runner::RunState;
 
 use crate::model::{InstanceStats, InstanceStatus};
+use crate::roster::Roster;
 
 pub const CONSOLE_LINES: usize = 1000;
 
@@ -13,6 +14,7 @@ pub struct Live {
 	pub port: u16,
 	pub console: VecDeque<String>,
 	pub stats: InstanceStats,
+	pub roster: Roster,
 	pub upnp_port: Option<u16>,
 	pub map_upnp_ports: Vec<u16>,
 }
