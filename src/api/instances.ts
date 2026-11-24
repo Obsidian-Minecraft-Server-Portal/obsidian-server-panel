@@ -143,6 +143,17 @@ export const propertiesKey = (id: number) => ["instances", id, "properties"] as 
 export const upnpKey = (id: number) => ["instances", id, "upnp"] as const;
 
 export const CONSOLE_BACKLOG_LINES = 500;
+
+export interface ConsoleEntry {
+  seq: number;
+  text: string;
+}
+
+let consoleSeq = 0;
+
+export function consoleEntries(lines: readonly string[]): ConsoleEntry[] {
+  return lines.map((text) => ({ seq: consoleSeq++, text }));
+}
 const PLAYER_REFRESH_MS = 15_000;
 const UPNP_REFRESH_MS = 15_000;
 
@@ -248,7 +259,7 @@ export function useSendCommand(id: number) {
 export function useConsoleBacklog(id: number) {
   return useQuery({
     queryKey: consoleKey(id),
-    queryFn: () => api.get<string[]>(`/instances/${id}/console?lines=${CONSOLE_BACKLOG_LINES}`),
+    queryFn: async () => consoleEntries(await api.get<string[]>(`/instances/${id}/console?lines=${CONSOLE_BACKLOG_LINES}`)),
     staleTime: Infinity,
     enabled: isInstanceId(id),
   });

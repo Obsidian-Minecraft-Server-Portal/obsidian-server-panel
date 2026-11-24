@@ -1,23 +1,14 @@
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { ConsoleEntry } from "../../../api/instances";
 import { ConsoleLine } from "./ConsoleLine";
 
 const PIN_THRESHOLD_PX = 24;
 
-function withStableKeys(lines: string[]): { key: string; line: string }[] {
-  const seen = new Map<string, number>();
-  return lines.map((line) => {
-    const occurrence = seen.get(line) ?? 0;
-    seen.set(line, occurrence + 1);
-    return { key: `${occurrence}:${line}`, line };
-  });
-}
-
-export function ConsoleView({ lines }: { lines: string[] }) {
+export function ConsoleView({ lines }: { lines: ConsoleEntry[] }) {
   const viewport = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
-  const keyed = useMemo(() => withStableKeys(lines), [lines]);
 
   useLayoutEffect(() => {
     const element = viewport.current;
@@ -49,7 +40,7 @@ export function ConsoleView({ lines }: { lines: string[] }) {
         {lines.length === 0 ? (
           <p className="text-ink-4">No output yet. Start the server to see its console.</p>
         ) : (
-          keyed.map(({ key, line }) => <ConsoleLine key={key} text={line} />)
+          lines.map((entry) => <ConsoleLine key={entry.seq} text={entry.text} />)
         )}
       </div>
       {!pinned && (

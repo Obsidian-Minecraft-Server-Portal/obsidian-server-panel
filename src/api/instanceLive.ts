@@ -1,13 +1,15 @@
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import {
+  consoleEntries,
   consoleKey,
   instanceStatsKey,
   patchInstanceStatus,
+  type ConsoleEntry,
   type InstanceStats,
   type InstanceStatus,
 } from "./instances";
-import { useTopic, useWebSocket } from "./ws";
+import { useWebSocket } from "./ws";
 
 export const MAX_LIVE_CONSOLE_LINES = 1000;
 
@@ -52,13 +54,30 @@ export function useLiveInstances(ids: readonly number[], { stats = false }: { st
 
 export function useLiveConsole(id: number) {
   const queryClient = useQueryClient();
-  const { status } = useWebSocket();
+  const { status, subscribe } = useWebSocket();
   const wasOpen = useRef(false);
 
-  useTopic(consoleTopic(id), (payload) => {
-    const { line } = payload as { line: string };
-    queryClient.setQueryData<string[]>(consoleKey(id), (lines) => lines && appendLine(lines, line));
-  });
+  useEffect(() => {
+    let pending: string[] = [];
+    let frame = 0;
+    const flush = () => {
+      frame = 0;
+      if (pending.length === 0) return;
+      const batch = consoleEntries(pending);
+      pending = [];
+      queryClient.setQueryData<ConsoleEntry[]>(consoleKey(id), (lines) => lines && appendLines(lines, batch));
+    };
+    const unsubscribe = subscribe(consoleTopic(id), (payload) => {
+      pending.push((payload as { line: string }).line);
+      if (pending.length > MAX_LIVE_CONSOLE_LINES) pending = pending.slice(-MAX_LIVE_CONSOLE_LINES);
+      if (!frame) frame = requestAnimationFrame(flush);
+    });
+    return () => {
+      unsubscribe();
+      cancelAnimationFrame(frame);
+      flush();
+    };
+  }, [id, subscribe, queryClient]);
 
   useEffect(() => {
     if (status === "open" && !wasOpen.current) {
@@ -68,10 +87,9 @@ export function useLiveConsole(id: number) {
   }, [status, id, queryClient]);
 }
 
-function appendLine(lines: string[], line: string): string[] {
-  const next = lines.length >= MAX_LIVE_CONSOLE_LINES ? lines.slice(lines.length - MAX_LIVE_CONSOLE_LINES + 1) : lines.slice();
-  next.push(line);
-  return next;
+function appendLines(lines: ConsoleEntry[], batch: ConsoleEntry[]): ConsoleEntry[] {
+  const merged = lines.concat(batch);
+  return merged.length > MAX_LIVE_CONSOLE_LINES ? merged.slice(merged.length - MAX_LIVE_CONSOLE_LINES) : merged;
 }
 
 function refetchAfterReconnect(queryClient: QueryClient, id: number) {
