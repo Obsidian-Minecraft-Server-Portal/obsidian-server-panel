@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { OptionSelect } from "../../components/runtime/OptionSelect";
+import { SearchSelect } from "../../components/ui/SearchSelect";
 import { FormField } from "../account/FormField";
 import { SwitchRow } from "../../components/ui/SwitchRow";
 import { timezoneOptions } from "../settings/timezones";
@@ -22,7 +22,7 @@ export function DefaultsStep({ value, onChange }: DefaultsStepProps) {
   const { t } = useTranslation();
   return (
     <div className="space-y-5">
-      <OptionSelect
+      <SearchSelect
         label={t("setup.timezone")}
         options={TIMEZONES}
         value={value.timezone}
