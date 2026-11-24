@@ -86,7 +86,6 @@ export function SearchSelect({
     >
       <Label className="text-sm font-medium text-ink-2">
         {label}
-        {isRequired && <span className="ml-0.5 text-rose">*</span>}
       </Label>
       <Autocomplete.Trigger>
         <Autocomplete.Value>

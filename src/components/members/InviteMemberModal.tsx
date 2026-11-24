@@ -3,11 +3,11 @@ import { useState, type FormEvent } from "react";
 import { useAddMember, useMemberCandidates, useUpdateMember, type PermissionCatalog } from "../../api/members";
 import { GhostButton } from "../ui/GhostButton";
 import { PrimaryButton } from "../ui/PrimaryButton";
-import { SearchSelect, type SearchOption } from "../ui/SearchSelect";
 import { useDebouncedValue } from "../ui/useDebouncedValue";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { RoleSegment } from "./RoleSegment";
 import { sameMembers } from "./format";
+import { UsernameField } from "./UsernameField";
 
 const MIN_SEARCH_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -22,21 +22,18 @@ export function InviteMemberModal({ instanceId, catalog, onClose }: InviteMember
   const roles = catalog.roles.map((preset) => preset.role);
   const presetFor = (role: string) => catalog.roles.find((preset) => preset.role === role)?.permissions ?? [];
 
-  const [search, setSearch] = useState("");
-  const [username, setUsername] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
   const [role, setRole] = useState(roles[0] ?? "viewer");
   const [draft, setDraft] = useState(() => presetFor(role));
-  const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
+  const debouncedSearch = useDebouncedValue(username, SEARCH_DEBOUNCE_MS);
   const candidates = useMemberCandidates(instanceId, debouncedSearch);
   const add = useAddMember(instanceId);
   const update = useUpdateMember(instanceId);
   const busy = add.isPending || update.isPending;
   const error = add.error ?? update.error;
 
-  const names = candidates.data ?? [];
-  const pool = username !== null && !names.includes(username) ? [username, ...names] : names;
-  const options: SearchOption[] = pool.map((name) => ({ id: name, label: name }));
   const searchable = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
+  const chosen = username.trim();
 
   const chooseRole = (next: string) => {
     setRole(next);
@@ -44,9 +41,9 @@ export function InviteMemberModal({ instanceId, catalog, onClose }: InviteMember
   };
 
   const invite = async () => {
-    if (username === null) return;
+    if (!chosen) return;
     update.reset();
-    const member = await add.mutateAsync({ username, role }).catch(() => null);
+    const member = await add.mutateAsync({ username: chosen, role }).catch(() => null);
     if (!member) return;
     if (sameMembers(draft, member.permissions)) {
       onClose();
@@ -72,17 +69,12 @@ export function InviteMemberModal({ instanceId, catalog, onClose }: InviteMember
               }}
             >
               <div className="flex flex-wrap items-end gap-4">
-                <SearchSelect
-                  label="Panel username"
-                  isRequired
-                  options={options}
+                <UsernameField
                   value={username}
                   onChange={setUsername}
-                  onSearch={setSearch}
-                  placeholder="Type a username"
+                  suggestions={candidates.data ?? []}
                   emptyText={searchable ? "No panel user matches" : "Type at least two letters"}
                   isDisabled={busy}
-                  className="min-w-56 flex-1"
                 />
                 <RoleSegment roles={roles} value={role} onChange={chooseRole} disabled={busy} />
               </div>
@@ -92,7 +84,7 @@ export function InviteMemberModal({ instanceId, catalog, onClose }: InviteMember
           </Modal.Body>
           <Modal.Footer className="flex justify-end gap-2">
             <GhostButton onPress={onClose}>Cancel</GhostButton>
-            <PrimaryButton isPending={busy} isDisabled={busy || username === null} onPress={() => void invite()}>
+            <PrimaryButton isPending={busy} isDisabled={busy || !chosen} onPress={() => void invite()}>
               Add member
             </PrimaryButton>
           </Modal.Footer>
