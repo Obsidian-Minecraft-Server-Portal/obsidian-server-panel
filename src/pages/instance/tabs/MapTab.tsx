@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Icon } from "@iconify-icon/react";
 import { useInstance, useUpnp } from "../../../api/instances";
 import { mapPath, useMaps, type MapKind } from "../../../api/maps";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
 import { EmptyState } from "../../../components/ui/EmptyState";
+import { GhostButton } from "../../../components/ui/GhostButton";
 import { SectionTabs } from "../../../components/ui/SectionTabs";
+import { Tip } from "../../../components/ui/Tip";
+import { useFullscreen } from "../../../components/ui/useFullscreen";
 
 export function MapTab() {
   const id = useInstanceId();
@@ -11,6 +15,8 @@ export function MapTab() {
   const maps = useMaps(id);
   const upnp = useUpnp(id);
   const [picked, setPicked] = useState<MapKind | null>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const fullscreen = useFullscreen(frame);
   const enabled = (maps.data ?? []).filter((map) => map.settings.enabled);
   const current = enabled.find((map) => map.kind === picked) ?? enabled[0];
 
@@ -46,24 +52,47 @@ export function MapTab() {
         ) : (
           <p className="font-mono text-xs text-ink-3 uppercase">{current.label}</p>
         )}
-        {external && (
-          <a
-            href={`http://${external.external_ip}:${external.external_port}/`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-medium text-accent hover:underline"
-          >
-            Open full map
-          </a>
-        )}
+        <div className="flex items-center gap-3">
+          {external && (
+            <a
+              href={`http://${external.external_ip}:${external.external_port}/`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              Open full map
+            </a>
+          )}
+          {running && fullscreen.supported && (
+            <Tip label="Full screen" placement="bottom">
+              <GhostButton isIconOnly size="sm" aria-label="Full screen" onPress={fullscreen.toggle}>
+                <Icon icon="lucide:maximize" width={16} height={16} />
+              </GhostButton>
+            </Tip>
+          )}
+        </div>
       </div>
       {running ? (
-        <iframe
-          key={current.kind}
-          src={mapPath(id, current.kind)}
-          title={`${current.label} map`}
-          className="min-h-[60vh] w-full flex-1 rounded-panel border border-line bg-canvas"
-        />
+        <div
+          ref={frame}
+          className="flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-panel border border-line bg-canvas [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
+        >
+          {fullscreen.active && (
+            <div className="flex items-center justify-between gap-3 border-b border-line bg-rail px-3 py-2">
+              <p className="font-mono text-xs text-ink-3 uppercase">{current.label}</p>
+              <GhostButton isIconOnly size="sm" aria-label="Exit full screen" onPress={fullscreen.toggle}>
+                <Icon icon="lucide:minimize" width={16} height={16} />
+              </GhostButton>
+            </div>
+          )}
+          <iframe
+            key={current.kind}
+            src={mapPath(id, current.kind)}
+            title={`${current.label} map`}
+            allowFullScreen
+            className="min-h-0 w-full flex-1"
+          />
+        </div>
       ) : (
         <EmptyState icon="lucide:power-off" title="The server is offline" description="Start the server to open its map." />
       )}
