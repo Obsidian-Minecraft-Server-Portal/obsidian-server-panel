@@ -47,6 +47,7 @@ const SPEC_PATH: &str = "/api/docs/openapi.json";
 		crate::routes::maps::list_maps,
 		crate::routes::maps::update_map,
 		crate::routes::maps::set_map_upnp,
+		crate::routes::maps::accept_bluemap_download,
 		crate::routes::maps::list_entries,
 		crate::routes::maps::update_entry,
 		crate::routes::resource_packs::list_resource_packs,

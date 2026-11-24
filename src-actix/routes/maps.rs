@@ -4,15 +4,15 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use actix_web::http::header;
-use actix_web::{HttpRequest, HttpResponse, get, put, web};
+use actix_web::{HttpRequest, HttpResponse, get, post, put, web};
 use futures_util::StreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
 use serde::Deserialize;
 use utoipa::ToSchema;
 use obsidian_maps::{
-	ConfigEntry, DetectedMap, MapKind, MapSettingsUpdate, apply_settings, config_text, detect, port_path, read_settings,
-	scalar_entries, set_scalar_entry,
+	ConfigEntry, DetectedMap, MapKind, MapSettingsUpdate, accept_download, apply_settings, bluemap_core_config, config_text, detect, port_path,
+	read_settings, scalar_entries, set_scalar_entry,
 };
 use obsidian_runner::RunState;
 
@@ -55,6 +55,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(set_map_upnp)
 		.service(list_entries)
 		.service(update_entry)
+		.service(accept_bluemap_download)
 		.service(proxy_map);
 }
 
@@ -192,6 +193,31 @@ pub async fn update_entry(
 	Ok(web::Json(scalar_entries(kind, &edited)?))
 }
 
+#[utoipa::path(
+	post,
+	path = "/api/v1/instances/{id}/maps/bluemap/accept-download",
+	tag = "instances",
+	params(("id" = i64, Path, description = "Instance id")),
+	responses(
+		(status = 200, description = "BlueMap may download the Minecraft client file on its next start", body = DetectedMap),
+		(status = 403, description = "Missing settings.edit permission"),
+		(status = 409, description = "BlueMap has not written its core.conf yet, or the file has no accept-download setting"),
+	)
+)]
+#[post("/instances/{id}/maps/bluemap/accept-download")]
+pub async fn accept_bluemap_download(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>) -> ApiResult<web::Json<DetectedMap>> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
+	let dir = state.paths.instance_dir(id);
+	let Some((relative, text)) = bluemap_core_config(&dir).await? else {
+		return Err(CommonError::Conflict("start the server once so BlueMap can create its config".into()).into());
+	};
+	save_config(&dir, &relative, &accept_download(&text)?).await?;
+	let map = detect(&dir).await?.into_iter().find(|map| map.kind == MapKind::Bluemap);
+	let map = map.ok_or_else(|| CommonError::NotFound("BlueMap map".into()))?;
+	Ok(web::Json(map))
+}
+
 async fn save_config(dir: &Path, relative: &str, text: &str) -> ApiResult<()> {
 	let path = dir.join(relative);
 	let temp = path.with_extension("obsidian-tmp");
@@ -296,7 +322,6 @@ fn unavailable_page(label: &str, reason: &str) -> HttpResponse {
 	);
 	HttpResponse::ServiceUnavailable().content_type("text/html; charset=utf-8").body(body)
 }
-
 
 fn upstream_url(port: u16, bind: Option<&str>, tail: &str, query: &str) -> String {
 	let host = upstream_host(bind);

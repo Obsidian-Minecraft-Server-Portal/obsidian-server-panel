@@ -310,6 +310,41 @@ fn infer_kind(value: &str) -> EntryKind {
 	}
 }
 
+const ACCEPT_DOWNLOAD: &str = "accept-download";
+
+pub fn read_download_accepted(core_text: &str) -> Option<bool> {
+	core_text
+		.split_inclusive('\n')
+		.find_map(|line| bool_span(line, ACCEPT_DOWNLOAD).map(|span| &line[span] == "true"))
+}
+
+pub fn accept_download(core_text: &str) -> Result<String> {
+	replace_first_bool(core_text, ACCEPT_DOWNLOAD, true)
+		.ok_or_else(|| CommonError::Conflict("core.conf has no accept-download true/false setting to change".into()))
+}
+
+// Edits the value in place so comments survive; only unindented lines match, which leaves nested blocks alone.
+fn replace_first_bool(text: &str, key: &str, value: bool) -> Option<String> {
+	let mut offset = 0;
+	for line in text.split_inclusive('\n') {
+		if let Some(span) = bool_span(line, key) {
+			let (start, end) = (offset + span.start, offset + span.end);
+			let word = if value { "true" } else { "false" };
+			return Some(format!("{}{word}{}", &text[..start], &text[end..]));
+		}
+		offset += line.len();
+	}
+	None
+}
+
+fn bool_span(line: &str, key: &str) -> Option<std::ops::Range<usize>> {
+	let rest = line.strip_prefix(key)?.trim_start_matches([' ', '\t']);
+	let rest = rest.strip_prefix([':', '='])?.trim_start_matches([' ', '\t']);
+	let start = line.len() - rest.len();
+	let word = rest.split(|c: char| !c.is_ascii_alphabetic()).next()?;
+	matches!(word, "true" | "false").then(|| start..start + word.len())
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -384,5 +419,28 @@ mod tests {
 	fn rejects_a_bind_address_that_is_not_an_ip() {
 		let update = MapSettingsUpdate { enabled: None, port: None, bind: Some("example.com".into()) };
 		assert!(apply_settings(MapKind::Squaremap, SQUAREMAP, &update).is_err());
+	}
+
+	const CORE: &str = "# BlueMap core settings\r\naccept-download: false\r\ndata: \"bluemap\"\r\n";
+
+	#[test]
+	fn accepts_the_download_and_keeps_the_rest_of_core_conf() {
+		assert_eq!(read_download_accepted(CORE), Some(false));
+		let edited = accept_download(CORE).unwrap();
+		assert_eq!(edited, "# BlueMap core settings\r\naccept-download: true\r\ndata: \"bluemap\"\r\n");
+		assert_eq!(read_download_accepted(&edited), Some(true));
+	}
+
+	#[test]
+	fn keeps_spacing_and_trailing_comments() {
+		let edited = accept_download("accept-download = false   # consent\n").unwrap();
+		assert_eq!(edited, "accept-download = true   # consent\n");
+	}
+
+	#[test]
+	fn ignores_commented_and_nested_keys() {
+		let text = "# accept-download: false\nbluemap {\n    accept-download: false\n}\n";
+		assert_eq!(read_download_accepted(text), None);
+		assert!(accept_download(text).is_err());
 	}
 }

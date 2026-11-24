@@ -6,7 +6,12 @@ use obsidian_common::Result;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub use settings::{ConfigEntry, EntryKind, MapSettings, MapSettingsUpdate, apply_settings, port_path, read_settings, scalar_entries, set_scalar_entry};
+pub use settings::{
+	ConfigEntry, EntryKind, MapSettings, MapSettingsUpdate, accept_download, apply_settings, port_path, read_download_accepted, read_settings,
+	scalar_entries, set_scalar_entry,
+};
+
+const BLUEMAP_CORE_CONFIG: &str = "core.conf";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
@@ -83,6 +88,8 @@ pub struct DetectedMap {
 	pub config_path: Option<String>,
 	pub settings: MapSettings,
 	pub editable: bool,
+	/// BlueMap only: whether core.conf already lets it download the Minecraft client file. None when unknown.
+	pub download_accepted: Option<bool>,
 	/// Set when the config exists but cannot be read; the settings then show the defaults.
 	pub error: Option<String>,
 }
@@ -95,6 +102,10 @@ pub async fn detect(server_dir: &Path) -> Result<Vec<DetectedMap>> {
 			continue;
 		}
 		let found = find_config(server_dir, kind).await?;
+		let download_accepted = match kind {
+			MapKind::Bluemap => bluemap_core_config(server_dir).await?.and_then(|(_, text)| read_download_accepted(&text)),
+			MapKind::Dynmap | MapKind::Squaremap | MapKind::Pl3xmap => None,
+		};
 		let (config_path, settings, error) = match found {
 			Some((relative, text)) => match read_settings(kind, &text) {
 				Ok(settings) => (Some(relative), settings, None),
@@ -108,6 +119,7 @@ pub async fn detect(server_dir: &Path) -> Result<Vec<DetectedMap>> {
 			config_path,
 			settings,
 			editable: kind.editable(),
+			download_accepted,
 			error,
 		});
 	}
@@ -134,12 +146,26 @@ async fn jar_names(server_dir: &Path) -> Result<Vec<String>> {
 
 async fn find_config(server_dir: &Path, kind: MapKind) -> Result<Option<(String, String)>> {
 	for relative in kind.config_candidates() {
-		let path = server_dir.join(relative);
-		match tokio::fs::read_to_string(&path).await {
-			Ok(text) => return Ok(Some(((*relative).to_owned(), text))),
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-			Err(error) => return Err(error.into()),
+		if let Some(text) = read_optional(&server_dir.join(relative)).await? {
+			return Ok(Some(((*relative).to_owned(), text)));
 		}
 	}
 	Ok(None)
+}
+
+async fn read_optional(path: &Path) -> Result<Option<String>> {
+	match tokio::fs::read_to_string(path).await {
+		Ok(text) => Ok(Some(text)),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+		Err(error) => Err(error.into()),
+	}
+}
+
+pub async fn bluemap_core_config(server_dir: &Path) -> Result<Option<(String, String)>> {
+	let Some((webserver, _)) = find_config(server_dir, MapKind::Bluemap).await? else {
+		return Ok(None);
+	};
+	let relative = Path::new(&webserver).with_file_name(BLUEMAP_CORE_CONFIG).to_string_lossy().into_owned();
+	let text = read_optional(&server_dir.join(&relative)).await?;
+	Ok(text.map(|text| (relative, text)))
 }
