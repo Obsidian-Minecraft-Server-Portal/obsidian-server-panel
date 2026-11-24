@@ -16,6 +16,7 @@ export interface DetectedMap {
   config_path: string | null;
   settings: MapSettings;
   editable: boolean;
+  download_accepted: boolean | null;
   error: string | null;
 }
 
@@ -44,6 +45,14 @@ export function useUpdateMap(instanceId: number) {
   return useMutation({
     mutationFn: ({ kind, update }: { kind: MapKind; update: MapSettingsUpdate }) =>
       api.put<DetectedMap>(`/instances/${instanceId}/maps/${kind}`, update),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: mapsKey(instanceId) }),
+  });
+}
+
+export function useAcceptBlueMapDownload(instanceId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<DetectedMap>(`/instances/${instanceId}/maps/bluemap/accept-download`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: mapsKey(instanceId) }),
   });
 }
