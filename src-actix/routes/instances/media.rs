@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use actix_multipart::Multipart;
-use actix_web::{HttpResponse, get, put, web};
+use actix_web::{HttpResponse, delete, get, put, web};
 use futures_util::TryStreamExt;
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
@@ -16,21 +16,21 @@ fn invalid(error: impl std::fmt::Display) -> ApiError {
 	ApiError::from(CommonError::Invalid(error.to_string()))
 }
 
-async fn icon_field(payload: &mut Multipart) -> ApiResult<Vec<u8>> {
+async fn image_field(payload: &mut Multipart, name: &str) -> ApiResult<Vec<u8>> {
 	while let Some(mut field) = payload.try_next().await.map_err(invalid)? {
-		if field.name() != Some("icon") {
+		if field.name() != Some(name) {
 			continue;
 		}
 		let mut bytes = Vec::new();
 		while let Some(chunk) = field.try_next().await.map_err(invalid)? {
 			if bytes.len() + chunk.len() > MAX_ICON_BYTES {
-				return Err(invalid("the icon image is larger than 32 MB"));
+				return Err(invalid("the image is larger than 32 MB"));
 			}
 			bytes.extend_from_slice(&chunk);
 		}
 		return Ok(bytes);
 	}
-	Err(invalid("the multipart form needs an 'icon' field"))
+	Err(invalid(format!("the multipart form needs an '{name}' field")))
 }
 
 #[utoipa::path(
@@ -49,8 +49,43 @@ pub async fn upload_icon(
 ) -> ApiResult<HttpResponse> {
 	let id = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
-	let bytes = icon_field(&mut payload).await?;
+	let bytes = image_field(&mut payload, "icon").await?;
 	state.instances.set_icon(id, bytes).await?;
+	Ok(HttpResponse::NoContent().finish())
+}
+
+#[utoipa::path(
+	put,
+	path = "/api/v1/instances/{id}/banner",
+	tag = "instances",
+	request_body(content_type = "multipart/form-data", description = "Form field 'banner' with any image type"),
+	responses((status = 204, description = "Banner cover-cropped to 1280x360 and saved as JPEG"))
+)]
+#[put("/instances/{id}/banner")]
+pub async fn upload_banner(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<InstanceId>,
+	mut payload: Multipart,
+) -> ApiResult<HttpResponse> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
+	let bytes = image_field(&mut payload, "banner").await?;
+	state.instances.set_banner(id, bytes).await?;
+	Ok(HttpResponse::NoContent().finish())
+}
+
+#[utoipa::path(
+	delete,
+	path = "/api/v1/instances/{id}/banner",
+	tag = "instances",
+	responses((status = 204, description = "Banner removed; the generated landscape is shown instead"))
+)]
+#[delete("/instances/{id}/banner")]
+pub async fn delete_banner(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>) -> ApiResult<HttpResponse> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
+	state.instances.clear_banner(id).await?;
 	Ok(HttpResponse::NoContent().finish())
 }
 

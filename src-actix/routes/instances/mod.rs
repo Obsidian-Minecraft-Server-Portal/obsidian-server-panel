@@ -25,6 +25,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(media::upload_icon)
 		.service(media::get_icon)
 		.service(media::get_banner)
+		.service(media::upload_banner)
+		.service(media::delete_banner)
 		.service(upnp::upnp_status)
 		.service(players::list_players)
 		.service(players::player_action);

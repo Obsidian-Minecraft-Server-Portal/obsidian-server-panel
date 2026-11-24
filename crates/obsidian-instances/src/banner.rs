@@ -40,6 +40,15 @@ impl InstanceManager {
 	pub(crate) async fn remove_banner(&self, id: InstanceId) {
 		let _ = tokio::fs::remove_file(self.paths.banners_dir.join(format!("{id}.jpg"))).await;
 	}
+
+	pub async fn clear_banner(&self, id: InstanceId) -> Result<()> {
+		self.remove_banner(id).await;
+		sqlx::query("UPDATE instances SET banner_path = NULL, updated_at = unixepoch() WHERE id = ?")
+			.bind(id)
+			.execute(self.db.pool())
+			.await?;
+		Ok(())
+	}
 }
 
 #[cfg(test)]
