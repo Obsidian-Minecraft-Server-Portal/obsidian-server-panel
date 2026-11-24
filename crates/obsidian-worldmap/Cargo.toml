@@ -9,8 +9,10 @@ flate2 = { workspace = true }
 image = { workspace = true }
 lz4_flex = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 walkdir = { workspace = true }
+zip = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

@@ -10,6 +10,10 @@ pub enum WorldmapError {
 	Chunk(String),
 	#[error("unknown chunk compression id {0}")]
 	Compression(u8),
+	#[error("asset: {0}")]
+	Asset(String),
+	#[error(transparent)]
+	Zip(#[from] zip::result::ZipError),
 	#[error(transparent)]
 	Io(#[from] std::io::Error),
 	#[error(transparent)]

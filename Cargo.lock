@@ -4729,9 +4729,11 @@ dependencies = [
  "image",
  "lz4_flex",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "walkdir",
+ "zip",
 ]
 
 [[package]]
