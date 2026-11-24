@@ -11,7 +11,14 @@ interface PropertyFieldsProps {
   disabled: boolean;
 }
 
+const KNOWN_KEYS = new Set(PROPERTY_SECTIONS.flatMap((section) => section.properties.map((def) => def.key)));
+
 export function PropertyFields({ values, onChange, disabled }: PropertyFieldsProps) {
+  const extraDefs = Object.keys(values)
+    .filter((key) => !KNOWN_KEYS.has(key))
+    .sort()
+    .map((key) => inferDef(key, values[key] ?? ""));
+
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
       {PROPERTY_SECTIONS.map((section) => (
@@ -29,8 +36,34 @@ export function PropertyFields({ values, onChange, disabled }: PropertyFieldsPro
           </div>
         </Panel>
       ))}
+      {extraDefs.length > 0 && (
+        <Panel title="Other properties">
+          <div className="space-y-5">
+            {extraDefs.map((def) => (
+              <PropertyControl
+                key={def.key}
+                def={def}
+                value={values[def.key] ?? ""}
+                disabled={disabled}
+                onChange={(next) => onChange(def.key, next)}
+              />
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   );
+}
+
+function inferDef(key: string, value: string): PropertyDef {
+  const label = key
+    .split("-")
+    .map((part, index) => (index === 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join(" ");
+  const hint = `${key}. Added by a mod, plugin or world generator.`;
+  if (value === "true" || value === "false") return { key, label, hint, kind: "bool" };
+  if (/^-?\d+$/.test(value)) return { key, label, hint, kind: "number" };
+  return { key, label, hint, kind: "text" };
 }
 
 function PropertyControl({
