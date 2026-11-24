@@ -192,4 +192,6 @@ category = "Developer Tool"
 short_description = "Minecraft server panel"
 long_description = "Self-hostable Minecraft server panel with a web UI, backups, schedules and an open API."
 copyright = "Copyright (c) 2026 Drew Chase"
-osx_minimum_system_version = "11.0"
+
+[package.metadata.bundle.osx]
+minimum_system_version = "11.0"
