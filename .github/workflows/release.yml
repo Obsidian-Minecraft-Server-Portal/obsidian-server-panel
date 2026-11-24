@@ -89,7 +89,7 @@ jobs:
           export WIX="$(cygpath -w "$WIX_DIR")"
           cargo install cargo-wix --locked
           mkdir -p dist
-          cargo wix --no-build --nocapture --target "$TARGET" \
+          cargo wix --no-build --nocapture --package obsidian --target "$TARGET" \
             --install-version "${VERSION%%-*}" \
             --output "dist/obsidian-${VERSION}-${TARGET}.msi"
           powershell -NoProfile -Command "Compress-Archive -Path 'target/$TARGET/release/obsidian.exe' -DestinationPath 'dist/obsidian-$TARGET.zip' -Force"
