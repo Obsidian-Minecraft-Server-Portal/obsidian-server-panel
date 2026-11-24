@@ -28,6 +28,7 @@ pub async fn revoke_trusted_ip(
 	id: web::Path<i64>,
 ) -> ApiResult<HttpResponse> {
 	state.auth.revoke_trusted_ip(user.id, id.into_inner()).await?;
+	crate::ws::access_changed(&state.bus, user.id);
 	Ok(HttpResponse::NoContent().finish())
 }
 

@@ -55,6 +55,7 @@ pub async fn revoke_api_token(
 	id: web::Path<i64>,
 ) -> ApiResult<HttpResponse> {
 	state.auth.revoke_api_token(user.id, id.into_inner()).await?;
+	crate::ws::access_changed(&state.bus, user.id);
 	Ok(HttpResponse::NoContent().finish())
 }
 
