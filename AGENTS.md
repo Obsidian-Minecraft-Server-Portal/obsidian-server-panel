@@ -173,6 +173,17 @@ Examples of what to record:
     another port. Give it its own `cacheDir`, because a shared
     `node_modules/.vite` makes the two servers re-optimise each other. Give it
     an `/api` proxy that rewrites `Origin`.
+- **Web map proxy:** `src-actix/routes/map_proxy.rs`.
+  - Map pages are third-party HTML, so they run sandboxed as an opaque origin
+    (CSP `sandbox` header plus the iframe `sandbox` attribute, never
+    `allow-same-origin`).
+  - Requests carry no cookie, so the proxy authorises by a 1 h token in the
+    path (`SecretBox::mac`), and re-checks `console.read` on every request.
+  - HTML responses get an in-memory Web Storage shim, because the maps read
+    `localStorage` at startup and it throws in an opaque origin.
+  - The browser pane blocks every request from an opaque origin
+    (`ERR_BLOCKED_BY_CLIENT`), so verify map rendering in headless Chrome
+    over CDP instead.
 - **Windows tests:** `obsidian-runner::runner_round_trip` (needs `/bin/sh`)
   fails on Windows. `obsidian-backups::snapshot_deduplicates_and_restores` can
   fail intermittently with "Access is denied". Neither is a regression.
