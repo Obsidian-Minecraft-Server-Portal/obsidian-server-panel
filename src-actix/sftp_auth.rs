@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use async_trait::async_trait;
 use obsidian_auth::{AuthUser, Permission, generate_token, hash_password, verify_password};
 use obsidian_common::{CommonError, InstanceId, Result, UserId};
-use obsidian_sftp::{SftpAuth, SftpInstance, SftpUser};
+use obsidian_sftp::{SftpAuth, SftpInstance};
 use sqlx::FromRow;
 use tracing::warn;
 
@@ -65,13 +65,22 @@ impl PanelSftpAuth {
 		})
 	}
 
-	async fn instances(&self, user: &AuthUser) -> Result<Vec<SftpInstance>> {
+	async fn load_user(&self, user_id: UserId) -> Result<Option<AuthUser>> {
+		let user: Option<AuthUser> = sqlx::query_as("SELECT id, username, is_admin FROM users WHERE id = ?")
+			.bind(user_id)
+			.fetch_optional(self.state.db.pool())
+			.await?;
+		Ok(user)
+	}
+
+	async fn visible_instances(&self, user_id: UserId) -> Result<Vec<SftpInstance>> {
+		let Some(user) = self.load_user(user_id).await? else { return Ok(Vec::new()) };
 		let rows: Vec<InstanceRow> = sqlx::query_as("SELECT id, name FROM instances ORDER BY id")
 			.fetch_all(self.state.db.pool())
 			.await?;
 		let mut instances = Vec::with_capacity(rows.len());
 		for row in rows {
-			let Ok(perms) = self.state.auth.instance_permission(user, row.id).await else { continue };
+			let Ok(perms) = self.state.auth.instance_permission(&user, row.id).await else { continue };
 			if perms.contains(Permission::FILES_SFTP) {
 				instances.push(SftpInstance {
 					id: row.id,
@@ -93,7 +102,7 @@ impl PanelSftpAuth {
 
 #[async_trait]
 impl SftpAuth for PanelSftpAuth {
-	async fn authenticate(&self, username: &str, password: &str, peer: Option<SocketAddr>) -> Option<SftpUser> {
+	async fn authenticate(&self, username: &str, password: &str, peer: Option<SocketAddr>) -> Option<UserId> {
 		let ip = peer.map(|peer| peer.ip().to_string());
 		let user = match self.verify(username, password).await {
 			Ok(Verdict::Accepted(user)) => user,
@@ -106,14 +115,17 @@ impl SftpAuth for PanelSftpAuth {
 				return None;
 			}
 		};
-		let instances = match self.instances(&user).await {
-			Ok(instances) => instances,
+		self.record(Some(user.id), "sftp_login", ip.as_deref()).await;
+		Some(user.id)
+	}
+
+	async fn instances(&self, user_id: UserId) -> Option<Vec<SftpInstance>> {
+		match self.visible_instances(user_id).await {
+			Ok(instances) => Some(instances),
 			Err(error) => {
 				warn!(%error, "failed to load sftp instances");
-				return None;
+				None
 			}
-		};
-		self.record(Some(user.id), "sftp_login", ip.as_deref()).await;
-		Some(SftpUser { user_id: user.id, instances })
+		}
 	}
 }

@@ -1,26 +1,33 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, Mutex};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use obsidian_auth::{Permission, generate_token};
-use obsidian_sftp::{SftpAuth, SftpInstance, SftpServer, SftpUser};
+use obsidian_common::UserId;
+use obsidian_sftp::{SftpAuth, SftpInstance, SftpServer};
 use russh::client::{self, Handle};
 use russh::keys::PublicKeyOrCertificate;
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
 
 const USER: &str = "drew";
+const USER_ID: UserId = 1;
 static PASSWORD: LazyLock<String> = LazyLock::new(generate_token);
 
 struct StaticAuth {
-	user: SftpUser,
+	instances: Mutex<Vec<SftpInstance>>,
 }
 
 #[async_trait]
 impl SftpAuth for StaticAuth {
-	async fn authenticate(&self, username: &str, password: &str, _peer: Option<SocketAddr>) -> Option<SftpUser> {
-		(username == USER && password == PASSWORD.as_str()).then(|| self.user.clone())
+	async fn authenticate(&self, username: &str, password: &str, _peer: Option<SocketAddr>) -> Option<UserId> {
+		(username == USER && password == PASSWORD.as_str()).then_some(USER_ID)
+	}
+
+	async fn instances(&self, user_id: UserId) -> Option<Vec<SftpInstance>> {
+		(user_id == USER_ID).then(|| self.instances.lock().unwrap().clone())
 	}
 }
 
@@ -60,15 +67,14 @@ async fn serves_only_accessible_instances() {
 	std::fs::write(writable.join("hello.txt"), b"hi").unwrap();
 
 	let full = Permission::FILES_READ | Permission::FILES_WRITE | Permission::FILES_DELETE | Permission::FILES_SFTP;
-	let user = SftpUser {
-		user_id: 1,
-		instances: vec![
+	let auth = Arc::new(StaticAuth {
+		instances: Mutex::new(vec![
 			instance(7, "Survival", &writable, full),
 			instance(8, "Archive", &readonly, Permission::FILES_READ | Permission::FILES_SFTP),
 			instance(9, "Hidden", &readonly, Permission::FILES_READ),
-		],
-	};
-	let server = SftpServer::start("127.0.0.1:0".parse().unwrap(), base.join("host_key"), Arc::new(StaticAuth { user }))
+		]),
+	});
+	let server = SftpServer::start("127.0.0.1:0".parse().unwrap(), base.join("host_key"), auth.clone())
 		.await
 		.unwrap();
 
@@ -78,6 +84,14 @@ async fn serves_only_accessible_instances() {
 	let roots: Vec<String> = sftp.read_dir("/").await.unwrap().map(|e| e.file_name()).collect();
 	assert_eq!(roots.len(), 2, "instance without files.sftp must stay hidden: {roots:?}");
 	assert!(roots.contains(&"Survival-7".to_owned()));
+
+	let fresh = base.join("instances").join("10");
+	std::fs::create_dir_all(&fresh).unwrap();
+	auth.instances.lock().unwrap().push(instance(10, "Fresh", &fresh, full));
+	tokio::time::sleep(Duration::from_millis(2100)).await;
+	let roots: Vec<String> = sftp.read_dir("/").await.unwrap().map(|e| e.file_name()).collect();
+	assert!(roots.contains(&"Fresh-10".to_owned()), "instance created after login must appear: {roots:?}");
+	sftp.metadata("/Fresh-10").await.expect("new instance must be addressable without reconnecting");
 
 	let files: Vec<String> = sftp.read_dir("/Survival-7").await.unwrap().map(|e| e.file_name()).collect();
 	assert_eq!(files, ["hello.txt"]);

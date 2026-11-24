@@ -12,13 +12,9 @@ pub struct SftpInstance {
 	pub perms: u32,
 }
 
-#[derive(Debug, Clone)]
-pub struct SftpUser {
-	pub user_id: UserId,
-	pub instances: Vec<SftpInstance>,
-}
-
 #[async_trait]
 pub trait SftpAuth: Send + Sync {
-	async fn authenticate(&self, username: &str, password: &str, peer: Option<SocketAddr>) -> Option<SftpUser>;
+	async fn authenticate(&self, username: &str, password: &str, peer: Option<SocketAddr>) -> Option<UserId>;
+	/// Re-read on every call so instances created or re-permissioned after login apply without reconnecting.
+	async fn instances(&self, user_id: UserId) -> Option<Vec<SftpInstance>>;
 }

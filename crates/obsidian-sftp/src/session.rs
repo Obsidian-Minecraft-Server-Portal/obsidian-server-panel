@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use std::fs::FileTimes;
 use std::io::{ErrorKind, SeekFrom};
 use std::path::{Component, Path, PathBuf};
-use std::time::{Duration, UNIX_EPOCH};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use obsidian_auth::Permission;
-use obsidian_common::CommonError;
+use obsidian_common::{CommonError, UserId};
 use russh_sftp::protocol::{
 	Attrs, Data, File, FileAttributes, Handle, Name, OpenFlags, SftpHandle, SftpString, Status, StatusCode,
 };
@@ -14,41 +15,64 @@ use russh_sftp::server::Handler;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use crate::auth::{SftpInstance, SftpUser};
+use crate::auth::{SftpAuth, SftpInstance};
 use crate::jail;
 
 const MAX_READ_LEN: u32 = 64 * 1024;
 const READDIR_BATCH: usize = 128;
 const OK_MESSAGE: &str = "Ok";
 const LANGUAGE: &str = "en-US";
+const LISTING_TTL: Duration = Duration::from_secs(2);
 
 enum Node {
 	File { file: fs::File, writable: bool },
 	Dir(Vec<File>),
 }
 
-enum Location<'a> {
+enum Location {
 	Root,
-	Instance { instance: &'a SftpInstance, path: PathBuf },
+	Instance { instance: SftpInstance, path: PathBuf },
+}
+
+#[derive(Clone)]
+struct Listing {
+	fetched: Instant,
+	instances: Arc<Vec<SftpInstance>>,
 }
 
 pub struct SftpSession {
-	instances: Vec<SftpInstance>,
+	auth: Arc<dyn SftpAuth>,
+	user_id: UserId,
+	listing: Mutex<Option<Listing>>,
 	nodes: HashMap<u64, Node>,
 	next_handle: u64,
 }
 
 impl SftpSession {
-	pub fn new(user: SftpUser) -> Self {
-		let instances = user
-			.instances
-			.into_iter()
-			.filter(|instance| allows(instance, Permission::FILES_SFTP))
-			.collect();
-		Self { instances, nodes: HashMap::new(), next_handle: 1 }
+	pub fn new(auth: Arc<dyn SftpAuth>, user_id: UserId) -> Self {
+		Self { auth, user_id, listing: Mutex::new(None), nodes: HashMap::new(), next_handle: 1 }
 	}
 
-	async fn locate(&self, virtual_path: &str) -> Result<Location<'_>, StatusCode> {
+	async fn instances(&self) -> Arc<Vec<SftpInstance>> {
+		let cached = self.listing.lock().unwrap_or_else(PoisonError::into_inner).clone();
+		if let Some(listing) = cached.as_ref().filter(|listing| listing.fetched.elapsed() < LISTING_TTL) {
+			return Arc::clone(&listing.instances);
+		}
+		match self.auth.instances(self.user_id).await {
+			Some(instances) => {
+				let instances: Arc<Vec<SftpInstance>> = Arc::new(
+					instances.into_iter().filter(|instance| allows(instance, Permission::FILES_SFTP)).collect(),
+				);
+				*self.listing.lock().unwrap_or_else(PoisonError::into_inner) =
+					Some(Listing { fetched: Instant::now(), instances: Arc::clone(&instances) });
+				instances
+			}
+			None => cached.map(|listing| listing.instances).unwrap_or_default(),
+		}
+	}
+
+
+	async fn locate(&self, virtual_path: &str) -> Result<Location, StatusCode> {
 		let mut parts = Vec::new();
 		for component in Path::new(virtual_path).components() {
 			match component {
@@ -61,11 +85,12 @@ impl SftpSession {
 			return Ok(Location::Root);
 		};
 		let first = first.to_str().ok_or(StatusCode::NoSuchFile)?;
-		let instance = self
-			.instances
+		let instances = self.instances().await;
+		let instance = instances
 			.iter()
 			.find(|instance| folder_name(instance) == first)
-			.ok_or(StatusCode::NoSuchFile)?;
+			.ok_or(StatusCode::NoSuchFile)?
+			.clone();
 		let relative: PathBuf = rest.iter().collect();
 		let path = jail::resolve_async(&instance.root, relative)
 			.await
@@ -78,7 +103,7 @@ impl SftpSession {
 		match self.locate(virtual_path).await? {
 			Location::Root => Err(StatusCode::PermissionDenied),
 			Location::Instance { instance, path } => {
-				if !allows(instance, perm) || (path == instance.root && perm != Permission::FILES_READ) {
+				if !allows(&instance, perm) || (path == instance.root && perm != Permission::FILES_READ) {
 					return Err(StatusCode::PermissionDenied);
 				}
 				Ok(path)
@@ -202,14 +227,16 @@ impl Handler for SftpSession {
 
 	async fn opendir(&mut self, id: u32, path: SftpString) -> Result<Handle, Self::Error> {
 		let entries = match self.locate(&text(&path)).await? {
-			Location::Root => self
-				.instances
-				.iter()
-				.filter(|instance| allows(instance, Permission::FILES_READ))
-				.map(|instance| File::new(folder_name(instance), FileAttributes::dummy()))
-				.collect(),
+			Location::Root => {
+				let instances = self.instances().await;
+				instances
+					.iter()
+					.filter(|instance| allows(instance, Permission::FILES_READ))
+					.map(|instance| File::new(folder_name(instance), FileAttributes::dummy()))
+					.collect()
+			}
 			Location::Instance { instance, path } => {
-				if !allows(instance, Permission::FILES_READ) {
+				if !allows(&instance, Permission::FILES_READ) {
 					return Err(StatusCode::PermissionDenied);
 				}
 				read_entries(&path).await?
@@ -270,7 +297,7 @@ impl SftpSession {
 		let attrs = match self.locate(virtual_path).await? {
 			Location::Root => FileAttributes::dummy(),
 			Location::Instance { instance, path } => {
-				if !allows(instance, Permission::FILES_READ) {
+				if !allows(&instance, Permission::FILES_READ) {
 					return Err(StatusCode::PermissionDenied);
 				}
 				let metadata = if follow {

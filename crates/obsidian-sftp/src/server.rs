@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use obsidian_common::{CommonError, Result};
+use obsidian_common::{CommonError, Result, UserId};
 use russh::keys::{Algorithm, PrivateKey, ssh_key::LineEnding};
 use russh::server::{Auth, Config, Handler, Msg, Server as _, Session};
 use russh::{Channel, ChannelId, MethodKind, MethodSet};
@@ -12,7 +12,7 @@ use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tracing::{debug, warn};
 
-use crate::auth::{SftpAuth, SftpUser};
+use crate::auth::SftpAuth;
 use crate::session::SftpSession;
 
 const SFTP_SUBSYSTEM: &str = "sftp";
@@ -91,7 +91,7 @@ impl russh::server::Server for SshServer {
 struct SshSession {
 	auth: Arc<dyn SftpAuth>,
 	peer: Option<SocketAddr>,
-	user: Option<SftpUser>,
+	user: Option<UserId>,
 	channel: Option<Channel<Msg>>,
 }
 
@@ -100,8 +100,8 @@ impl Handler for SshSession {
 
 	async fn auth_password(&mut self, user: &str, password: &str) -> std::result::Result<Auth, Self::Error> {
 		match self.auth.authenticate(user, password, self.peer).await {
-			Some(sftp_user) => {
-				self.user = Some(sftp_user);
+			Some(user_id) => {
+				self.user = Some(user_id);
 				Ok(Auth::Accept)
 			}
 			None => Ok(Auth::reject()),
@@ -126,11 +126,11 @@ impl Handler for SshSession {
 		session: &mut Session,
 	) -> std::result::Result<(), Self::Error> {
 		let channel = self.channel.take();
-		let user = self.user.clone();
+		let user = self.user;
 		match (name == SFTP_SUBSYSTEM, channel, user) {
 			(true, Some(channel), Some(user)) => {
 				session.channel_success(channel_id)?;
-				russh_sftp::server::run(channel.into_stream(), SftpSession::new(user)).await;
+				russh_sftp::server::run(channel.into_stream(), SftpSession::new(Arc::clone(&self.auth), user)).await;
 			}
 			_ => session.channel_failure(channel_id)?,
 		}
