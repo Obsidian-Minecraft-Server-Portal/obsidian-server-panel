@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { type PlatformId, useCurrentWorld, useInstalledContent, useResourcePack } from "../../api/content";
+import { type PlatformId, useCurrentWorld, useInstalledContent } from "../../api/content";
+import { useResourcePacks } from "../../api/resourcePacks";
 
 export interface InstalledProjects {
   has: (platform: PlatformId, projectId: string) => boolean;
@@ -12,7 +13,7 @@ export function useInstalledProjects(instanceId: number | null): InstalledProjec
   const enabled = instanceId !== null;
   const id = instanceId ?? 0;
   const installed = useInstalledContent(id, enabled, false);
-  const pack = useResourcePack(id, enabled);
+  const packs = useResourcePacks(id, enabled);
   const world = useCurrentWorld(id, enabled);
 
   return useMemo(() => {
@@ -26,12 +27,12 @@ export function useInstalledProjects(instanceId: number | null): InstalledProjec
     for (const item of installed.data ?? []) {
       if (item.platform !== null && item.project_id) record(item.platform, item.project_id, item.version_id);
     }
-    for (const source of [pack.data?.source, world.data?.source]) {
+    for (const source of [...(packs.data?.packs ?? []).map((pack) => pack.source), world.data?.source]) {
       if (source) record(source.platform, source.project_id, source.version_id);
     }
     return {
       has: (platform, projectId) => projects.has(`${platform}:${projectId}`),
       hasVersion: (platform, projectId, versionId) => versions.has(`${platform}:${projectId}:${versionId}`),
     };
-  }, [enabled, installed.data, pack.data, world.data]);
+  }, [enabled, installed.data, packs.data, world.data]);
 }

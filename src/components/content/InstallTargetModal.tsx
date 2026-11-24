@@ -2,7 +2,8 @@ import { Modal } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { useState } from "react";
 import type { ContentKind, Project, ProjectVersion } from "../../api/content";
-import { useInstallContent, useInstallWorld, useSetResourcePack } from "../../api/content";
+import { useInstallContent, useInstallWorld } from "../../api/content";
+import { useAddResourcePack } from "../../api/resourcePacks";
 import { useInstances } from "../../api/instances";
 import { LOADER_META } from "../runtime/loaderMeta";
 import { OptionSelect } from "../runtime/OptionSelect";
@@ -17,12 +18,12 @@ export interface InstallAction {
 
 const KIND_NOTES: Partial<Record<ContentKind, string>> = {
   datapack: "Installs into the world the server currently loads.",
-  resourcepack: "Sets this pack as the server resource pack in server.properties. Players are offered it when they join.",
+  resourcepack: "Adds this pack to the top of the server's resource pack list. Players receive the combined pack when they join.",
   world: "The server must be stopped. The world is extracted into a new folder and selected as level-name; the current world is kept.",
 };
 
 const SUCCESS_VERBS: Partial<Record<ContentKind, string>> = {
-  resourcepack: "Set as the resource pack for",
+  resourcepack: "Add as a resource pack for",
   world: "Switched the world of",
 };
 
@@ -55,7 +56,7 @@ function InstallForm({ action, defaultInstanceId, onClose }: InstallFormProps) {
   const [selected, setSelected] = useState<string | null>(defaultInstanceId === null ? null : String(defaultInstanceId));
   const instanceId = selected === null ? 0 : Number(selected);
   const installFile = useInstallContent(instanceId);
-  const setPack = useSetResourcePack(instanceId);
+  const setPack = useAddResourcePack(instanceId);
   const installWorld = useInstallWorld(instanceId);
   const install = action.kind === "world" ? installWorld : action.kind === "resourcepack" ? setPack : installFile;
   const note = KIND_NOTES[action.kind];

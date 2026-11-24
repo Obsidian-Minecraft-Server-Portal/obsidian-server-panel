@@ -81,7 +81,7 @@ export const LOADER_BOUND_KINDS: ReadonlySet<ContentKind> = new Set<ContentKind>
 export const QUICK_ADD_KINDS: ReadonlySet<ContentKind> = new Set<ContentKind>(["mod", "plugin", "datapack", "resourcepack"]);
 
 export function quickAddSummary(result: QuickAddResult, instanceName: string): string {
-  if (result.resource_pack) return `Set as the server resource pack on ${instanceName}.`;
+  if (result.resource_pack) return `Added to the server resource packs on ${instanceName}.`;
   const count = result.added.length;
   return `Added ${count} ${count === 1 ? "file" : "files"} to ${instanceName}.`;
 }

@@ -135,6 +135,7 @@ export function InstalledContentPanel() {
 
       <ServerWorldPanel
         instanceId={instanceId}
+        canInstall={canInstall}
         canRemove={instance.data ? hasPermission(instance.data, "content.remove") : false}
       />
 
