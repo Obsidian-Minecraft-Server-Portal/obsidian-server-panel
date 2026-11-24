@@ -121,10 +121,12 @@ obsidian-auth = { workspace = true }
 obsidian-java = { workspace = true }
 obsidian-loaders = { workspace = true }
 obsidian-content = { workspace = true }
+obsidian-maps = { workspace = true }
 obsidian-runner = { workspace = true }
 obsidian-instances = { workspace = true }
 obsidian-backups = { workspace = true }
 obsidian-scheduler = { workspace = true }
+reqwest = { workspace = true }
 async-trait = { workspace = true }
 obsidian-net = { workspace = true }
 obsidian-sftp = { workspace = true }

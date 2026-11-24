@@ -9,6 +9,7 @@ pub mod files;
 pub mod health;
 pub mod instances;
 pub mod invites;
+pub mod maps;
 pub mod java;
 pub mod system;
 pub mod loaders;
@@ -45,6 +46,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(content::configure)
 			.configure(content_targets::configure)
 			.configure(resource_packs::configure)
+			.configure(maps::configure)
 			.configure(content_matching::configure)
 			.configure(modpacks::configure)
 			.configure(serverpack::configure)

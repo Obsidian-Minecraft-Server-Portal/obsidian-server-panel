@@ -56,7 +56,7 @@ impl MapKind {
 		}
 	}
 
-	fn jar_marker(self) -> &'static str {
+	pub fn key(self) -> &'static str {
 		match self {
 			Self::Bluemap => "bluemap",
 			Self::Dynmap => "dynmap",
@@ -91,7 +91,7 @@ pub async fn detect(server_dir: &Path) -> Result<Vec<DetectedMap>> {
 	let jars = jar_names(server_dir).await?;
 	let mut maps = Vec::new();
 	for kind in MapKind::ALL {
-		if !jars.iter().any(|jar| jar.contains(kind.jar_marker())) {
+		if !jars.iter().any(|jar| jar.contains(kind.key())) {
 			continue;
 		}
 		let found = find_config(server_dir, kind).await?;
