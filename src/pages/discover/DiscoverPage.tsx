@@ -143,7 +143,7 @@ export function DiscoverPage() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-var(--mobile-nav-h))] min-h-0 flex-col md:h-full">
+    <div className="flex h-[calc(100dvh_-_var(--mobile-nav-h))] min-h-0 flex-col md:h-full">
       <div className="shrink-0 space-y-3 border-b border-line px-4 pt-4 pb-3 sm:space-y-4 sm:px-8 sm:pt-5 sm:pb-4">
         <PageHeader
           title="Discover"
