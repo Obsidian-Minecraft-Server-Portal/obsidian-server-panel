@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
-use obsidian_auth::{AuthUser, Permission, hash_password, verify_password};
+use obsidian_auth::{AuthUser, Permission, generate_token, hash_password, verify_password};
 use obsidian_common::{CommonError, InstanceId, Result, UserId};
 use obsidian_sftp::{SftpAuth, SftpInstance, SftpUser};
 use sqlx::FromRow;
@@ -10,7 +10,7 @@ use tracing::warn;
 
 use crate::state::AppState;
 
-static DUMMY_HASH: LazyLock<String> = LazyLock::new(|| hash_password("obsidian-sftp-timing").unwrap_or_default());
+static DUMMY_HASH: LazyLock<String> = LazyLock::new(|| hash_password(&generate_token()).unwrap_or_default());
 
 #[derive(FromRow)]
 struct InstanceRow {

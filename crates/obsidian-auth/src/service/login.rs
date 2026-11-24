@@ -5,13 +5,12 @@ use sqlx::FromRow;
 
 use super::AuthService;
 use super::offload;
-use crate::{ClientInfo, LoginRequest, UserProfile, generate_code, hash_password, hash_token, verify_password};
+use crate::{ClientInfo, LoginRequest, UserProfile, generate_code, generate_token, hash_password, hash_token, verify_password};
 
 const EMAIL_CODE_TTL_SECS: i64 = 10 * 60;
 const MAX_EMAIL_CODE_FAILURES: i64 = 5;
-const DUMMY_PASSWORD: &str = "obsidian-timing-equalizer";
 
-static DUMMY_HASH: LazyLock<String> = LazyLock::new(|| hash_password(DUMMY_PASSWORD).unwrap_or_default());
+static DUMMY_HASH: LazyLock<String> = LazyLock::new(|| hash_password(&generate_token()).unwrap_or_default());
 
 #[derive(Debug)]
 pub enum LoginOutcome {
