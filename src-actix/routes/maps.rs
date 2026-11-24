@@ -1,3 +1,4 @@
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -8,7 +9,7 @@ use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
 use serde::Deserialize;
 use utoipa::ToSchema;
-use obsidian_maps::{DetectedMap, MapKind, MapSettingsUpdate, apply_settings, config_text, detect};
+use obsidian_maps::{DetectedMap, MapKind, MapSettingsUpdate, apply_settings, config_text, detect, read_settings};
 use obsidian_runner::RunState;
 
 use crate::auth::{AuthUser, require_instance_perm};
@@ -160,12 +161,14 @@ pub async fn proxy_map(
 		return Err(CommonError::Conflict("start the server to open its map".into()).into());
 	}
 	let dir = state.paths.instance_dir(id);
-	let map = detect(&dir)
-		.await?
-		.into_iter()
-		.find(|map| map.kind == kind && map.settings.enabled)
-		.ok_or_else(|| CommonError::NotFound(format!("an enabled {} map", kind.label())))?;
-	let url = upstream_url(map.settings.port, map.settings.bind.as_deref(), &tail, req.query_string());
+	let settings = match config_text(&dir, kind).await? {
+		Some((_, text)) => read_settings(kind, &text)?,
+		None => return Err(CommonError::NotFound(format!("{} map", kind.label())).into()),
+	};
+	if !settings.enabled {
+		return Err(CommonError::NotFound(format!("an enabled {} map", kind.label())).into());
+	}
+	let url = upstream_url(settings.port, settings.bind.as_deref(), &tail, req.query_string());
 	let mut request = UPSTREAM.get(url);
 	for name in FORWARDED_REQUEST_HEADERS {
 		if let Some(value) = req.headers().get(name) {
@@ -198,17 +201,28 @@ pub async fn proxy_map(
 }
 
 fn upstream_url(port: u16, bind: Option<&str>, tail: &str, query: &str) -> String {
-	let host = match bind {
-		Some(address) if !matches!(address, "" | "0.0.0.0" | "::" | "[::]") => address.to_owned(),
-		_ => "127.0.0.1".to_owned(),
-	};
-	let host = if host.contains(':') && !host.starts_with('[') {
-		format!("[{host}]")
-	} else {
-		host
-	};
+	let host = upstream_host(bind);
 	let query = if query.is_empty() { String::new() } else { format!("?{query}") };
 	format!("http://{host}:{port}/{tail}{query}")
+}
+
+// Only loopback or an address this machine owns is ever contacted, so a bind setting cannot point the proxy at other hosts.
+fn upstream_host(bind: Option<&str>) -> String {
+	let bound = bind.and_then(|bind| bind.parse::<IpAddr>().ok());
+	let address = match bound {
+		Some(address) if !address.is_unspecified() && (address.is_loopback() || local_addresses().contains(&address)) => address,
+		_ => IpAddr::V4(Ipv4Addr::LOCALHOST),
+	};
+	match address {
+		IpAddr::V4(address) => address.to_string(),
+		IpAddr::V6(address) => format!("[{address}]"),
+	}
+}
+
+fn local_addresses() -> Vec<IpAddr> {
+	local_ip_address::list_afinet_netifas()
+		.map(|interfaces| interfaces.into_iter().map(|(_, address)| address).collect())
+		.unwrap_or_default()
 }
 
 fn rewrite_location(location: &[u8], prefix: &str) -> Vec<u8> {
@@ -231,9 +245,10 @@ mod tests {
 	}
 
 	#[test]
-	fn specific_binds_are_reached_directly() {
-		assert_eq!(upstream_url(8080, Some("192.168.1.10"), "", ""), "http://192.168.1.10:8080/");
+	fn loopback_binds_are_reached_directly() {
+		assert_eq!(upstream_url(8080, Some("127.0.0.2"), "", ""), "http://127.0.0.2:8080/");
 		assert_eq!(upstream_url(8080, Some("::1"), "", ""), "http://[::1]:8080/");
+		assert_eq!(upstream_url(8080, Some("203.0.113.7"), "", ""), "http://127.0.0.1:8080/");
 	}
 
 	#[test]

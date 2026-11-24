@@ -122,6 +122,7 @@ obsidian-java = { workspace = true }
 obsidian-loaders = { workspace = true }
 obsidian-content = { workspace = true }
 obsidian-maps = { workspace = true }
+local-ip-address = { workspace = true }
 obsidian-runner = { workspace = true }
 obsidian-instances = { workspace = true }
 obsidian-backups = { workspace = true }
