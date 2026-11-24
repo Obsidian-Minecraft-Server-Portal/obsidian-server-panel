@@ -7,6 +7,7 @@ export default defineConfig({
     clearScreen: false,
     server: {
         host: true,
+        allowedHosts: ["70.8.194.110"],
         port: 3000,
         strictPort: true,
         hmr: {
