@@ -1,7 +1,8 @@
 import Cropper, { type Area, type Point } from "react-easy-crop";
 
-interface IconCropperProps {
+interface ImageCropperProps {
   src: string;
+  aspect: number;
   crop: Point;
   zoom: number;
   onCropChange: (crop: Point) => void;
@@ -9,14 +10,14 @@ interface IconCropperProps {
   onAreaChange: (area: Area) => void;
 }
 
-export function IconCropper({ src, crop, zoom, onCropChange, onZoomChange, onAreaChange }: IconCropperProps) {
+export function ImageCropper({ src, aspect, crop, zoom, onCropChange, onZoomChange, onAreaChange }: ImageCropperProps) {
   return (
     <div className="relative h-72 overflow-hidden rounded-panel border border-line bg-canvas">
       <Cropper
         image={src}
         crop={crop}
         zoom={zoom}
-        aspect={1}
+        aspect={aspect}
         minZoom={1}
         maxZoom={6}
         onCropChange={onCropChange}

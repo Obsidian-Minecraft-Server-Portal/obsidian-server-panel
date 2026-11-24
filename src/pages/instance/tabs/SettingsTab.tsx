@@ -1,5 +1,6 @@
 import { hasPermission, useInstance } from "../../../api/instances";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
+import { BannerPanel } from "../../../components/instance/settings/BannerPanel";
 import { DangerZone } from "../../../components/instance/settings/DangerZone";
 import { GeneralSettings } from "../../../components/instance/settings/GeneralSettings";
 import { SoftwarePanel } from "../../../components/instance/settings/SoftwarePanel";
@@ -16,13 +17,16 @@ export function SettingsTab() {
   const view = instance.data;
 
   return (
-    <div className="grid grid-cols-1 gap-5 px-4 sm:px-8 pb-8 xl:grid-cols-2">
+    <div className="space-y-5 px-4 sm:px-8 pb-8">
       <GeneralSettings view={view} />
       <UpnpPanel view={view} />
-      <SoftwarePanel view={view} />
-      {hasPermission(view, "members.manage") && <MembersSection instanceId={id} />}
-      <IconPanel view={view} />
-      <DangerZone view={view} />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SoftwarePanel view={view} />
+        {hasPermission(view, "members.manage") && <MembersSection instanceId={id} />}
+        <IconPanel view={view} />
+        <BannerPanel view={view} />
+        <DangerZone view={view} />
+      </div>
     </div>
   );
 }

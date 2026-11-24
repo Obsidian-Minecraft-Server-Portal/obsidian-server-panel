@@ -292,6 +292,11 @@ export function useUpnp(id: number, enabled = true) {
   });
 }
 
+function invalidateInstanceViews(queryClient: QueryClient, id: number) {
+  void queryClient.invalidateQueries({ queryKey: instanceKey(id), exact: true });
+  void queryClient.invalidateQueries({ queryKey: instancesKey, exact: true });
+}
+
 export function useUploadIcon(id: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -300,9 +305,26 @@ export function useUploadIcon(id: number) {
       form.append("icon", image, "icon.png");
       return upload<void>(`/instances/${id}/icon`, form, undefined, undefined, "PUT");
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: instanceKey(id), exact: true });
-      void queryClient.invalidateQueries({ queryKey: instancesKey, exact: true });
+    onSuccess: () => invalidateInstanceViews(queryClient, id),
+  });
+}
+
+export function useUploadBanner(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (image: Blob) => {
+      const form = new FormData();
+      form.append("banner", image, "banner.png");
+      return upload<void>(`/instances/${id}/banner`, form, undefined, undefined, "PUT");
     },
+    onSuccess: () => invalidateInstanceViews(queryClient, id),
+  });
+}
+
+export function useRemoveBanner(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete(`/instances/${id}/banner`),
+    onSuccess: () => invalidateInstanceViews(queryClient, id),
   });
 }
