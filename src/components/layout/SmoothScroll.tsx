@@ -21,6 +21,8 @@ export function useSmoothScroller(wrapper: RefObject<HTMLElement | null>): Lenis
       eventsTarget: element,
       autoRaf: true,
       allowNestedScroll: true,
+      // The observed boxes are viewport-sized, so the cached limit would go stale on route change.
+      naiveDimensions: true,
       duration: 0.5,
       //easing: (t) => t,
       prevent: (node) => node instanceof Element && node.closest("[data-native-scroll]") !== null,
