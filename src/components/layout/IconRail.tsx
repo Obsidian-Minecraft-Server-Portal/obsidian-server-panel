@@ -1,7 +1,7 @@
 import { Button, cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { useCurrentUser } from "../../api/session";
+import { useCurrentUser, useHealth } from "../../api/session";
 import { ActivityMenu } from "../activity/ActivityMenu";
 import { Logo } from "../ui/Logo";
 import { Tip } from "../ui/Tip";
@@ -52,6 +52,7 @@ function RailLink({ item }: { item: RailItem }) {
 export function IconRail() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
+  const { data: health } = useHealth();
   const initials = user ? initialsOf(user.username) : "?";
 
   return (
@@ -85,6 +86,9 @@ export function IconRail() {
             <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-green ring-2 ring-rail" />
           </Button>
         </Tip>
+        {health?.version && (
+          <span className="hidden font-mono text-[10px] leading-none text-ink-4 md:block">v{health.version}</span>
+        )}
       </div>
     </nav>
   );
