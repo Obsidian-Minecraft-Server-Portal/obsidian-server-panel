@@ -40,7 +40,7 @@ impl AssetStore {
 			.map(Vec::as_slice)
 	}
 
-	fn insert(&mut self, namespace: String, relative: String, bytes: Vec<u8>) {
+	pub(crate) fn insert(&mut self, namespace: String, relative: String, bytes: Vec<u8>) {
 		self.entries.insert((namespace, relative), bytes);
 	}
 }

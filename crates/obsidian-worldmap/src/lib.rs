@@ -2,6 +2,7 @@
 
 pub mod assets;
 pub mod chunk;
+pub mod colour;
 pub mod error;
 pub mod level;
 pub mod models;
