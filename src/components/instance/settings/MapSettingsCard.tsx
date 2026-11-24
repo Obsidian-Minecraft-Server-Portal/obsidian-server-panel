@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useUpdateMap, type DetectedMap } from "../../../api/maps";
 import { FormField } from "../FormField";
+import { parentPath } from "../../files/fileUtils";
 import { Panel } from "../../ui/Panel";
 import { PrimaryButton } from "../../ui/PrimaryButton";
 import { SwitchRow } from "../../ui/SwitchRow";
@@ -71,10 +72,10 @@ export function MapSettingsCard({ instanceId, map }: { instanceId: number; map: 
             </p>
             {map.config_path && (
               <Link
-                to={`/instances/${instanceId}/content?${new URLSearchParams({ section: "files", path: map.config_path })}`}
+                to={`/instances/${instanceId}/content?${new URLSearchParams({ section: "files", path: parentPath(map.config_path) })}`}
                 className="inline-flex text-sm font-medium text-accent hover:underline"
               >
-                Edit in Files
+                Open its folder in Files
               </Link>
             )}
           </div>
