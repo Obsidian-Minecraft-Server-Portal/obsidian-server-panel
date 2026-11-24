@@ -56,7 +56,7 @@ clap = { version = "4", features = ["derive"] }
 color-eyre = { version = "0.6", features = ["tracing-error", "track-caller"] }
 figment = { version = "0.10", features = ["env", "toml"] }
 hex = "0.4"
-hocon = "0.9"
+hocon = { version = "0.9", default-features = false }
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1-rustls-tls"] }
 qrcode = { version = "0.15", default-features = false, features = ["svg"] }
 totp-rs = { version = "6", features = ["gen_secret", "otpauth"] }
