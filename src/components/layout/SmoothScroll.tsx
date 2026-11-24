@@ -21,7 +21,7 @@ export function useSmoothScroller(wrapper: RefObject<HTMLElement | null>): Lenis
       eventsTarget: element,
       autoRaf: true,
       allowNestedScroll: true,
-      duration: 0.5,
+      duration: 0.75,
       prevent: (node) => node instanceof Element && node.closest("[data-native-scroll]") !== null,
     });
     setScroller(instance);
