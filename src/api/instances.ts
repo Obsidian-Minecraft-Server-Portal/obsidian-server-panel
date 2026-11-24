@@ -87,11 +87,20 @@ export type PlayerAction = "op" | "deop" | "whitelist" | "unwhitelist" | "kick" 
 
 export type PowerAction = "start" | "stop" | "restart" | "kill";
 
+export interface MapUpnpInfo {
+  port: number;
+  mapped: boolean;
+  external_ip: string | null;
+  external_port: number | null;
+}
+
 export interface UpnpInfo {
   enabled: boolean;
   mapped: boolean;
   external_ip: string | null;
   external_port: number | null;
+  map_enabled: boolean;
+  maps: MapUpnpInfo[];
 }
 
 export interface CreateInstanceInput {

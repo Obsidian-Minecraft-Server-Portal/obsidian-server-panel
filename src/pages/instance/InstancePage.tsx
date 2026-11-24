@@ -4,12 +4,14 @@ import { Link, Navigate, useParams } from "react-router";
 import { ApiError } from "../../api/client";
 import { hasPermission, isInstanceId, useInstance, type InstancePermission } from "../../api/instances";
 import { useLiveInstances } from "../../api/instanceLive";
+import { useMaps } from "../../api/maps";
 import { CrashHints } from "../../components/instance/CrashHints";
 import { InstanceBannerArea, InstanceIdentity } from "../../components/instance/InstanceHero";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { BackupsAndSchedulesTab } from "./tabs/BackupsAndSchedulesTab";
 import { ConsoleTab } from "./tabs/ConsoleTab";
 import { ContentTab } from "./tabs/ContentTab";
+import { MapTab } from "./tabs/MapTab";
 import { PropertiesTab } from "./tabs/PropertiesTab";
 import { SettingsTab } from "./tabs/SettingsTab";
 
@@ -21,6 +23,7 @@ interface TabEntry {
 
 const TABS: Record<string, TabEntry> = {
   console: { label: "Console", permission: "console.read", component: ConsoleTab },
+  map: { label: "Map", permission: "console.read", component: MapTab },
   content: { label: "Content", permission: "files.read", component: ContentTab },
   backups: { label: "Backups & schedules", permission: "backups.download", component: BackupsAndSchedulesTab },
   properties: { label: "Properties", permission: "settings.edit", component: PropertiesTab },
@@ -35,6 +38,7 @@ export function InstancePage() {
   const validId = isInstanceId(id);
   const instance = useInstance(id);
   useLiveInstances(validId ? [id] : []);
+  const maps = useMaps(id, validId);
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const [tabContent, setTabContent] = useState<HTMLDivElement | null>(null);
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
@@ -72,7 +76,10 @@ export function InstancePage() {
   const view = instance.data;
   if (!view) return <p className="px-4 sm:px-8 py-8 text-sm text-ink-3">Loading instance…</p>;
 
-  const visibleTabs = Object.entries(TABS).filter(([, entry]) => hasPermission(view, entry.permission));
+  const mapEnabled = (maps.data ?? []).some((map) => map.settings.enabled);
+  const visibleTabs = Object.entries(TABS).filter(
+    ([key, entry]) => hasPermission(view, entry.permission) && (key !== "map" || mapEnabled),
+  );
   const active = visibleTabs.find(([key]) => key === tab)?.[1];
   if (!active) {
     const first = visibleTabs[0];
