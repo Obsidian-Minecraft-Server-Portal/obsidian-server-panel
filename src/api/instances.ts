@@ -22,6 +22,7 @@ export interface Instance {
   loader_version: string | null;
   java_runtime_id: number | null;
   jvm_args: string;
+  minecraft_args: string;
   memory_min_mb: number;
   memory_max_mb: number;
   port: number;
@@ -120,6 +121,7 @@ export type UpdateInstanceInput = Partial<
     Instance,
     | "name"
     | "jvm_args"
+    | "minecraft_args"
     | "memory_min_mb"
     | "memory_max_mb"
     | "java_runtime_id"

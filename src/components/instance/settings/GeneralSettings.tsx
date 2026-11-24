@@ -14,6 +14,7 @@ interface Form {
   name: string;
   port: string;
   jvmArgs: string;
+  minecraftArgs: string;
   memoryMinMb: string;
   memoryMaxMb: string;
   javaRuntimeId: number | null;
@@ -25,6 +26,7 @@ function initialForm(view: InstanceView): Form {
     name: view.name,
     port: String(view.port),
     jvmArgs: view.jvm_args,
+    minecraftArgs: view.minecraft_args,
     memoryMinMb: String(view.memory_min_mb),
     memoryMaxMb: String(view.memory_max_mb),
     javaRuntimeId: view.java_runtime_id,
@@ -41,6 +43,7 @@ function changes(view: InstanceView, form: Form): UpdateInstanceInput {
   if (name !== view.name) patch.name = name;
   if (port !== view.port) patch.port = port;
   if (form.jvmArgs !== view.jvm_args) patch.jvm_args = form.jvmArgs;
+  if (form.minecraftArgs !== view.minecraft_args) patch.minecraft_args = form.minecraftArgs;
   if (memoryMin !== view.memory_min_mb) patch.memory_min_mb = memoryMin;
   if (memoryMax !== view.memory_max_mb) patch.memory_max_mb = memoryMax;
   if (form.javaRuntimeId !== view.java_runtime_id) patch.java_runtime_id = form.javaRuntimeId;
@@ -122,6 +125,14 @@ export function GeneralSettings({ view }: { view: InstanceView }) {
           value={form.jvmArgs}
           onChange={(value) => set("jvmArgs", value)}
           hint="Extra flags passed to Java before the server jar."
+        />
+        <FormField
+          label="Minecraft arguments"
+          multiline
+          rows={2}
+          value={form.minecraftArgs}
+          onChange={(value) => set("minecraftArgs", value)}
+          hint="Arguments passed to the server after the jar. Defaults to --nogui."
         />
         <SwitchRow
           label="Start automatically"
