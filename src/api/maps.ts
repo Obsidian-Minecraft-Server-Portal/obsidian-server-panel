@@ -28,8 +28,21 @@ export interface MapSettingsUpdate {
 
 export const mapsKey = (instanceId: number) => ["instances", instanceId, "maps"] as const;
 
-export function mapPath(instanceId: number, kind: MapKind): string {
-  return `/api/v1/instances/${instanceId}/map/${kind}/`;
+export interface MapSession {
+  path: string;
+  expires_at: number;
+}
+
+const MAP_SESSION_REFRESH_MS = 50 * 60 * 1000;
+
+export function useMapSession(instanceId: number, kind: MapKind | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: [...mapsKey(instanceId), kind, "session"] as const,
+    queryFn: () => api.post<MapSession>(`/instances/${instanceId}/maps/${kind}/session`),
+    enabled: enabled && kind !== undefined && isInstanceId(instanceId),
+    staleTime: MAP_SESSION_REFRESH_MS,
+    refetchInterval: MAP_SESSION_REFRESH_MS,
+  });
 }
 
 export function useMaps(instanceId: number, enabled = true) {
