@@ -5,6 +5,7 @@ import { FormField } from "../FormField";
 import { Panel } from "../../ui/Panel";
 import { PrimaryButton } from "../../ui/PrimaryButton";
 import { SwitchRow } from "../../ui/SwitchRow";
+import { MapAdvancedSettings } from "./MapAdvancedSettings";
 
 export function MapSettingsCard({ instanceId, map }: { instanceId: number; map: DetectedMap }) {
   const update = useUpdateMap(instanceId);
@@ -60,6 +61,7 @@ export function MapSettingsCard({ instanceId, map }: { instanceId: number; map: 
                 Save map settings
               </PrimaryButton>
             </div>
+            <MapAdvancedSettings instanceId={instanceId} kind={map.kind} />
           </>
         ) : (
           <div className="space-y-3">

@@ -55,3 +55,29 @@ export function useSetMapUpnp(instanceId: number) {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: upnpKey(instanceId) }),
   });
 }
+
+export interface ConfigEntry {
+  path: string;
+  value: string;
+  kind: "bool" | "number" | "text";
+}
+
+export function useMapEntries(instanceId: number, kind: MapKind, enabled: boolean) {
+  return useQuery({
+    queryKey: [...mapsKey(instanceId), kind, "entries"] as const,
+    queryFn: () => api.get<ConfigEntry[]>(`/instances/${instanceId}/maps/${kind}/entries`),
+    enabled: enabled && isInstanceId(instanceId),
+  });
+}
+
+export function useUpdateMapEntry(instanceId: number, kind: MapKind) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (update: { path: string; value: string }) =>
+      api.put<ConfigEntry[]>(`/instances/${instanceId}/maps/${kind}/entries`, update),
+    onSuccess: (entries) => {
+      queryClient.setQueryData([...mapsKey(instanceId), kind, "entries"], entries);
+      void queryClient.invalidateQueries({ queryKey: mapsKey(instanceId) });
+    },
+  });
+}
