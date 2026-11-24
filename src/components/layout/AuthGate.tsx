@@ -37,7 +37,7 @@ export function AuthGate() {
 
   if (health.isPending) return <Splash />;
 
-  if (health.isError) {
+  if (health.isError && !health.data) {
     return (
       <AuroraBackground className="grid place-items-center p-8">
         <div className="w-full max-w-lg">
@@ -67,7 +67,7 @@ export function AuthGate() {
   if (me.error instanceof ApiError && me.error.status === 401) {
     return <Navigate to="/login" replace state={{ from: pathname }} />;
   }
-  if (me.isError) {
+  if (me.isError && !me.data) {
     return (
       <AuroraBackground className="grid place-items-center p-8">
         <div className="w-full max-w-lg">

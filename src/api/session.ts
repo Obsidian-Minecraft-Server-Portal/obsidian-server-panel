@@ -9,7 +9,6 @@ export function useHealth() {
   return useQuery({
     queryKey: healthKey,
     queryFn: () => api.get<Health>("/health"),
-    retry: false,
   });
 }
 
@@ -18,6 +17,5 @@ export function useCurrentUser(enabled = true) {
     queryKey: currentUserKey,
     queryFn: () => api.get<CurrentUser>("/auth/me"),
     enabled,
-    retry: false,
   });
 }
