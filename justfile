@@ -1,5 +1,10 @@
-set windows-shell := ["powershell.exe", "-NoProfile", "-NoLogo", "-Command"]
+[windows]
+set shell := ["powershell.exe", "-NoProfile", "-NoLogo", "-Command"]
+[linux]
 set shell := ["bash", "-c"]
+[macos]
+set shell :=["zh", "-c"]
+
 set dotenv-load := true
 
 data_dir := env("OBSIDIAN_DATA_DIR", justfile_directory() / "target" / "dev-env")
@@ -126,3 +131,7 @@ tag version:
     git commit -m "Release v{{ trim_start_match(version, "v") }}"
     git tag -a v{{ trim_start_match(version, "v") }} -m "v{{ trim_start_match(version, "v") }}"
     @echo "Tagged v{{ trim_start_match(version, "v") }}. Push with: git push --follow-tags"
+
+[group('release')]
+publish version="":
+    uv -p ./Cargo.toml -t toml -g commit-push-tag {{version}}
