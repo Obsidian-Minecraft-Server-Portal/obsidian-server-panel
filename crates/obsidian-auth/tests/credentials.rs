@@ -2,11 +2,12 @@ use obsidian_auth::{Permission, Role, generate_token, hash_password, hash_token,
 
 #[test]
 fn password_hash_round_trip() {
-	let hash = hash_password("correct horse").unwrap();
+	let password = generate_token();
+	let hash = hash_password(&password).unwrap();
 	assert!(hash.starts_with("$argon2id$"));
-	assert!(verify_password("correct horse", &hash));
-	assert!(!verify_password("wrong", &hash));
-	assert_ne!(hash, hash_password("correct horse").unwrap());
+	assert!(verify_password(&password, &hash));
+	assert!(!verify_password(&generate_token(), &hash));
+	assert_ne!(hash, hash_password(&password).unwrap());
 }
 
 #[test]

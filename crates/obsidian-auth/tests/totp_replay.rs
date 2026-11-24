@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use obsidian_auth::{AuthService, AuthUser, ClientInfo, LoginOutcome, LoginRequest, NewUser, SecretBox};
+use obsidian_auth::{AuthService, AuthUser, ClientInfo, LoginOutcome, LoginRequest, NewUser, SecretBox, generate_token};
 use obsidian_common::{CommonError, EventBus, Paths};
 use obsidian_db::Db;
 use totp_rs::{Builder, Secret};
@@ -22,10 +22,10 @@ fn client(ip: &str) -> ClientInfo {
 	}
 }
 
-fn login(totp: &str) -> LoginRequest {
+fn login(password: &str, totp: &str) -> LoginRequest {
 	LoginRequest {
 		username: "admin".to_owned(),
-		password: "correct horse".to_owned(),
+		password: password.to_owned(),
 		totp_code: Some(totp.to_owned()),
 		email_code: None,
 	}
@@ -48,11 +48,12 @@ fn now() -> u64 {
 #[tokio::test]
 async fn totp_code_is_accepted_once_per_time_step() {
 	let (_dir, auth) = service().await;
+	let password = generate_token();
 	let admin = auth
 		.create_first_admin(&NewUser {
 			username: "admin".to_owned(),
 			email: None,
-			password: "correct horse".to_owned(),
+			password: password.clone(),
 			is_admin: true,
 			instance_limit: None,
 		})
@@ -70,17 +71,17 @@ async fn totp_code_is_accepted_once_per_time_step() {
 		.unwrap();
 
 	let replayed = auth
-		.login(&login(&code_at(&setup.secret, current)), &client("10.0.1.1"), false)
+		.login(&login(&password, &code_at(&setup.secret, current)), &client("10.0.1.1"), false)
 		.await;
 	assert!(matches!(replayed, Err(CommonError::Unauthorized(_))));
 
 	let next_step = code_at(&setup.secret, current + STEP);
 	let accepted = auth
-		.login(&login(&next_step), &client("10.0.1.2"), false)
+		.login(&login(&password, &next_step), &client("10.0.1.2"), false)
 		.await
 		.unwrap();
 	assert!(matches!(accepted, LoginOutcome::Authenticated { .. }));
 
-	let reused = auth.login(&login(&next_step), &client("10.0.1.3"), false).await;
+	let reused = auth.login(&login(&password, &next_step), &client("10.0.1.3"), false).await;
 	assert!(matches!(reused, Err(CommonError::Unauthorized(_))));
 }

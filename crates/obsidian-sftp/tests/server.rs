@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
-use obsidian_auth::Permission;
+use obsidian_auth::{Permission, generate_token};
 use obsidian_sftp::{SftpAuth, SftpInstance, SftpServer, SftpUser};
 use russh::client::{self, Handle};
 use russh::keys::PublicKeyOrCertificate;
@@ -11,7 +11,7 @@ use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
 
 const USER: &str = "drew";
-const PASSWORD: &str = "secret";
+static PASSWORD: LazyLock<String> = LazyLock::new(generate_token);
 
 struct StaticAuth {
 	user: SftpUser,
@@ -20,7 +20,7 @@ struct StaticAuth {
 #[async_trait]
 impl SftpAuth for StaticAuth {
 	async fn authenticate(&self, username: &str, password: &str, _peer: Option<SocketAddr>) -> Option<SftpUser> {
-		(username == USER && password == PASSWORD).then(|| self.user.clone())
+		(username == USER && password == PASSWORD.as_str()).then(|| self.user.clone())
 	}
 }
 
@@ -72,8 +72,8 @@ async fn serves_only_accessible_instances() {
 		.await
 		.unwrap();
 
-	assert!(login(server.addr(), "wrong").await.is_none());
-	let (_session, sftp) = login(server.addr(), PASSWORD).await.expect("valid login");
+	assert!(login(server.addr(), &generate_token()).await.is_none());
+	let (_session, sftp) = login(server.addr(), PASSWORD.as_str()).await.expect("valid login");
 
 	let roots: Vec<String> = sftp.read_dir("/").await.unwrap().map(|e| e.file_name()).collect();
 	assert_eq!(roots.len(), 2, "instance without files.sftp must stay hidden: {roots:?}");

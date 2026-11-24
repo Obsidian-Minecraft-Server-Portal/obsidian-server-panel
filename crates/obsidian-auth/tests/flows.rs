@@ -1,4 +1,4 @@
-use obsidian_auth::{AuthService, ClientInfo, LoginOutcome, LoginRequest, NewUser, SecretBox};
+use obsidian_auth::{AuthService, ClientInfo, LoginOutcome, LoginRequest, NewUser, SecretBox, generate_token};
 use obsidian_common::{CommonError, EventBus, Paths};
 use obsidian_db::Db;
 use totp_rs::{Builder, Secret};
@@ -50,16 +50,17 @@ fn current_code(secret: &str) -> String {
 #[tokio::test]
 async fn setup_then_login_from_new_address_is_allowed_without_second_factor() {
 	let (_dir, auth) = service().await;
-	assert!(auth.bootstrap_admin("root", None, "correct horse").await.unwrap());
-	assert!(!auth.bootstrap_admin("other", None, "another pass").await.unwrap());
+	let password = generate_token();
+	assert!(auth.bootstrap_admin("root", None, &password).await.unwrap());
+	assert!(!auth.bootstrap_admin("other", None, &generate_token()).await.unwrap());
 
 	let wrong = auth
-		.login(&login("root", "nope", None), &client("10.0.0.1"), false)
+		.login(&login("root", &generate_token(), None), &client("10.0.0.1"), false)
 		.await;
 	assert!(matches!(wrong, Err(CommonError::Unauthorized(_))));
 
 	let outcome = auth
-		.login(&login("root", "correct horse", None), &client("10.0.0.1"), false)
+		.login(&login("root", &password, None), &client("10.0.0.1"), false)
 		.await
 		.unwrap();
 	let LoginOutcome::Authenticated { session_token, user } = outcome else {
@@ -79,8 +80,9 @@ async fn setup_then_login_from_new_address_is_allowed_without_second_factor() {
 #[tokio::test]
 async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 	let (_dir, auth) = service().await;
+	let password = generate_token();
 	let admin = auth
-		.create_first_admin(&new_user("admin", "correct horse"))
+		.create_first_admin(&new_user("admin", &password))
 		.await
 		.unwrap();
 	let user = obsidian_auth::AuthUser {
@@ -97,13 +99,13 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 	assert_eq!(codes.len(), 10);
 
 	let pending = auth
-		.login(&login("admin", "correct horse", None), &client("10.0.0.2"), false)
+		.login(&login("admin", &password, None), &client("10.0.0.2"), false)
 		.await
 		.unwrap();
 	assert!(matches!(pending, LoginOutcome::TotpRequired));
 	let wrong = auth
 		.login(
-			&login("admin", "correct horse", Some("000000")),
+			&login("admin", &password, Some("000000")),
 			&client("10.0.0.2"),
 			false,
 		)
@@ -111,7 +113,7 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 	assert!(matches!(wrong, Err(CommonError::Unauthorized(_))));
 	let replayed = auth
 		.login(
-			&login("admin", "correct horse", Some(&confirmed_code)),
+			&login("admin", &password, Some(&confirmed_code)),
 			&client("10.0.0.2"),
 			false,
 		)
@@ -120,7 +122,7 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 
 	let by_recovery = auth
 		.login(
-			&login("admin", "correct horse", Some(&codes[0])),
+			&login("admin", &password, Some(&codes[0])),
 			&client("10.0.0.3"),
 			false,
 		)
@@ -129,7 +131,7 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 	assert!(matches!(by_recovery, LoginOutcome::Authenticated { .. }));
 	let reused = auth
 		.login(
-			&login("admin", "correct horse", Some(&codes[0])),
+			&login("admin", &password, Some(&codes[0])),
 			&client("10.0.0.4"),
 			false,
 		)
@@ -140,15 +142,16 @@ async fn totp_gates_new_addresses_and_recovery_codes_work_once() {
 #[tokio::test]
 async fn password_change_keeps_only_the_current_session() {
 	let (_dir, auth) = service().await;
+	let password = generate_token();
 	let admin = auth
-		.create_first_admin(&new_user("admin", "correct horse"))
+		.create_first_admin(&new_user("admin", &password))
 		.await
 		.unwrap();
 	let client = client("10.0.0.5");
 	let first = auth.start_session(admin.id, &client).await.unwrap();
 	let second = auth.start_session(admin.id, &client).await.unwrap();
 
-	auth.change_password(admin.id, "correct horse", "battery staple", Some(&first), &client)
+	auth.change_password(admin.id, &password, &generate_token(), Some(&first), &client)
 		.await
 		.unwrap();
 
@@ -159,26 +162,27 @@ async fn password_change_keeps_only_the_current_session() {
 #[tokio::test]
 async fn invites_create_one_account_and_notifications_reach_the_owner() {
 	let (_dir, auth) = service().await;
+	let password = generate_token();
 	let admin = auth
-		.create_first_admin(&new_user("admin", "correct horse"))
+		.create_first_admin(&new_user("admin", &password))
 		.await
 		.unwrap();
 	let (_, token) = auth.create_invite(admin.id, Some(24)).await.unwrap();
 	assert!(auth.invite_is_valid(&token).await.unwrap());
 
 	let (session, profile) = auth
-		.accept_invite(&token, &new_user("guest", "guest password"), &client("10.0.0.6"))
+		.accept_invite(&token, &new_user("guest", &generate_token()), &client("10.0.0.6"))
 		.await
 		.unwrap();
 	assert!(!profile.is_admin);
 	assert!(auth.user_for_session(&session).await.unwrap().is_some());
 	assert!(!auth.invite_is_valid(&token).await.unwrap());
 	let reused = auth
-		.accept_invite(&token, &new_user("another", "another pass"), &client("10.0.0.6"))
+		.accept_invite(&token, &new_user("another", &generate_token()), &client("10.0.0.6"))
 		.await;
 	assert!(matches!(reused, Err(CommonError::Invalid(_))));
 
-	let taken = auth.create_user(admin.id, &new_user("guest", "guest password")).await;
+	let taken = auth.create_user(admin.id, &new_user("guest", &generate_token())).await;
 	assert!(matches!(taken, Err(CommonError::Conflict(_))));
 
 	let notice = auth.notify(admin.id, "info", "Hello", "body").await.unwrap();
@@ -193,8 +197,9 @@ async fn invites_create_one_account_and_notifications_reach_the_owner() {
 #[tokio::test]
 async fn api_tokens_authenticate_and_record_use_until_revoked() {
 	let (_dir, auth) = service().await;
+	let password = generate_token();
 	let admin = auth
-		.create_first_admin(&new_user("admin", "correct horse"))
+		.create_first_admin(&new_user("admin", &password))
 		.await
 		.unwrap();
 	let created = auth.create_api_token(admin.id, "ci", Some(30)).await.unwrap();
@@ -212,17 +217,18 @@ async fn api_tokens_authenticate_and_record_use_until_revoked() {
 #[tokio::test]
 async fn email_codes_verify_new_addresses_and_lock_after_repeated_failures() {
 	let (_dir, auth) = service().await;
-	let mut admin = new_user("admin", "correct horse");
+	let password = generate_token();
+	let mut admin = new_user("admin", &password);
 	admin.email = Some("admin@example.com".to_owned());
 	auth.create_first_admin(&admin).await.unwrap();
 	let address = client("10.0.0.7");
 	let with_code = |code: &str| LoginRequest {
 		email_code: Some(code.to_owned()),
-		..login("admin", "correct horse", None)
+		..login("admin", &password, None)
 	};
 
 	let LoginOutcome::EmailCodeRequired { to, code } =
-		auth.login(&login("admin", "correct horse", None), &address, true).await.unwrap()
+		auth.login(&login("admin", &password, None), &address, true).await.unwrap()
 	else {
 		panic!("expected an emailed code")
 	};
@@ -235,12 +241,12 @@ async fn email_codes_verify_new_addresses_and_lock_after_repeated_failures() {
 	assert!(matches!(locked, Err(CommonError::Unauthorized(_))));
 
 	let LoginOutcome::EmailCodeRequired { code, .. } =
-		auth.login(&login("admin", "correct horse", None), &address, true).await.unwrap()
+		auth.login(&login("admin", &password, None), &address, true).await.unwrap()
 	else {
 		panic!("expected a fresh code")
 	};
 	let ok = auth.login(&with_code(&code), &address, true).await.unwrap();
 	assert!(matches!(ok, LoginOutcome::Authenticated { .. }));
-	let trusted = auth.login(&login("admin", "correct horse", None), &address, true).await.unwrap();
+	let trusted = auth.login(&login("admin", &password, None), &address, true).await.unwrap();
 	assert!(matches!(trusted, LoginOutcome::Authenticated { .. }));
 }
