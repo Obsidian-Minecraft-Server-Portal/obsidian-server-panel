@@ -93,12 +93,12 @@ pub struct EntryUpdate {
 	tag = "instances",
 	params(
 		("id" = i64, Path, description = "Instance id"),
-		("kind" = String, Path, description = "dynmap, squaremap or pl3xmap"),
+		("kind" = String, Path, description = "bluemap, dynmap, squaremap or pl3xmap"),
 	),
 	responses(
 		(status = 200, description = "Every scalar setting in the map config", body = Vec<ConfigEntry>),
 		(status = 403, description = "Missing settings.edit permission"),
-		(status = 409, description = "The config is read-only here or does not exist yet"),
+		(status = 409, description = "The config does not exist yet"),
 	)
 )]
 #[get("/instances/{id}/maps/{kind}/entries")]

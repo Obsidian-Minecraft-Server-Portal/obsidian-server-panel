@@ -112,7 +112,7 @@ pub fn apply_settings(kind: MapKind, text: &str, update: &MapSettingsUpdate) -> 
 
 fn scalar(text: &str, kind: MapKind, path: &[&str]) -> Result<Option<String>> {
 	match kind.layout() {
-		Layout::Hocon => hocon_scalar(text, path[0]),
+		Layout::Hocon => hocon_scalar(text, path),
 		Layout::DynmapYaml | Layout::NestedYaml => yaml_scalar(text, path),
 	}
 }
@@ -181,17 +181,51 @@ fn missing(path: &[&str]) -> CommonError {
 	CommonError::Invalid(format!("the config has no {} section", path.join(".")))
 }
 
-fn hocon_scalar(text: &str, key: &str) -> Result<Option<String>> {
-	let root = hocon::HoconLoader::new()
+fn hocon_root(text: &str) -> Result<hocon::Hocon> {
+	hocon::HoconLoader::new()
 		.load_str(&without_placeholders(text))
 		.and_then(|loader| loader.hocon())
-		.map_err(|error| CommonError::Invalid(format!("config is not valid HOCON: {error}")))?;
-	Ok(match &root[key] {
+		.map_err(|error| CommonError::Invalid(format!("config is not valid HOCON: {error}")))
+}
+
+fn hocon_scalar(text: &str, path: &[&str]) -> Result<Option<String>> {
+	let root = hocon_root(text)?;
+	let mut node = &root;
+	for key in path {
+		let hocon::Hocon::Hash(map) = node else { return Ok(None) };
+		let Some(next) = map.get(*key) else { return Ok(None) };
+		node = next;
+	}
+	Ok(hocon_text(node))
+}
+
+fn hocon_text(node: &hocon::Hocon) -> Option<String> {
+	match node {
 		hocon::Hocon::Boolean(value) => Some(value.to_string()),
 		hocon::Hocon::Integer(value) => Some(value.to_string()),
+		hocon::Hocon::Real(value) => Some(value.to_string()),
 		hocon::Hocon::String(value) => Some(value.clone()),
 		_ => None,
-	})
+	}
+}
+
+fn hocon_entries(text: &str) -> Result<Vec<ConfigEntry>> {
+	let root = hocon_root(text)?;
+	let mut entries = Vec::new();
+	collect_hocon_entries(&root, "", &mut entries);
+	Ok(entries)
+}
+
+fn collect_hocon_entries(node: &hocon::Hocon, prefix: &str, out: &mut Vec<ConfigEntry>) {
+	let hocon::Hocon::Hash(map) = node else { return };
+	for (key, child) in map.iter() {
+		let path = if prefix.is_empty() { key.clone() } else { format!("{prefix}.{key}") };
+		if matches!(child, hocon::Hocon::Hash(_)) {
+			collect_hocon_entries(child, &path, out);
+		} else if let Some(value) = hocon_text(child) {
+			out.push(ConfigEntry { path, kind: infer_kind(&value), value });
+		}
+	}
 }
 
 fn without_placeholders(text: &str) -> String {
@@ -232,7 +266,13 @@ pub fn port_path(kind: MapKind) -> String {
 }
 
 pub fn scalar_entries(kind: MapKind, text: &str) -> Result<Vec<ConfigEntry>> {
-	require_editable(kind)?;
+	match kind.layout() {
+		Layout::Hocon => hocon_entries(text),
+		Layout::DynmapYaml | Layout::NestedYaml => yaml_entries(text),
+	}
+}
+
+fn yaml_entries(text: &str) -> Result<Vec<ConfigEntry>> {
 	let file = parse_yaml(text)?;
 	let mut entries = Vec::new();
 	if let Some(document) = file.document() {
@@ -393,6 +433,25 @@ mod tests {
 	fn bluemap_is_read_only() {
 		let update = MapSettingsUpdate { enabled: Some(false), port: None, bind: None };
 		assert!(apply_settings(MapKind::Bluemap, BLUEMAP, &update).is_err());
+	}
+
+	const BLUEMAP_LOG: &str = "enabled: true\nwebroot: \"bluemap/web\"\nport: 8100\nlog: {\n  file: \"bluemap/logs/webserver.log\"\n  append: false\n}\n";
+
+	#[test]
+	fn lists_bluemap_hocon_settings_in_file_order() {
+		let entries = scalar_entries(MapKind::Bluemap, BLUEMAP_LOG).unwrap();
+		let paths: Vec<&str> = entries.iter().map(|entry| entry.path.as_str()).collect();
+		assert_eq!(paths, ["enabled", "webroot", "port", "log.file", "log.append"]);
+		let file = entries.iter().find(|entry| entry.path == "log.file").unwrap();
+		assert_eq!((file.value.as_str(), file.kind), ("bluemap/logs/webserver.log", EntryKind::Text));
+		let append = entries.iter().find(|entry| entry.path == "log.append").unwrap();
+		assert_eq!((append.value.as_str(), append.kind), ("false", EntryKind::Bool));
+	}
+
+	#[test]
+	fn bluemap_entries_are_listed_but_not_written() {
+		assert!(scalar_entries(MapKind::Bluemap, BLUEMAP_LOG).is_ok());
+		assert!(set_scalar_entry(MapKind::Bluemap, BLUEMAP_LOG, "port", "8200").is_err());
 	}
 
 	#[test]

@@ -63,7 +63,7 @@ export function MapSettingsCard({ instanceId, map }: { instanceId: number; map: 
                 Save map settings
               </PrimaryButton>
             </div>
-            <MapAdvancedSettings instanceId={instanceId} kind={map.kind} />
+            <MapAdvancedSettings instanceId={instanceId} kind={map.kind} editable />
           </>
         ) : (
           <div className="space-y-3">
@@ -96,6 +96,7 @@ export function MapSettingsCard({ instanceId, map }: { instanceId: number; map: 
             {accept.isSuccess && (
               <p className="text-sm text-ink-2">Accepted. BlueMap can download its client file after the next server start.</p>
             )}
+            <MapAdvancedSettings instanceId={instanceId} kind={map.kind} editable={false} />
           </div>
         )}
         {update.error && <p className="text-sm text-rose">{update.error.message}</p>}

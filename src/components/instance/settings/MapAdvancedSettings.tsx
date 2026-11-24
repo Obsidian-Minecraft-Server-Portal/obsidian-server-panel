@@ -5,7 +5,7 @@ import { FormField } from "../FormField";
 import { GhostButton } from "../../ui/GhostButton";
 import { SwitchRow } from "../../ui/SwitchRow";
 
-export function MapAdvancedSettings({ instanceId, kind }: { instanceId: number; kind: MapKind }) {
+export function MapAdvancedSettings({ instanceId, kind, editable }: { instanceId: number; kind: MapKind; editable: boolean }) {
   const [open, setOpen] = useState(false);
   const entries = useMapEntries(instanceId, kind, open);
   const update = useUpdateMapEntry(instanceId, kind);
@@ -15,7 +15,7 @@ export function MapAdvancedSettings({ instanceId, kind }: { instanceId: number; 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-ink-1">All settings</p>
-          <p className="text-xs text-ink-3">Every value in the config file. A wrong value can stop the map from loading.</p>
+          <p className="text-xs text-ink-3">{editable ? "Every value in the config file. A wrong value can stop the map from loading." : "Every value in the config file. Edit the file in Files to change one."}</p>
         </div>
         <GhostButton size="sm" onPress={() => setOpen((value) => !value)}>
           <Icon icon={open ? "lucide:chevron-up" : "lucide:chevron-down"} width={15} height={15} />
@@ -30,7 +30,7 @@ export function MapAdvancedSettings({ instanceId, kind }: { instanceId: number; 
             <EntryField
               key={`${entry.path}-${entry.value}`}
               entry={entry}
-              disabled={update.isPending}
+              disabled={!editable || update.isPending}
               onSave={(value) => update.mutate({ path: entry.path, value })}
             />
           ))}
