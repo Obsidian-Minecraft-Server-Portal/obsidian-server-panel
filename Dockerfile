@@ -23,6 +23,7 @@ RUN if [ -n "$VERSION" ]; then sh packaging/stamp-version.sh "$VERSION"; fi
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,target=/cargo-target,sharing=locked \
+    --mount=type=secret,id=CURSEFORGE_API_KEY,env=CURSEFORGE_API_KEY,required=false \
     CARGO_TARGET_DIR=/cargo-target cargo build --release --locked \
         --no-default-features --features docker --bin obsidian \
     && cp /cargo-target/release/obsidian /usr/local/bin/obsidian

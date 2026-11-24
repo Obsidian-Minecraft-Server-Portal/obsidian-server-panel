@@ -54,6 +54,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
     env:
       TARGET: ${{ matrix.target }}
+      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
     steps:
       - name: Keep LF line endings
         if: runner.os == 'Windows'
@@ -157,6 +158,8 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           build-args: VERSION=${{ github.ref_name }}
+          secrets: |
+            CURSEFORGE_API_KEY=${{ secrets.CURSEFORGE_API_KEY }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ env.PLATFORM_SLUG }}
           cache-to: type=gha,scope=${{ env.PLATFORM_SLUG }},mode=max
