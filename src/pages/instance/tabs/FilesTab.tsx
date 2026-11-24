@@ -16,6 +16,7 @@ import { errorMessage, normalizeDir, parentPath, triggerDownload } from "../../.
 import { useFileOps } from "../../../components/files/useFileOps";
 import { useSelection } from "../../../components/files/useSelection";
 import { uploadQueue } from "../../../components/files/useUploads";
+import type { UploadEntry } from "../../../components/files/uploadEntries";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { GhostButton } from "../../../components/ui/GhostButton";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
@@ -60,10 +61,11 @@ export function FilesTab() {
   const openFile = useCallback((path: string) => setEditing(path), []);
 
   const upload = useCallback(
-    (files: File[]) => {
-      const existing = new Set(entries.filter((entry) => !entry.is_dir).map((entry) => entry.name));
-      const clashes = files.filter((file) => existing.has(file.name)).map((file) => file.name);
-      const enqueue = () => uploadQueue.enqueue(id, dir, files);
+    (uploads: UploadEntry[]) => {
+      const existing = new Set(entries.map((entry) => entry.name));
+      const topLevel = new Set(uploads.map((entry) => entry.relativePath.split("/")[0]));
+      const clashes = [...topLevel].filter((name) => existing.has(name));
+      const enqueue = () => uploadQueue.enqueue(id, dir, uploads);
       if (clashes.length > 0) setDialog({ kind: "overwrite", names: clashes, confirm: enqueue });
       else enqueue();
     },

@@ -54,7 +54,7 @@ struct UploadMeta {
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateUploadRequest {
-	/// Destination file path relative to the instance root. Its parent folder must exist.
+	/// Destination file path relative to the instance root. Missing parent folders are created when the upload finishes.
 	pub path: String,
 	pub size: u64,
 }
@@ -91,13 +91,6 @@ pub async fn create_upload(
 	let root = authorize(&state, &user, *id, Permission::FILES_WRITE).await?;
 	let target = resolve(&root, &body.path).await?;
 	ensure_not_root(&root, &target)?;
-	let parent_is_dir = match target.parent() {
-		Some(parent) => fs::metadata(parent).await.is_ok_and(|metadata| metadata.is_dir()),
-		None => false,
-	};
-	if !parent_is_dir {
-		return Err(CommonError::NotFound("parent directory does not exist".into()).into());
-	}
 	tokio::spawn(sweep_stale(state.paths.uploads_dir.clone()));
 	let upload_id = generate_token();
 	let meta = UploadMeta { instance: *id, path: body.path.clone(), size: body.size };
@@ -191,6 +184,9 @@ pub async fn finalize_upload(
 	}
 	let target = resolve(&root, &meta.path).await?;
 	ensure_not_root(&root, &target)?;
+	if let Some(parent) = target.parent() {
+		fs::create_dir_all(parent).await.map_err(io_err)?;
+	}
 	let part = part_path(&state, &upload_id);
 	if fs::rename(&part, &target).await.is_err() {
 		fs::copy(&part, &target).await.map_err(io_err)?;

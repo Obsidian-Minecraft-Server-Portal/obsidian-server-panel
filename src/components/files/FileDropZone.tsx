@@ -1,9 +1,10 @@
 import { Icon } from "@iconify-icon/react";
 import { useState, type DragEvent, type ReactNode } from "react";
+import { readUploadEntries, type UploadEntry } from "./uploadEntries";
 
 interface FileDropZoneProps {
   label: string;
-  onFiles: (files: File[]) => void;
+  onFiles: (entries: UploadEntry[]) => void;
   children: ReactNode;
 }
 
@@ -29,8 +30,9 @@ export function FileDropZone({ label, onFiles, children }: FileDropZoneProps) {
     if (!hasFiles(event)) return;
     event.preventDefault();
     setDepth(0);
-    const files = Array.from(event.dataTransfer.files);
-    if (files.length > 0) onFiles(files);
+    void readUploadEntries(event.nativeEvent).then((entries) => {
+      if (entries.length > 0) onFiles(entries);
+    });
   };
 
   return (
@@ -46,7 +48,7 @@ export function FileDropZone({ label, onFiles, children }: FileDropZoneProps) {
         <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-panel border-2 border-dashed border-accent bg-canvas/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-2 text-center">
             <Icon icon="lucide:upload-cloud" className="text-accent" width={32} height={32} />
-            <p className="text-sm font-medium text-ink-0">Drop files to upload into {label}</p>
+            <p className="text-sm font-medium text-ink-0">Drop files or folders to upload into {label}</p>
           </div>
         </div>
       )}

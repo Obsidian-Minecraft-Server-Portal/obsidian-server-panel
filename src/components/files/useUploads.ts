@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { queryClient } from "../../api/queryClient";
 import { filesKey } from "../../api/files";
 import { joinPath, errorMessage } from "./fileUtils";
+import type { UploadEntry } from "./uploadEntries";
 import { uploadFile } from "./uploadFile";
 
 export type UploadState = "queued" | "uploading" | "done" | "failed" | "cancelled";
@@ -78,15 +79,15 @@ function start({ item, instanceId, file }: Job): void {
     });
 }
 
-function enqueue(instanceId: number, dir: string, files: File[]): void {
-  const jobs = files.map((file): Job => ({
+function enqueue(instanceId: number, dir: string, entries: UploadEntry[]): void {
+  const jobs = entries.map((entry): Job => ({
     instanceId,
-    file,
+    file: entry.file,
     item: {
       key: crypto.randomUUID(),
-      name: file.name,
-      path: joinPath(dir, file.name),
-      size: file.size,
+      name: entry.relativePath,
+      path: joinPath(dir, entry.relativePath),
+      size: entry.file.size,
       progress: 0,
       state: "queued",
     },
