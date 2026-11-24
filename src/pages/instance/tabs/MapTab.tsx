@@ -91,7 +91,7 @@ export function MapTab() {
               key={current.kind}
               src={session.data.path}
               title={`${current.label} map`}
-              sandbox="allow-scripts allow-popups allow-forms"
+              sandbox="allow-scripts allow-popups allow-forms allow-pointer-lock"
               allowFullScreen
               className="min-h-0 w-full flex-1"
             />

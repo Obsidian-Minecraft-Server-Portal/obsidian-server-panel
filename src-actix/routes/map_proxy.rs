@@ -19,7 +19,7 @@ use crate::state::AppState;
 const TOKEN_CONTEXT: &str = "obsidian 2026-11 map proxy token";
 const TOKEN_TTL_SECS: i64 = 60 * 60;
 const LOCAL_ADDRESS_TTL: Duration = Duration::from_secs(30);
-const SANDBOX_POLICY: &str = "sandbox allow-scripts allow-popups allow-forms";
+const SANDBOX_POLICY: &str = "sandbox allow-scripts allow-popups allow-forms allow-pointer-lock";
 const STORAGE_SHIM: &str = "<script>(()=>{const store=()=>{const d=new Map();return{get length(){return d.size},key:i=>[...d.keys()][i]??null,getItem:k=>d.has(String(k))?d.get(String(k)):null,setItem:(k,v)=>{d.set(String(k),String(v))},removeItem:k=>{d.delete(String(k))},clear:()=>d.clear()}};for(const name of[\"localStorage\",\"sessionStorage\"]){try{window[name].length}catch{Object.defineProperty(window,name,{value:store(),configurable:true})}}})()</script>";
 const DROPPED_RESPONSE_HEADERS: [&str; 15] = [
 	"connection",
