@@ -6,7 +6,8 @@ use std::path::Path;
 use obsidian_worldmap::assets::AssetStore;
 use obsidian_worldmap::chunk::BlockState;
 use obsidian_worldmap::colour::BlockColours;
-use obsidian_worldmap::models::{Blockstate, resolve_model};
+use obsidian_worldmap::models::geometry::Direction;
+use obsidian_worldmap::models::{Blockstate, bake_state, resolve_model};
 
 fn client_jar_store() -> AssetStore {
 	let jar = std::env::var("OBSIDIAN_WORLDMAP_CLIENT_JAR").expect("set OBSIDIAN_WORLDMAP_CLIENT_JAR");
@@ -38,6 +39,21 @@ fn resolves_oak_stairs_from_a_real_client_jar() {
 	println!("{} -> {} elements, textures {:?}", variant.model, resolved.elements.len(), resolved.textures);
 	assert!(!resolved.elements.is_empty());
 	assert!(resolved.textures.values().any(|texture| texture.starts_with("minecraft:block/")));
+}
+
+#[test]
+#[ignore = "needs OBSIDIAN_WORLDMAP_CLIENT_JAR"]
+fn baked_rotations_match_vanilla_for_furnace_y_and_dropper_x() {
+	let store = client_jar_store();
+	let furnace = bake_state(&store, &block("minecraft:furnace", &[("facing", "east"), ("lit", "false")]));
+	let front = furnace.iter().find(|quad| quad.texture == "minecraft:block/furnace_front").expect("furnace front face");
+	assert_eq!(front.direction, Direction::East, "furnace facing=east is blockstate y=90");
+	let observer = bake_state(&store, &block("minecraft:observer", &[("facing", "up"), ("powered", "false")]));
+	let front = observer.iter().find(|quad| quad.texture == "minecraft:block/observer_front").expect("observer front face");
+	assert_eq!(front.direction, Direction::Up, "observer facing=up is blockstate x=270");
+	let dropper = bake_state(&store, &block("minecraft:dropper", &[("facing", "down"), ("triggered", "false")]));
+	let front = dropper.iter().find(|quad| quad.texture == "minecraft:block/dropper_front_vertical").expect("dropper front face");
+	assert_eq!(front.direction, Direction::Down, "dropper facing=down turns the front face to the bottom");
 }
 
 #[test]

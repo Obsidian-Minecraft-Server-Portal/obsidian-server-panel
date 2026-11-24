@@ -1,9 +1,12 @@
 //! Blockstates choose which models a block draws, and models describe the boxes and faces of each model.
 
+mod bake;
 mod blockstate;
+pub mod geometry;
 mod model;
 mod resolve;
 
+pub use bake::bake_state;
 pub use blockstate::{Blockstate, Variant};
 pub use model::{Element, ElementRotation, Face, ModelFile};
 pub use resolve::{ResolvedModel, resolve_model};
