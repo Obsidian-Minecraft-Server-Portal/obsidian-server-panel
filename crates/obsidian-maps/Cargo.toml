@@ -1,0 +1,12 @@
+[package]
+name = "obsidian-maps"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+hocon = { workspace = true }
+obsidian-common = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+utoipa = { workspace = true }
+yaml-edit = { workspace = true }

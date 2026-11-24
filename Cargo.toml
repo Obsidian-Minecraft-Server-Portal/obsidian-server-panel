@@ -39,6 +39,7 @@ obsidian-scheduler = { path = "crates/obsidian-scheduler" }
 obsidian-net = { path = "crates/obsidian-net" }
 obsidian-sftp = { path = "crates/obsidian-sftp" }
 obsidian-migration = { path = "crates/obsidian-migration" }
+obsidian-maps = { path = "crates/obsidian-maps" }
 
 actix-web = "4.20"
 actix-files = "0.7"
@@ -55,6 +56,7 @@ clap = { version = "4", features = ["derive"] }
 color-eyre = { version = "0.6", features = ["tracing-error", "track-caller"] }
 figment = { version = "0.10", features = ["env", "toml"] }
 hex = "0.4"
+hocon = "0.9"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1-rustls-tls"] }
 qrcode = { version = "0.15", default-features = false, features = ["svg"] }
 totp-rs = { version = "6", features = ["gen_secret", "otpauth"] }
@@ -72,6 +74,7 @@ futures-util = "0.3"
 flate2 = "1"
 russh = "0.65"
 russh-sftp = "4"
+yaml-edit = "0.3"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 ferinth = "2.13"
 ammonia = "4"
