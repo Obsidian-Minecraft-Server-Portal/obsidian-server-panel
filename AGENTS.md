@@ -177,6 +177,11 @@ Examples of what to record:
   - Map pages are third-party HTML, so they run sandboxed as an opaque origin
     (CSP `sandbox` header plus the iframe `sandbox` attribute, never
     `allow-same-origin`).
+  - Pointer lock needs `allow-pointer-lock` in both sandbox lists,
+    `SANDBOX_POLICY` in `map_proxy.rs` and the iframe in `MapTab.tsx`. The
+    browser combines both, so a token missing from either blocks it. The
+    Permissions Policy registry has no pointer-lock feature, so the iframe needs
+    no `allow` attribute.
   - Requests carry no cookie, so the proxy authorises by a 1 h token in the
     path (`SecretBox::mac`), and re-checks `console.read` on every request.
   - HTML responses get an in-memory Web Storage shim, because the maps read
