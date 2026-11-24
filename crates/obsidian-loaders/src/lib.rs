@@ -43,11 +43,11 @@ pub struct LaunchSpec {
 
 impl LaunchSpec {
 	pub fn jar(name: &str) -> Self {
-		Self { args: vec!["-jar".into(), name.into(), "nogui".into()] }
+		Self { args: vec!["-jar".into(), name.into()] }
 	}
 
 	pub fn args_file(path: &str) -> Self {
-		Self { args: vec![format!("@{path}"), "nogui".into()] }
+		Self { args: vec![format!("@{path}")] }
 	}
 }
 

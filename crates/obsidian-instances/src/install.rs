@@ -11,6 +11,7 @@ use crate::model::Instance;
 use crate::properties;
 
 const LAUNCH_FILE: &str = "launch.json";
+const LEGACY_NOGUI: &str = "nogui";
 
 pub(crate) type InstallOutcome = oneshot::Receiver<Result<()>>;
 
@@ -121,7 +122,9 @@ pub(crate) async fn load_launch(dir: &Path) -> Result<Vec<String>> {
 	let bytes = tokio::fs::read(dir.join(LAUNCH_FILE))
 		.await
 		.map_err(|_| CommonError::Invalid("the server is not installed yet".into()))?;
-	Ok(serde_json::from_slice::<LaunchFile>(&bytes)?.args)
+	let mut args = serde_json::from_slice::<LaunchFile>(&bytes)?.args;
+	args.retain(|arg| arg != LEGACY_NOGUI);
+	Ok(args)
 }
 
 #[cfg(test)]

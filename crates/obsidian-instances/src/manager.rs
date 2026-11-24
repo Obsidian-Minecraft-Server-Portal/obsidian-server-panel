@@ -198,12 +198,13 @@ impl InstanceManager {
 			None => current.name.clone(),
 		};
 		sqlx::query(
-			"UPDATE instances SET name = ?, jvm_args = ?, memory_min = ?, memory_max = ?, java_runtime_id = ?, \
+			"UPDATE instances SET name = ?, jvm_args = ?, minecraft_args = ?, memory_min = ?, memory_max = ?, java_runtime_id = ?, \
 			 port = ?, upnp_enabled = ?, auto_start = ?, loader = ?, mc_version = ?, loader_version = ?, \
 			 java_component = CASE WHEN ? THEN NULL ELSE java_component END, updated_at = unixepoch() WHERE id = ?",
 		)
 		.bind(name)
 		.bind(patch.jvm_args.unwrap_or_else(|| current.jvm_args.clone()))
+		.bind(patch.minecraft_args.unwrap_or_else(|| current.minecraft_args.clone()))
 		.bind(i64::from(memory_min))
 		.bind(i64::from(memory_max))
 		.bind(java_runtime_id)

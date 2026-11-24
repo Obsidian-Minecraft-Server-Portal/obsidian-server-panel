@@ -32,6 +32,10 @@ fn jvm_arguments(instance: &Instance) -> Vec<String> {
 	args
 }
 
+fn minecraft_arguments(instance: &Instance) -> impl Iterator<Item = String> + '_ {
+	instance.minecraft_args.split_whitespace().map(str::to_owned)
+}
+
 fn parse_tps(line: &str) -> Option<f32> {
 	let (_, rest) = line.split_once(TPS_MARKER)?;
 	let (_, values) = rest.split_once(':')?;
@@ -280,7 +284,8 @@ impl InstanceManager {
 
 	async fn launch(&self, instance: &Instance) -> Result<mpsc::Receiver<RunnerMsg>> {
 		let runtime = self.resolve_java(instance).await?;
-		let args = load_launch(&instance.directory).await?;
+		let mut args = load_launch(&instance.directory).await?;
+		args.extend(minecraft_arguments(instance));
 		let config = RunnerConfig {
 			java: runtime.path,
 			jvm_args: jvm_arguments(instance),

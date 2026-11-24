@@ -62,6 +62,7 @@ mod tests {
 			loader_version: Some("0.16.9".into()),
 			java_runtime_id: None,
 			jvm_args: String::new(),
+			minecraft_args: "--nogui".into(),
 			memory_min_mb: 1024,
 			memory_max_mb: 2048,
 			port: 25565,

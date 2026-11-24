@@ -10,7 +10,7 @@ use crate::model::Instance;
 macro_rules! instance_select {
 	($tail:literal) => {
 		concat!(
-			"SELECT id, owner_id, name, loader, mc_version, loader_version, java_runtime_id, jvm_args, ",
+			"SELECT id, owner_id, name, loader, mc_version, loader_version, java_runtime_id, jvm_args, minecraft_args, ",
 			"memory_min, memory_max, port, upnp_enabled, auto_start, icon_path, banner_path, directory, created_at, updated_at ",
 			"FROM instances ",
 			$tail
@@ -29,6 +29,7 @@ pub struct InstanceRow {
 	loader_version: Option<String>,
 	java_runtime_id: Option<i64>,
 	jvm_args: String,
+minecraft_args: String,
 	memory_min: i64,
 	memory_max: i64,
 	port: i64,
@@ -56,6 +57,7 @@ impl TryFrom<InstanceRow> for Instance {
 			loader_version: row.loader_version,
 			java_runtime_id: row.java_runtime_id,
 			jvm_args: row.jvm_args,
+minecraft_args: row.minecraft_args,
 			memory_min_mb: row.memory_min as u32,
 			memory_max_mb: row.memory_max as u32,
 			port: row.port as u16,

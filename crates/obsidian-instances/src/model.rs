@@ -18,6 +18,7 @@ pub struct Instance {
 	pub loader_version: Option<String>,
 	pub java_runtime_id: Option<i64>,
 	pub jvm_args: String,
+	pub minecraft_args: String,
 	pub memory_min_mb: u32,
 	pub memory_max_mb: u32,
 	pub port: u16,
@@ -73,6 +74,7 @@ pub struct CreateInstance {
 pub struct UpdateInstance {
 	pub name: Option<String>,
 	pub jvm_args: Option<String>,
+	pub minecraft_args: Option<String>,
 	pub memory_min_mb: Option<u32>,
 	pub memory_max_mb: Option<u32>,
 	#[serde(default, deserialize_with = "present")]
