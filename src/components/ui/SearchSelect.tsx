@@ -1,5 +1,5 @@
 import { ComboBox, Description, Header, Input, Label, ListBox, cn, useFilter } from "@heroui/react";
-import { useMemo, type Key, type ReactNode } from "react";
+import { useMemo, type Key, type KeyboardEvent, type ReactNode } from "react";
 
 export interface SearchOption {
   id: string;
@@ -58,6 +58,16 @@ export function SearchSelect({
   const groups = useMemo(() => groupBySection(options), [options]);
   const sectioned = groups.some(([section]) => section !== "");
 
+  const pickTopMatch = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || event.currentTarget.getAttribute("aria-activedescendant")) return;
+    const text = event.currentTarget.value.trim();
+    if (!text) return;
+    const match =
+      options.find((option) => option.label.localeCompare(text, undefined, { sensitivity: "base" }) === 0) ??
+      options.find((option) => contains(option.label, text));
+    if (match) onChange(match.id);
+  };
+
   return (
     <ComboBox
       selectedKey={value}
@@ -73,7 +83,7 @@ export function SearchSelect({
     >
       <Label className="text-sm font-medium text-ink-2">{label}</Label>
       <ComboBox.InputGroup>
-        <Input placeholder={placeholder} autoComplete="off" spellCheck={false} />
+        <Input placeholder={placeholder} autoComplete="off" spellCheck={false} onKeyDown={pickTopMatch} />
         <ComboBox.Trigger />
       </ComboBox.InputGroup>
       {description && <Description className="text-xs text-ink-3">{description}</Description>}
