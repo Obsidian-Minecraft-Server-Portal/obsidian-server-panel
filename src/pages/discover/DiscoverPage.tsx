@@ -1,6 +1,6 @@
 import { Drawer } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Project, SideFilter } from "../../api/content";
 import { useContentFacets, useContentSearch, useInstalledContent, usePlatforms, useQuickAdd } from "../../api/content";
@@ -68,60 +68,60 @@ export function DiscoverPage() {
   const sentinel = useLoadMoreOnView(resultsRef, search.hasNextPage && !search.isFetchingNextPage, loadNext);
 
   const quickAddTarget = instance.data && hasPermission(instance.data, "content.install") ? instance.data : null;
-  const quickAddable = (project: Project) =>
-    quickAddTarget !== null &&
-    QUICK_ADD_KINDS.has(project.kind) &&
-    acceptsLoader(project.kind, quickAddTarget.loader);
+  const quickAddLoader = quickAddTarget?.loader ?? null;
+  const associateId = associating ? discover.associateId : null;
+  const { instanceId } = discover;
+  const { isPending: quickAddPending, mutate: quickAddMutate } = quickAdd;
 
-  const projectHref = (project: Project, toVersions: boolean) => {
-    const params = new URLSearchParams();
-    if (discover.instanceId !== null) params.set("instance", String(discover.instanceId));
-    if (associating && discover.associateId !== null) params.set("associate", String(discover.associateId));
-    if (toVersions) params.set("tab", "versions");
-    const query = params.toString();
-    return `/discover/projects/${project.platform}/${encodeURIComponent(project.id)}${query ? `?${query}` : ""}`;
-  };
-
-  const openProject = (project: Project) => navigate(projectHref(project, false));
-
-  const associateActions = (project: Project) => (
-    <>
-      <PrimaryButton size="sm" onPress={() => navigate(projectHref(project, true))}>
-        <Icon icon="lucide:list" width={14} height={14} />
-        Choose version
-      </PrimaryButton>
-      <GhostButton size="sm" onPress={() => openProject(project)}>
-        View more
-      </GhostButton>
-    </>
+  const openProject = useCallback(
+    (project: Project) => navigate(projectHref(project, false, instanceId, associateId)),
+    [navigate, instanceId, associateId],
   );
 
-  const browseActions = (project: Project) => (
-    <>
-      {installed.has(project.platform, project.id) ? (
-        <GhostButton size="sm" isDisabled>
-          <Icon icon="lucide:check" width={14} height={14} />
-          Installed
-        </GhostButton>
-      ) : (
-        quickAddable(project) && (
-          <PrimaryButton
-            size="sm"
-            isDisabled={quickAdd.isPending}
-            onPress={() => quickAdd.mutate({ platform: project.platform, projectId: project.id, kind: project.kind })}
-          >
-            <Icon icon="lucide:zap" width={14} height={14} />
-            Quick add
-          </PrimaryButton>
-        )
-      )}
-      <GhostButton size="sm" onPress={() => openProject(project)}>
-        View more
-      </GhostButton>
-    </>
+  const renderActions = useCallback(
+    (project: Project) => {
+      if (associating) {
+        return (
+          <>
+            <PrimaryButton size="sm" onPress={() => navigate(projectHref(project, true, instanceId, associateId))}>
+              <Icon icon="lucide:list" width={14} height={14} />
+              Choose version
+            </PrimaryButton>
+            <GhostButton size="sm" onPress={() => openProject(project)}>
+              View more
+            </GhostButton>
+          </>
+        );
+      }
+      const quickAddable =
+        quickAddLoader !== null && QUICK_ADD_KINDS.has(project.kind) && acceptsLoader(project.kind, quickAddLoader);
+      return (
+        <>
+          {installed.has(project.platform, project.id) ? (
+            <GhostButton size="sm" isDisabled>
+              <Icon icon="lucide:check" width={14} height={14} />
+              Installed
+            </GhostButton>
+          ) : (
+            quickAddable && (
+              <PrimaryButton
+                size="sm"
+                isDisabled={quickAddPending}
+                onPress={() => quickAddMutate({ platform: project.platform, projectId: project.id, kind: project.kind })}
+              >
+                <Icon icon="lucide:zap" width={14} height={14} />
+                Quick add
+              </PrimaryButton>
+            )
+          )}
+          <GhostButton size="sm" onPress={() => openProject(project)}>
+            View more
+          </GhostButton>
+        </>
+      );
+    },
+    [associating, navigate, instanceId, associateId, openProject, quickAddLoader, installed, quickAddPending, quickAddMutate],
   );
-
-  const renderActions = (project: Project) => (associating ? associateActions(project) : browseActions(project));
 
   const sidebar = (
     <DiscoverSidebar
@@ -218,6 +218,15 @@ export function DiscoverPage() {
       </Drawer.Backdrop>
     </div>
   );
+}
+
+function projectHref(project: Project, toVersions: boolean, instanceId: number | null, associateId: number | null): string {
+  const params = new URLSearchParams();
+  if (instanceId !== null) params.set("instance", String(instanceId));
+  if (associateId !== null) params.set("associate", String(associateId));
+  if (toVersions) params.set("tab", "versions");
+  const query = params.toString();
+  return `/discover/projects/${project.platform}/${encodeURIComponent(project.id)}${query ? `?${query}` : ""}`;
 }
 
 interface ResultsProps {

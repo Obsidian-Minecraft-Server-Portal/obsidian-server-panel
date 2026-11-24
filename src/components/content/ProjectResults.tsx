@@ -1,6 +1,6 @@
 import { cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { Project } from "../../api/content";
 import { openUnlessInteractive, stopRowClick } from "../ui/openUnlessInteractive";
 import { PLATFORM_NAMES, formatDownloads, projectKey } from "./meta";
@@ -20,7 +20,7 @@ interface ProjectResultsProps {
 interface ProjectItemProps {
   project: Project;
   onOpen: (project: Project) => void;
-  actions: ReactNode;
+  renderActions: (project: Project) => ReactNode;
 }
 
 const META_CLASS = "truncate font-mono text-[11px] uppercase tracking-wider text-ink-3";
@@ -33,7 +33,7 @@ export function PlatformChip({ platform }: { platform: Project["platform"] }) {
   );
 }
 
-function ProjectCard({ project, onOpen, actions }: ProjectItemProps) {
+const ProjectCard = memo(function ProjectCard({ project, onOpen, renderActions }: ProjectItemProps) {
   return (
     <article
       onClick={(event) => openUnlessInteractive(event, () => onOpen(project))}
@@ -62,14 +62,14 @@ function ProjectCard({ project, onOpen, actions }: ProjectItemProps) {
             <Icon icon="lucide:download" width={12} height={12} />
             {formatDownloads(project.downloads)}
           </span>
-          <div className="flex cursor-default flex-wrap gap-2" onClick={stopRowClick}>{actions}</div>
+          <div className="flex cursor-default flex-wrap gap-2" onClick={stopRowClick}>{renderActions(project)}</div>
         </div>
       </div>
     </article>
   );
-}
+});
 
-function ProjectRow({ project, onOpen, actions }: ProjectItemProps) {
+const ProjectRow = memo(function ProjectRow({ project, onOpen, renderActions }: ProjectItemProps) {
   return (
     <div
       onClick={(event) => openUnlessInteractive(event, () => onOpen(project))}
@@ -86,17 +86,17 @@ function ProjectRow({ project, onOpen, actions }: ProjectItemProps) {
       </button>
       <span className={cn(META_CLASS, "hidden sm:block")}>{PLATFORM_NAMES[project.platform]}</span>
       <span className={cn(META_CLASS, "w-20 text-right")}>{formatDownloads(project.downloads)}</span>
-      <div className="flex shrink-0 cursor-default gap-2" onClick={stopRowClick}>{actions}</div>
+      <div className="flex shrink-0 cursor-default gap-2" onClick={stopRowClick}>{renderActions(project)}</div>
     </div>
   );
-}
+});
 
 export function ProjectResults({ projects, view, onOpen, renderActions }: ProjectResultsProps) {
   if (view === "compact") {
     return (
       <div className="flex flex-col gap-2">
         {projects.map((project) => (
-          <ProjectRow key={projectKey(project)} project={project} onOpen={onOpen} actions={renderActions(project)} />
+          <ProjectRow key={projectKey(project)} project={project} onOpen={onOpen} renderActions={renderActions} />
         ))}
       </div>
     );
@@ -104,7 +104,7 @@ export function ProjectResults({ projects, view, onOpen, renderActions }: Projec
   return (
     <div className="grid grid-cols-1 auto-rows-fr gap-4 sm:grid-cols-2 2xl:grid-cols-3 min-[2200px]:!grid-cols-4">
       {projects.map((project) => (
-        <ProjectCard key={projectKey(project)} project={project} onOpen={onOpen} actions={renderActions(project)} />
+        <ProjectCard key={projectKey(project)} project={project} onOpen={onOpen} renderActions={renderActions} />
       ))}
     </div>
   );
