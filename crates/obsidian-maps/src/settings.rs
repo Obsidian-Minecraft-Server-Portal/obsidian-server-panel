@@ -211,6 +211,105 @@ fn without_placeholders(text: &str) -> String {
 	out
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, ToSchema)]
+pub struct ConfigEntry {
+	/// Dotted path of the setting, for example settings.internal-webserver.port.
+	pub path: String,
+	pub value: String,
+	pub kind: EntryKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum EntryKind {
+	Bool,
+	Number,
+	Text,
+}
+
+pub fn port_path(kind: MapKind) -> String {
+	Keys::of(kind).port.join(".")
+}
+
+pub fn scalar_entries(kind: MapKind, text: &str) -> Result<Vec<ConfigEntry>> {
+	require_editable(kind)?;
+	let file = parse_yaml(text)?;
+	let mut entries = Vec::new();
+	if let Some(document) = file.document() {
+		for key in document.keys() {
+			let Some(name) = scalar_text(&key) else { continue };
+			if let Some(node) = document.get(key) {
+				collect_entries(node, &name, &mut entries);
+			}
+		}
+	}
+	Ok(entries)
+}
+
+pub fn set_scalar_entry(kind: MapKind, text: &str, path: &str, value: &str) -> Result<String> {
+	require_editable(kind)?;
+	let existing = scalar_entries(kind, text)?
+		.into_iter()
+		.find(|entry| entry.path == path)
+		.ok_or_else(|| CommonError::NotFound(format!("setting {path}")))?;
+	let keys: Vec<&str> = path.split('.').collect();
+	match existing.kind {
+		EntryKind::Bool => set_yaml(text, &keys, parse_bool(value).ok_or_else(|| invalid(&keys, value))?),
+		EntryKind::Number => match value.trim().parse::<i64>() {
+			Ok(integer) => set_yaml(text, &keys, integer),
+			Err(_) => set_yaml(text, &keys, value.trim().parse::<f64>().map_err(|_| invalid(&keys, value))?),
+		},
+		EntryKind::Text => set_yaml(text, &keys, value),
+	}
+}
+
+fn require_editable(kind: MapKind) -> Result<()> {
+	if kind.editable() {
+		Ok(())
+	} else {
+		Err(CommonError::Conflict(format!("{} settings are read-only here", kind.label())))
+	}
+}
+
+fn collect_entries(node: YamlNode, path: &str, out: &mut Vec<ConfigEntry>) {
+	match node {
+		YamlNode::Scalar(scalar) => {
+			let value = scalar.as_string();
+			out.push(ConfigEntry {
+				path: path.to_owned(),
+				kind: infer_kind(&value),
+				value,
+			});
+		}
+		YamlNode::Mapping(mapping) => {
+			for key in mapping.keys() {
+				let Some(name) = scalar_text(&key) else { continue };
+				if let Some(child) = mapping.get(key) {
+					collect_entries(child, &format!("{path}.{name}"), out);
+				}
+			}
+		}
+		_ => {}
+	}
+}
+
+fn scalar_text(node: &YamlNode) -> Option<String> {
+	match node {
+		YamlNode::Scalar(scalar) => Some(scalar.as_string()),
+		_ => None,
+	}
+}
+
+fn infer_kind(value: &str) -> EntryKind {
+	if parse_bool(value).is_some() {
+		EntryKind::Bool
+	} else if value.trim().parse::<f64>().is_ok() {
+		EntryKind::Number
+	} else {
+		EntryKind::Text
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -259,6 +358,26 @@ mod tests {
 	fn bluemap_is_read_only() {
 		let update = MapSettingsUpdate { enabled: Some(false), port: None, bind: None };
 		assert!(apply_settings(MapKind::Bluemap, BLUEMAP, &update).is_err());
+	}
+
+	#[test]
+	fn lists_scalar_settings_with_inferred_types() {
+		let entries = scalar_entries(MapKind::Squaremap, SQUAREMAP).unwrap();
+		let port = entries.iter().find(|entry| entry.path == "settings.internal-webserver.port").unwrap();
+		assert_eq!((port.value.as_str(), port.kind), ("8080", EntryKind::Number));
+		let enabled = entries.iter().find(|entry| entry.path == "settings.internal-webserver.enabled").unwrap();
+		assert_eq!(enabled.kind, EntryKind::Bool);
+	}
+
+	#[test]
+	fn writes_typed_scalar_entries_and_keeps_comments() {
+		let edited = set_scalar_entry(MapKind::Squaremap, SQUAREMAP, "settings.internal-webserver.enabled", "false").unwrap();
+		let edited = set_scalar_entry(MapKind::Squaremap, &edited, "settings.internal-webserver.port", "25600").unwrap();
+		assert!(edited.contains("# Enable the built-in web server."));
+		let settings = read_settings(MapKind::Squaremap, &edited).unwrap();
+		assert_eq!((settings.enabled, settings.port), (false, 25600));
+		assert!(set_scalar_entry(MapKind::Squaremap, &edited, "settings.internal-webserver.port", "not-a-number").is_err());
+		assert!(set_scalar_entry(MapKind::Squaremap, &edited, "settings.missing", "1").is_err());
 	}
 
 	#[test]

@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::path::Path;
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -9,7 +10,10 @@ use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
 use serde::Deserialize;
 use utoipa::ToSchema;
-use obsidian_maps::{DetectedMap, MapKind, MapSettingsUpdate, apply_settings, config_text, detect, read_settings};
+use obsidian_maps::{
+	ConfigEntry, DetectedMap, MapKind, MapSettingsUpdate, apply_settings, config_text, detect, port_path, read_settings,
+	scalar_entries, set_scalar_entry,
+};
 use obsidian_runner::RunState;
 
 use crate::auth::{AuthUser, require_instance_perm};
@@ -49,6 +53,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(update_map)
 		.service(map_root)
 		.service(set_map_upnp)
+		.service(list_entries)
+		.service(update_entry)
 		.service(proxy_map);
 }
 
@@ -102,13 +108,96 @@ pub async fn update_map(
 		return Err(CommonError::Conflict(format!("start the server once so {} can create its config", kind.label())).into());
 	};
 	let edited = apply_settings(kind, &text, &update)?;
-	let path = dir.join(&relative);
-	let temp = path.with_extension("obsidian-tmp");
-	tokio::fs::write(&temp, edited).await.map_err(CommonError::from)?;
-	tokio::fs::rename(&temp, &path).await.map_err(CommonError::from)?;
+	save_config(&dir, &relative, &edited).await?;
 	let map = detect(&dir).await?.into_iter().find(|map| map.kind == kind);
 	let map = map.ok_or_else(|| CommonError::NotFound(format!("{} map", kind.label())))?;
 	Ok(web::Json(map))
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct EntryUpdate {
+	/// Dotted path from the config root, as listed by the entries endpoint.
+	pub path: String,
+	pub value: String,
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/{id}/maps/{kind}/entries",
+	tag = "instances",
+	params(
+		("id" = i64, Path, description = "Instance id"),
+		("kind" = String, Path, description = "dynmap, squaremap or pl3xmap"),
+	),
+	responses(
+		(status = 200, description = "Every scalar setting in the map config", body = Vec<ConfigEntry>),
+		(status = 403, description = "Missing settings.edit permission"),
+		(status = 409, description = "The config is read-only here or does not exist yet"),
+	)
+)]
+#[get("/instances/{id}/maps/{kind}/entries")]
+pub async fn list_entries(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(InstanceId, MapKind)>,
+) -> ApiResult<web::Json<Vec<ConfigEntry>>> {
+	let (id, kind) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
+	let Some((_, text)) = config_text(&state.paths.instance_dir(id), kind).await? else {
+		return Err(CommonError::Conflict(format!("start the server once so {} can create its config", kind.label())).into());
+	};
+	Ok(web::Json(scalar_entries(kind, &text)?))
+}
+
+#[utoipa::path(
+	put,
+	path = "/api/v1/instances/{id}/maps/{kind}/entries",
+	tag = "instances",
+	params(
+		("id" = i64, Path, description = "Instance id"),
+		("kind" = String, Path, description = "dynmap, squaremap or pl3xmap"),
+	),
+	request_body = EntryUpdate,
+	responses(
+		(status = 200, description = "Updated settings; the map reads them on its next start", body = Vec<ConfigEntry>),
+		(status = 403, description = "Missing settings.edit permission"),
+		(status = 409, description = "The value clashes with the server port or the config is read-only"),
+	)
+)]
+#[put("/instances/{id}/maps/{kind}/entries")]
+pub async fn update_entry(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(InstanceId, MapKind)>,
+	web::Json(update): web::Json<EntryUpdate>,
+) -> ApiResult<web::Json<Vec<ConfigEntry>>> {
+	let (id, kind) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
+	if update.path == port_path(kind) {
+		let port: u16 = update
+			.value
+			.trim()
+			.parse()
+			.map_err(|_| CommonError::Invalid(format!("{} is not a valid port", update.value)))?;
+		if port == state.instances.get(id).await?.port {
+			return Err(CommonError::Conflict("the map port cannot be the same as the server port".into()).into());
+		}
+	}
+	let dir = state.paths.instance_dir(id);
+	let Some((relative, text)) = config_text(&dir, kind).await? else {
+		return Err(CommonError::Conflict(format!("start the server once so {} can create its config", kind.label())).into());
+	};
+	let edited = set_scalar_entry(kind, &text, &update.path, &update.value)?;
+	save_config(&dir, &relative, &edited).await?;
+	Ok(web::Json(scalar_entries(kind, &edited)?))
+}
+
+async fn save_config(dir: &Path, relative: &str, text: &str) -> ApiResult<()> {
+	let path = dir.join(relative);
+	let temp = path.with_extension("obsidian-tmp");
+	tokio::fs::write(&temp, text).await.map_err(CommonError::from)?;
+	tokio::fs::rename(&temp, &path).await.map_err(CommonError::from)?;
+	Ok(())
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

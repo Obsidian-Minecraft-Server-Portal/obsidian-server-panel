@@ -6,7 +6,7 @@ use obsidian_common::Result;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub use settings::{MapSettings, MapSettingsUpdate, apply_settings, read_settings};
+pub use settings::{ConfigEntry, EntryKind, MapSettings, MapSettingsUpdate, apply_settings, port_path, read_settings, scalar_entries, set_scalar_entry};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
