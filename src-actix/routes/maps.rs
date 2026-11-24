@@ -264,10 +264,10 @@ pub async fn proxy_map(
 			request = request.header(name, value.as_bytes());
 		}
 	}
-	let upstream = request
-		.send()
-		.await
-		.map_err(|error| CommonError::Conflict(format!("the map is not answering yet: {error}")))?;
+	let upstream = match request.send().await {
+		Ok(upstream) => upstream,
+		Err(error) => return Ok(unavailable_page(kind.label(), &error.to_string())),
+	};
 	let prefix = format!("/api/v1/instances/{id}/map/{}", kind.key());
 	let status = actix_web::http::StatusCode::from_u16(upstream.status().as_u16())
 		.map_err(|error| CommonError::Other(format!("the map sent an invalid status: {error}")))?;
@@ -288,6 +288,15 @@ pub async fn proxy_map(
 	}
 	Ok(response.streaming(upstream.bytes_stream().map(|chunk| chunk.map_err(std::io::Error::other))))
 }
+
+fn unavailable_page(label: &str, reason: &str) -> HttpResponse {
+	let reason = reason.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+	let body = format!(
+		"<!doctype html><meta charset=\"utf-8\"><title>{label} map</title><body style=\"margin:0;display:grid;place-items:center;height:100vh;background:#0a0609;color:#c9c2cc;font:14px system-ui,sans-serif\"><div style=\"max-width:32rem;padding:24px;text-align:center\"><p style=\"font-size:16px;color:#f2eef4\">The {label} map is not answering yet.</p><p>It is still starting, or its web server could not start. Check the server console for {label} messages.</p><p style=\"font:12px monospace;color:#7d7480\">{reason}</p></div></body>"
+	);
+	HttpResponse::ServiceUnavailable().content_type("text/html; charset=utf-8").body(body)
+}
+
 
 fn upstream_url(port: u16, bind: Option<&str>, tail: &str, query: &str) -> String {
 	let host = upstream_host(bind);
