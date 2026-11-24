@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "@iconify-icon/react";
 import { useInstance, useUpnp } from "../../../api/instances";
-import { mapPath, useMaps, type MapKind } from "../../../api/maps";
+import { useMapSession, useMaps, type MapKind } from "../../../api/maps";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { GhostButton } from "../../../components/ui/GhostButton";
@@ -19,6 +19,8 @@ export function MapTab() {
   const fullscreen = useFullscreen(frame);
   const enabled = (maps.data ?? []).filter((map) => map.settings.enabled);
   const current = enabled.find((map) => map.kind === picked) ?? enabled[0];
+  const running = instance.data?.status.state === "running";
+  const session = useMapSession(id, current?.kind, running);
 
   if (maps.isPending) return <p className="px-4 sm:px-8 text-sm text-ink-3">Loading map…</p>;
   if (maps.isError) return <p className="px-4 sm:px-8 text-sm text-rose">{maps.error.message}</p>;
@@ -34,7 +36,6 @@ export function MapTab() {
     );
   }
 
-  const running = instance.data?.status.state === "running";
   const external = upnp.data?.maps.find(
     (entry) => entry.port === current.settings.port && entry.mapped && entry.external_ip && entry.external_port,
   );
@@ -85,13 +86,20 @@ export function MapTab() {
               </GhostButton>
             </div>
           )}
-          <iframe
-            key={current.kind}
-            src={mapPath(id, current.kind)}
-            title={`${current.label} map`}
-            allowFullScreen
-            className="min-h-0 w-full flex-1"
-          />
+          {session.data ? (
+            <iframe
+              key={current.kind}
+              src={session.data.path}
+              title={`${current.label} map`}
+              sandbox="allow-scripts allow-popups allow-forms"
+              allowFullScreen
+              className="min-h-0 w-full flex-1"
+            />
+          ) : (
+            <p className={`p-4 text-sm ${session.isError ? "text-rose" : "text-ink-3"}`}>
+              {session.isError ? session.error.message : "Opening map…"}
+            </p>
+          )}
         </div>
       ) : (
         <EmptyState icon="lucide:power-off" title="The server is offline" description="Start the server to open its map." />

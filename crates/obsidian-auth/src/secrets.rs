@@ -13,6 +13,7 @@ const KEY_FILE: &str = "secret.key";
 #[derive(Clone)]
 pub struct SecretBox {
 	cipher: ChaCha20Poly1305,
+	key: [u8; KEY_BYTES],
 }
 
 impl std::fmt::Debug for SecretBox {
@@ -33,9 +34,27 @@ impl SecretBox {
 			}
 			Err(error) => return Err(error.into()),
 		};
-		let cipher = ChaCha20Poly1305::new_from_slice(&key)
+		let key: [u8; KEY_BYTES] = key
+			.try_into()
 			.map_err(|_| CommonError::Other("secret key has an invalid length".into()))?;
-		Ok(Self { cipher })
+		Ok(Self::from_key(key))
+	}
+
+	pub fn from_key(key: [u8; KEY_BYTES]) -> Self {
+		Self { cipher: ChaCha20Poly1305::new(&key.into()), key }
+	}
+
+	/// BLAKE3 keyed hash under a key derived per `context`, so a tag made for one purpose never verifies for another.
+	pub fn mac(&self, context: &str, message: &[u8]) -> String {
+		self.keyed(context, message).to_hex().to_string()
+	}
+
+	pub fn verify_mac(&self, context: &str, message: &[u8], tag: &str) -> bool {
+		blake3::Hash::from_hex(tag).is_ok_and(|tag| tag == self.keyed(context, message))
+	}
+
+	fn keyed(&self, context: &str, message: &[u8]) -> blake3::Hash {
+		blake3::keyed_hash(&blake3::derive_key(context, &self.key), message)
 	}
 
 	pub fn seal(&self, plaintext: &[u8]) -> Result<String> {
@@ -74,4 +93,20 @@ fn write_key(path: &Path, key: &[u8]) -> Result<()> {
 	file.write_all(hex::encode(key).as_bytes())?;
 	file.sync_all()?;
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::SecretBox;
+
+	#[test]
+	fn macs_verify_only_for_their_context_and_message() {
+		let secrets = SecretBox::from_key([7; 32]);
+		let tag = secrets.mac("a", b"message");
+		assert!(secrets.verify_mac("a", b"message", &tag));
+		assert!(!secrets.verify_mac("b", b"message", &tag));
+		assert!(!secrets.verify_mac("a", b"other", &tag));
+		assert!(!secrets.verify_mac("a", b"message", "zz"));
+		assert!(!SecretBox::from_key([8; 32]).verify_mac("a", b"message", &tag));
+	}
 }

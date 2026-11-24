@@ -42,6 +42,18 @@ impl AuthService {
 		self.db.pool()
 	}
 
+	pub fn secrets(&self) -> &SecretBox {
+		&self.secrets
+	}
+
+	pub async fn user(&self, user_id: UserId) -> Result<Option<AuthUser>> {
+		let user = sqlx::query_as("SELECT id, username, is_admin FROM users WHERE id = ?")
+			.bind(user_id)
+			.fetch_optional(self.pool())
+			.await?;
+		Ok(user)
+	}
+
 	pub async fn setup_required(&self) -> Result<bool> {
 		let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
 			.fetch_one(self.pool())
