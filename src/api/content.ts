@@ -175,6 +175,11 @@ export interface InstalledContent {
   instance_id: number;
 }
 
+export interface MatchSummary {
+  checked: number;
+  linked: number;
+}
+
 export interface ContentUpdate {
   mod_id: number;
   filename: string;
@@ -385,6 +390,14 @@ export function useUpdateAllContent(instanceId: number) {
   const invalidate = useInvalidateInstalled(instanceId, true);
   return useMutation({
     mutationFn: () => api.post<InstalledContent[]>(`/instances/${instanceId}/content/updates`),
+    onSuccess: invalidate,
+  });
+}
+
+export function useFindContentMatches(instanceId: number) {
+  const invalidate = useInvalidateInstalled(instanceId, true);
+  return useMutation({
+    mutationFn: () => api.post<MatchSummary>(`/instances/${instanceId}/content/matches`),
     onSuccess: invalidate,
   });
 }

@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   useApplyContentUpdate,
   useContentUpdates,
+  useFindContentMatches,
   useInstalledContent,
   useRemoveContent,
   useToggleContent,
@@ -34,6 +35,10 @@ function groupItems(items: InstalledContent[]) {
   );
 }
 
+function filesLabel(count: number) {
+  return `${count} unlinked ${count === 1 ? "file" : "files"}`;
+}
+
 export function InstalledContentPanel() {
   const { id = "" } = useParams();
   const instanceId = Number(id);
@@ -46,6 +51,7 @@ export function InstalledContentPanel() {
   const updateAll = useUpdateAllContent(instanceId);
   const upload = useUploadContent(instanceId);
   const remove = useRemoveContent(instanceId);
+  const matches = useFindContentMatches(instanceId);
   const [pendingRemove, setPendingRemove] = useState<number | null>(null);
   const [relations, setRelations] = useState<RelationsTarget | null>(null);
   const [searchParams] = useSearchParams();
@@ -57,8 +63,10 @@ export function InstalledContentPanel() {
   const updateList = updates.data ?? [];
   const updateByMod = new Map(updateList.map((entry) => [entry.mod_id, entry]));
   const enabledCount = items.filter((item) => item.enabled).length;
-  const busy = toggle.isPending || applyUpdate.isPending || updateAll.isPending || remove.isPending;
-  const error = toggle.error ?? applyUpdate.error ?? updateAll.error ?? remove.error ?? upload.error ?? installed.error;
+  const unlinkedCount = items.filter((item) => item.platform === null).length;
+  const canInstall = instance.data ? hasPermission(instance.data, "content.install") : false;
+  const busy = toggle.isPending || applyUpdate.isPending || updateAll.isPending || remove.isPending || matches.isPending;
+  const error = matches.error ?? toggle.error ?? applyUpdate.error ?? updateAll.error ?? remove.error ?? upload.error ?? installed.error;
 
   const browse = () => {
     const params = new URLSearchParams({ kind: kindForLoader(instance.data?.loader ?? "vanilla"), instance: id });
@@ -99,6 +107,12 @@ export function InstalledContentPanel() {
             <Icon icon="lucide:refresh-cw" width={15} height={15} />
             Check updates
           </GhostButton>
+          {canInstall && unlinkedCount > 0 && (
+            <GhostButton onPress={() => matches.mutate()} isDisabled={busy}>
+              <Icon icon="lucide:link" width={15} height={15} />
+              {matches.isPending ? "Matching…" : "Find matches"}
+            </GhostButton>
+          )}
           <GhostButton onPress={browse}>
             <Icon icon="lucide:search" width={15} height={15} />
             Browse
@@ -129,6 +143,14 @@ export function InstalledContentPanel() {
         </div>
       )}
       {error && <p className="text-sm text-rose">{error.message}</p>}
+      {matches.data && (
+        <p className={`flex items-center gap-2 text-sm ${matches.data.linked > 0 ? "text-green" : "text-ink-3"}`}>
+          <Icon icon={matches.data.linked > 0 ? "lucide:circle-check" : "lucide:search-x"} width={16} height={16} />
+          {matches.data.linked > 0
+            ? `Linked ${matches.data.linked} of ${filesLabel(matches.data.checked)} to Modrinth or CurseForge.`
+            : `No Modrinth or CurseForge match for ${filesLabel(matches.data.checked)}.`}
+        </p>
+      )}
       {associated && (
         <p className="flex items-center gap-2 text-sm text-green">
           <Icon icon="lucide:circle-check" width={16} height={16} />
