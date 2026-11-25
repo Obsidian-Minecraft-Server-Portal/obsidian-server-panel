@@ -95,6 +95,7 @@ impl WorldMapService {
 		};
 		let dimensions = dimension_statuses(&instance.directory, &render_state).await?;
 		Ok(WorldMapStatus {
+			enabled: settings::load(&self.db, id).await?.enabled,
 			rendering,
 			last_error,
 			pack_key: render_state.pack_key.clone(),

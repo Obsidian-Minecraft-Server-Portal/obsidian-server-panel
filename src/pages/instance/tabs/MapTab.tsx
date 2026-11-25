@@ -1,37 +1,73 @@
 import { useRef, useState } from "react";
 import { Icon } from "@iconify-icon/react";
-import { useInstance, useUpnp } from "../../../api/instances";
-import { useMapSession, useMaps, type MapKind } from "../../../api/maps";
+import { hasPermission, useInstance, useUpnp } from "../../../api/instances";
+import { useMapSession, useMaps } from "../../../api/maps";
+import { useWorldMapStatus } from "../../../api/worldmap";
 import { useInstanceId } from "../../../components/instance/useInstanceId";
+import { WorldMapPanel } from "../../../components/worldmap/WorldMapPanel";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { GhostButton } from "../../../components/ui/GhostButton";
 import { SectionTabs } from "../../../components/ui/SectionTabs";
 import { Tip } from "../../../components/ui/Tip";
 import { useFullscreen } from "../../../components/ui/useFullscreen";
 
+const WORLD_MAP = "worldmap";
+
 export function MapTab() {
   const id = useInstanceId();
   const instance = useInstance(id);
+  const canViewWorldMap = instance.data !== undefined && hasPermission(instance.data, "map.view");
+  const worldMap = useWorldMapStatus(id, canViewWorldMap);
   const maps = useMaps(id);
   const upnp = useUpnp(id);
-  const [picked, setPicked] = useState<MapKind | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const fullscreen = useFullscreen(frame);
-  const enabled = (maps.data ?? []).filter((map) => map.settings.enabled);
-  const current = enabled.find((map) => map.kind === picked) ?? enabled[0];
+  const builtIn = worldMap.data?.enabled === true;
+  const thirdParty = maps.isError ? [] : (maps.data ?? []).filter((map) => map.settings.enabled);
+  const options: { id: string; label: string }[] = [
+    ...(builtIn ? [{ id: WORLD_MAP, label: "World map" }] : []),
+    ...thirdParty.map((map) => ({ id: map.kind, label: map.label })),
+  ];
+  const selected = options.find((option) => option.id === picked) ?? options[0];
+  const current = thirdParty.find((map) => map.kind === selected?.id);
   const running = instance.data?.status.state === "running";
   const session = useMapSession(id, current?.kind, running);
 
-  if (maps.isPending) return <p className="px-4 sm:px-8 text-sm text-ink-3">Loading map…</p>;
-  if (maps.isError) return <p className="px-4 sm:px-8 text-sm text-rose">{maps.error.message}</p>;
-  if (!current) {
+  if (maps.isPending || (canViewWorldMap && worldMap.isPending)) {
+    return <p className="px-4 sm:px-8 text-sm text-ink-3">Loading map…</p>;
+  }
+  if (maps.isError && !builtIn) return <p className="px-4 sm:px-8 text-sm text-rose">{maps.error.message}</p>;
+  if (!selected) {
     return (
       <div className="px-4 sm:px-8">
         <EmptyState
           icon="lucide:map"
-          title="No web map is enabled"
-          description="Start the server once so its map creates its config, then turn its web server on in Settings."
+          title="No map is enabled"
+          description="Turn on the World map in Settings, or start the server once so a web map can create its config."
         />
+      </div>
+    );
+  }
+
+  const tabs =
+    options.length > 1 ? (
+      <SectionTabs label="Maps" tabs={options} value={selected.id} onChange={setPicked} />
+    ) : null;
+
+  if (selected.id === WORLD_MAP) {
+    return (
+      <div className="flex min-h-[32rem] flex-1 flex-col gap-3 px-4 pb-8 sm:px-8">
+        {tabs}
+        <WorldMapPanel instanceId={id} />
+      </div>
+    );
+  }
+
+  if (!current) {
+    return (
+      <div className="px-4 sm:px-8">
+        <EmptyState icon="lucide:map" title="That map is not enabled" description="Pick another map above." />
       </div>
     );
   }
@@ -43,16 +79,7 @@ export function MapTab() {
   return (
     <div className="flex min-h-[32rem] flex-1 flex-col gap-3 px-4 pb-8 sm:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {enabled.length > 1 ? (
-          <SectionTabs
-            label="Maps"
-            tabs={enabled.map((map) => ({ id: map.kind, label: map.label }))}
-            value={current.kind}
-            onChange={setPicked}
-          />
-        ) : (
-          <p className="font-mono text-xs text-ink-3 uppercase">{current.label}</p>
-        )}
+        {tabs ?? <p className="font-mono text-xs text-ink-3 uppercase">{current.label}</p>}
         <div className="flex items-center gap-3">
           {external && (
             <a

@@ -8,6 +8,7 @@ import { IconPanel } from "../../../components/instance/settings/IconPanel";
 import { MapSettingsCard } from "../../../components/instance/settings/MapSettingsCard";
 import { SoftwarePanel } from "../../../components/instance/settings/SoftwarePanel";
 import { UpnpPanel } from "../../../components/instance/settings/UpnpPanel";
+import { WorldMapSettingsCard } from "../../../components/instance/settings/WorldMapSettingsCard";
 import { MembersSection } from "./MembersTab";
 
 export function SettingsTab() {
@@ -23,6 +24,7 @@ export function SettingsTab() {
     <div className="space-y-5 px-4 sm:px-8 pb-8">
       <GeneralSettings view={view} />
       <UpnpPanel view={view} />
+      <WorldMapSettingsCard instanceId={id} />
       {(maps.data ?? []).map((map) => (
         <MapSettingsCard
           key={`${map.kind}-${map.settings.enabled}-${map.settings.port}-${map.settings.bind ?? ""}`}

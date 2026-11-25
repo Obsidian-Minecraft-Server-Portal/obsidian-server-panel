@@ -4,6 +4,8 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldMapStatus {
+	/// The built-in map is turned on for this instance.
+	pub enabled: bool,
 	/// A render for this instance is running right now.
 	pub rendering: bool,
 	pub last_error: Option<String>,

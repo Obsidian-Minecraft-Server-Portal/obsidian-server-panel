@@ -5,6 +5,7 @@ import { ApiError } from "../../api/client";
 import { hasPermission, isInstanceId, useInstance, type InstancePermission } from "../../api/instances";
 import { useLiveInstances } from "../../api/instanceLive";
 import { useMaps } from "../../api/maps";
+import { useWorldMapStatus } from "../../api/worldmap";
 import { CrashHints } from "../../components/instance/CrashHints";
 import { InstanceBannerArea, InstanceIdentity } from "../../components/instance/InstanceHero";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -23,7 +24,7 @@ interface TabEntry {
 
 const TABS: Record<string, TabEntry> = {
   console: { label: "Console", permission: "console.read", component: ConsoleTab },
-  map: { label: "Map", permission: "console.read", component: MapTab },
+  map: { label: "Map", permission: "map.view", component: MapTab },
   content: { label: "Content", permission: "files.read", component: ContentTab },
   backups: { label: "Backups & schedules", permission: "backups.download", component: BackupsAndSchedulesTab },
   properties: { label: "Properties", permission: "settings.edit", component: PropertiesTab },
@@ -39,6 +40,8 @@ export function InstancePage() {
   const instance = useInstance(id);
   useLiveInstances(validId ? [id] : []);
   const maps = useMaps(id, validId);
+  const canViewMap = instance.data !== undefined && hasPermission(instance.data, "map.view");
+  const worldMap = useWorldMapStatus(id, validId && canViewMap);
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const [tabContent, setTabContent] = useState<HTMLDivElement | null>(null);
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
@@ -76,7 +79,7 @@ export function InstancePage() {
   const view = instance.data;
   if (!view) return <p className="px-4 sm:px-8 py-8 text-sm text-ink-3">Loading instance…</p>;
 
-  const mapTabShown = maps.isPending || (maps.data ?? []).some((map) => map.settings.enabled);
+  const mapTabShown = maps.isPending || worldMap.data?.enabled === true || (maps.data ?? []).some((map) => map.settings.enabled);
   const visibleTabs = Object.entries(TABS).filter(
     ([key, entry]) => hasPermission(view, entry.permission) && (key !== "map" || mapTabShown),
   );

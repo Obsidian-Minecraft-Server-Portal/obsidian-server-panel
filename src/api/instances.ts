@@ -55,7 +55,9 @@ export type InstancePermission =
   | "schedules.manage"
   | "players.manage"
   | "settings.edit"
-  | "members.manage";
+  | "members.manage"
+  | "map.view"
+  | "map.players";
 
 export interface InstanceView extends Instance {
   status: InstanceStatus;
