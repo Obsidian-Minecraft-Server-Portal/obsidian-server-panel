@@ -18,8 +18,9 @@ import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-source";
 import { PlayerMarkers } from "./player-markers";
-import { CellMesher, type MeshedCell, workerCount } from "./structure/cell-mesher";
+import { CellMesher, MESH_VERSION, type MeshedCell, workerCount } from "./structure/cell-mesher";
 import { type CellMaterials, type CellObject, buildCell, createCellMaterials } from "./structure/cell-scene";
+import { openMeshCache } from "./structure/mesh-cache";
 import type { BiomeJson, BlockTableJson } from "./structure/tables";
 
 /** Cells whose nearest point is closer than this to the camera are loaded, in blocks. */
@@ -112,6 +113,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     let mesherKey: string | undefined;
     let reported = "";
     const cells = new Map<string, Cell>();
+    const meshCache = openMeshCache();
 
     const renderer = new WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -191,8 +193,10 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       cell.state = "loaded";
     };
 
-    const load = (cell: Cell, cellMesher: CellMesher, cellMaterials: CellMaterials) => {
-      const generation = cell.generation;
+    const meshKey = (cell: Cell, packKey: string) =>
+      [instanceId, folder, packKey, MESH_VERSION, cell.coord.join(","), cell.version].join("|");
+
+    const fetchMesh = (cell: Cell, cellMesher: CellMesher, key: string): Promise<MeshedCell> =>
       fetch(source.structureCellUrl(cell.coord, cell.version))
         .then((response) => {
           if (!response.ok) {
@@ -201,6 +205,16 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
           return response.arrayBuffer();
         })
         .then((bundle) => cellMesher.mesh(bundle))
+        .then((meshed) => {
+          meshCache.put(key, meshed);
+          return meshed;
+        });
+
+    const load = (cell: Cell, cellMesher: CellMesher, cellMaterials: CellMaterials, key: string) => {
+      const generation = cell.generation;
+      meshCache
+        .get(key)
+        .then((cached) => cached ?? fetchMesh(cell, cellMesher, key))
         .then((meshed) => {
           if (disposed || cell.generation !== generation) {
             return;
@@ -245,6 +259,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       }
       const cellMesher = mesher;
       const cellMaterials = materials;
+      const packKey = manifest.packKey;
       while (inFlight < MAX_CONCURRENT_LOADS) {
         const next = nearestQueued();
         if (!next) {
@@ -252,7 +267,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         }
         next.state = "loading";
         inFlight++;
-        load(next, cellMesher, cellMaterials);
+        load(next, cellMesher, cellMaterials, meshKey(next, packKey));
       }
     };
 
@@ -435,6 +450,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       }
       cells.clear();
       mesher?.dispose();
+      meshCache.close();
       reloadRef.current = null;
       markersRef.current = null;
       markers.dispose();
