@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MapManifest, MapSource } from "../components/worldmap/map-source";
 import { api, BASE } from "./client";
 import { isInstanceId } from "./instances";
+import { useTopic } from "./ws";
 
 export interface WorldMapSettings {
   enabled: boolean;
@@ -9,6 +10,7 @@ export interface WorldMapSettings {
   watchWhileRunning: boolean;
   renderAfterStop: boolean;
   fullPassHours: number;
+  rcon: boolean;
 }
 
 export interface WorldMapDimension {
@@ -36,6 +38,24 @@ export interface WorldMapTile {
 export interface WorldMapManifest extends MapManifest {
   packKey: string;
   tiles: WorldMapTile[];
+}
+
+export type LiveState = "pending" | "live" | "offline" | "unavailable";
+
+export interface LivePlayer {
+  name: string;
+  uuid: string | null;
+  dimension: string;
+  position: [number, number, number];
+  head: string;
+}
+
+export interface WorldMapPlayers {
+  state: LiveState;
+  source: "rcon" | "console" | null;
+  message: string | null;
+  updatedAt: number;
+  players: LivePlayer[];
 }
 
 export const worldMapKey = (instanceId: number) => ["instances", instanceId, "worldmap"] as const;
@@ -94,6 +114,25 @@ export function worldMapSource(instanceId: number, folder: string): MapSource {
   };
 }
 
+export function worldMapHeadBase(instanceId: number): string {
+  return `${BASE}/instances/${instanceId}/worldmap/heads/`;
+}
+
+export function useWorldMapPlayers(instanceId: number, enabled: boolean) {
+  const queryClient = useQueryClient();
+  const active = enabled && isInstanceId(instanceId);
+  const queryKey = [...worldMapKey(instanceId), "players"] as const;
+  const query = useQuery({
+    queryKey,
+    queryFn: () => api.get<WorldMapPlayers>(`/instances/${instanceId}/worldmap/players`),
+    enabled: active,
+  });
+  useTopic(active ? `instance.${instanceId}.players` : null, (payload) => {
+    queryClient.setQueryData(queryKey, payload as WorldMapPlayers);
+  });
+  return query;
+}
+
 export function dimensionLabel(id: string): string {
   switch (id) {
     case "minecraft:overworld":
@@ -112,4 +151,11 @@ export function renderSummary(status: WorldMapStatus): string {
   if (status.lastError) return "Last render failed";
   if (status.lastFullPass) return `Full render ${new Date(status.lastFullPass * 1000).toLocaleString()}`;
   return "Waiting for the first full render";
+}
+
+export function playersSummary(live: WorldMapPlayers | undefined): string {
+  if (!live || live.state === "pending") return "Reading players…";
+  if (live.state !== "live") return live.message ?? "";
+  const count = `${live.players.length} online · read over ${live.source === "rcon" ? "RCON" : "the console"}`;
+  return live.message ? `${count}. ${live.message}` : count;
 }

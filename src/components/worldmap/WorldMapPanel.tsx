@@ -1,5 +1,15 @@
 import { useMemo, useState } from "react";
-import { dimensionLabel, renderSummary, useWorldMapStatus, worldMapSource, type WorldMapStatus } from "../../api/worldmap";
+import {
+  dimensionLabel,
+  playersSummary,
+  renderSummary,
+  useWorldMapPlayers,
+  useWorldMapStatus,
+  worldMapHeadBase,
+  worldMapSource,
+  type LivePlayer,
+  type WorldMapStatus,
+} from "../../api/worldmap";
 import { EmptyState } from "../ui/EmptyState";
 import { SectionTabs } from "../ui/SectionTabs";
 import { TileView } from "./TileView";
@@ -7,9 +17,13 @@ import { WorldMapViewer } from "./WorldMapViewer";
 
 type View = "top" | "free";
 
-/** The built-in map: a dimension picker, the top-down tiles or the free-fly 3D view, and the render status. */
-export function WorldMapPanel({ instanceId }: { instanceId: number }) {
+const NO_PLAYERS: readonly LivePlayer[] = [];
+
+/** The built-in map: a dimension picker, the top-down tiles or the free-fly 3D view, the render status and live players. */
+export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: number; canViewPlayers: boolean }) {
   const status = useWorldMapStatus(instanceId);
+  const live = useWorldMapPlayers(instanceId, canViewPlayers);
+  const players = live.data?.players ?? NO_PLAYERS;
   const [picked, setPicked] = useState<string | null>(null);
   const [view, setView] = useState<View>("top");
 
@@ -56,20 +70,45 @@ export function WorldMapPanel({ instanceId }: { instanceId: number }) {
           <span className="font-mono text-xs text-ink-3">{summaryLine(status.data)}</span>
         </div>
       </div>
+      {canViewPlayers && (
+        <p className={`font-mono text-xs ${live.data?.state === "unavailable" ? "text-rose" : "text-ink-3"}`}>
+          {playersSummary(live.data)}
+        </p>
+      )}
       <div className="relative h-[70vh] min-h-[32rem] overflow-hidden rounded-panel border border-line bg-canvas">
         {view === "top" ? (
-          <TileView key={`${dimension.folder}-${revision}`} instanceId={instanceId} folder={dimension.folder} />
+          <TileView
+            key={`${dimension.folder}-${revision}`}
+            instanceId={instanceId}
+            folder={dimension.folder}
+            dimensionId={dimension.id}
+            players={players}
+          />
         ) : (
-          <FreeView key={`${dimension.folder}-${revision}`} instanceId={instanceId} folder={dimension.folder} />
+          <FreeView
+            key={`${dimension.folder}-${revision}`}
+            instanceId={instanceId}
+            folder={dimension.folder}
+            dimensionId={dimension.id}
+            players={players}
+          />
         )}
       </div>
     </div>
   );
 }
 
-function FreeView({ instanceId, folder }: { instanceId: number; folder: string }) {
+interface FreeViewProps {
+  instanceId: number;
+  folder: string;
+  dimensionId: string;
+  players: readonly LivePlayer[];
+}
+
+function FreeView({ instanceId, folder, dimensionId, players }: FreeViewProps) {
   const source = useMemo(() => worldMapSource(instanceId, folder), [instanceId, folder]);
-  return <WorldMapViewer source={source} />;
+  const inDimension = useMemo(() => players.filter((player) => player.dimension === dimensionId), [players, dimensionId]);
+  return <WorldMapViewer source={source} players={inDimension} headBase={worldMapHeadBase(instanceId)} />;
 }
 
 function summaryLine(status: WorldMapStatus): string {

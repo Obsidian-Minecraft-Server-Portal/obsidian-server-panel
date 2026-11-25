@@ -14,9 +14,11 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
+import type { LivePlayer } from "../../api/worldmap";
 import { FreeFlyCamera } from "./free-fly-camera";
 import type { MapManifest, MapSource, SectionEntry } from "./map-source";
 import { decodeSectionMesh, type SectionMesh } from "./mesh-format";
+import { PlayerMarkers } from "./player-markers";
 import { buildLayerGeometry } from "./section-geometry";
 
 /** Sections whose centre is closer than this to the camera are loaded, in blocks. */
@@ -40,13 +42,18 @@ interface Progress {
 
 export interface WorldMapViewerProps {
   source: MapSource;
+  players: readonly LivePlayer[];
+  headBase: string;
 }
 
 const keyOf = (entry: SectionEntry) => `${entry.x},${entry.y},${entry.z}`;
 const centreOf = (entry: SectionEntry) => new Vector3(entry.x * 16 + 8, entry.y * 16 + 8, entry.z * 16 + 8);
 
 /** A free-fly 3D view of a region's section meshes, streamed in around the camera. */
-export function WorldMapViewer({ source }: WorldMapViewerProps) {
+export function WorldMapViewer({ source, players, headBase }: WorldMapViewerProps) {
+  const playersRef = useRef(players);
+  playersRef.current = players;
+  const markersRef = useRef<PlayerMarkers | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState<Progress>({ message: "Loading manifest", loaded: 0, total: 0 });
 
@@ -75,10 +82,16 @@ export function WorldMapViewer({ source }: WorldMapViewerProps) {
     const camera = new PerspectiveCamera(70, 1, 0.5, 4000);
     const fly = new FreeFlyCamera();
     const detachInput = fly.attach(renderer.domElement);
+    const markers = new PlayerMarkers(headBase);
+    scene.add(markers.group);
+    markers.update(playersRef.current);
+    markersRef.current = markers;
 
+    let viewportHeight = 1;
     const resize = () => {
       const width = Math.max(1, container.clientWidth);
       const height = Math.max(1, container.clientHeight);
+      viewportHeight = height;
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
@@ -242,6 +255,7 @@ export function WorldMapViewer({ source }: WorldMapViewerProps) {
       last = now;
       fly.update(seconds, camera);
       refresh();
+      markers.frame(camera, viewportHeight);
       renderer.render(scene, camera);
       frame = requestAnimationFrame(tick);
     };
@@ -255,12 +269,18 @@ export function WorldMapViewer({ source }: WorldMapViewerProps) {
       for (const key of [...loaded.keys()]) {
         unload(key);
       }
+      markersRef.current = null;
+      markers.dispose();
       atlas?.dispose();
       materials?.forEach((material) => material.dispose());
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [source]);
+  }, [source, headBase]);
+
+  useEffect(() => {
+    markersRef.current?.update(players);
+  }, [players]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#000" }}>

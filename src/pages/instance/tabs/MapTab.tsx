@@ -17,6 +17,7 @@ export function MapTab() {
   const id = useInstanceId();
   const instance = useInstance(id);
   const canViewWorldMap = instance.data !== undefined && hasPermission(instance.data, "map.view");
+  const canViewPlayers = instance.data !== undefined && hasPermission(instance.data, "map.players");
   const worldMap = useWorldMapStatus(id, canViewWorldMap);
   const maps = useMaps(id);
   const upnp = useUpnp(id);
@@ -59,7 +60,7 @@ export function MapTab() {
     return (
       <div className="flex min-h-[32rem] flex-1 flex-col gap-3 px-4 pb-8 sm:px-8">
         {tabs}
-        <WorldMapPanel instanceId={id} />
+        <WorldMapPanel instanceId={id} canViewPlayers={canViewPlayers} />
       </div>
     );
   }

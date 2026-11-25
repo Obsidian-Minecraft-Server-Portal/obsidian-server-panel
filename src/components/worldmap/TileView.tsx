@@ -1,5 +1,6 @@
 import { useState, type PointerEvent, type WheelEvent } from "react";
-import { useWorldMapManifest, worldMapSource } from "../../api/worldmap";
+import { useWorldMapManifest, worldMapHeadBase, worldMapSource, type LivePlayer } from "../../api/worldmap";
+import { PlayerTag } from "./PlayerTag";
 
 /** One region's top-down tile is 512 pixels square, at one pixel per block. */
 const TILE_PIXELS = 512;
@@ -20,7 +21,17 @@ interface Drag {
 }
 
 /** A pannable, zoomable top-down view of every rendered region in a dimension. */
-export function TileView({ instanceId, folder }: { instanceId: number; folder: string }) {
+export function TileView({
+  instanceId,
+  folder,
+  dimensionId,
+  players,
+}: {
+  instanceId: number;
+  folder: string;
+  dimensionId: string;
+  players: readonly LivePlayer[];
+}) {
   const manifest = useWorldMapManifest(instanceId, folder);
   const [view, setView] = useState<View>({ x: 40, y: 40, zoom: 0.5 });
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -32,6 +43,8 @@ export function TileView({ instanceId, folder }: { instanceId: number; folder: s
   const originX = Math.min(...tiles.map((tile) => tile.x));
   const originZ = Math.min(...tiles.map((tile) => tile.z));
   const source = worldMapSource(instanceId, folder);
+  const headBase = worldMapHeadBase(instanceId);
+  const inDimension = players.filter((player) => player.dimension === dimensionId);
 
   return (
     <div
@@ -74,6 +87,17 @@ export function TileView({ instanceId, folder }: { instanceId: number; folder: s
               width: TILE_PIXELS,
               height: TILE_PIXELS,
             }}
+          />
+        ))}
+      </div>
+      <div className="pointer-events-none absolute inset-0">
+        {inDimension.map((player) => (
+          <PlayerTag
+            key={player.name}
+            name={player.name}
+            src={`${headBase}${player.head}`}
+            x={view.x + (player.position[0] - originX * TILE_PIXELS) * view.zoom}
+            y={view.y + (player.position[2] - originZ * TILE_PIXELS) * view.zoom}
           />
         ))}
       </div>
