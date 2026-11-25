@@ -1,9 +1,13 @@
 //! Every section of one cell, packed into a single response, so a viewer fetches a cell with one request. A cell is four
 //! chunks by four chunks by four sections: 64 blocks a side, which divides a region evenly.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use obsidian_common::Result;
+use obsidian_worldmap::structure::{SectionStore, assemble};
+
+use crate::job::other;
+use crate::structure_job::STRUCTURE_FOLDER;
 
 const CELL_SIDE: i32 = 4;
 const REGION_CHUNKS: i32 = 32;
@@ -38,6 +42,30 @@ fn encode(sections: &[([i32; 3], Vec<u8>)]) -> Vec<u8> {
 		out.extend_from_slice(bytes);
 	}
 	out
+}
+
+/// The structure bundle of one cell: its sections and the border around them. Reads only the section files it needs.
+pub fn structure_cell(folder_dir: &Path, cell: (i32, i32, i32)) -> Result<Vec<u8>> {
+	let mut store = SectionFiles {
+		sections: folder_dir.join(STRUCTURE_FOLDER).join("sections"),
+	};
+	assemble([cell.0, cell.1, cell.2], &mut store).map_err(other)
+}
+
+struct SectionFiles {
+	sections: PathBuf,
+}
+
+impl SectionStore for SectionFiles {
+	fn section(&mut self, chunk_x: i32, section_y: i32, chunk_z: i32) -> obsidian_worldmap::error::Result<Option<Vec<u8>>> {
+		let region = format!("r.{}.{}", chunk_x.div_euclid(REGION_CHUNKS), chunk_z.div_euclid(REGION_CHUNKS));
+		let path = self.sections.join(region).join(format!("section_{chunk_x}_{section_y}_{chunk_z}.obsv"));
+		match std::fs::read(path) {
+			Ok(bytes) => Ok(Some(bytes)),
+			Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+			Err(error) => Err(error.into()),
+		}
+	}
 }
 
 #[cfg(test)]

@@ -177,6 +177,15 @@ impl WorldMapService {
 		Ok(location)
 	}
 
+	/// The structure of one cell: its sections and the border around them, in one bundle. A render has already written them.
+	pub async fn structure_cell(&self, id: InstanceId, folder: &str, cell: (i32, i32, i32)) -> Result<Vec<u8>> {
+		let instance = self.instances.get(id).await?;
+		let folder_dir = manifest::file_path(&instance.directory.join(OUTPUT_FOLDER), folder)?;
+		tokio::task::spawn_blocking(move || bundle::structure_cell(&folder_dir, cell))
+			.await
+			.map_err(|error| CommonError::Other(error.to_string()))?
+	}
+
 	/// The sections of one cell, packed into one bundle. Nothing is drawn here: a render has already written them.
 	pub async fn cell(&self, id: InstanceId, folder: &str, cell: (i32, i32, i32)) -> Result<Vec<u8>> {
 		let instance = self.instances.get(id).await?;

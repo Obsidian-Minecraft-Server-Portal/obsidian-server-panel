@@ -20,7 +20,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(players)
 		.service(skin)
 		.service(detail)
-		.service(cell);
+		.service(cell)
+		.service(structure_cell);
 }
 
 #[utoipa::path(
@@ -151,6 +152,23 @@ pub async fn cell(
 	let (id, folder, cx, cy, cz) = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
 	let bundle = state.worldmap.cell(id, &folder, (cx, cy, cz)).await?;
+	Ok(HttpResponse::Ok()
+		.content_type("application/octet-stream")
+		.insert_header(("Cache-Control", cache_control(query.v.is_some())))
+		.body(bundle))
+}
+
+/// The structure of one cell: its sections and the border around them, as one bundle. A `v` query marks the copy as immutable.
+#[get("/instances/{id}/worldmap/dimensions/{folder}/structure/cells/{cx}/{cy}/{cz}")]
+pub async fn structure_cell(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(InstanceId, String, i32, i32, i32)>,
+	query: web::Query<VersionQuery>,
+) -> ApiResult<HttpResponse> {
+	let (id, folder, cx, cy, cz) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
+	let bundle = state.worldmap.structure_cell(id, &folder, (cx, cy, cz)).await?;
 	Ok(HttpResponse::Ok()
 		.content_type("application/octet-stream")
 		.insert_header(("Cache-Control", cache_control(query.v.is_some())))

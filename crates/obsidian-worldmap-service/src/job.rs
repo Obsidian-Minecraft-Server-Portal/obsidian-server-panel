@@ -18,6 +18,7 @@ use sha2::{Digest, Sha256};
 
 use crate::pack_cache::PackCache;
 use crate::state::{RegionState, RenderState};
+use crate::structure_job;
 
 pub const OUTPUT_FOLDER: &str = "obsidian-map";
 /// Raised whenever the renderer draws differently, so existing maps redraw in full instead of mixing old and new output.
@@ -87,6 +88,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	progress(0.0, "Loading the assets".into());
 	let mut renderer = Renderer::new(&pack.pack);
 	write_pack(&map_dir, &job.pack_key, renderer.atlas())?;
+	structure_job::write(&pending, &pack.pack, renderer.atlas())?;
 	if mode == BuildMode::Full {
 		state.last_full_pass = Some(now);
 	}

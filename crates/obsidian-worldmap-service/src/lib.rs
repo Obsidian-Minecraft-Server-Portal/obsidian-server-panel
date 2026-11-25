@@ -13,6 +13,7 @@ mod service;
 mod settings;
 mod state;
 mod status;
+mod structure_job;
 
 #[cfg(test)]
 mod tests;
