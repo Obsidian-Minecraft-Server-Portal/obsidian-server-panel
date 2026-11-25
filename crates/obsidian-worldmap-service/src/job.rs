@@ -1,0 +1,203 @@
+//! The blocking half of a render: finds the regions that need drawing, loads the pack and draws them.
+
+use std::fmt::Display;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
+
+use chrono::Utc;
+use obsidian_common::{CommonError, Result};
+use obsidian_worldmap::atlas::Atlas;
+use obsidian_worldmap::level::discover;
+use obsidian_worldmap::render::{Pack, PackSources, Renderer};
+use serde_json::json;
+use sha2::{Digest, Sha256};
+
+use crate::state::{RegionState, RenderState};
+
+pub const OUTPUT_FOLDER: &str = "obsidian-map";
+const COOLDOWN_SECS: i64 = 60;
+
+/// Least to most thorough, so queued requests can be merged by taking the larger one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BuildMode {
+	/// Regions whose files changed, and only once they have been quiet for a minute.
+	Watch,
+	/// Regions whose files changed since they were rendered.
+	Changed,
+	/// Every region.
+	Full,
+}
+
+pub struct Sources {
+	pub client_jar: PathBuf,
+	pub server_jar: PathBuf,
+	pub mod_jars: Vec<PathBuf>,
+	pub blocks_report: PathBuf,
+}
+
+pub struct Job {
+	pub instance_dir: PathBuf,
+	pub level_name: String,
+	pub mode: BuildMode,
+	pub pack_key: String,
+	pub sources: Sources,
+	pub state: RenderState,
+}
+
+pub struct Outcome {
+	pub state: RenderState,
+	pub rendered: usize,
+	pub failed: Vec<String>,
+}
+
+struct Pending {
+	key: String,
+	dimension_dir: PathBuf,
+	region_path: PathBuf,
+	source_modified: i64,
+}
+
+pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
+	let map_dir = job.instance_dir.join(OUTPUT_FOLDER);
+	let mut state = job.state;
+	let pack_changed = state.pack_key.as_deref() != Some(job.pack_key.as_str());
+	let mode = if pack_changed { BuildMode::Full } else { job.mode };
+	if pack_changed {
+		state.regions.clear();
+	}
+	let now = Utc::now().timestamp();
+	let pending = pending_regions(&job.instance_dir, &job.level_name, &state, mode, now)?;
+	state.pack_key = Some(job.pack_key.clone());
+	if pending.is_empty() {
+		return Ok(Outcome { state, rendered: 0, failed: Vec::new() });
+	}
+
+	let pack = Pack::load(&PackSources {
+		client_jar: &job.sources.client_jar,
+		server_jar: &job.sources.server_jar,
+		mod_jars: &job.sources.mod_jars,
+		blocks_report: &job.sources.blocks_report,
+	})
+	.map_err(other)?;
+	progress(0.0, "Loading the assets".into());
+	let mut renderer = Renderer::new(&pack);
+	write_pack(&map_dir, &job.pack_key, renderer.atlas())?;
+	if mode == BuildMode::Full {
+		state.last_full_pass = Some(now);
+	}
+
+	let total = pending.len();
+	let mut rendered = 0;
+	let mut failed = Vec::new();
+	for (index, item) in pending.into_iter().enumerate() {
+		progress(index as f32 / total as f32, format!("Rendering {}", item.key));
+		match renderer.render_region(&item.region_path, &item.dimension_dir) {
+			Ok(_) => {
+				state.regions.insert(
+					item.key,
+					RegionState {
+						source_modified: item.source_modified,
+						rendered_at: Utc::now().timestamp(),
+					},
+				);
+				rendered += 1;
+			}
+			Err(error) => failed.push(format!("{}: {error}", item.key)),
+		}
+	}
+	Ok(Outcome { state, rendered, failed })
+}
+
+/// Names the pack by everything its renders depend on, so a new client, server, block report or mod set starts a full pass.
+pub fn pack_key(mc_version: &str, files: &[&Path]) -> Result<String> {
+	let mut hasher = Sha256::new();
+	hasher.update(mc_version.as_bytes());
+	for path in files {
+		let metadata = fs::metadata(path)?;
+		let modified = metadata
+			.modified()
+			.ok()
+			.and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+			.map_or(0, |duration| duration.as_secs() as i64);
+		hasher.update(format!("\n{}|{}|{modified}", path.display(), metadata.len()).as_bytes());
+	}
+	Ok(hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+/// Dimension ids such as `minecraft:overworld` become folder names such as `minecraft_overworld`.
+pub fn dimension_folder(id: &str) -> String {
+	id.replace([':', '/'], "_")
+}
+
+fn pending_regions(instance_dir: &Path, level_name: &str, state: &RenderState, mode: BuildMode, now: i64) -> Result<Vec<Pending>> {
+	let mut pending = Vec::new();
+	for dimension in discover(instance_dir, level_name).map_err(other)? {
+		let folder = dimension_folder(&dimension.id);
+		let dimension_dir = instance_dir.join(OUTPUT_FOLDER).join(&folder);
+		for (region_path, x, z) in region_files(&dimension.region_dir)? {
+			let key = format!("{folder}/r.{x}.{z}");
+			let Ok(metadata) = fs::metadata(&region_path) else { continue };
+			let source_modified = metadata
+				.modified()
+				.ok()
+				.and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+				.map_or(0, |duration| duration.as_secs() as i64);
+			let previous = state.regions.get(&key).copied();
+			let due = match mode {
+				BuildMode::Full => true,
+				BuildMode::Changed => previous.is_none_or(|rendered| rendered.source_modified != source_modified),
+				BuildMode::Watch => {
+					previous.is_none_or(|rendered| rendered.source_modified != source_modified && now - rendered.rendered_at >= COOLDOWN_SECS)
+				}
+			};
+			if due {
+				pending.push(Pending {
+					key,
+					dimension_dir: dimension_dir.clone(),
+					region_path,
+					source_modified,
+				});
+			}
+		}
+	}
+	Ok(pending)
+}
+
+fn region_files(dir: &Path) -> Result<Vec<(PathBuf, i32, i32)>> {
+	let Ok(entries) = fs::read_dir(dir) else { return Ok(Vec::new()) };
+	let mut files = Vec::new();
+	for entry in entries {
+		let path = entry?.path();
+		let Some((x, z)) = path.file_name().and_then(|name| name.to_str()).and_then(parse_region_name) else { continue };
+		files.push((path, x, z));
+	}
+	files.sort_by_key(|(_, x, z)| (*x, *z));
+	Ok(files)
+}
+
+fn parse_region_name(name: &str) -> Option<(i32, i32)> {
+	let mut parts = name.strip_prefix("r.")?.strip_suffix(".mca")?.split('.');
+	let x = parts.next()?.parse().ok()?;
+	let z = parts.next()?.parse().ok()?;
+	parts.next().is_none().then_some((x, z))
+}
+
+fn write_pack(map_dir: &Path, pack_key: &str, atlas: &Atlas) -> Result<()> {
+	let dir = map_dir.join("pack");
+	fs::create_dir_all(&dir)?;
+	atlas.image().save(dir.join("atlas.png")).map_err(other)?;
+	let (atlas_width, atlas_height) = atlas.image().dimensions();
+	let manifest = json!({
+		"packKey": pack_key,
+		"atlas": "pack/atlas.png",
+		"atlasWidth": atlas_width,
+		"atlasHeight": atlas_height,
+	});
+	fs::write(dir.join("manifest.json"), serde_json::to_vec(&manifest)?)?;
+	Ok(())
+}
+
+fn other(error: impl Display) -> CommonError {
+	CommonError::Other(error.to_string())
+}

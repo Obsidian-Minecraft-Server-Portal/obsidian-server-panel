@@ -4436,6 +4436,7 @@ dependencies = [
  "obsidian-runner",
  "obsidian-scheduler",
  "obsidian-sftp",
+ "obsidian-worldmap-service",
  "open",
  "reqwest",
  "self_update",
@@ -4734,6 +4735,29 @@ dependencies = [
  "thiserror 2.0.21",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "obsidian-worldmap-service"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "obsidian-common",
+ "obsidian-db",
+ "obsidian-instances",
+ "obsidian-java",
+ "obsidian-loaders",
+ "obsidian-runner",
+ "obsidian-worldmap",
+ "piston-mc",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "utoipa",
 ]
 
 [[package]]

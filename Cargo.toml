@@ -40,6 +40,8 @@ obsidian-net = { path = "crates/obsidian-net" }
 obsidian-sftp = { path = "crates/obsidian-sftp" }
 obsidian-migration = { path = "crates/obsidian-migration" }
 obsidian-maps = { path = "crates/obsidian-maps" }
+obsidian-worldmap = { path = "crates/obsidian-worldmap" }
+obsidian-worldmap-service = { path = "crates/obsidian-worldmap-service" }
 
 actix-web = "4.20"
 actix-files = "0.7"
@@ -124,6 +126,7 @@ obsidian-java = { workspace = true }
 obsidian-loaders = { workspace = true }
 obsidian-content = { workspace = true }
 obsidian-maps = { workspace = true }
+obsidian-worldmap-service = { workspace = true }
 local-ip-address = { workspace = true }
 obsidian-runner = { workspace = true }
 obsidian-instances = { workspace = true }

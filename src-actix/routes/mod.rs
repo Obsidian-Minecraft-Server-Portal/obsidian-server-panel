@@ -24,6 +24,7 @@ pub mod settings;
 pub mod setup;
 pub mod tasks;
 pub mod users;
+pub mod worldmap;
 
 use actix_web::{HttpResponse, web};
 use serde_json::json;
@@ -48,6 +49,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.configure(content_targets::configure)
 			.configure(resource_packs::configure)
 			.configure(maps::configure)
+			.configure(worldmap::configure)
 			.configure(map_proxy::configure)
 			.configure(content_matching::configure)
 			.configure(modpacks::configure)

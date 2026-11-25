@@ -13,6 +13,7 @@ use obsidian_java::JavaManager;
 use obsidian_migration::MigrationManager;
 use obsidian_net::UpnpManager;
 use obsidian_scheduler::Scheduler;
+use obsidian_worldmap_service::WorldMapService;
 
 use crate::config::Config;
 use crate::resource_pack_start::ResourcePackStart;
@@ -32,6 +33,7 @@ pub struct AppState {
 	pub backups: Arc<BackupStore>,
 	pub scheduler: Arc<Scheduler>,
 	pub migrations: Arc<MigrationManager>,
+	pub worldmap: Arc<WorldMapService>,
 }
 
 impl AppState {
@@ -75,6 +77,14 @@ impl AppState {
 		if let (Some(username), Some(password)) = (&config.admin.username, &config.admin.password) {
 			auth.bootstrap_admin(username, config.admin.email.as_deref(), password).await?;
 		}
+		let worldmap = WorldMapService::new(
+			db.clone(),
+			Arc::new(paths.clone()),
+			Arc::clone(&java),
+			(*instances).clone(),
+			tasks.clone(),
+			bus.clone(),
+		);
 		let state = Self {
 			config: Arc::new(config),
 			paths: Arc::new(paths),
@@ -88,8 +98,10 @@ impl AppState {
 			backups,
 			scheduler,
 			migrations,
+			worldmap,
 		};
 		state.instances.set_pre_start_hook(Arc::new(ResourcePackStart::new(state.clone())));
+		state.worldmap.start();
 		Ok(state)
 	}
 }
