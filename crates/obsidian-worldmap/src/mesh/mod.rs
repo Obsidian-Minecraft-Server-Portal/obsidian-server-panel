@@ -131,7 +131,7 @@ impl<'a> MeshContext<'a> {
 	}
 }
 
-fn full_faces(quads: &[Quad], atlas: &Atlas) -> [bool; 6] {
+pub(crate) fn full_faces(quads: &[Quad], atlas: &Atlas) -> [bool; 6] {
 	let mut full = [false; 6];
 	for quad in quads {
 		if atlas.layer(&quad.texture) == Layer::Opaque && covers_block_face(quad) {

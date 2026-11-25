@@ -25,11 +25,16 @@ impl Tints {
 	/// The tint for a block of `kind` in `biome`, at block column `x`, `z`.
 	pub fn colour(&self, kind: TintKind, biome: &Biome, x: i32, z: i32) -> [u8; 3] {
 		match kind {
+			TintKind::Grass => biome.grass_modifier.apply(self.base_colour(kind, biome), x, z),
+			TintKind::Water | TintKind::Foliage => self.base_colour(kind, biome),
+		}
+	}
+
+	/// The tint before any modifier that depends on the block's position.
+	pub fn base_colour(&self, kind: TintKind, biome: &Biome) -> [u8; 3] {
+		match kind {
 			TintKind::Water => biome.water,
-			TintKind::Grass => {
-				let colour = biome.grass.unwrap_or_else(|| sample(self.grass.as_ref(), biome, DEFAULT_GRASS));
-				biome.grass_modifier.apply(colour, x, z)
-			}
+			TintKind::Grass => biome.grass.unwrap_or_else(|| sample(self.grass.as_ref(), biome, DEFAULT_GRASS)),
 			TintKind::Foliage => biome.foliage.unwrap_or_else(|| sample(self.foliage.as_ref(), biome, DEFAULT_FOLIAGE)),
 		}
 	}

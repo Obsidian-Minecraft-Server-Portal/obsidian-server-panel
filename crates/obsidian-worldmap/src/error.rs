@@ -12,6 +12,10 @@ pub enum WorldmapError {
 	Compression(u8),
 	#[error("asset: {0}")]
 	Asset(String),
+	#[error("structure: {0}")]
+	Structure(String),
+	#[error(transparent)]
+	Json(#[from] serde_json::Error),
 	#[error("section mesh: {0}")]
 	Mesh(String),
 	#[error(transparent)]

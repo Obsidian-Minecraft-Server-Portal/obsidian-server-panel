@@ -7,7 +7,8 @@ use image::RgbaImage;
 use crate::assets::AssetStore;
 use crate::atlas::{Atlas, block_textures};
 use crate::biome::BiomeRegistry;
-use crate::chunk::BlockDefaults;
+use crate::chunk::{BlockDefaults, BlockState};
+use crate::structure::{self, BiomeEntry, BiomeTable, BlockTable, StateTable, Vocabulary};
 use crate::colour::{BlockColours, SurfaceCache};
 use crate::error::Result;
 use crate::mesh::MeshContext;
@@ -50,6 +51,22 @@ impl Pack {
 		let image = detail::render_detail_tile(region, tile_x, tile_z, &self.defaults, &mut colours);
 		*cache = colours.into_cache();
 		image
+	}
+
+	pub fn block_table(&self, states: &[BlockState], atlas: &Atlas) -> BlockTable {
+		structure::block_table(&self.assets, states, atlas)
+	}
+
+	pub fn biome_table(&self, names: &[String]) -> Vec<BiomeEntry> {
+		structure::biome_table(&self.assets, &self.biomes, names)
+	}
+
+	pub fn region_vocabulary(&self, region: &Path) -> Result<Vocabulary> {
+		structure::vocabulary(region, &self.defaults)
+	}
+
+	pub fn write_region_sections(&self, region: &Path, dir: &Path, states: &StateTable, biomes: &BiomeTable) -> Result<usize> {
+		structure::write_sections(region, dir, &self.defaults, states, biomes)
 	}
 }
 

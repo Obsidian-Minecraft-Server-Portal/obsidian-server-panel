@@ -60,6 +60,12 @@ impl Atlas {
 		self.slot(texture).layer
 	}
 
+	/// The top left texel of a texture's cell.
+	pub fn cell_origin(&self, texture: &str) -> [u32; 2] {
+		let slot = self.slot(texture);
+		[slot.column * CELL, slot.row * CELL]
+	}
+
 	/// Maps a texture coordinate in 0..16 texture pixels to atlas coordinates in 0..1.
 	pub fn uv(&self, texture: &str, uv: [f32; 2]) -> [f32; 2] {
 		let slot = self.slot(texture);

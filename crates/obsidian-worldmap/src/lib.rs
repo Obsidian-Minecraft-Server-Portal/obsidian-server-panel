@@ -14,6 +14,7 @@ pub mod players;
 pub mod region;
 pub mod render;
 pub mod skins;
+pub mod structure;
 pub mod tiles;
 
 #[cfg(test)]
