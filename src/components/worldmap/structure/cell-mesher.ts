@@ -5,8 +5,8 @@ import type { LayerArrays } from "./instances";
 import type { BiomeJson, BlockTableJson } from "./tables";
 import type { WorkerRequest, WorkerResponse } from "./mesh-worker";
 
-/** Raised when the mesh output changes, so meshes cached by an older build are not reused. */
-export const MESH_VERSION = 1;
+/** Changes with the mesher sources, so meshes cached by an older build are not reused. */
+export const MESH_VERSION = __MESH_VERSION__;
 
 export interface MeshedCell {
   cell: [number, number, number];
