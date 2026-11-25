@@ -3,10 +3,16 @@
 import type { MeshedCell } from "./cell-mesher";
 
 const DATABASE = "obsidian-worldmap-meshes";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const MESHES = "meshes";
 const RECORDS = "records";
 export const BUDGET_BYTES = 128 * 1024 * 1024;
+
+/** `cell` identifies the cell; `variant` identifies its mesh: the pack, the mesher build and the cell version. */
+export interface MeshKey {
+  cell: string;
+  variant: string;
+}
 
 export interface CacheRecord {
   key: string;
@@ -15,32 +21,32 @@ export interface CacheRecord {
 }
 
 export interface MeshCache {
-  get(key: string): Promise<MeshedCell | undefined>;
-  put(key: string, meshed: MeshedCell): Promise<void>;
+  get(mesh: MeshKey): Promise<MeshedCell | undefined>;
+  put(mesh: MeshKey, meshed: MeshedCell): Promise<void>;
   close(): void;
 }
 
 export function openMeshCache(): MeshCache {
   const database = openDatabase();
   return {
-    async get(key) {
+    async get(mesh) {
       const db = await database;
       if (!db) {
         return undefined;
       }
       try {
-        return await read(db, key);
+        return await read(db, entryKey(mesh));
       } catch {
         return undefined;
       }
     },
-    async put(key, meshed) {
+    async put(mesh, meshed) {
       const db = await database;
       if (!db) {
         return;
       }
       try {
-        await store(db, key, meshed);
+        await store(db, mesh, meshed);
         await trim(db);
       } catch {
         // The next visit simply meshes this cell again.
@@ -74,6 +80,10 @@ export function planEviction(records: CacheRecord[], budget: number): string[] {
   return doomed;
 }
 
+function entryKey({ cell, variant }: MeshKey): string {
+  return `${cell}|${variant}`;
+}
+
 function openDatabase(): Promise<IDBDatabase | undefined> {
   if (typeof indexedDB === "undefined") {
     return Promise.resolve(undefined);
@@ -86,11 +96,23 @@ function openDatabase(): Promise<IDBDatabase | undefined> {
       resolve(undefined);
       return;
     }
+    // Version 2 changed the key layout, so the entries of version 1 can never be read again.
     request.onupgradeneeded = () => {
-      request.result.createObjectStore(MESHES);
-      request.result.createObjectStore(RECORDS, { keyPath: "key" });
+      const db = request.result;
+      for (const name of Array.from(db.objectStoreNames)) {
+        db.deleteObjectStore(name);
+      }
+      db.createObjectStore(MESHES);
+      db.createObjectStore(RECORDS, { keyPath: "key" });
     };
-    request.onsuccess = () => resolve(request.result);
+    // A tab running an older build can hold the old version open; the cache is skipped for this page instead of waiting.
+    request.onblocked = () => resolve(undefined);
+    request.onsuccess = () => {
+      const db = request.result;
+      // Lets a newer build upgrade the database rather than being blocked by this page.
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onerror = () => resolve(undefined);
   });
 }
@@ -99,16 +121,17 @@ function read(db: IDBDatabase, key: string): Promise<MeshedCell | undefined> {
   return settle<MeshedCell | undefined>(db.transaction(MESHES, "readonly").objectStore(MESHES).get(key));
 }
 
-/** Stores a cell's mesh under its key, and drops the entries for the same cell under other versions. */
-async function store(db: IDBDatabase, key: string, meshed: MeshedCell): Promise<void> {
-  const group = key.slice(0, key.lastIndexOf("|") + 1);
-  const siblings = await settle(db.transaction(RECORDS, "readonly").objectStore(RECORDS).getAllKeys(IDBKeyRange.bound(group, `${group}￿`)));
+/** Stores a mesh, and drops the same cell's entries under other variants: an older build, pack or cell version. */
+async function store(db: IDBDatabase, mesh: MeshKey, meshed: MeshedCell): Promise<void> {
+  const key = entryKey(mesh);
+  const prefix = `${mesh.cell}|`;
+  const sameCell = await settle(db.transaction(RECORDS, "readonly").objectStore(RECORDS).getAllKeys(IDBKeyRange.bound(prefix, `${prefix}\uffff`)));
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction([MESHES, RECORDS], "readwrite");
-    for (const sibling of siblings) {
-      if (sibling !== key) {
-        transaction.objectStore(MESHES).delete(sibling);
-        transaction.objectStore(RECORDS).delete(sibling);
+    for (const other of sameCell) {
+      if (other !== key) {
+        transaction.objectStore(MESHES).delete(other);
+        transaction.objectStore(RECORDS).delete(other);
       }
     }
     transaction.objectStore(MESHES).put(meshed, key);

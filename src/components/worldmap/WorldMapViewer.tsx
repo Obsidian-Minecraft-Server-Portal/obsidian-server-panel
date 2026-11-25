@@ -20,7 +20,7 @@ import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-sour
 import { PlayerMarkers } from "./player-markers";
 import { CellMesher, MESH_VERSION, type MeshedCell, workerCount } from "./structure/cell-mesher";
 import { type CellMaterials, type CellObject, buildCell, createCellMaterials } from "./structure/cell-scene";
-import { openMeshCache } from "./structure/mesh-cache";
+import { type MeshKey, openMeshCache } from "./structure/mesh-cache";
 import type { BiomeJson, BlockTableJson } from "./structure/tables";
 
 /** Cells whose nearest point is closer than this to the camera are loaded, in blocks. */
@@ -193,10 +193,12 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       cell.state = "loaded";
     };
 
-    const meshKey = (cell: Cell, packKey: string) =>
-      [instanceId, folder, packKey, MESH_VERSION, cell.coord.join(","), cell.version].join("|");
+    const meshKey = (cell: Cell, packKey: string): MeshKey => ({
+      cell: [instanceId, folder, cell.coord.join(",")].join("|"),
+      variant: [packKey, MESH_VERSION, cell.version].join("|"),
+    });
 
-    const fetchMesh = (cell: Cell, cellMesher: CellMesher, key: string): Promise<MeshedCell> =>
+    const fetchMesh = (cell: Cell, cellMesher: CellMesher, key: MeshKey): Promise<MeshedCell> =>
       fetch(source.structureCellUrl(cell.coord, cell.version))
         .then((response) => {
           if (!response.ok) {
@@ -210,7 +212,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
           return meshed;
         });
 
-    const load = (cell: Cell, cellMesher: CellMesher, cellMaterials: CellMaterials, key: string) => {
+    const load = (cell: Cell, cellMesher: CellMesher, cellMaterials: CellMaterials, key: MeshKey) => {
       const generation = cell.generation;
       meshCache
         .get(key)
