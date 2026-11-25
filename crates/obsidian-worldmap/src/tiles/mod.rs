@@ -1,3 +1,5 @@
+pub mod detail;
+
 use std::io::Cursor;
 
 use image::{ImageFormat, Rgba, RgbaImage};
@@ -47,10 +49,13 @@ fn draw_chunk(image: &mut RgbaImage, chunk: &Chunk, origin_x: i32, origin_z: i32
 }
 
 /// Darkens lower blocks so terrain reads as relief.
-fn shade(colour: [u8; 3], world_y: i32) -> [u8; 3] {
+pub(crate) fn shade_factor(world_y: i32) -> f32 {
 	let height = ((world_y + 64) as f32 / 384.0).clamp(0.0, 1.0);
-	let factor = 0.55 + 0.45 * height;
-	colour.map(|channel| (f32::from(channel) * factor) as u8)
+	0.55 + 0.45 * height
+}
+
+fn shade(colour: [u8; 3], world_y: i32) -> [u8; 3] {
+	colour.map(|channel| (f32::from(channel) * shade_factor(world_y)) as u8)
 }
 
 pub fn encode_png(image: &RgbaImage) -> Result<Vec<u8>> {

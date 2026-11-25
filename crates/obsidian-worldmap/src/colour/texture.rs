@@ -1,10 +1,30 @@
-use image::RgbaImage;
+use image::{RgbaImage, imageops, imageops::FilterType};
 
 use crate::error::Result;
 
-/// Alpha-weighted mean colour of a PNG, or `None` when every pixel is transparent.
-pub fn average(png: &[u8]) -> Result<Option<[u8; 3]>> {
-	Ok(mean(&image::load_from_memory(png)?.to_rgba8()))
+/// A block texture in two forms: its alpha-weighted mean colour, and its top frame at sprite size with the
+/// transparent texels blended into that mean, so a sprite is always opaque.
+#[derive(Clone)]
+pub struct Decoded {
+	pub average: [u8; 3],
+	pub sprite: RgbaImage,
+}
+
+/// `None` when every pixel of the texture is transparent.
+pub fn decode(png: &[u8], size: u32) -> Result<Option<Decoded>> {
+	let image = image::load_from_memory(png)?.to_rgba8();
+	let Some(average) = mean(&image) else { return Ok(None) };
+	let side = image.width().min(image.height());
+	let frame = imageops::crop_imm(&image, 0, 0, side, side).to_image();
+	let mut sprite = imageops::resize(&frame, size, size, FilterType::Triangle);
+	for pixel in sprite.pixels_mut() {
+		let alpha = f32::from(pixel[3]) / 255.0;
+		for channel in 0..3 {
+			pixel[channel] = (f32::from(pixel[channel]) * alpha + f32::from(average[channel]) * (1.0 - alpha)).round() as u8;
+		}
+		pixel[3] = 255;
+	}
+	Ok(Some(Decoded { average, sprite }))
 }
 
 /// A vanilla colormap, indexed by temperature (left to right) and humidity (bottom to top).
@@ -62,12 +82,29 @@ mod tests {
 	#[test]
 	fn averages_only_the_visible_pixels() {
 		let bytes = png(&[[200, 100, 0, 255], [0, 0, 0, 0]], 2);
-		assert_eq!(average(&bytes).unwrap(), Some([200, 100, 0]));
+		assert_eq!(decode(&bytes, 8).unwrap().map(|decoded| decoded.average), Some([200, 100, 0]));
 	}
 
 	#[test]
 	fn reports_no_colour_for_fully_transparent_textures() {
-		assert_eq!(average(&png(&[[9, 9, 9, 0]], 1)).unwrap(), None);
+		assert!(decode(&png(&[[9, 9, 9, 0]], 1), 8).unwrap().is_none());
+	}
+
+	#[test]
+	fn the_sprite_is_the_top_frame_scaled_to_size() {
+		let top_red = [[255, 0, 0, 255], [255, 0, 0, 255], [255, 0, 0, 255], [255, 0, 0, 255]];
+		let below_blue = [[0, 0, 255, 255], [0, 0, 255, 255], [0, 0, 255, 255], [0, 0, 255, 255]];
+		let frames = [top_red, below_blue].concat();
+		let sprite = decode(&png(&frames, 2), 8).unwrap().unwrap().sprite;
+		assert_eq!(sprite.dimensions(), (8, 8));
+		assert!(sprite.pixels().all(|pixel| *pixel == Rgba([255, 0, 0, 255])));
+	}
+
+	#[test]
+	fn transparent_texels_take_the_average_colour() {
+		let bytes = png(&[[200, 100, 0, 255], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], 2);
+		let sprite = decode(&bytes, 8).unwrap().unwrap().sprite;
+		assert_eq!(sprite.get_pixel(7, 7), &Rgba([200, 100, 0, 255]));
 	}
 
 	#[test]

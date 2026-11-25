@@ -2,14 +2,18 @@
 
 use std::path::{Path, PathBuf};
 
+use image::RgbaImage;
+
 use crate::assets::AssetStore;
 use crate::atlas::{Atlas, block_textures};
 use crate::biome::BiomeRegistry;
 use crate::chunk::BlockDefaults;
-use crate::colour::BlockColours;
+use crate::colour::{BlockColours, SurfaceCache};
 use crate::error::Result;
 use crate::mesh::MeshContext;
+use crate::region::RegionFile;
 use crate::render::{RegionManifest, render_region};
+use crate::tiles::detail;
 
 /// Where a pack's data comes from. Mods load after the client and server jars, so they override both, as in the game.
 pub struct PackSources<'a> {
@@ -38,6 +42,14 @@ impl Pack {
 		}
 		let defaults = BlockDefaults::parse(&std::fs::read(sources.blocks_report)?)?;
 		Ok(Self { assets, biomes, defaults })
+	}
+
+	/// One textured detail tile of a region. `cache` keeps the textures decoded so far, so tiles drawn in a row reuse them.
+	pub fn render_detail_tile(&self, cache: &mut SurfaceCache, region: &RegionFile, tile_x: usize, tile_z: usize) -> Result<RgbaImage> {
+		let mut colours = BlockColours::with_cache(&self.assets, &self.biomes, std::mem::take(cache));
+		let image = detail::render_detail_tile(region, tile_x, tile_z, &self.defaults, &mut colours);
+		*cache = colours.into_cache();
+		image
 	}
 }
 

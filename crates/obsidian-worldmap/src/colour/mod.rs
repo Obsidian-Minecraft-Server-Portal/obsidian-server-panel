@@ -1,41 +1,104 @@
-//! Block colours from the texture of each block's top face, tinted by the biome the block is in.
+//! Block colours from the texture of each block's top face, tinted by the biome the block is in, and the top textures
+//! themselves for the textured detail tiles.
 
 mod texture;
 mod tints;
 
 use std::collections::HashMap;
 
+use image::{Rgba, RgbaImage};
+
 use crate::assets::AssetStore;
 use crate::biome::{Biome, BiomeRegistry};
 use crate::chunk::BlockState;
 use crate::models::geometry::{TintKind, tint_kind_for_block};
 use crate::models::{Blockstate, Face, ResolvedModel, resolve_model, split_id};
+use texture::Decoded;
 
 pub use tints::Tints;
 
-#[derive(Clone, Copy)]
-enum Surface {
-	Plain([u8; 3]),
-	Tinted([u8; 3], TintKind),
+/// Pixels per side of a block's top texture in a sprite.
+pub const SPRITE_SIZE: u32 = 8;
+
+#[derive(Clone)]
+struct Surface {
+	sprite: RgbaImage,
+	average: [u8; 3],
+	tint: Option<TintKind>,
+}
+
+/// Decoded textures and block surfaces. Carrying one cache from call to call over the same assets decodes each texture once.
+#[derive(Default)]
+pub struct SurfaceCache {
+	surfaces: HashMap<String, Surface>,
+	textures: HashMap<String, Option<Decoded>>,
+}
+
+impl SurfaceCache {
+	fn surface(&mut self, assets: &AssetStore, state: &BlockState) -> &Surface {
+		let key = cache_key(state);
+		if !self.surfaces.contains_key(&key) {
+			let surface = self.lookup(assets, state).unwrap_or_else(|| flat(fallback(&state.name)));
+			self.surfaces.insert(key.clone(), surface);
+		}
+		&self.surfaces[&key]
+	}
+
+	fn lookup(&mut self, assets: &AssetStore, state: &BlockState) -> Option<Surface> {
+		if state.name == "minecraft:water" {
+			let decoded = self.texture(assets, "minecraft:block/water_still")?;
+			return Some(surface_of(decoded, Some(TintKind::Water)));
+		}
+		let (namespace, path) = split_id(&state.name);
+		let json = assets.get(namespace, &format!("blockstates/{path}.json"))?;
+		let variant = Blockstate::parse(json).ok()?.variants_for(&state.properties).into_iter().next()?;
+		let model = resolve_model(assets, &variant.model).ok()?;
+		let face = top_face(&model)?;
+		let decoded = self.texture(assets, &face_texture(&model, face)?)?;
+		let tint = match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
+			(true, Some(kind)) => Some(kind),
+			_ => None,
+		};
+		Some(surface_of(decoded, tint))
+	}
+
+	fn texture(&mut self, assets: &AssetStore, texture: &str) -> Option<Decoded> {
+		if let Some(decoded) = self.textures.get(texture) {
+			return decoded.clone();
+		}
+		let (namespace, path) = split_id(texture);
+		let decoded = assets
+			.get(namespace, &format!("textures/{path}.png"))
+			.and_then(|png| texture::decode(png, SPRITE_SIZE).ok().flatten());
+		self.textures.insert(texture.to_owned(), decoded.clone());
+		decoded
+	}
 }
 
 pub struct BlockColours<'a> {
 	assets: &'a AssetStore,
 	biomes: &'a BiomeRegistry,
 	tints: Tints,
-	surfaces: HashMap<String, Surface>,
-	textures: HashMap<String, [u8; 3]>,
+	cache: SurfaceCache,
 }
 
 impl<'a> BlockColours<'a> {
 	pub fn new(assets: &'a AssetStore, biomes: &'a BiomeRegistry) -> Self {
+		Self::with_cache(assets, biomes, SurfaceCache::default())
+	}
+
+	/// Continues with the surfaces an earlier run over the same assets decoded.
+	pub fn with_cache(assets: &'a AssetStore, biomes: &'a BiomeRegistry, cache: SurfaceCache) -> Self {
 		Self {
 			assets,
 			biomes,
 			tints: Tints::new(assets),
-			surfaces: HashMap::new(),
-			textures: HashMap::new(),
+			cache,
 		}
+	}
+
+	pub fn into_cache(self) -> SurfaceCache {
+		self.cache
 	}
 
 	pub fn biomes(&self) -> &'a BiomeRegistry {
@@ -44,46 +107,19 @@ impl<'a> BlockColours<'a> {
 
 	/// The colour of a block's top face at block column `x`, `z` inside `biome`.
 	pub fn colour(&mut self, state: &BlockState, biome: &Biome, x: i32, z: i32) -> [u8; 3] {
-		let key = cache_key(state);
-		let surface = if let Some(surface) = self.surfaces.get(&key).copied() {
-			surface
-		} else {
-			let surface = self.lookup(state).unwrap_or(Surface::Plain(fallback(&state.name)));
-			self.surfaces.insert(key, surface);
-			surface
-		};
-		match surface {
-			Surface::Plain(colour) => colour,
-			Surface::Tinted(base, kind) => multiply(base, self.tints.colour(kind, biome, x, z)),
+		let surface = self.cache.surface(self.assets, state);
+		let average = surface.average;
+		match surface.tint {
+			Some(kind) => multiply(average, self.tints.colour(kind, biome, x, z)),
+			None => average,
 		}
 	}
 
-	fn lookup(&mut self, state: &BlockState) -> Option<Surface> {
-		if state.name == "minecraft:water" {
-			let base = self.texture_colour("minecraft:block/water_still")?;
-			return Some(Surface::Tinted(base, TintKind::Water));
-		}
-		let (namespace, path) = split_id(&state.name);
-		let json = self.assets.get(namespace, &format!("blockstates/{path}.json"))?;
-		let variant = Blockstate::parse(json).ok()?.variants_for(&state.properties).into_iter().next()?;
-		let model = resolve_model(self.assets, &variant.model).ok()?;
-		let face = top_face(&model)?;
-		let base = self.texture_colour(&face_texture(&model, face)?)?;
-		Some(match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
-			(true, Some(kind)) => Surface::Tinted(base, kind),
-			_ => Surface::Plain(base),
-		})
-	}
-
-	fn texture_colour(&mut self, texture: &str) -> Option<[u8; 3]> {
-		if let Some(colour) = self.textures.get(texture) {
-			return Some(*colour);
-		}
-		let (namespace, path) = split_id(texture);
-		let png = self.assets.get(namespace, &format!("textures/{path}.png"))?;
-		let colour = texture::average(png).ok().flatten()?;
-		self.textures.insert(texture.to_owned(), colour);
-		Some(colour)
+	/// The top face's texture at sprite size, and the colour its texels are multiplied by inside `biome`.
+	pub fn texels(&mut self, state: &BlockState, biome: &Biome, x: i32, z: i32) -> (&RgbaImage, [u8; 3]) {
+		let surface = self.cache.surface(self.assets, state);
+		let tint = surface.tint.map_or([255, 255, 255], |kind| self.tints.colour(kind, biome, x, z));
+		(&surface.sprite, tint)
 	}
 }
 
@@ -96,6 +132,22 @@ pub fn fallback(name: &str) -> [u8; 3] {
 		"minecraft:stone" => [125, 125, 125],
 		"minecraft:snow_block" => [248, 250, 250],
 		_ => hashed(name),
+	}
+}
+
+fn surface_of(decoded: Decoded, tint: Option<TintKind>) -> Surface {
+	Surface {
+		sprite: decoded.sprite,
+		average: decoded.average,
+		tint,
+	}
+}
+
+fn flat(colour: [u8; 3]) -> Surface {
+	Surface {
+		sprite: RgbaImage::from_pixel(SPRITE_SIZE, SPRITE_SIZE, Rgba([colour[0], colour[1], colour[2], 255])),
+		average: colour,
+		tint: None,
 	}
 }
 
@@ -153,6 +205,13 @@ mod tests {
 		assets.insert("minecraft".into(), path.into(), bytes);
 	}
 
+	fn grass_state() -> BlockState {
+		BlockState {
+			name: "minecraft:grass_block".into(),
+			properties: BTreeMap::new(),
+		}
+	}
+
 	#[test]
 	fn takes_the_colour_of_the_top_face_texture() {
 		let mut assets = AssetStore::default();
@@ -184,16 +243,34 @@ mod tests {
 		add(&mut assets, "textures/block/grass_top.png", solid_png([255, 255, 255, 255]));
 		let biomes = BiomeRegistry::default();
 		let mut colours = BlockColours::new(&assets, &biomes);
-		let state = BlockState {
-			name: "minecraft:grass_block".into(),
-			properties: BTreeMap::new(),
-		};
 		let swamp = Biome {
 			grass: Some([10, 20, 30]),
 			..Biome::PLAINS
 		};
-		assert_eq!(colours.colour(&state, &swamp, 0, 0), [10, 20, 30]);
-		assert_eq!(colours.colour(&state, &Biome::PLAINS, 0, 0), [145, 189, 89]);
+		assert_eq!(colours.colour(&grass_state(), &swamp, 0, 0), [10, 20, 30]);
+		assert_eq!(colours.colour(&grass_state(), &Biome::PLAINS, 0, 0), [145, 189, 89]);
+	}
+
+	#[test]
+	fn texels_are_the_top_texture_at_sprite_size_with_the_biome_tint() {
+		let mut assets = AssetStore::default();
+		add(&mut assets, "blockstates/grass_block.json", br#"{"variants": {"": {"model": "minecraft:block/grass_block"}}}"#.to_vec());
+		add(
+			&mut assets,
+			"models/block/grass_block.json",
+			br##"{"textures": {"top": "minecraft:block/grass_top"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#top", "tintindex": 0}}}]}"##.to_vec(),
+		);
+		add(&mut assets, "textures/block/grass_top.png", solid_png([200, 200, 200, 255]));
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
+		let swamp = Biome {
+			grass: Some([10, 20, 30]),
+			..Biome::PLAINS
+		};
+		let (sprite, tint) = colours.texels(&grass_state(), &swamp, 0, 0);
+		assert_eq!(sprite.dimensions(), (SPRITE_SIZE, SPRITE_SIZE));
+		assert_eq!(sprite.get_pixel(3, 3), &Rgba([200, 200, 200, 255]));
+		assert_eq!(tint, [10, 20, 30]);
 	}
 
 	#[test]
