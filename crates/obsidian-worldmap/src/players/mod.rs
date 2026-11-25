@@ -1,4 +1,5 @@
-//! Reads player positions from `data get entity` replies, whether they arrive over the console or RCON.
+//! Reads the replies the live map asks for: `list` and `data get entity` positions. They arrive over the console, where
+//! each line carries the server's log prefix, or over RCON, where one body holds every reply.
 
 /// One entity's position as reported by `data get entity <selector> Pos`.
 #[derive(Debug, Clone, PartialEq)]
@@ -7,9 +8,18 @@ pub struct EntityPosition {
 	pub position: [f64; 3],
 }
 
-const MARKER: &str = " has the following entity data: [";
+/// The reply to `list`: how many are online out of how many allowed, and who they are.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerList {
+	pub online: usize,
+	pub max: usize,
+	pub names: Vec<String>,
+}
 
-/// Replies from `execute as <selector> run data get entity @s Pos` are concatenated with no separator,
+const MARKER: &str = " has the following entity data: [";
+const LIST_MARKER: &str = "players online:";
+
+/// Replies from `execute as <selector> ... run data get entity @s Pos` are concatenated with no separator,
 /// so every message is found by its marker rather than by splitting lines.
 pub fn parse_positions(body: &str) -> Vec<EntityPosition> {
 	let mut positions = Vec::new();
@@ -18,7 +28,7 @@ pub fn parse_positions(body: &str) -> Vec<EntityPosition> {
 		let marker_start = cursor + found;
 		let value_start = marker_start + MARKER.len();
 		let Some(value_len) = body[value_start..].find(']') else { break };
-		let name = body[cursor..marker_start].trim();
+		let name = body[cursor..marker_start].rsplit("]: ").next().unwrap_or_default().trim();
 		let value = &body[value_start..value_start + value_len];
 		cursor = value_start + value_len + 1;
 		if let Some(position) = parse_vec3(value) {
@@ -29,6 +39,31 @@ pub fn parse_positions(body: &str) -> Vec<EntityPosition> {
 		}
 	}
 	positions
+}
+
+/// Finds the list reply in a console line or an RCON body.
+pub fn parse_list(text: &str) -> Option<PlayerList> {
+	let marker = text.find(LIST_MARKER)?;
+	let head = &text[..marker];
+	let start = head.rfind("There ")?;
+	let words: Vec<&str> = head[start..].split_whitespace().collect();
+	let online = words.get(2)?.parse().ok()?;
+	let max = words.get(7)?.parse().ok()?;
+	let names = text[marker + LIST_MARKER.len()..]
+		.lines()
+		.next()
+		.unwrap_or_default()
+		.split(',')
+		.map(str::trim)
+		.filter(|name| !name.is_empty())
+		.map(str::to_owned)
+		.collect();
+	Some(PlayerList { online, max, names })
+}
+
+/// Whether a console line answers one of the poller's commands, so the console can keep it out of view.
+pub fn is_poll_reply(line: &str) -> bool {
+	line.contains(MARKER) || line.contains(LIST_MARKER)
 }
 
 /// Components are SNBT doubles such as `64.0d`.
@@ -73,9 +108,39 @@ mod tests {
 	}
 
 	#[test]
+	fn console_replies_keep_the_player_name_without_the_log_prefix() {
+		let line = "[12:00:01] [Server thread/INFO]: Steve has the following entity data: [0.5d, 64.0d, 0.5d]";
+		assert_eq!(parse_positions(line)[0].name, "Steve");
+	}
+
+	#[test]
 	fn ignores_replies_that_carry_no_position() {
 		assert!(parse_positions("No entity was found").is_empty());
 		assert!(parse_positions("Found no elements matching Dimension").is_empty());
 		assert!(parse_positions("Only one entity is allowed, but the provided selector allows more than one").is_empty());
+	}
+
+	#[test]
+	fn reads_list_replies_from_the_console_and_from_rcon() {
+		let console = parse_list("[12:00:00] [Server thread/INFO]: There are 2 of a max of 20 players online: Steve, Alex").unwrap();
+		assert_eq!(
+			console,
+			PlayerList {
+				online: 2,
+				max: 20,
+				names: vec!["Steve".into(), "Alex".into()],
+			}
+		);
+		let rcon = parse_list("There are 1 of a max of 8 players online: Steve\n").unwrap();
+		assert_eq!((rcon.max, rcon.names.as_slice()), (8, ["Steve".to_owned()].as_slice()));
+		let empty = parse_list("There are 0 of a max of 20 players online: ").unwrap();
+		assert_eq!((empty.online, empty.names.len()), (0, 0));
+	}
+
+	#[test]
+	fn only_the_poll_replies_are_hidden_from_the_console() {
+		assert!(is_poll_reply("[12:00:00] [Server thread/INFO]: There are 0 of a max of 20 players online: "));
+		assert!(is_poll_reply("[12:00:01] [Server thread/INFO]: Steve has the following entity data: [0.5d, 64.0d, 0.5d]"));
+		assert!(!is_poll_reply("[12:00:02] [Server thread/INFO]: Steve joined the game"));
 	}
 }

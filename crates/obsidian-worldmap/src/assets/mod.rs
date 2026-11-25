@@ -1,12 +1,23 @@
 //! Block, model and texture entries from Minecraft's client jar and from mod jars, including jars nested inside a mod.
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 
 use crate::error::Result;
 use crate::jar;
 
 const FOLDERS: [&str; 3] = ["blockstates/", "models/", "textures/"];
+
+/// Reads one entry of a jar, such as a default skin. `None` when the jar has no entry by that name.
+pub fn read_entry(jar: &Path, name: &str) -> Result<Option<Vec<u8>>> {
+	let mut archive = zip::ZipArchive::new(File::open(jar)?)?;
+	let Ok(mut file) = archive.by_name(name) else { return Ok(None) };
+	let mut bytes = Vec::with_capacity(file.size() as usize);
+	file.read_to_end(&mut bytes)?;
+	Ok(Some(bytes))
+}
 
 /// Every `assets/<namespace>/{blockstates,models,textures}` entry, keyed by namespace and the path inside it.
 #[derive(Default)]

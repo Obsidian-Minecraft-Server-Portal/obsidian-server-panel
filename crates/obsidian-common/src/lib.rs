@@ -1,3 +1,4 @@
+mod demand;
 mod error;
 mod events;
 mod ids;
@@ -5,6 +6,7 @@ mod loader;
 mod paths;
 mod tasks;
 
+pub use demand::{DemandLease, TopicDemand};
 pub use error::{CommonError, Result};
 pub use events::{Event, EventBus};
 pub use ids::{InstanceId, UserId};

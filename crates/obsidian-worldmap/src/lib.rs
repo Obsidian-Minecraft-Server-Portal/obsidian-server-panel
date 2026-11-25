@@ -13,6 +13,7 @@ pub mod models;
 pub mod players;
 pub mod region;
 pub mod render;
+pub mod skins;
 pub mod tiles;
 
 #[cfg(test)]
