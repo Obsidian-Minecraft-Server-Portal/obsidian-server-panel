@@ -1,25 +1,61 @@
 import {createHash} from "node:crypto";
 import {readdirSync, readFileSync} from "node:fs";
-import {defineConfig} from "vite";
+import {fileURLToPath} from "node:url";
+import {type Plugin, defineConfig, normalizePath} from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-const meshSources = new URL("./src/components/worldmap/structure/", import.meta.url);
+const meshDir = normalizePath(fileURLToPath(new URL("./src/components/worldmap/structure/", import.meta.url)));
+const cellMesherFile = `${meshDir}cell-mesher.ts`;
 
 function meshSourceHash(): string {
     const hash = createHash("sha256");
-    for (const name of readdirSync(meshSources).filter((file) => file.endsWith(".ts")).sort()) {
-        hash.update(name).update(readFileSync(new URL(name, meshSources)));
+    for (const name of readdirSync(meshDir).filter((file) => file.endsWith(".ts")).sort()) {
+        hash.update(name).update(readFileSync(meshDir + name));
     }
     return hash.digest("hex").slice(0, 16);
 }
 
+function meshVersion(): Plugin {
+    let version = meshSourceHash();
+    return {
+        name: "mesh-version",
+        transform(code, id) {
+            if (normalizePath(id) !== cellMesherFile) {
+                return null;
+            }
+            return code.replace(/__MESH_VERSION__/g, JSON.stringify(version));
+        },
+        configureServer(server) {
+            const onSourceChange = (file: string) => {
+                const source = normalizePath(file);
+                if (!source.startsWith(meshDir) || !source.endsWith(".ts")) {
+                    return;
+                }
+                let next: string;
+                try {
+                    next = meshSourceHash();
+                } catch {
+                    // A save can remove a file mid-read; the next event recomputes.
+                    return;
+                }
+                if (next === version) {
+                    return;
+                }
+                version = next;
+                server.moduleGraph.getModulesByFile(cellMesherFile)?.forEach((mod) => server.moduleGraph.invalidateModule(mod));
+                // Open pages keep the version they loaded, so they reload to pick up the new one.
+                server.ws.send({type: "full-reload"});
+            };
+            server.watcher.on("add", onSourceChange);
+            server.watcher.on("change", onSourceChange);
+            server.watcher.on("unlink", onSourceChange);
+        },
+    };
+}
+
 export default defineConfig({
-    plugins: [react(), tailwindcss()],
-    // Evaluated when the config loads, so a running dev server keeps the old version until it restarts.
-    define: {
-        __MESH_VERSION__: JSON.stringify(meshSourceHash()),
-    },
+    plugins: [react(), tailwindcss(), meshVersion()],
     clearScreen: false,
     server: {
         host: true,
