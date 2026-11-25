@@ -1,22 +1,23 @@
 //! Writes the texture atlas, one binary mesh per non-empty section, and a manifest for one region.
 //! The viewer harness reads this output.
 //!
-//! Usage: cargo run -p obsidian-worldmap --example export_region_mesh -- <output dir> <blocks.json> <region.mca> <client.jar> [mod jars...]
-//! Mod jars load after the client jar, so they override its assets the way the game does.
+//! Usage: cargo run -p obsidian-worldmap --example export_region_mesh -- <output dir> <blocks.json> <region.mca> <client.jar> <server.jar> [mod jars...]
+//! Mod jars load after the server jar, so they override its data and the client jar's assets the way the game does.
 //! The blocks report comes from the vanilla data generator: `java -DbundlerMainClass=net.minecraft.data.Main
 //! -jar server.jar --reports --output <dir>`, which writes `<dir>/reports/blocks.json`.
 
 use std::path::PathBuf;
 
 use obsidian_worldmap::assets::AssetStore;
+use obsidian_worldmap::biome::BiomeRegistry;
 use obsidian_worldmap::chunk::{BlockDefaults, Chunk};
 use obsidian_worldmap::mesh::{BlockWorld, MeshContext, format};
 use obsidian_worldmap::region::{CHUNKS_PER_SIDE, RegionFile};
 
 fn main() -> obsidian_worldmap::Result<()> {
 	let args: Vec<String> = std::env::args().skip(1).collect();
-	if args.len() < 4 {
-		eprintln!("usage: export_region_mesh <output dir> <blocks.json> <region.mca> <client.jar> [mod jars...]");
+	if args.len() < 5 {
+		eprintln!("usage: export_region_mesh <output dir> <blocks.json> <region.mca> <client.jar> <server.jar> [mod jars...]");
 		std::process::exit(2);
 	}
 	let output = PathBuf::from(&args[0]);
@@ -25,8 +26,11 @@ fn main() -> obsidian_worldmap::Result<()> {
 
 	let mut assets = AssetStore::default();
 	assets.add_jar(&PathBuf::from(&args[3]))?;
-	for jar in &args[4..] {
+	let mut biomes = BiomeRegistry::default();
+	biomes.add_jar(&PathBuf::from(&args[4]))?;
+	for jar in &args[5..] {
 		assets.add_jar(&PathBuf::from(jar))?;
+		biomes.add_jar(&PathBuf::from(jar))?;
 	}
 	let region = RegionFile::open(&PathBuf::from(&args[2]))?;
 	let mut chunks = Vec::new();
@@ -43,7 +47,7 @@ fn main() -> obsidian_worldmap::Result<()> {
 		.flat_map(|chunk| chunk.sections().iter().map(move |section| (chunk.x, section.y(), chunk.z)))
 		.collect();
 
-	let mut context = MeshContext::new(&assets, &world);
+	let mut context = MeshContext::new(&assets, &biomes, &world);
 	context.atlas().image().save(output.join("atlas.png"))?;
 	let (atlas_width, atlas_height) = context.atlas().image().dimensions();
 	let mut entries = Vec::new();

@@ -2,9 +2,11 @@
 
 pub mod assets;
 pub mod atlas;
+pub mod biome;
 pub mod chunk;
 pub mod colour;
 pub mod error;
+mod jar;
 pub mod level;
 pub mod mesh;
 pub mod models;

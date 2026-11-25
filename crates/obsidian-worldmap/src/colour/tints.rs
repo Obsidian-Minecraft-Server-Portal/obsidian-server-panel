@@ -1,55 +1,47 @@
-//! Biome tints taken from the vanilla grass and foliage colormaps, sampled at plains conditions.
+//! Biome tints: the vanilla grass and foliage colormaps, overridden by each biome's own colours and grass modifier.
 
 use crate::assets::AssetStore;
-use crate::colour::texture;
+use crate::biome::Biome;
+use crate::colour::texture::Colormap;
 use crate::models::geometry::TintKind;
 
-/// Vanilla's default temperature and humidity for plains, where the colormaps are sampled.
-const PLAINS_TEMPERATURE: f32 = 0.8;
-const PLAINS_HUMIDITY: f32 = 0.4;
-/// Vanilla's plains water colour. Fluids have no colormap to sample it from.
-const PLAINS_WATER: [u8; 3] = [63, 118, 228];
-/// Used when the colormap is missing, so tinted blocks still get vanilla's plains colour.
+/// Used when a colormap is missing, so tinted blocks still get vanilla's plains colour.
 const DEFAULT_GRASS: [u8; 3] = [145, 189, 89];
 const DEFAULT_FOLIAGE: [u8; 3] = [119, 171, 47];
 
-pub struct Tints<'a> {
-	assets: &'a AssetStore,
-	grass: Option<[u8; 3]>,
-	foliage: Option<[u8; 3]>,
+pub struct Tints {
+	grass: Option<Colormap>,
+	foliage: Option<Colormap>,
 }
 
-impl<'a> Tints<'a> {
-	pub fn new(assets: &'a AssetStore) -> Self {
+impl Tints {
+	pub fn new(assets: &AssetStore) -> Self {
 		Self {
-			assets,
-			grass: None,
-			foliage: None,
+			grass: load_colormap(assets, "grass"),
+			foliage: load_colormap(assets, "foliage"),
 		}
 	}
 
-	pub fn colour(&mut self, kind: TintKind) -> [u8; 3] {
-		let (cached, name, default) = match kind {
-			TintKind::Water => return PLAINS_WATER,
-			TintKind::Grass => (self.grass, "grass", DEFAULT_GRASS),
-			TintKind::Foliage => (self.foliage, "foliage", DEFAULT_FOLIAGE),
-		};
-		if let Some(colour) = cached {
-			return colour;
-		}
-		let colour = self.sample(name).unwrap_or(default);
+	/// The tint for a block of `kind` in `biome`, at block column `x`, `z`.
+	pub fn colour(&self, kind: TintKind, biome: &Biome, x: i32, z: i32) -> [u8; 3] {
 		match kind {
-			TintKind::Grass => self.grass = Some(colour),
-			TintKind::Foliage => self.foliage = Some(colour),
-			TintKind::Water => {}
+			TintKind::Water => biome.water,
+			TintKind::Grass => {
+				let colour = biome.grass.unwrap_or_else(|| sample(self.grass.as_ref(), biome, DEFAULT_GRASS));
+				biome.grass_modifier.apply(colour, x, z)
+			}
+			TintKind::Foliage => biome.foliage.unwrap_or_else(|| sample(self.foliage.as_ref(), biome, DEFAULT_FOLIAGE)),
 		}
-		colour
 	}
+}
 
-	fn sample(&self, name: &str) -> Option<[u8; 3]> {
-		let png = self.assets.get("minecraft", &format!("textures/colormap/{name}.png"))?;
-		texture::sample_colormap(png, PLAINS_TEMPERATURE, PLAINS_HUMIDITY).ok()
-	}
+fn sample(colormap: Option<&Colormap>, biome: &Biome, default: [u8; 3]) -> [u8; 3] {
+	colormap.map_or(default, |colormap| colormap.sample(biome.temperature, biome.downfall))
+}
+
+fn load_colormap(assets: &AssetStore, name: &str) -> Option<Colormap> {
+	let png = assets.get("minecraft", &format!("textures/colormap/{name}.png"))?;
+	Colormap::decode(png).ok()
 }
 
 #[cfg(test)]
@@ -59,19 +51,49 @@ mod tests {
 	use image::{ImageFormat, Rgba, RgbaImage};
 
 	use super::*;
+	use crate::biome::GrassModifier;
 
-	#[test]
-	fn samples_the_colormap_at_plains_conditions_and_falls_back_to_vanilla() {
+	fn assets_with_grass_colormap() -> AssetStore {
 		let mut colormap = RgbaImage::new(2, 2);
 		colormap.put_pixel(0, 0, Rgba([10, 20, 30, 255]));
 		let mut png = Vec::new();
 		colormap.write_to(&mut Cursor::new(&mut png), ImageFormat::Png).unwrap();
-
 		let mut assets = AssetStore::default();
 		assets.insert("minecraft".into(), "textures/colormap/grass.png".into(), png);
-		let mut tints = Tints::new(&assets);
-		assert_eq!(tints.colour(TintKind::Grass), [10, 20, 30]);
-		assert_eq!(tints.colour(TintKind::Foliage), DEFAULT_FOLIAGE);
-		assert_eq!(tints.colour(TintKind::Water), PLAINS_WATER);
+		assets
+	}
+
+	#[test]
+	fn samples_the_colormap_at_the_biome_climate_and_falls_back_to_vanilla() {
+		let assets = assets_with_grass_colormap();
+		let tints = Tints::new(&assets);
+		assert_eq!(tints.colour(TintKind::Grass, &Biome::PLAINS, 0, 0), [10, 20, 30]);
+		assert_eq!(tints.colour(TintKind::Foliage, &Biome::PLAINS, 0, 0), DEFAULT_FOLIAGE);
+		assert_eq!(tints.colour(TintKind::Water, &Biome::PLAINS, 0, 0), [63, 118, 228]);
+	}
+
+	#[test]
+	fn biome_colours_override_the_colormaps() {
+		let biome = Biome {
+			grass: Some([1, 2, 3]),
+			foliage: Some([4, 5, 6]),
+			water: [7, 8, 9],
+			..Biome::PLAINS
+		};
+		let tints = Tints::new(&AssetStore::default());
+		assert_eq!(tints.colour(TintKind::Grass, &biome, 0, 0), [1, 2, 3]);
+		assert_eq!(tints.colour(TintKind::Foliage, &biome, 0, 0), [4, 5, 6]);
+		assert_eq!(tints.colour(TintKind::Water, &biome, 0, 0), [7, 8, 9]);
+	}
+
+	#[test]
+	fn dark_forest_modifier_applies_to_the_grass_tint() {
+		let biome = Biome {
+			grass: Some([0x6a, 0x70, 0x39]),
+			grass_modifier: GrassModifier::DarkForest,
+			..Biome::PLAINS
+		};
+		let tints = Tints::new(&AssetStore::default());
+		assert_eq!(tints.colour(TintKind::Grass, &biome, 0, 0), [0x49, 0x52, 0x21]);
 	}
 }

@@ -9,10 +9,11 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::assets::AssetStore;
 use crate::atlas::{Atlas, Layer};
+use crate::biome::{Biome, BiomeRegistry};
 use crate::chunk::{BlockState, is_air};
 use crate::colour::Tints;
-use crate::models::geometry::{Direction, Quad};
 use crate::models::bake_state;
+use crate::models::geometry::{Direction, Quad};
 
 /// Positions are stored in 1/256 of a block, relative to the section origin, as i16.
 const POSITION_SCALE: f32 = 256.0;
@@ -42,12 +43,13 @@ struct Baked {
 pub struct MeshContext<'a> {
 	atlas: Atlas,
 	blocks: HashMap<String, Baked>,
-	tints: Tints<'a>,
+	tints: Tints,
+	biomes: &'a BiomeRegistry,
 }
 
 impl<'a> MeshContext<'a> {
 	/// Bakes every block state in the world and packs their textures. Build once per region, then mesh sections.
-	pub fn new(assets: &'a AssetStore, world: &BlockWorld) -> Self {
+	pub fn new(assets: &AssetStore, biomes: &'a BiomeRegistry, world: &BlockWorld) -> Self {
 		let mut states: BTreeMap<String, BlockState> = BTreeMap::new();
 		for chunk in world.chunks() {
 			for section in chunk.sections() {
@@ -75,6 +77,7 @@ impl<'a> MeshContext<'a> {
 			atlas,
 			blocks,
 			tints: Tints::new(assets),
+			biomes,
 		}
 	}
 
@@ -85,6 +88,8 @@ impl<'a> MeshContext<'a> {
 	/// The section's visible faces. `None` when the chunk or section is not loaded.
 	pub fn mesh_section(&mut self, world: &BlockWorld, chunk_x: i32, section_y: i32, chunk_z: i32) -> Option<SectionMesh> {
 		let section = world.chunk(chunk_x, chunk_z)?.section(section_y)?;
+		let biomes = self.biomes;
+		let section_biomes: Vec<&Biome> = section.biome_palette().iter().map(|id| biomes.get(id)).collect();
 		let mut layers: [Vec<MeshQuad>; 3] = Default::default();
 		for local_y in 0..16 {
 			for local_z in 0..16 {
@@ -94,6 +99,10 @@ impl<'a> MeshContext<'a> {
 						continue;
 					}
 					let Some(baked) = self.blocks.get(&block_key(state)) else { continue };
+					let biome = section
+						.biome_index_at(local_x, local_y, local_z)
+						.and_then(|index| section_biomes.get(index).copied())
+						.unwrap_or(&Biome::PLAINS);
 					let at = [
 						chunk_x * 16 + local_x as i32,
 						section_y * 16 + local_y as i32,
@@ -108,7 +117,7 @@ impl<'a> MeshContext<'a> {
 							corners: quad.corners.map(|corner| corner_position(corner, [local_x, local_y, local_z])),
 							uvs: quad.uvs.map(|uv| encode_uv(self.atlas.uv(&quad.texture, uv))),
 							direction: quad.direction,
-							tint: quad.tint.map_or([255, 255, 255], |kind| self.tints.colour(kind)),
+							tint: quad.tint.map_or([255, 255, 255], |kind| self.tints.colour(kind, biome, at[0], at[2])),
 						});
 					}
 				}
@@ -187,7 +196,7 @@ fn encode_uv(uv: [f32; 2]) -> [u16; 2] {
 mod tests {
 	use super::*;
 	use crate::chunk::{BlockDefaults, Chunk};
-	use crate::test_support::chunk_nbt;
+	use crate::test_support::{chunk_nbt, chunk_nbt_with_biomes};
 
 	fn stone_assets() -> AssetStore {
 		let faces = r##"{"down": {"texture": "#all", "cullface": "down"}, "up": {"texture": "#all", "cullface": "up"}, "north": {"texture": "#all", "cullface": "north"}, "south": {"texture": "#all", "cullface": "south"}, "west": {"texture": "#all", "cullface": "west"}, "east": {"texture": "#all", "cullface": "east"}}"##;
@@ -203,6 +212,22 @@ mod tests {
 		assets
 	}
 
+	fn grass_assets() -> AssetStore {
+		let mut assets = AssetStore::default();
+		assets.insert("minecraft".into(), "blockstates/grass_block.json".into(), br#"{"variants": {"": {"model": "minecraft:block/grass_block"}}}"#.to_vec());
+		assets.insert(
+			"minecraft".into(),
+			"models/block/grass_block.json".into(),
+			br##"{"textures": {"top": "minecraft:block/grass_top"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#top", "tintindex": 0, "cullface": "up"}}}]}"##.to_vec(),
+		);
+		let mut png = Vec::new();
+		image::RgbaImage::from_pixel(16, 16, image::Rgba([255, 255, 255, 255]))
+			.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+			.unwrap();
+		assets.insert("minecraft".into(), "textures/block/grass_top.png".into(), png);
+		assets
+	}
+
 	fn world_with(blocks: &[((usize, usize, usize), &str)]) -> BlockWorld {
 		let chunk = Chunk::parse(&chunk_nbt(0, 0, 3955, blocks)).unwrap();
 		BlockWorld::new([chunk], &BlockDefaults::default())
@@ -211,8 +236,9 @@ mod tests {
 	#[test]
 	fn hides_the_face_shared_by_two_touching_opaque_blocks() {
 		let assets = stone_assets();
+		let biomes = BiomeRegistry::default();
 		let world = world_with(&[((0, 0, 0), "minecraft:stone"), ((1, 0, 0), "minecraft:stone")]);
-		let mut context = MeshContext::new(&assets, &world);
+		let mut context = MeshContext::new(&assets, &biomes, &world);
 		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
 		assert_eq!(mesh.layers[Layer::Opaque as usize].len(), 10);
 		assert!(mesh.layers[Layer::Cutout as usize].is_empty());
@@ -221,8 +247,9 @@ mod tests {
 	#[test]
 	fn keeps_faces_next_to_unloaded_chunks_and_positions_inside_the_section() {
 		let assets = stone_assets();
+		let biomes = BiomeRegistry::default();
 		let world = world_with(&[((15, 15, 15), "minecraft:stone")]);
-		let mut context = MeshContext::new(&assets, &world);
+		let mut context = MeshContext::new(&assets, &biomes, &world);
 		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
 		assert_eq!(mesh.layers[Layer::Opaque as usize].len(), 6);
 		for quad in mesh.layers.iter().flatten() {
@@ -230,5 +257,32 @@ mod tests {
 				assert!(corner.iter().all(|value| (0..=4096).contains(value)), "{corner:?}");
 			}
 		}
+	}
+
+	#[test]
+	fn tints_grass_faces_with_the_biome_of_their_cell() {
+		let assets = grass_assets();
+		let chunk = Chunk::parse(&chunk_nbt_with_biomes(
+			0,
+			0,
+			3955,
+			&[((0, 0, 0), "minecraft:grass_block")],
+			&[((0, 0, 0), "minecraft:swamp")],
+		))
+		.unwrap();
+		let world = BlockWorld::new([chunk], &BlockDefaults::default());
+		let mut biomes = BiomeRegistry::default();
+		biomes.insert(
+			"minecraft:swamp",
+			Biome {
+				grass: Some([10, 20, 30]),
+				..Biome::PLAINS
+			},
+		);
+		let mut context = MeshContext::new(&assets, &biomes, &world);
+		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
+		let quads: Vec<&MeshQuad> = mesh.layers.iter().flatten().collect();
+		assert_eq!(quads.len(), 1);
+		assert_eq!(quads[0].tint, [10, 20, 30]);
 	}
 }

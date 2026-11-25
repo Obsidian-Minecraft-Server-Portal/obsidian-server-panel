@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use obsidian_worldmap::assets::AssetStore;
+use obsidian_worldmap::biome::{Biome, BiomeRegistry};
 use obsidian_worldmap::chunk::BlockState;
 use obsidian_worldmap::colour::BlockColours;
 use obsidian_worldmap::models::geometry::Direction;
@@ -60,7 +61,9 @@ fn baked_rotations_match_vanilla_for_furnace_y_and_dropper_x() {
 #[ignore = "needs OBSIDIAN_WORLDMAP_CLIENT_JAR"]
 fn colours_real_blocks_from_the_client_jar() {
 	let store = client_jar_store();
-	let mut colours = BlockColours::new(&store);
+	let biomes = BiomeRegistry::default();
+	let mut colours = BlockColours::new(&store, &biomes);
+	let plains = Biome::PLAINS;
 	let samples = [
 		block("minecraft:stone", &[]),
 		block("minecraft:grass_block", &[("snowy", "false")]),
@@ -69,10 +72,10 @@ fn colours_real_blocks_from_the_client_jar() {
 		block("minecraft:sand", &[]),
 	];
 	for sample in &samples {
-		println!("{}: {:?}", sample.name, colours.colour(sample));
+		println!("{}: {:?}", sample.name, colours.colour(sample, &plains, 0, 0));
 	}
-	let [r, g, b] = colours.colour(&samples[1]);
+	let [r, g, b] = colours.colour(&samples[1], &plains, 0, 0);
 	assert!(g > r && g > b, "grass should be green, got {r} {g} {b}");
-	let [r, _, b] = colours.colour(&samples[3]);
+	let [r, _, b] = colours.colour(&samples[3], &plains, 0, 0);
 	assert!(b > r, "water should be blue");
 }

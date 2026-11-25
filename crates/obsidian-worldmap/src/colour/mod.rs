@@ -1,4 +1,4 @@
-//! Block colours from the texture of each block's top face, tinted from the biome colormaps.
+//! Block colours from the texture of each block's top face, tinted by the biome the block is in.
 
 mod texture;
 mod tints;
@@ -6,41 +6,62 @@ mod tints;
 use std::collections::HashMap;
 
 use crate::assets::AssetStore;
+use crate::biome::{Biome, BiomeRegistry};
 use crate::chunk::BlockState;
 use crate::models::geometry::{TintKind, tint_kind_for_block};
 use crate::models::{Blockstate, Face, ResolvedModel, resolve_model, split_id};
 
 pub use tints::Tints;
 
+#[derive(Clone, Copy)]
+enum Surface {
+	Plain([u8; 3]),
+	Tinted([u8; 3], TintKind),
+}
+
 pub struct BlockColours<'a> {
 	assets: &'a AssetStore,
-	tints: Tints<'a>,
-	cache: HashMap<String, [u8; 3]>,
+	biomes: &'a BiomeRegistry,
+	tints: Tints,
+	surfaces: HashMap<String, Surface>,
+	textures: HashMap<String, [u8; 3]>,
 }
 
 impl<'a> BlockColours<'a> {
-	pub fn new(assets: &'a AssetStore) -> Self {
+	pub fn new(assets: &'a AssetStore, biomes: &'a BiomeRegistry) -> Self {
 		Self {
 			assets,
+			biomes,
 			tints: Tints::new(assets),
-			cache: HashMap::new(),
+			surfaces: HashMap::new(),
+			textures: HashMap::new(),
 		}
 	}
 
-	pub fn colour(&mut self, state: &BlockState) -> [u8; 3] {
+	pub fn biomes(&self) -> &'a BiomeRegistry {
+		self.biomes
+	}
+
+	/// The colour of a block's top face at block column `x`, `z` inside `biome`.
+	pub fn colour(&mut self, state: &BlockState, biome: &Biome, x: i32, z: i32) -> [u8; 3] {
 		let key = cache_key(state);
-		if let Some(colour) = self.cache.get(&key) {
-			return *colour;
+		let surface = if let Some(surface) = self.surfaces.get(&key).copied() {
+			surface
+		} else {
+			let surface = self.lookup(state).unwrap_or(Surface::Plain(fallback(&state.name)));
+			self.surfaces.insert(key, surface);
+			surface
+		};
+		match surface {
+			Surface::Plain(colour) => colour,
+			Surface::Tinted(base, kind) => multiply(base, self.tints.colour(kind, biome, x, z)),
 		}
-		let colour = self.lookup(state).unwrap_or_else(|| fallback(&state.name));
-		self.cache.insert(key, colour);
-		colour
 	}
 
-	fn lookup(&mut self, state: &BlockState) -> Option<[u8; 3]> {
+	fn lookup(&mut self, state: &BlockState) -> Option<Surface> {
 		if state.name == "minecraft:water" {
 			let base = self.texture_colour("minecraft:block/water_still")?;
-			return Some(multiply(base, self.tints.colour(TintKind::Water)));
+			return Some(Surface::Tinted(base, TintKind::Water));
 		}
 		let (namespace, path) = split_id(&state.name);
 		let json = self.assets.get(namespace, &format!("blockstates/{path}.json"))?;
@@ -48,21 +69,20 @@ impl<'a> BlockColours<'a> {
 		let model = resolve_model(self.assets, &variant.model).ok()?;
 		let face = top_face(&model)?;
 		let base = self.texture_colour(&face_texture(&model, face)?)?;
-		match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
-			(true, Some(kind)) => Some(multiply(base, self.tints.colour(kind))),
-			_ => Some(base),
-		}
+		Some(match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
+			(true, Some(kind)) => Surface::Tinted(base, kind),
+			_ => Surface::Plain(base),
+		})
 	}
 
 	fn texture_colour(&mut self, texture: &str) -> Option<[u8; 3]> {
-		let key = format!("texture:{texture}");
-		if let Some(colour) = self.cache.get(&key) {
+		if let Some(colour) = self.textures.get(texture) {
 			return Some(*colour);
 		}
 		let (namespace, path) = split_id(texture);
 		let png = self.assets.get(namespace, &format!("textures/{path}.png"))?;
 		let colour = texture::average(png).ok().flatten()?;
-		self.cache.insert(key, colour);
+		self.textures.insert(texture.to_owned(), colour);
 		Some(colour)
 	}
 }
@@ -129,10 +149,13 @@ mod tests {
 		bytes
 	}
 
+	fn add(assets: &mut AssetStore, path: &str, bytes: Vec<u8>) {
+		assets.insert("minecraft".into(), path.into(), bytes);
+	}
+
 	#[test]
 	fn takes_the_colour_of_the_top_face_texture() {
 		let mut assets = AssetStore::default();
-		let add = |assets: &mut AssetStore, path: &str, bytes: Vec<u8>| assets.insert("minecraft".into(), path.into(), bytes);
 		add(&mut assets, "blockstates/test_block.json", br#"{"variants": {"": {"model": "minecraft:block/test_cube"}}}"#.to_vec());
 		add(
 			&mut assets,
@@ -140,22 +163,48 @@ mod tests {
 			br##"{"textures": {"all": "minecraft:block/test_top"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#all"}}}]}"##.to_vec(),
 		);
 		add(&mut assets, "textures/block/test_top.png", solid_png([200, 100, 50, 255]));
-		let mut colours = BlockColours::new(&assets);
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
 		let state = BlockState {
 			name: "minecraft:test_block".into(),
 			properties: BTreeMap::new(),
 		};
-		assert_eq!(colours.colour(&state), [200, 100, 50]);
+		assert_eq!(colours.colour(&state, &Biome::PLAINS, 0, 0), [200, 100, 50]);
+	}
+
+	#[test]
+	fn tints_grass_tops_with_the_biome() {
+		let mut assets = AssetStore::default();
+		add(&mut assets, "blockstates/grass_block.json", br#"{"variants": {"": {"model": "minecraft:block/grass_block"}}}"#.to_vec());
+		add(
+			&mut assets,
+			"models/block/grass_block.json",
+			br##"{"textures": {"top": "minecraft:block/grass_top"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#top", "tintindex": 0}}}]}"##.to_vec(),
+		);
+		add(&mut assets, "textures/block/grass_top.png", solid_png([255, 255, 255, 255]));
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
+		let state = BlockState {
+			name: "minecraft:grass_block".into(),
+			properties: BTreeMap::new(),
+		};
+		let swamp = Biome {
+			grass: Some([10, 20, 30]),
+			..Biome::PLAINS
+		};
+		assert_eq!(colours.colour(&state, &swamp, 0, 0), [10, 20, 30]);
+		assert_eq!(colours.colour(&state, &Biome::PLAINS, 0, 0), [145, 189, 89]);
 	}
 
 	#[test]
 	fn falls_back_to_a_stable_colour_without_assets() {
 		let assets = AssetStore::default();
-		let mut colours = BlockColours::new(&assets);
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
 		let state = BlockState {
 			name: "minecraft:mystery".into(),
 			properties: BTreeMap::new(),
 		};
-		assert_eq!(colours.colour(&state), fallback("minecraft:mystery"));
+		assert_eq!(colours.colour(&state, &Biome::PLAINS, 0, 0), fallback("minecraft:mystery"));
 	}
 }

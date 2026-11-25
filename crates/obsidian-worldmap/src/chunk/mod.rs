@@ -26,6 +26,8 @@ pub struct Section {
 	y: i32,
 	palette: Vec<BlockState>,
 	indices: Vec<u16>,
+	biome_palette: Vec<String>,
+	biome_indices: Vec<u16>,
 }
 
 impl Section {
@@ -39,6 +41,17 @@ impl Section {
 
 	pub fn state_at(&self, x: usize, y: usize, z: usize) -> &BlockState {
 		&self.palette[usize::from(self.indices[(y << 8) | (z << 4) | x])]
+	}
+
+	/// Biome ids present in this section, indexed by [`Self::biome_index_at`]. Empty before 1.18.
+	pub fn biome_palette(&self) -> &[String] {
+		&self.biome_palette
+	}
+
+	/// Index into [`Self::biome_palette`] of the biome cell holding a block, or `None` before 1.18.
+	pub fn biome_index_at(&self, x: usize, y: usize, z: usize) -> Option<usize> {
+		let cell = ((y >> 2) << 4) | ((z >> 2) << 2) | (x >> 2);
+		self.biome_indices.get(cell).map(|index| usize::from(*index))
 	}
 }
 
@@ -100,6 +113,13 @@ impl Chunk {
 		Some(section.state_at(x, y.rem_euclid(SECTION_SIDE as i32) as usize, z))
 	}
 
+	/// Biome id at chunk-local `x` and `z` (0..16) and absolute height `y`. `None` before 1.18 or where no section covers `y`.
+	pub fn biome_at(&self, x: usize, y: i32, z: usize) -> Option<&str> {
+		let section = self.section(y.div_euclid(SECTION_SIDE as i32))?;
+		let index = section.biome_index_at(x, y.rem_euclid(SECTION_SIDE as i32) as usize, z)?;
+		section.biome_palette.get(index).map(String::as_str)
+	}
+
 	/// Highest non-air block in a column, as (world y, block). `x` and `z` are section-local, 0..16.
 	pub fn column_top(&self, x: usize, z: usize) -> Option<(i32, &BlockState)> {
 		self.sections.iter().find_map(|section| {
@@ -129,16 +149,38 @@ fn decode_section(raw: RawSection, spanning: bool) -> Result<Option<Section>> {
 	let indices = if palette.len() == 1 {
 		vec![0; BLOCKS_PER_SECTION]
 	} else {
-		palette::unpack(&longs, palette.len(), spanning)
+		palette::unpack_blocks(&longs, palette.len(), spanning)
 	};
 	if indices.iter().any(|index| usize::from(*index) >= palette.len()) {
 		return Err(WorldmapError::Chunk(format!("section {} points past its palette", raw.y)));
 	}
+	let (biome_palette, biome_indices) = match raw.biomes {
+		Some(biomes) => decode_biomes(biomes)?,
+		None => (Vec::new(), Vec::new()),
+	};
 	Ok(Some(Section {
 		y: i32::from(raw.y),
 		palette,
 		indices,
+		biome_palette,
+		biome_indices,
 	}))
+}
+
+fn decode_biomes(raw: RawBiomes) -> Result<(Vec<String>, Vec<u16>)> {
+	if raw.palette.is_empty() {
+		return Ok((Vec::new(), Vec::new()));
+	}
+	let indices = if raw.palette.len() == 1 {
+		vec![0; palette::BIOME_CELLS]
+	} else {
+		let longs = raw.data.map(LongArray::into_inner).unwrap_or_default();
+		palette::unpack_biomes(&longs, raw.palette.len())
+	};
+	if indices.iter().any(|index| usize::from(*index) >= raw.palette.len()) {
+		return Err(WorldmapError::Chunk("biome cells point past their palette".into()));
+	}
+	Ok((raw.palette, indices))
 }
 
 #[derive(Deserialize)]
@@ -173,6 +215,8 @@ struct RawSection {
 	/// 1.18 and later.
 	#[serde(default)]
 	block_states: Option<RawContainer>,
+	#[serde(default)]
+	biomes: Option<RawBiomes>,
 	/// 1.13 to 1.17 keep the palette and packed data beside `Y`.
 	#[serde(rename = "Palette", default)]
 	palette: Option<Vec<RawBlockState>>,
@@ -183,6 +227,13 @@ struct RawSection {
 #[derive(Deserialize)]
 struct RawContainer {
 	palette: Vec<RawBlockState>,
+	#[serde(default)]
+	data: Option<LongArray>,
+}
+
+#[derive(Deserialize)]
+struct RawBiomes {
+	palette: Vec<String>,
 	#[serde(default)]
 	data: Option<LongArray>,
 }
@@ -227,7 +278,7 @@ mod tests {
 	use fastnbt::Value;
 
 	use super::*;
-	use crate::test_support::{chunk_nbt, chunk_nbt_bare};
+	use crate::test_support::{chunk_nbt, chunk_nbt_bare, chunk_nbt_with_biomes};
 
 	#[test]
 	fn reads_every_palette_entry_shape() {
@@ -272,5 +323,21 @@ mod tests {
 		let nbt = chunk_nbt(0, 0, 3955, &[((5, 3, 5), "minecraft:cave_air"), ((5, 2, 5), "minecraft:dirt")]);
 		let chunk = Chunk::parse(&nbt).unwrap();
 		assert_eq!(chunk.column_top(5, 5).map(|(y, state)| (y, state.name.as_str())), Some((2, "minecraft:dirt")));
+	}
+
+	#[test]
+	fn reads_biomes_per_four_block_cell() {
+		let nbt = chunk_nbt_with_biomes(0, 0, 4000, &[], &[((1, 0, 0), "minecraft:desert"), ((0, 1, 1), "minecraft:swamp")]);
+		let chunk = Chunk::parse(&nbt).unwrap();
+		assert_eq!(chunk.biome_at(4, 0, 0), Some("minecraft:desert"));
+		assert_eq!(chunk.biome_at(7, 3, 3), Some("minecraft:desert"));
+		assert_eq!(chunk.biome_at(8, 0, 0), Some("minecraft:plains"));
+		assert_eq!(chunk.biome_at(0, 4, 4), Some("minecraft:swamp"));
+	}
+
+	#[test]
+	fn has_no_biomes_without_a_biome_palette() {
+		let chunk = Chunk::parse(&chunk_nbt(0, 0, 3955, &[((0, 0, 0), "minecraft:stone")])).unwrap();
+		assert_eq!(chunk.biome_at(0, 0, 0), None);
 	}
 }

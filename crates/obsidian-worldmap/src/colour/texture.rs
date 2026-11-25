@@ -7,15 +7,24 @@ pub fn average(png: &[u8]) -> Result<Option<[u8; 3]>> {
 	Ok(mean(&image::load_from_memory(png)?.to_rgba8()))
 }
 
-/// Minecraft indexes colormaps by temperature (left to right) and humidity (bottom to top).
-pub fn sample_colormap(png: &[u8], temperature: f32, humidity: f32) -> Result<[u8; 3]> {
-	let image = image::load_from_memory(png)?.to_rgba8();
-	let temperature = temperature.clamp(0.0, 1.0);
-	let humidity = humidity.clamp(0.0, 1.0) * temperature;
-	let x = (((1.0 - temperature) * (image.width() - 1) as f32) as u32).min(image.width() - 1);
-	let y = (((1.0 - humidity) * (image.height() - 1) as f32) as u32).min(image.height() - 1);
-	let pixel = image.get_pixel(x, y);
-	Ok([pixel[0], pixel[1], pixel[2]])
+/// A vanilla colormap, indexed by temperature (left to right) and humidity (bottom to top).
+pub struct Colormap(RgbaImage);
+
+impl Colormap {
+	pub fn decode(png: &[u8]) -> Result<Self> {
+		Ok(Self(image::load_from_memory(png)?.to_rgba8()))
+	}
+
+	/// Humidity is scaled by temperature before sampling, as vanilla does.
+	pub fn sample(&self, temperature: f32, humidity: f32) -> [u8; 3] {
+		let image = &self.0;
+		let temperature = temperature.clamp(0.0, 1.0);
+		let humidity = humidity.clamp(0.0, 1.0) * temperature;
+		let x = (((1.0 - temperature) * (image.width() - 1) as f32) as u32).min(image.width() - 1);
+		let y = (((1.0 - humidity) * (image.height() - 1) as f32) as u32).min(image.height() - 1);
+		let pixel = image.get_pixel(x, y);
+		[pixel[0], pixel[1], pixel[2]]
+	}
 }
 
 fn mean(image: &RgbaImage) -> Option<[u8; 3]> {
@@ -64,7 +73,8 @@ mod tests {
 	#[test]
 	fn samples_colormaps_by_temperature_and_humidity() {
 		let bytes = png(&[[1, 2, 3, 255], [4, 5, 6, 255], [7, 8, 9, 255], [10, 11, 12, 255]], 2);
-		assert_eq!(sample_colormap(&bytes, 0.0, 0.0).unwrap(), [10, 11, 12]);
-		assert_eq!(sample_colormap(&bytes, 1.0, 1.0).unwrap(), [1, 2, 3]);
+		let colormap = Colormap::decode(&bytes).unwrap();
+		assert_eq!(colormap.sample(0.0, 0.0), [10, 11, 12]);
+		assert_eq!(colormap.sample(1.0, 1.0), [1, 2, 3]);
 	}
 }
