@@ -80,7 +80,7 @@ fn entity_values(body: &str) -> Vec<(String, &str)> {
 		let marker_start = cursor + found;
 		let value_start = marker_start + MARKER.len();
 		let Some(value_len) = body[value_start..].find(']') else { break };
-		let name = body[cursor..marker_start].rsplit("]: ").next().unwrap_or_default().trim();
+		let name = body[cursor..marker_start].rsplit(": ").next().unwrap_or_default().trim();
 		replies.push((name.to_owned(), &body[value_start..value_start + value_len]));
 		cursor = value_start + value_len + 1;
 	}
@@ -131,6 +131,19 @@ mod tests {
 	fn console_replies_keep_the_player_name_without_the_log_prefix() {
 		let line = "[12:00:01] [Server thread/INFO]: Steve has the following entity data: [0.5d, 64.0d, 0.5d]";
 		assert_eq!(parse_positions(line)[0].name, "Steve");
+	}
+
+	#[test]
+	fn console_replies_drop_the_system_chat_prefix_that_26_adds() {
+		let line = "[20:45:44] [Server thread/INFO]: System chat: dcman58 has the following entity data: [49.207732269259566d, 99.0d, -69.24384748315332d]";
+		let positions = parse_positions(line);
+		assert_eq!((positions[0].name.as_str(), positions[0].position), ("dcman58", [49.207732269259566, 99.0, -69.24384748315332]));
+	}
+
+	#[test]
+	fn rotation_replies_drop_the_system_chat_prefix() {
+		let line = "[20:45:44] [Server thread/INFO]: System chat: dcman58 has the following entity data: [-90.5f, 12.0f]";
+		assert_eq!(parse_rotations(line), [EntityRotation { name: "dcman58".into(), yaw: -90.5, pitch: 12.0 }]);
 	}
 
 	#[test]
