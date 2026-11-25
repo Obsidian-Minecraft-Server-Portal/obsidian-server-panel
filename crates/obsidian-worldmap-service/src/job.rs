@@ -7,13 +7,16 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use chrono::Utc;
-use obsidian_common::{CommonError, Result};
+use std::sync::Arc;
+
+use obsidian_common::{CommonError, InstanceId, Result};
 use obsidian_worldmap::atlas::Atlas;
 use obsidian_worldmap::level::discover;
-use obsidian_worldmap::render::{Pack, PackSources, Renderer};
+use obsidian_worldmap::render::Renderer;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+use crate::pack_cache::PackCache;
 use crate::state::{RegionState, RenderState};
 
 pub const OUTPUT_FOLDER: &str = "obsidian-map";
@@ -48,6 +51,8 @@ pub struct Job {
 	pub pack_key: String,
 	pub sources: Sources,
 	pub state: RenderState,
+	pub instance: InstanceId,
+	pub packs: Arc<PackCache>,
 }
 
 pub struct Outcome {
@@ -78,15 +83,9 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 		return Ok(Outcome { state, rendered: 0, failed: Vec::new() });
 	}
 
-	let pack = Pack::load(&PackSources {
-		client_jar: &job.sources.client_jar,
-		server_jar: &job.sources.server_jar,
-		mod_jars: &job.sources.mod_jars,
-		blocks_report: &job.sources.blocks_report,
-	})
-	.map_err(other)?;
+	let pack = job.packs.get(job.instance, &job.pack_key, &job.sources)?;
 	progress(0.0, "Loading the assets".into());
-	let mut renderer = Renderer::new(&pack);
+	let mut renderer = Renderer::new(&pack.pack);
 	write_pack(&map_dir, &job.pack_key, renderer.atlas())?;
 	if mode == BuildMode::Full {
 		state.last_full_pass = Some(now);

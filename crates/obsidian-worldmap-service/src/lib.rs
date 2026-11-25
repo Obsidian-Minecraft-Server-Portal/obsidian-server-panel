@@ -7,6 +7,7 @@ mod job;
 mod jars;
 mod live;
 mod manifest;
+mod pack_cache;
 mod policy;
 mod service;
 mod settings;

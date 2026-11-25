@@ -15,7 +15,8 @@ use obsidian_worldmap::players::is_poll_reply;
 use serde_json::json;
 
 use crate::bundle;
-use crate::detail::{self, Packs};
+use crate::detail;
+use crate::pack_cache::PackCache;
 use crate::job::{self, BuildMode, OUTPUT_FOLDER, Sources};
 use crate::live::{LiveService, WorldMapPlayers};
 use crate::manifest::{self, WorldMapManifest};
@@ -40,7 +41,8 @@ pub struct WorldMapService {
 	bus: EventBus,
 	slots: Mutex<HashMap<InstanceId, Slot>>,
 	live: Arc<LiveService>,
-	details: Arc<Packs>,
+	packs: Arc<PackCache>,
+	draw_gates: Mutex<HashMap<(InstanceId, String, (i32, i32)), Arc<tokio::sync::Mutex<()>>>>,
 }
 
 impl WorldMapService {
@@ -64,7 +66,8 @@ impl WorldMapService {
 			bus,
 			slots: Mutex::new(HashMap::new()),
 			live,
-			details: Arc::new(Mutex::new(HashMap::new())),
+			packs: Arc::new(PackCache::default()),
+			draw_gates: Mutex::new(HashMap::new()),
 		}))
 	}
 
@@ -151,6 +154,11 @@ impl WorldMapService {
 		if tokio::fs::metadata(&location).await.is_ok() {
 			return Ok(location);
 		}
+		let gate = self.draw_gate(id, folder, region);
+		let _held = gate.lock().await;
+		if tokio::fs::metadata(&location).await.is_ok() {
+			return Ok(location);
+		}
 		let key = state::load(&map_dir)
 			.await
 			.pack_key
@@ -158,14 +166,14 @@ impl WorldMapService {
 		let level = level_name(&instance.directory).await?;
 		let region_file = detail::region_path(&instance.directory, &level, folder, region)?;
 		let sources = self.sources(&instance).await?;
-		let packs = Arc::clone(&self.details);
-		let png = tokio::task::spawn_blocking(move || detail::draw(&packs, id, &key, &sources, &region_file, tile))
-			.await
-			.map_err(|error| CommonError::Other(error.to_string()))??;
-		if let Some(parent) = location.parent() {
-			tokio::fs::create_dir_all(parent).await?;
-		}
-		tokio::fs::write(&location, png).await?;
+		let packs = Arc::clone(&self.packs);
+		let draw_folder = folder.to_owned();
+		tokio::task::spawn_blocking(move || {
+			let pack = packs.get(id, &key, &sources)?;
+			detail::draw_region(&pack, &map_dir, &draw_folder, &region_file, region)
+		})
+		.await
+		.map_err(|error| CommonError::Other(error.to_string()))??;
 		Ok(location)
 	}
 
@@ -176,8 +184,17 @@ impl WorldMapService {
 		bundle::cell(&folder_dir, cell).await
 	}
 
+	fn draw_gate(&self, id: InstanceId, folder: &str, region: (i32, i32)) -> Arc<tokio::sync::Mutex<()>> {
+		let mut gates = self.draw_gates.lock().unwrap_or_else(PoisonError::into_inner);
+		Arc::clone(
+			gates
+				.entry((id, folder.to_owned(), region))
+				.or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
+		)
+	}
+
 	pub(crate) fn release_idle_packs(&self) {
-		detail::release_idle(&self.details);
+		self.packs.release_idle();
 	}
 
 	/// The jars a render of this instance used. Nothing is downloaded here: a render has already fetched them.
@@ -299,6 +316,8 @@ impl WorldMapService {
 				blocks_report,
 			},
 			state: state::load(&map_dir).await,
+			instance: instance.id,
+			packs: Arc::clone(&self.packs),
 		};
 		let progress = task.clone();
 		let outcome = tokio::task::spawn_blocking(move || {
