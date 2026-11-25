@@ -1,19 +1,20 @@
-//! Binary section mesh, OBSM version 1, little-endian. The viewer decodes this layout directly.
+//! Binary section mesh, OBSM version 2, little-endian. The viewer decodes this layout directly.
 //!
 //! Header (32 bytes): magic `OBSM`, version u16, reserved u16, section chunk x, section y and chunk z as i32,
 //! then the quad count of each render layer (opaque, cutout, translucent) as u32.
-//! Quads follow in layer order, 44 bytes each: four corners of (x i16, y i16, z i16, u u16, v u16), then the
-//! face direction (u8: down, up, north, south, west, east) and the tint colour (r, g, b). Positions are in
-//! 1/256 of a block from the section origin. UVs are atlas coordinates in image space, scaled to 0..=65535.
+//! Quads follow in layer order, 48 bytes each: four corners of (x i16, y i16, z i16, u u16, v u16), then the
+//! face direction (u8: down, up, north, south, west, east), the tint colour (r, g, b) and the brightness of each
+//! corner (u8 x 4). Positions are in 1/256 of a block from the section origin. UVs are atlas coordinates in image
+//! space, scaled to 0..=65535.
 
 use crate::error::{Result, WorldmapError};
 use crate::mesh::{MeshQuad, SectionMesh};
 use crate::models::geometry::Direction;
 
 pub const MAGIC: [u8; 4] = *b"OBSM";
-pub const VERSION: u16 = 1;
+pub const VERSION: u16 = 2;
 pub const HEADER_LEN: usize = 32;
-pub const QUAD_LEN: usize = 44;
+pub const QUAD_LEN: usize = 48;
 
 pub fn encode(mesh: &SectionMesh) -> Vec<u8> {
 	let quads: usize = mesh.layers.iter().map(Vec::len).sum();
@@ -38,6 +39,7 @@ pub fn encode(mesh: &SectionMesh) -> Vec<u8> {
 		}
 		out.push(quad.direction.index());
 		out.extend_from_slice(&quad.tint);
+		out.extend_from_slice(&quad.light);
 	}
 	out
 }
@@ -81,6 +83,7 @@ fn read_quad(record: &[u8]) -> Result<MeshQuad> {
 		uvs,
 		direction,
 		tint: [record[41], record[42], record[43]],
+		light: [record[44], record[45], record[46], record[47]],
 	})
 }
 
@@ -114,6 +117,7 @@ mod tests {
 			uvs: [[0, 0], [65535, 0], [65535, 65535], [0, 65535]],
 			direction: Direction::North,
 			tint: [121, 176, 66],
+			light: [255, 204, 170, 96],
 		};
 		SectionMesh {
 			section: [-3, 4, 9],

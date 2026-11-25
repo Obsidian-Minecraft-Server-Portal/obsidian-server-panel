@@ -1,11 +1,13 @@
 mod defaults;
+mod light;
 mod palette;
 
 use std::collections::BTreeMap;
 
 pub use defaults::BlockDefaults;
 
-use fastnbt::LongArray;
+use fastnbt::{ByteArray, LongArray};
+use light::SectionLight;
 use serde::Deserialize;
 
 use crate::error::{Result, WorldmapError};
@@ -28,11 +30,17 @@ pub struct Section {
 	indices: Vec<u16>,
 	biome_palette: Vec<String>,
 	biome_indices: Vec<u16>,
+	light: SectionLight,
 }
 
 impl Section {
 	pub fn y(&self) -> i32 {
 		self.y
+	}
+
+	/// Sky and block light at section-local `x`, `y` and `z`.
+	pub fn light_at(&self, x: usize, y: usize, z: usize) -> (u8, u8) {
+		(self.light.sky.at(x, y, z), self.light.block.at(x, y, z))
 	}
 
 	pub fn palette(&self) -> &[BlockState] {
@@ -120,6 +128,12 @@ impl Chunk {
 		section.biome_palette.get(index).map(String::as_str)
 	}
 
+	/// Sky and block light at chunk-local `x` and `z` (0..16) and absolute height `y`; `None` when no section covers `y`.
+	pub fn light_at(&self, x: usize, y: i32, z: usize) -> Option<(u8, u8)> {
+		let section = self.section(y.div_euclid(SECTION_SIDE as i32))?;
+		Some(section.light_at(x, y.rem_euclid(SECTION_SIDE as i32) as usize, z))
+	}
+
 	/// Highest non-air block in a column, as (world y, block). `x` and `z` are section-local, 0..16.
 	pub fn column_top(&self, x: usize, z: usize) -> Option<(i32, &BlockState)> {
 		self.sections.iter().find_map(|section| {
@@ -164,6 +178,7 @@ fn decode_section(raw: RawSection, spanning: bool) -> Result<Option<Section>> {
 		indices,
 		biome_palette,
 		biome_indices,
+		light: SectionLight::new(raw.sky_light, raw.block_light),
 	}))
 }
 
@@ -222,6 +237,10 @@ struct RawSection {
 	palette: Option<Vec<RawBlockState>>,
 	#[serde(rename = "BlockStates", default)]
 	packed: Option<LongArray>,
+	#[serde(rename = "SkyLight", default)]
+	sky_light: Option<ByteArray>,
+	#[serde(rename = "BlockLight", default)]
+	block_light: Option<ByteArray>,
 }
 
 #[derive(Deserialize)]

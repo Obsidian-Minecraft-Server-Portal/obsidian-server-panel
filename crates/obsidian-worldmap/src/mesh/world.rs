@@ -35,4 +35,10 @@ impl BlockWorld {
 		let chunk = self.chunk(x.div_euclid(16), z.div_euclid(16))?;
 		chunk.state_at(x.rem_euclid(16) as usize, y, z.rem_euclid(16) as usize)
 	}
+
+	/// Sky and block light at absolute block coordinates; `None` when its chunk is not loaded.
+	pub fn light(&self, x: i32, y: i32, z: i32) -> Option<(u8, u8)> {
+		let chunk = self.chunk(x.div_euclid(16), z.div_euclid(16))?;
+		chunk.light_at(x.rem_euclid(16) as usize, y, z.rem_euclid(16) as usize)
+	}
 }

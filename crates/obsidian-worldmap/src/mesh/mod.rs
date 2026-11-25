@@ -1,9 +1,12 @@
 //! Section meshes: the faces of one 16x16x16 section that can be seen, grouped by render layer.
 
 pub mod format;
+mod lighting;
 mod world;
 
 pub use world::BlockWorld;
+
+use lighting::corner_brightness;
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -24,6 +27,8 @@ pub struct MeshQuad {
 	pub uvs: [[u16; 2]; 4],
 	pub direction: Direction,
 	pub tint: [u8; 3],
+	/// Brightness of each corner, 0 to 255, from ambient occlusion and light.
+	pub light: [u8; 4],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -118,6 +123,7 @@ impl<'a> MeshContext<'a> {
 							uvs: quad.uvs.map(|uv| encode_uv(self.atlas.uv(&quad.texture, uv))),
 							direction: quad.direction,
 							tint: quad.tint.map_or([255, 255, 255], |kind| self.tints.colour(kind, biome, at[0], at[2])),
+								light: corner_brightness(world, &self.blocks, quad, at),
 						});
 					}
 				}
@@ -251,6 +257,22 @@ mod tests {
 				assert!(corner.iter().all(|value| (0..=4096).contains(value)), "{corner:?}");
 			}
 		}
+	}
+
+	#[test]
+	fn corners_beside_solid_cubes_are_darker_than_open_corners() {
+		let assets = stone_assets();
+		let biomes = BiomeRegistry::default();
+		let world = world_with(&[((0, 0, 0), "minecraft:stone"), ((1, 1, 0), "minecraft:stone")]);
+		let context = mesher(&assets, &biomes, &world);
+		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
+		let top = mesh.layers[Layer::Opaque as usize]
+			.iter()
+			.find(|quad| quad.direction == Direction::Up && quad.corners.iter().all(|corner| corner[1] == 256))
+			.expect("the top of the lower block is visible");
+		let corner_at = |x: i16, z: i16| top.corners.iter().position(|corner| corner[0] == x && corner[2] == z).unwrap();
+		assert_eq!(top.light[corner_at(0, 0)], 255);
+		assert!(top.light[corner_at(256, 0)] < top.light[corner_at(0, 0)]);
 	}
 
 	#[test]
