@@ -330,7 +330,6 @@ impl InstanceManager {
 	}
 
 	fn on_line(&self, id: InstanceId, text: String) {
-		let _ = self.console_tap.send(ConsoleLine { instance: id, text: text.clone() });
 		let shown = {
 			let mut live = self.live();
 			let entry = live.entry(id).or_default();
@@ -344,6 +343,7 @@ impl InstanceManager {
 			}
 			!hidden
 		};
+		let _ = self.console_tap.send(ConsoleLine { instance: id, text: text.clone() });
 		if shown {
 			self.bus.publish(console_topic(id), json!({ "line": text }));
 		}
