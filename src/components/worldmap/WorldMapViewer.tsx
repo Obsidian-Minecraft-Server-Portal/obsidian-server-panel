@@ -43,14 +43,14 @@ interface Progress {
 export interface WorldMapViewerProps {
   source: MapSource;
   players: readonly LivePlayer[];
-  headBase: string;
+  skinBase: string;
 }
 
 const keyOf = (entry: SectionEntry) => `${entry.x},${entry.y},${entry.z}`;
 const centreOf = (entry: SectionEntry) => new Vector3(entry.x * 16 + 8, entry.y * 16 + 8, entry.z * 16 + 8);
 
 /** A free-fly 3D view of a region's section meshes, streamed in around the camera. */
-export function WorldMapViewer({ source, players, headBase }: WorldMapViewerProps) {
+export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProps) {
   const playersRef = useRef(players);
   playersRef.current = players;
   const markersRef = useRef<PlayerMarkers | null>(null);
@@ -82,7 +82,7 @@ export function WorldMapViewer({ source, players, headBase }: WorldMapViewerProp
     const camera = new PerspectiveCamera(70, 1, 0.5, 4000);
     const fly = new FreeFlyCamera();
     const detachInput = fly.attach(renderer.domElement);
-    const markers = new PlayerMarkers(headBase);
+    const markers = new PlayerMarkers(skinBase);
     scene.add(markers.group);
     markers.update(playersRef.current);
     markersRef.current = markers;
@@ -276,7 +276,7 @@ export function WorldMapViewer({ source, players, headBase }: WorldMapViewerProp
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [source, headBase]);
+  }, [source, skinBase]);
 
   useEffect(() => {
     markersRef.current?.update(players);

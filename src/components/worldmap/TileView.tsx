@@ -1,5 +1,5 @@
 import { useState, type PointerEvent, type WheelEvent } from "react";
-import { useWorldMapManifest, worldMapHeadBase, worldMapSource, type LivePlayer } from "../../api/worldmap";
+import { useWorldMapManifest, worldMapSkinBase, worldMapSource, type LivePlayer } from "../../api/worldmap";
 import { PlayerTag } from "./PlayerTag";
 
 /** One region's top-down tile is 512 pixels square, at one pixel per block. */
@@ -43,7 +43,7 @@ export function TileView({
   const originX = Math.min(...tiles.map((tile) => tile.x));
   const originZ = Math.min(...tiles.map((tile) => tile.z));
   const source = worldMapSource(instanceId, folder);
-  const headBase = worldMapHeadBase(instanceId);
+  const skinBase = worldMapSkinBase(instanceId);
   const inDimension = players.filter((player) => player.dimension === dimensionId);
 
   return (
@@ -94,8 +94,8 @@ export function TileView({
         {inDimension.map((player) => (
           <PlayerTag
             key={player.name}
-            name={player.name}
-            src={`${headBase}${player.head}`}
+            player={player}
+            skinBase={skinBase}
             x={view.x + (player.position[0] - originX * TILE_PIXELS) * view.zoom}
             y={view.y + (player.position[2] - originZ * TILE_PIXELS) * view.zoom}
           />

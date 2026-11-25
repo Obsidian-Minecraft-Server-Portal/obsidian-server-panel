@@ -47,7 +47,10 @@ export interface LivePlayer {
   uuid: string | null;
   dimension: string;
   position: [number, number, number];
-  head: string;
+  yaw: number;
+  pitch: number;
+  skin: string;
+  model: "wide" | "slim";
 }
 
 export interface WorldMapPlayers {
@@ -114,8 +117,8 @@ export function worldMapSource(instanceId: number, folder: string): MapSource {
   };
 }
 
-export function worldMapHeadBase(instanceId: number): string {
-  return `${BASE}/instances/${instanceId}/worldmap/heads/`;
+export function worldMapSkinBase(instanceId: number): string {
+  return `${BASE}/instances/${instanceId}/worldmap/skins/`;
 }
 
 export function useWorldMapPlayers(instanceId: number, enabled: boolean) {

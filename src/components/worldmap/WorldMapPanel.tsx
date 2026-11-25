@@ -5,7 +5,7 @@ import {
   renderSummary,
   useWorldMapPlayers,
   useWorldMapStatus,
-  worldMapHeadBase,
+  worldMapSkinBase,
   worldMapSource,
   type LivePlayer,
   type WorldMapStatus,
@@ -108,7 +108,7 @@ interface FreeViewProps {
 function FreeView({ instanceId, folder, dimensionId, players }: FreeViewProps) {
   const source = useMemo(() => worldMapSource(instanceId, folder), [instanceId, folder]);
   const inDimension = useMemo(() => players.filter((player) => player.dimension === dimensionId), [players, dimensionId]);
-  return <WorldMapViewer source={source} players={inDimension} headBase={worldMapHeadBase(instanceId)} />;
+  return <WorldMapViewer source={source} players={inDimension} skinBase={worldMapSkinBase(instanceId)} />;
 }
 
 function summaryLine(status: WorldMapStatus): string {
