@@ -17,7 +17,8 @@ use crate::model::PROGRESS_STEP;
 const MIN_CHUNK: usize = 64 * 1024;
 const AVG_CHUNK: usize = 256 * 1024;
 const MAX_CHUNK: usize = 1024 * 1024;
-const ALWAYS_EXCLUDED: [&str; 1] = ["session.lock"];
+/// The rendered world map is derived from the world, so snapshots leave it out.
+const ALWAYS_EXCLUDED: [&str; 2] = ["session.lock", "obsidian-map/"];
 
 struct Scanned {
 	path: String,
