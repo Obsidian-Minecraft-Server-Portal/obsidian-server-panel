@@ -14,8 +14,11 @@ import {
 import type { LivePlayer } from "../../api/worldmap";
 import { buildRig, CHARACTER_HEIGHT, disposeRig, type PlayerRig } from "./player-model";
 
-/** Characters are drawn at least this tall on screen, so distant players stay readable. */
-const MIN_PIXELS = 44;
+/** Players are drawn 1.75 blocks tall at every distance, like a player in game. */
+const PLAYER_HEIGHT = 1.75;
+const RIG_SCALE = PLAYER_HEIGHT / CHARACTER_HEIGHT;
+/** Name tags show only for players this close to the camera, in blocks. */
+const TAG_RANGE = 30;
 const TAG_PIXELS = 26;
 const TAG_CANVAS_HEIGHT = 56;
 const TAG_FONT_SIZE = 28;
@@ -70,14 +73,14 @@ export class PlayerMarkers {
 		const worldPerPixel = (2 * Math.tan(MathUtils.degToRad(camera.fov) / 2)) / viewportHeight;
 		for (const marker of this.markers.values()) {
 			const distance = marker.anchor.distanceTo(camera.position);
-			const scale = Math.max(1, (MIN_PIXELS * distance * worldPerPixel) / CHARACTER_HEIGHT);
 			const { player, rig } = marker;
 			rig.root.position.copy(marker.anchor);
 			rig.root.rotation.set(0, MathUtils.degToRad(-player.yaw), 0);
-			rig.root.scale.setScalar(scale);
+			rig.root.scale.setScalar(RIG_SCALE);
 			rig.head.rotation.set(MathUtils.degToRad(player.pitch), 0, 0);
 			const tagHeight = TAG_PIXELS * distance * worldPerPixel;
-			marker.tag.position.set(marker.anchor.x, marker.anchor.y + (CHARACTER_HEIGHT + TAG_LIFT) * scale, marker.anchor.z);
+			marker.tag.visible = distance <= TAG_RANGE;
+			marker.tag.position.set(marker.anchor.x, marker.anchor.y + PLAYER_HEIGHT + TAG_LIFT, marker.anchor.z);
 			marker.tag.scale.set(tagHeight * marker.tagAspect, tagHeight, 1);
 		}
 	}

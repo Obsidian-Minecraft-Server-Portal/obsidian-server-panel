@@ -7,6 +7,7 @@ import {
   type LivePlayer,
   type WorldMapTile,
 } from "../../api/worldmap";
+import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import { PlayerTag } from "./PlayerTag";
 
@@ -23,6 +24,8 @@ const DEFAULT_ZOOM = 0.5;
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 8;
 const ZOOM_STEP = 1.15;
+/** Looking at a player zooms in at least this far, close enough for the textured tiles. */
+const FOCUS_ZOOM = 3;
 
 /** The block at the centre of the view, and the zoom in screen pixels per block. */
 interface View {
@@ -56,12 +59,17 @@ export function TileView({
   dimensionId,
   players,
   revision,
+  focus,
+  onPan,
 }: {
   instanceId: number;
   folder: string;
   dimensionId: string;
   players: readonly LivePlayer[];
   revision: number;
+  focus: MapFocus | null;
+  /** Called when the viewer drags the map, so following a player can stop. */
+  onPan: () => void;
 }) {
   const manifest = useWorldMapManifest(instanceId, folder, revision);
   const tiles = manifest.data?.tiles ?? [];
@@ -70,6 +78,18 @@ export function TileView({
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const frame = useRef<HTMLDivElement>(null);
   const view = stored ?? defaultView(tiles);
+  const appliedFocus = useRef(-1);
+
+  useEffect(() => {
+    if (!focus) return;
+    const fresh = focus.nonce !== appliedFocus.current;
+    if (!fresh && !focus.follow) return;
+    appliedFocus.current = focus.nonce;
+    setStored((current) => {
+      const zoom = current?.zoom ?? DEFAULT_ZOOM;
+      return { x: focus.x, z: focus.z, zoom: fresh ? Math.max(zoom, FOCUS_ZOOM) : zoom };
+    });
+  }, [focus]);
 
   useEffect(() => {
     if (!stored && tiles.length > 0) {
@@ -112,6 +132,7 @@ export function TileView({
       className="relative h-full min-h-[60vh] w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
       onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
         event.currentTarget.setPointerCapture(event.pointerId);
+        onPan();
         setDrag({ pointerX: event.clientX, pointerY: event.clientY, view });
       }}
       onPointerMove={(event: PointerEvent<HTMLDivElement>) => {
@@ -179,6 +200,11 @@ export function TileView({
                 y={size.height / 2 + (player.position[2] - view.z) * view.zoom}
               />
             ))}
+          </div>
+          <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 font-mono text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
+            <span>X {Math.round(view.x)}</span>
+            <span>Z {Math.round(view.z)}</span>
+            <span className="text-ink-3">{view.zoom >= 1 ? `${view.zoom.toFixed(1)}×` : `1:${Math.round(1 / view.zoom)}`}</span>
           </div>
         </>
       )}

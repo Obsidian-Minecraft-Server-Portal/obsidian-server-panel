@@ -14,7 +14,7 @@ export function PlayerTag({ player, skinBase, x, y }: { player: LivePlayer; skin
 	);
 }
 
-function PlayerFace({ src }: { src: string }) {
+export function PlayerFace({ src }: { src: string }) {
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const size = FACE_TEXELS * FACE_SCALE;
 	const pixelRatio = window.devicePixelRatio || 1;

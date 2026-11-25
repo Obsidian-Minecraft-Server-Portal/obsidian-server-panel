@@ -31,7 +31,11 @@ export interface SectionMesh {
   layers: [LayerMesh, LayerMesh, LayerMesh];
 }
 
-export function decodeSectionMesh(buffer: ArrayBuffer): SectionMesh {
+/**
+ * `inset` pulls each quad's texture corners inward by that much in UV space, half an atlas texel, so a face never samples
+ * the texture packed next to it. Without it, every block edge shows a thin seam.
+ */
+export function decodeSectionMesh(buffer: ArrayBuffer, inset: [number, number] = [0, 0]): SectionMesh {
   if (buffer.byteLength < HEADER_LENGTH) {
     throw new Error("section mesh is shorter than its header");
   }
@@ -47,7 +51,7 @@ export function decodeSectionMesh(buffer: ArrayBuffer): SectionMesh {
   const counts = [0, 1, 2].map((layer) => view.getUint32(20 + layer * 4, true));
   let offset = HEADER_LENGTH;
   const layers = counts.map((count) => {
-    const layer = decodeLayer(view, offset, count);
+    const layer = decodeLayer(view, offset, count, inset);
     offset += count * QUAD_LENGTH;
     return layer;
   });
@@ -57,7 +61,7 @@ export function decodeSectionMesh(buffer: ArrayBuffer): SectionMesh {
   return { section, layers: layers as SectionMesh["layers"] };
 }
 
-function decodeLayer(view: DataView, start: number, count: number): LayerMesh {
+function decodeLayer(view: DataView, start: number, count: number, inset: [number, number]): LayerMesh {
   const positions = new Float32Array(count * 12);
   const uvs = new Float32Array(count * 8);
   const colours = new Float32Array(count * 12);
@@ -78,6 +82,7 @@ function decodeLayer(view: DataView, start: number, count: number): LayerMesh {
       uvs[vertex * 2] = view.getUint16(at + 6, true) / 65535;
       uvs[vertex * 2 + 1] = view.getUint16(at + 8, true) / 65535;
     }
+    insetQuad(uvs, quad * 8, inset);
     const split = light[0] + light[2] >= light[1] + light[3] ? SPLIT_ALONG_ZERO_TWO : SPLIT_ALONG_ONE_THREE;
     const first = quad * 4;
     for (let index = 0; index < 6; index++) {
@@ -85,4 +90,18 @@ function decodeLayer(view: DataView, start: number, count: number): LayerMesh {
     }
   }
   return { positions, uvs, colours, indices, quadCount: count };
+}
+
+/** Moves each of a quad's four UV corners toward the quad's centre, on each axis where the quad spans more than the inset. */
+function insetQuad(uvs: Float32Array, start: number, inset: [number, number]): void {
+  for (let axis = 0; axis < 2; axis++) {
+    let centre = 0;
+    for (let corner = 0; corner < 4; corner++) centre += uvs[start + corner * 2 + axis];
+    centre /= 4;
+    for (let corner = 0; corner < 4; corner++) {
+      const at = start + corner * 2 + axis;
+      const distance = centre - uvs[at];
+      if (Math.abs(distance) > inset[axis]) uvs[at] += Math.sign(distance) * inset[axis];
+    }
+  }
 }

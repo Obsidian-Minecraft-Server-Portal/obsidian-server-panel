@@ -3,6 +3,7 @@ import {
   BufferGeometry,
   Color,
   Group,
+  MathUtils,
   Mesh,
   MeshBasicMaterial,
   NearestFilter,
@@ -17,6 +18,7 @@ import {
 import type { LivePlayer } from "../../api/worldmap";
 import { type BundleEntry, decodeCellBundle } from "./cell-bundle";
 import { FreeFlyCamera } from "./free-fly-camera";
+import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-source";
 import { decodeSectionMesh } from "./mesh-format";
@@ -38,6 +40,10 @@ const REMEMBER_EVERY = 0.25;
 const DEFAULT_PITCH = -0.45;
 const LOOK_DOWN_HEIGHT = 40;
 const SKY = new Color(0x9ec9f5);
+/** Where the camera sits when it looks at a player: behind them, above them, aimed at their eyes. */
+const BEHIND_PLAYER = 7;
+const ABOVE_PLAYER = 3.5;
+const PLAYER_EYE = 1.6;
 
 type CellState = "idle" | "queued" | "loading" | "loaded";
 
@@ -56,7 +62,8 @@ interface Cell {
 interface Progress {
   message: string;
   loaded: number;
-  total: number;
+  /** Cells are being fetched right now. */
+  busy: boolean;
 }
 
 export interface WorldMapViewerProps {
@@ -67,17 +74,20 @@ export interface WorldMapViewerProps {
   revision: number;
   players: readonly LivePlayer[];
   skinBase: string;
+  focus: MapFocus | null;
 }
 
 /** A free-fly 3D view of the section meshes, streamed in cell by cell around the camera. */
-export function WorldMapViewer({ source, instanceId, folder, revision, players, skinBase }: WorldMapViewerProps) {
+export function WorldMapViewer({ source, instanceId, folder, revision, players, skinBase, focus }: WorldMapViewerProps) {
   const playersRef = useRef(players);
   playersRef.current = players;
+  const focusRef = useRef(focus);
+  focusRef.current = focus;
   const markersRef = useRef<PlayerMarkers | null>(null);
   const reloadRef = useRef<(() => void) | null>(null);
   const revisionRef = useRef(revision);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState<Progress>({ message: "Loading manifest", loaded: 0, total: 0 });
+  const [progress, setProgress] = useState<Progress>({ message: "Loading the map", loaded: 0, busy: true });
 
   useEffect(() => {
     if (revisionRef.current === revision) {
@@ -98,6 +108,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     let inFlight = 0;
     let placed = false;
     let sinceRemembered = 0;
+    let applied: MapFocus | null = null;
     let manifest: MapManifest | undefined;
     let atlas: Texture | undefined;
     let atlasKey: string | undefined;
@@ -158,12 +169,13 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
 
     const report = (message: string) => {
       const loaded = loadedSections();
-      const key = `${message}:${loaded}`;
+      const busy = inFlight > 0;
+      const key = `${message}:${loaded}:${busy}`;
       if (disposed || key === reported) {
         return;
       }
       reported = key;
-      setProgress({ message, loaded, total: manifest?.sections.length ?? 0 });
+      setProgress({ message, loaded, busy });
     };
 
     const release = (cell: Cell) => {
@@ -178,7 +190,8 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     };
 
     const addCell = (cell: Cell, entries: BundleEntry[], layerMaterials: MeshBasicMaterial[]) => {
-      const decoded = entries.map((entry) => ({ entry, mesh: decodeSectionMesh(entry.mesh) }));
+      const inset: [number, number] = manifest ? [0.5 / manifest.atlasWidth, 0.5 / manifest.atlasHeight] : [0, 0];
+      const decoded = entries.map((entry) => ({ entry, mesh: decodeSectionMesh(entry.mesh, inset) }));
       for (const { entry, mesh } of decoded) {
         const group = new Group();
         group.position.set(entry.x * 16, entry.y * 16, entry.z * 16);
@@ -357,7 +370,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         })
         .catch((error: unknown) => {
           if (!disposed) {
-            setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, total: 0 });
+            setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, busy: false });
           }
         });
     };
@@ -370,6 +383,9 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       }
       const seconds = Math.min((now - last) / 1000, 0.1);
       last = now;
+      if (placed) {
+        applied = followFocus(fly, focusRef.current, applied);
+      }
       fly.update(seconds, camera);
       refresh();
       if (placed) {
@@ -411,28 +427,67 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     markersRef.current?.update(players);
   }, [players]);
 
+  const streaming = progress.message === "Streaming";
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#000" }}>
-      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
-      <div
-        style={{
-          position: "absolute",
-          left: 12,
-          top: 12,
-          padding: "6px 10px",
-          font: "13px/1.5 system-ui, sans-serif",
-          color: "#fff",
-          background: "rgba(0, 0, 0, 0.55)",
-          borderRadius: 6,
-          pointerEvents: "none",
-        }}
-      >
-        {progress.message} · {progress.loaded}/{progress.total} sections
-        <br />
-        Click the view to fly. WASD move along the view, Space and Shift up and down, Ctrl to go faster, Esc to release.
+    <div className="relative size-full overflow-hidden bg-black">
+      <div ref={containerRef} className="absolute inset-0" />
+      {(!streaming || progress.busy) && (
+        <div className="pointer-events-none absolute top-3 right-3 flex items-center gap-2 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 font-mono text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
+          {progress.busy && <span className="size-1.5 animate-pulse rounded-full bg-accent" />}
+          {streaming ? `${progress.loaded} sections` : progress.message}
+        </div>
+      )}
+      <div className="pointer-events-none absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
+        <Hint keys={["Right-drag"]} label="look" />
+        <Hint keys={["Double-click"]} label="lock, Esc to leave" />
+        <Hint keys={["W", "A", "S", "D"]} label="fly" />
+        <Hint keys={["Space", "Shift"]} label="up, down" />
+        <Hint keys={["Ctrl"]} label="faster" />
+        <Hint keys={["Wheel"]} label="speed" />
       </div>
     </div>
   );
+}
+
+function Hint({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      {keys.map((key) => (
+        <kbd key={key} className="rounded border border-line-strong bg-input px-1 font-mono text-[10px] text-ink-1">
+          {key}
+        </kbd>
+      ))}
+      <span className="text-ink-3">{label}</span>
+    </span>
+  );
+}
+
+/** Puts the camera behind a newly focused player, looking at them, and while following moves it along with them. */
+function followFocus(fly: FreeFlyCamera, focus: MapFocus | null, applied: MapFocus | null): MapFocus | null {
+  if (!focus) {
+    return null;
+  }
+  if (!applied || applied.nonce !== focus.nonce) {
+    lookAtPlayer(fly, focus);
+    return focus;
+  }
+  if (focus.follow) {
+    fly.position.x += focus.x - applied.x;
+    fly.position.y += focus.y - applied.y;
+    fly.position.z += focus.z - applied.z;
+    return focus;
+  }
+  return applied;
+}
+
+function lookAtPlayer(fly: FreeFlyCamera, focus: MapFocus): void {
+  const yaw = MathUtils.degToRad(focus.yaw);
+  fly.position.set(focus.x + Math.sin(yaw) * BEHIND_PLAYER, focus.y + ABOVE_PLAYER, focus.z - Math.cos(yaw) * BEHIND_PLAYER);
+  const dx = focus.x - fly.position.x;
+  const dy = focus.y + PLAYER_EYE - fly.position.y;
+  const dz = focus.z - fly.position.z;
+  fly.yaw = Math.atan2(-dx, -dz);
+  fly.pitch = Math.atan2(dy, Math.hypot(dx, dz));
 }
 
 function cellOf(entry: SectionEntry): CellCoord {
