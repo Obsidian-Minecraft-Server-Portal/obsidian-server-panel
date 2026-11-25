@@ -17,7 +17,7 @@ const BLOCKS_PER_SECTION: usize = SECTION_SIDE * SECTION_SIDE * SECTION_SIDE;
 /// DataVersion of 1.16. Before it, a packed block-state entry may straddle two longs.
 const PACKED_WITHOUT_SPANNING: i32 = 2566;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockState {
 	pub name: String,
 	pub properties: BTreeMap<String, String>,

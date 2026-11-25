@@ -30,18 +30,17 @@ struct Surface {
 /// Decoded textures and block surfaces. Carrying one cache from call to call over the same assets decodes each texture once.
 #[derive(Default)]
 pub struct SurfaceCache {
-	surfaces: HashMap<String, Surface>,
+	surfaces: HashMap<BlockState, Surface>,
 	textures: HashMap<String, Option<Decoded>>,
 }
 
 impl SurfaceCache {
 	fn surface(&mut self, assets: &AssetStore, state: &BlockState) -> &Surface {
-		let key = cache_key(state);
-		if !self.surfaces.contains_key(&key) {
+		if !self.surfaces.contains_key(state) {
 			let surface = self.lookup(assets, state).unwrap_or_else(|| flat(fallback(&state.name)));
-			self.surfaces.insert(key.clone(), surface);
+			self.surfaces.insert(state.clone(), surface);
 		}
-		&self.surfaces[&key]
+		&self.surfaces[state]
 	}
 
 	fn lookup(&mut self, assets: &AssetStore, state: &BlockState) -> Option<Surface> {
@@ -149,11 +148,6 @@ fn flat(colour: [u8; 3]) -> Surface {
 		average: colour,
 		tint: None,
 	}
-}
-
-fn cache_key(state: &BlockState) -> String {
-	let properties: Vec<String> = state.properties.iter().map(|(name, value)| format!("{name}={value}")).collect();
-	format!("{}[{}]", state.name, properties.join(","))
 }
 
 /// The element whose top edge is highest is the one showing on top of the column.

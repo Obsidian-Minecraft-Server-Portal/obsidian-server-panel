@@ -8,7 +8,7 @@ pub use world::BlockWorld;
 
 use lighting::corner_brightness;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use crate::assets::AssetStore;
 use crate::atlas::{Atlas, Layer};
@@ -48,7 +48,7 @@ struct Baked {
 pub struct MeshContext<'a> {
 	assets: &'a AssetStore,
 	atlas: Atlas,
-	blocks: HashMap<String, Baked>,
+	blocks: HashMap<BlockState, Baked>,
 	tints: Tints,
 	biomes: &'a BiomeRegistry,
 }
@@ -72,21 +72,16 @@ impl<'a> MeshContext<'a> {
 
 	/// Bakes the block states of `world` that earlier worlds did not need. Call before meshing the sections of `world`.
 	pub fn bake_world(&mut self, world: &BlockWorld) {
-		let mut missing: BTreeMap<String, BlockState> = BTreeMap::new();
 		for chunk in world.chunks() {
 			for section in chunk.sections() {
 				for state in section.palette().iter().filter(|state| !is_air(&state.name)) {
-					let key = block_key(state);
-					if !self.blocks.contains_key(&key) {
-						missing.entry(key).or_insert_with(|| state.clone());
+					if !self.blocks.contains_key(state) {
+						let quads = bake_state(self.assets, state);
+						let full = full_faces(&quads, &self.atlas);
+						self.blocks.insert(state.clone(), Baked { quads, full });
 					}
 				}
 			}
-		}
-		for (key, state) in missing {
-			let quads = bake_state(self.assets, &state);
-			let full = full_faces(&quads, &self.atlas);
-			self.blocks.insert(key, Baked { quads, full });
 		}
 	}
 
@@ -103,7 +98,7 @@ impl<'a> MeshContext<'a> {
 					if is_air(&state.name) {
 						continue;
 					}
-					let Some(baked) = self.blocks.get(&block_key(state)) else { continue };
+					let Some(baked) = self.blocks.get(state) else { continue };
 					let biome = section
 						.biome_index_at(local_x, local_y, local_z)
 						.and_then(|index| section_biomes.get(index).copied())
@@ -123,7 +118,7 @@ impl<'a> MeshContext<'a> {
 							uvs: quad.uvs.map(|uv| encode_uv(self.atlas.uv(&quad.texture, uv))),
 							direction: quad.direction,
 							tint: quad.tint.map_or([255, 255, 255], |kind| self.tints.colour(kind, biome, at[0], at[2])),
-								light: corner_brightness(world, &self.blocks, quad, at),
+							light: corner_brightness(world, &self.blocks, quad, at),
 						});
 					}
 				}
@@ -134,11 +129,6 @@ impl<'a> MeshContext<'a> {
 			layers,
 		})
 	}
-}
-
-fn block_key(state: &BlockState) -> String {
-	let properties: Vec<String> = state.properties.iter().map(|(name, value)| format!("{name}={value}")).collect();
-	format!("{}[{}]", state.name, properties.join(","))
 }
 
 fn full_faces(quads: &[Quad], atlas: &Atlas) -> [bool; 6] {
@@ -171,7 +161,7 @@ fn covers_block_face(quad: &Quad) -> bool {
 	})
 }
 
-fn is_culled(world: &BlockWorld, blocks: &HashMap<String, Baked>, state: &BlockState, quad: &Quad, at: [i32; 3]) -> bool {
+fn is_culled(world: &BlockWorld, blocks: &HashMap<BlockState, Baked>, state: &BlockState, quad: &Quad, at: [i32; 3]) -> bool {
 	let Some(face) = quad.cullface else { return false };
 	let [dx, dy, dz] = face.offset();
 	let Some(neighbour) = world.state(at[0] + dx, at[1] + dy, at[2] + dz) else { return false };
@@ -182,7 +172,7 @@ fn is_culled(world: &BlockWorld, blocks: &HashMap<String, Baked>, state: &BlockS
 		return true;
 	}
 	blocks
-		.get(&block_key(neighbour))
+		.get(neighbour)
 		.is_some_and(|baked| baked.full[usize::from(face.opposite().index())])
 }
 

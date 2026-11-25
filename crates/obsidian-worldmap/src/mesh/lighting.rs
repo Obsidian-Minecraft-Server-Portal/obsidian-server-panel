@@ -3,8 +3,8 @@
 use std::array;
 use std::collections::HashMap;
 
-use super::{Baked, BlockWorld, block_key};
-use crate::chunk::is_air;
+use super::{Baked, BlockWorld};
+use crate::chunk::{BlockState, is_air};
 use crate::models::geometry::{Direction, Quad};
 
 /// Brightness for zero to three occluded sides at a corner, as vanilla shades them.
@@ -15,7 +15,7 @@ const FULL_LIGHT: f32 = 15.0;
 const OPEN_SKY: (u8, u8) = (15, 0);
 
 /// Brightness of each corner, 0 to 255, for a face of the cube at `block`.
-pub fn corner_brightness(world: &BlockWorld, blocks: &HashMap<String, Baked>, quad: &Quad, block: [i32; 3]) -> [u8; 4] {
+pub fn corner_brightness(world: &BlockWorld, blocks: &HashMap<BlockState, Baked>, quad: &Quad, block: [i32; 3]) -> [u8; 4] {
 	let front = step(block, quad.direction.offset());
 	let (first, second) = tangent_axes(quad.direction);
 	array::from_fn(|corner| {
@@ -31,7 +31,11 @@ pub fn corner_brightness(world: &BlockWorld, blocks: &HashMap<String, Baked>, qu
 		} else {
 			3 - (occluded[0] as usize + occluded[1] as usize + is_occluder(world, blocks, diagonal) as usize)
 		};
-		let level = [front, beside_first, beside_second, diagonal].map(|cell| light_level(world, cell)).iter().map(|&level| f32::from(level)).sum::<f32>() / 4.0;
+		let level = [front, beside_first, beside_second, diagonal]
+			.map(|cell| f32::from(light_level(world, cell)))
+			.iter()
+			.sum::<f32>()
+			/ 4.0;
 		(OCCLUSION[occlusion] * light_curve(level) * 255.0).round() as u8
 	})
 }
@@ -54,9 +58,9 @@ fn along(cell: [i32; 3], axis: usize, delta: i32) -> [i32; 3] {
 	moved
 }
 
-fn is_occluder(world: &BlockWorld, blocks: &HashMap<String, Baked>, cell: [i32; 3]) -> bool {
+fn is_occluder(world: &BlockWorld, blocks: &HashMap<BlockState, Baked>, cell: [i32; 3]) -> bool {
 	world.state(cell[0], cell[1], cell[2]).is_some_and(|state| {
-		!is_air(&state.name) && blocks.get(&block_key(state)).is_some_and(|baked| baked.full.iter().all(|&face| face))
+		!is_air(&state.name) && blocks.get(state).is_some_and(|baked| baked.full.iter().all(|&face| face))
 	})
 }
 
