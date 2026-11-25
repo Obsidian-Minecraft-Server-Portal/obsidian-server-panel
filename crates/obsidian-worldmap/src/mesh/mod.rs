@@ -197,21 +197,7 @@ mod tests {
 	use super::*;
 	use crate::atlas::block_textures;
 	use crate::chunk::{BlockDefaults, Chunk};
-	use crate::test_support::{chunk_nbt, chunk_nbt_with_biomes};
-
-	fn stone_assets() -> AssetStore {
-		let faces = r##"{"down": {"texture": "#all", "cullface": "down"}, "up": {"texture": "#all", "cullface": "up"}, "north": {"texture": "#all", "cullface": "north"}, "south": {"texture": "#all", "cullface": "south"}, "west": {"texture": "#all", "cullface": "west"}, "east": {"texture": "#all", "cullface": "east"}}"##;
-		let model = format!(r##"{{"textures": {{"all": "minecraft:block/stone"}}, "elements": [{{"from": [0,0,0], "to": [16,16,16], "faces": {faces}}}]}}"##);
-		let mut assets = AssetStore::default();
-		assets.insert("minecraft".into(), "blockstates/stone.json".into(), br#"{"variants": {"": {"model": "minecraft:block/cube_all"}}}"#.to_vec());
-		assets.insert("minecraft".into(), "models/block/cube_all.json".into(), model.into_bytes());
-		let mut png = Vec::new();
-		image::RgbaImage::from_pixel(16, 16, image::Rgba([120, 120, 120, 255]))
-			.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
-			.unwrap();
-		assets.insert("minecraft".into(), "textures/block/stone.png".into(), png);
-		assets
-	}
+	use crate::test_support::{chunk_nbt, chunk_nbt_with_biomes, stone_assets};
 
 	fn grass_assets() -> AssetStore {
 		let mut assets = AssetStore::default();

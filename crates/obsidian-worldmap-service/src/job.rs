@@ -1,5 +1,6 @@
 //! The blocking half of a render: finds the regions that need drawing, loads the pack and draws them.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,8 @@ use crate::state::{RegionState, RenderState};
 
 pub const OUTPUT_FOLDER: &str = "obsidian-map";
 const COOLDOWN_SECS: i64 = 60;
+/// Offsets of the regions that share an edge with a region.
+const NEIGHBOURS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 
 /// Least to most thorough, so queued requests can be merged by taking the larger one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -51,11 +54,11 @@ pub struct Outcome {
 	pub failed: Vec<String>,
 }
 
-struct Pending {
-	key: String,
-	dimension_dir: PathBuf,
-	region_path: PathBuf,
-	source_modified: i64,
+pub(crate) struct Pending {
+	pub(crate) key: String,
+	pub(crate) dimension_dir: PathBuf,
+	pub(crate) region_path: PathBuf,
+	pub(crate) source_modified: i64,
 }
 
 pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
@@ -130,30 +133,47 @@ pub fn dimension_folder(id: &str) -> String {
 	id.replace([':', '/'], "_")
 }
 
-fn pending_regions(instance_dir: &Path, level_name: &str, state: &RenderState, mode: BuildMode, now: i64) -> Result<Vec<Pending>> {
+/// Regions due for a render. Culling reads the blocks along the edges a region shares with its neighbours, so a
+/// neighbour of a due region is due as well.
+pub(crate) fn pending_regions(
+	instance_dir: &Path,
+	level_name: &str,
+	state: &RenderState,
+	mode: BuildMode,
+	now: i64,
+) -> Result<Vec<Pending>> {
 	let mut pending = Vec::new();
 	for dimension in discover(instance_dir, level_name).map_err(other)? {
 		let folder = dimension_folder(&dimension.id);
 		let dimension_dir = instance_dir.join(OUTPUT_FOLDER).join(&folder);
+		let mut files: BTreeMap<(i32, i32), (PathBuf, i64)> = BTreeMap::new();
+		let mut due = BTreeSet::new();
 		for (region_path, x, z) in region_files(&dimension.region_dir)? {
-			let key = format!("{folder}/r.{x}.{z}");
 			let Ok(metadata) = fs::metadata(&region_path) else { continue };
 			let source_modified = metadata
 				.modified()
 				.ok()
 				.and_then(|time| time.duration_since(UNIX_EPOCH).ok())
 				.map_or(0, |duration| duration.as_secs() as i64);
-			let previous = state.regions.get(&key).copied();
-			let due = match mode {
+			let previous = state.regions.get(&format!("{folder}/r.{x}.{z}")).copied();
+			let changed = match mode {
 				BuildMode::Full => true,
 				BuildMode::Changed => previous.is_none_or(|rendered| rendered.source_modified != source_modified),
 				BuildMode::Watch => {
 					previous.is_none_or(|rendered| rendered.source_modified != source_modified && now - rendered.rendered_at >= COOLDOWN_SECS)
 				}
 			};
-			if due {
+			if changed {
+				due.insert((x, z));
+			}
+			files.insert((x, z), (region_path, source_modified));
+		}
+		let neighbours: Vec<(i32, i32)> = due.iter().flat_map(|&(x, z)| NEIGHBOURS.map(|(dx, dz)| (x + dx, z + dz))).collect();
+		due.extend(neighbours);
+		for ((x, z), (region_path, source_modified)) in files {
+			if due.contains(&(x, z)) {
 				pending.push(Pending {
-					key,
+					key: format!("{folder}/r.{x}.{z}"),
 					dimension_dir: dimension_dir.clone(),
 					region_path,
 					source_modified,

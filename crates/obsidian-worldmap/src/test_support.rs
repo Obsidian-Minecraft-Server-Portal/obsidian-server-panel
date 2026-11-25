@@ -134,3 +134,41 @@ pub fn zip_bytes(entries: &[(&str, &[u8])]) -> Vec<u8> {
 pub fn write_jar(path: &Path, entries: &[(&str, &[u8])]) {
 	std::fs::write(path, zip_bytes(entries)).unwrap();
 }
+
+/// A region file holding `chunks`, each given by its local (x, z) and NBT bytes. Chunks are zlib-compressed.
+pub fn region_bytes(chunks: &[(usize, usize, Vec<u8>)]) -> Vec<u8> {
+	let mut header = vec![0_u8; 8192];
+	let mut body = Vec::new();
+	let mut sector = 2_u32;
+	for (local_x, local_z, nbt) in chunks {
+		let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+		encoder.write_all(nbt).unwrap();
+		let compressed = encoder.finish().unwrap();
+		let mut record = ((compressed.len() + 1) as u32).to_be_bytes().to_vec();
+		record.push(2);
+		record.extend(compressed);
+		let sectors = record.len().div_ceil(4096);
+		record.resize(sectors * 4096, 0);
+		let entry = local_z * 32 + local_x;
+		header[entry * 4..entry * 4 + 4].copy_from_slice(&((sector << 8) | sectors as u32).to_be_bytes());
+		body.extend(record);
+		sector += sectors as u32;
+	}
+	header.extend(body);
+	header
+}
+
+/// Assets for one textured cube, so block meshes and atlases have something to pack.
+pub fn stone_assets() -> crate::assets::AssetStore {
+	let faces = r##"{"down": {"texture": "#all", "cullface": "down"}, "up": {"texture": "#all", "cullface": "up"}, "north": {"texture": "#all", "cullface": "north"}, "south": {"texture": "#all", "cullface": "south"}, "west": {"texture": "#all", "cullface": "west"}, "east": {"texture": "#all", "cullface": "east"}}"##;
+	let model = format!(r##"{{"textures": {{"all": "minecraft:block/stone"}}, "elements": [{{"from": [0,0,0], "to": [16,16,16], "faces": {faces}}}]}}"##);
+	let mut assets = crate::assets::AssetStore::default();
+	assets.insert("minecraft".into(), "blockstates/stone.json".into(), br#"{"variants": {"": {"model": "minecraft:block/cube_all"}}}"#.to_vec());
+	assets.insert("minecraft".into(), "models/block/cube_all.json".into(), model.into_bytes());
+	let mut png = Vec::new();
+	image::RgbaImage::from_pixel(16, 16, image::Rgba([120, 120, 120, 255]))
+		.write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png)
+		.unwrap();
+	assets.insert("minecraft".into(), "textures/block/stone.png".into(), png);
+	assets
+}
