@@ -16,7 +16,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(manifest)
 		.service(file)
 		.service(players)
-		.service(head);
+		.service(skin);
 }
 
 #[utoipa::path(
@@ -142,13 +142,13 @@ pub async fn players(state: web::Data<AppState>, user: AuthUser, path: web::Path
 	Ok(web::Json(state.worldmap.players(id).await?))
 }
 
-#[get("/instances/{id}/worldmap/heads/{file}")]
-pub async fn head(state: web::Data<AppState>, user: AuthUser, path: web::Path<(InstanceId, String)>) -> ApiResult<NamedFile> {
+#[get("/instances/{id}/worldmap/skins/{file}")]
+pub async fn skin(state: web::Data<AppState>, user: AuthUser, path: web::Path<(InstanceId, String)>) -> ApiResult<NamedFile> {
 	let (id, name) = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::MAP_PLAYERS).await?;
 	let location = state
 		.worldmap
-		.head_path(&name)
-		.ok_or_else(|| CommonError::NotFound(format!("head {name}")))?;
-	NamedFile::open(location).map_err(|_| CommonError::NotFound(format!("head {name}")).into())
+		.skin_path(&name)
+		.ok_or_else(|| CommonError::NotFound(format!("skin {name}")))?;
+	NamedFile::open(location).map_err(|_| CommonError::NotFound(format!("skin {name}")).into())
 }

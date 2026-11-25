@@ -1,11 +1,19 @@
-//! Reads the replies the live map asks for: `list` and `data get entity` positions. They arrive over the console, where
-//! each line carries the server's log prefix, or over RCON, where one body holds every reply.
+//! Reads the replies the live map asks for: `list`, and `data get entity` positions and rotations. They arrive over the
+//! console, where each line carries the server's log prefix, or over RCON, where one body holds every reply.
 
 /// One entity's position as reported by `data get entity <selector> Pos`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EntityPosition {
 	pub name: String,
 	pub position: [f64; 3],
+}
+
+/// One entity's facing as reported by `data get entity <selector> Rotation`: yaw, then pitch, in degrees.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EntityRotation {
+	pub name: String,
+	pub yaw: f64,
+	pub pitch: f64,
 }
 
 /// The reply to `list`: how many are online out of how many allowed, and who they are.
@@ -22,23 +30,21 @@ const LIST_MARKER: &str = "players online:";
 /// Replies from `execute as <selector> ... run data get entity @s Pos` are concatenated with no separator,
 /// so every message is found by its marker rather than by splitting lines.
 pub fn parse_positions(body: &str) -> Vec<EntityPosition> {
-	let mut positions = Vec::new();
-	let mut cursor = 0;
-	while let Some(found) = body[cursor..].find(MARKER) {
-		let marker_start = cursor + found;
-		let value_start = marker_start + MARKER.len();
-		let Some(value_len) = body[value_start..].find(']') else { break };
-		let name = body[cursor..marker_start].rsplit("]: ").next().unwrap_or_default().trim();
-		let value = &body[value_start..value_start + value_len];
-		cursor = value_start + value_len + 1;
-		if let Some(position) = parse_vec3(value) {
-			positions.push(EntityPosition {
-				name: name.to_owned(),
-				position,
-			});
-		}
-	}
-	positions
+	entity_values(body)
+		.into_iter()
+		.filter_map(|(name, value)| Some(EntityPosition { name, position: parse_components(value)? }))
+		.collect()
+}
+
+/// Replies from `data get entity @s Rotation`, read the same way as the positions.
+pub fn parse_rotations(body: &str) -> Vec<EntityRotation> {
+	entity_values(body)
+		.into_iter()
+		.filter_map(|(name, value)| {
+			let [yaw, pitch] = parse_components(value)?;
+			Some(EntityRotation { name, yaw, pitch })
+		})
+		.collect()
 }
 
 /// Finds the list reply in a console line or an RCON body.
@@ -66,15 +72,29 @@ pub fn is_poll_reply(line: &str) -> bool {
 	line.contains(MARKER) || line.contains(LIST_MARKER)
 }
 
-/// Components are SNBT doubles such as `64.0d`.
-fn parse_vec3(value: &str) -> Option<[f64; 3]> {
-	let mut parts = value
-		.split(',')
-		.map(|part| part.trim().trim_end_matches(['d', 'f']).parse::<f64>());
-	let x = parts.next()?.ok()?;
-	let y = parts.next()?.ok()?;
-	let z = parts.next()?.ok()?;
-	parts.next().is_none().then_some([x, y, z])
+/// Each entity reply as the name it is for and the bracketed value after it.
+fn entity_values(body: &str) -> Vec<(String, &str)> {
+	let mut replies = Vec::new();
+	let mut cursor = 0;
+	while let Some(found) = body[cursor..].find(MARKER) {
+		let marker_start = cursor + found;
+		let value_start = marker_start + MARKER.len();
+		let Some(value_len) = body[value_start..].find(']') else { break };
+		let name = body[cursor..marker_start].rsplit("]: ").next().unwrap_or_default().trim();
+		replies.push((name.to_owned(), &body[value_start..value_start + value_len]));
+		cursor = value_start + value_len + 1;
+	}
+	replies
+}
+
+/// Components are SNBT numbers such as `64.0d` or `-12.5f`.
+fn parse_components<const N: usize>(value: &str) -> Option<[f64; N]> {
+	let mut parts = value.split(',').map(|part| part.trim().trim_end_matches(['d', 'f']).parse::<f64>());
+	let mut out = [0.0; N];
+	for slot in &mut out {
+		*slot = parts.next()?.ok()?;
+	}
+	parts.next().is_none().then_some(out)
 }
 
 #[cfg(test)]
@@ -114,6 +134,18 @@ mod tests {
 	}
 
 	#[test]
+	fn reads_rotations_as_yaw_then_pitch() {
+		let turns = parse_rotations("[12:00:01] [Server thread/INFO]: Steve has the following entity data: [-90.5f, 12.0f]");
+		assert_eq!(turns, [EntityRotation { name: "Steve".into(), yaw: -90.5, pitch: 12.0 }]);
+	}
+
+	#[test]
+	fn positions_and_rotations_do_not_read_each_other() {
+		assert!(parse_rotations("Steve has the following entity data: [0.5d, 64.0d, 0.5d]").is_empty());
+		assert!(parse_positions("Steve has the following entity data: [-90.5f, 12.0f]").is_empty());
+	}
+
+	#[test]
 	fn ignores_replies_that_carry_no_position() {
 		assert!(parse_positions("No entity was found").is_empty());
 		assert!(parse_positions("Found no elements matching Dimension").is_empty());
@@ -141,6 +173,7 @@ mod tests {
 	fn only_the_poll_replies_are_hidden_from_the_console() {
 		assert!(is_poll_reply("[12:00:00] [Server thread/INFO]: There are 0 of a max of 20 players online: "));
 		assert!(is_poll_reply("[12:00:01] [Server thread/INFO]: Steve has the following entity data: [0.5d, 64.0d, 0.5d]"));
+		assert!(is_poll_reply("[12:00:01] [Server thread/INFO]: Steve has the following entity data: [-90.5f, 12.0f]"));
 		assert!(!is_poll_reply("[12:00:02] [Server thread/INFO]: Steve joined the game"));
 	}
 }

@@ -1,50 +1,48 @@
-//! Player heads: the face of a skin with its hat layer on top, the default skin a player without one wears, and the
-//! skin URL inside Mojang's profile.
+//! Player skins: the default Steve and Alex skins a client jar ships, the arm model a skin is drawn with, and the skin
+//! URL inside Mojang's profile.
 
 use std::path::Path;
 
-use image::RgbaImage;
 use serde::Deserialize;
 
 use crate::error::{Result, WorldmapError};
 
-const HEAD: u32 = 8;
-const FACE_AT: (u32, u32) = (8, 8);
-const HAT_AT: (u32, u32) = (40, 8);
 const TEXTURE_HOST: &str = "https://textures.minecraft.net/";
+const SKIN_SIZES: [(u32, u32); 2] = [(64, 64), (64, 32)];
 
-/// The 8x8 head of a 64x64 (or 64x32) skin. Hat pixels cover the face wherever they are not transparent.
-pub fn head_from_skin(skin: &RgbaImage) -> Result<RgbaImage> {
-	if skin.width() < 64 || skin.height() < 32 {
-		return Err(WorldmapError::Asset(format!("a {}x{} skin has no head", skin.width(), skin.height())));
-	}
-	Ok(RgbaImage::from_fn(HEAD, HEAD, |x, y| {
-		let hat = *skin.get_pixel(HAT_AT.0 + x, HAT_AT.1 + y);
-		if hat[3] > 0 {
-			hat
-		} else {
-			*skin.get_pixel(FACE_AT.0 + x, FACE_AT.1 + y)
+/// The arm model a skin is drawn with: wide arms are four pixels across, slim arms three.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Model {
+	Wide,
+	Slim,
+}
+
+impl Model {
+	pub fn name(self) -> &'static str {
+		match self {
+			Self::Wide => "wide",
+			Self::Slim => "slim",
 		}
-	}))
+	}
 }
 
-/// The PNG of a skin's head, as the head cache stores it.
-pub fn head_png(skin_png: &[u8]) -> Result<Vec<u8>> {
-	let skin = image::load_from_memory(skin_png)?.to_rgba8();
-	crate::tiles::encode_png(&head_from_skin(&skin)?)
+/// A skin a profile points at, and the model it is drawn with.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SkinRef {
+	pub url: String,
+	pub model: Model,
 }
 
-/// The Steve or Alex head from the default skins in a client jar. `None` when the jar does not have them.
-pub fn default_head_png(client_jar: &Path, alex: bool) -> Result<Option<Vec<u8>>> {
-	let name = if alex { "alex" } else { "steve" };
-	let model = if alex { "slim" } else { "wide" };
+/// The default skin a client jar ships: Steve with wide arms, or Alex with slim arms. `None` when the jar lacks it.
+pub fn default_skin_png(client_jar: &Path, alex: bool) -> Result<Option<Vec<u8>>> {
+	let (name, model) = if alex { ("alex", "slim") } else { ("steve", "wide") };
 	let candidates = [
 		format!("assets/minecraft/textures/entity/player/{model}/{name}.png"),
 		format!("assets/minecraft/textures/entity/{name}.png"),
 	];
 	for candidate in candidates {
 		if let Some(skin) = crate::assets::read_entry(client_jar, &candidate)? {
-			return head_png(&skin).map(Some);
+			return Ok(Some(skin));
 		}
 	}
 	Ok(None)
@@ -55,6 +53,31 @@ pub fn default_is_alex(uuid: &str) -> bool {
 	let Ok(bits) = u128::from_str_radix(&uuid.replace('-', ""), 16) else { return false };
 	let hilo = ((bits >> 64) as u64) ^ (bits as u64);
 	((hilo >> 32) as u32 ^ hilo as u32) & 1 == 1
+}
+
+/// The skin URL and model inside a profile's `textures` property, once the property is base64-decoded.
+pub fn skin_ref(textures_json: &[u8]) -> Option<SkinRef> {
+	let profile: Profile = serde_json::from_slice(textures_json).ok()?;
+	let skin = profile.textures.skin?;
+	if !skin.url.starts_with(TEXTURE_HOST) {
+		return None;
+	}
+	let model = match skin.metadata.and_then(|metadata| metadata.model).as_deref() {
+		Some("slim") => Model::Slim,
+		_ => Model::Wide,
+	};
+	Some(SkinRef { url: skin.url, model })
+}
+
+/// Rejects anything that is not a player skin, so a cached skin is always one the viewer can draw.
+pub fn check_skin(png: &[u8]) -> Result<()> {
+	let skin = image::load_from_memory(png)?;
+	let size = (skin.width(), skin.height());
+	if SKIN_SIZES.contains(&size) {
+		Ok(())
+	} else {
+		Err(WorldmapError::Asset(format!("a {}x{} image is not a player skin", size.0, size.1)))
+	}
 }
 
 #[derive(Deserialize)]
@@ -71,36 +94,20 @@ struct Textures {
 #[derive(Deserialize)]
 struct Skin {
 	url: String,
+	metadata: Option<Metadata>,
 }
 
-/// The skin URL in a profile's `textures` property, once the property is base64-decoded.
-pub fn skin_url(textures_json: &[u8]) -> Option<String> {
-	let profile: Profile = serde_json::from_slice(textures_json).ok()?;
-	let url = profile.textures.skin?.url;
-	url.starts_with(TEXTURE_HOST).then_some(url)
+#[derive(Deserialize)]
+struct Metadata {
+	model: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
-	use image::Rgba;
+	use image::RgbaImage;
 
 	use super::*;
-
-	#[test]
-	fn the_hat_layer_covers_the_face_where_it_is_opaque() {
-		let mut skin = RgbaImage::from_pixel(64, 64, Rgba([0, 0, 0, 0]));
-		for y in 0..8 {
-			for x in 0..8 {
-				skin.put_pixel(FACE_AT.0 + x, FACE_AT.1 + y, Rgba([200, 0, 0, 255]));
-			}
-		}
-		skin.put_pixel(HAT_AT.0 + 3, HAT_AT.1 + 4, Rgba([0, 200, 0, 255]));
-		let head = head_from_skin(&skin).unwrap();
-		assert_eq!(head.dimensions(), (8, 8));
-		assert_eq!(head.get_pixel(0, 0), &Rgba([200, 0, 0, 255]));
-		assert_eq!(head.get_pixel(3, 4), &Rgba([0, 200, 0, 255]));
-		assert!(head_from_skin(&RgbaImage::new(16, 16)).is_err());
-	}
+	use crate::tiles::encode_png;
 
 	#[test]
 	fn the_default_skin_follows_the_java_hash_code() {
@@ -114,11 +121,26 @@ mod tests {
 	}
 
 	#[test]
-	fn skin_urls_are_read_only_from_mojang_texture_hosts() {
-		let profile = br#"{"textures": {"SKIN": {"url": "https://textures.minecraft.net/texture/abc"}}}"#;
-		assert_eq!(skin_url(profile).as_deref(), Some("https://textures.minecraft.net/texture/abc"));
+	fn skin_urls_come_only_from_mojang_texture_hosts() {
+		let wide = br#"{"textures": {"SKIN": {"url": "https://textures.minecraft.net/texture/abc"}}}"#;
+		assert_eq!(
+			skin_ref(wide),
+			Some(SkinRef {
+				url: "https://textures.minecraft.net/texture/abc".into(),
+				model: Model::Wide,
+			})
+		);
+		let slim = br#"{"textures": {"SKIN": {"url": "https://textures.minecraft.net/texture/def", "metadata": {"model": "slim"}}}}"#;
+		assert_eq!(skin_ref(slim).map(|skin| skin.model), Some(Model::Slim));
 		let elsewhere = br#"{"textures": {"SKIN": {"url": "https://example.com/skin.png"}}}"#;
-		assert_eq!(skin_url(elsewhere), None);
-		assert_eq!(skin_url(br#"{"textures": {}}"#), None);
+		assert_eq!(skin_ref(elsewhere), None);
+		assert_eq!(skin_ref(br#"{"textures": {}}"#), None);
+	}
+
+	#[test]
+	fn only_player_skin_sizes_are_accepted() {
+		assert!(check_skin(&encode_png(&RgbaImage::new(64, 64)).unwrap()).is_ok());
+		assert!(check_skin(&encode_png(&RgbaImage::new(64, 32)).unwrap()).is_ok());
+		assert!(check_skin(&encode_png(&RgbaImage::new(16, 16)).unwrap()).is_err());
 	}
 }

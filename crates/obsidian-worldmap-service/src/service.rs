@@ -78,8 +78,8 @@ impl WorldMapService {
 		Ok(self.live.snapshot(id).unwrap_or_else(WorldMapPlayers::pending))
 	}
 
-	pub fn head_path(&self, name: &str) -> Option<PathBuf> {
-		self.live.head_path(name)
+	pub fn skin_path(&self, name: &str) -> Option<PathBuf> {
+		self.live.skin_path(name)
 	}
 
 	pub async fn settings(&self, id: InstanceId) -> Result<WorldMapSettings> {

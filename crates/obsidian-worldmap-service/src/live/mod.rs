@@ -3,7 +3,7 @@
 //! through the console otherwise.
 
 mod console;
-mod heads;
+mod skins;
 mod rcon;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -16,14 +16,14 @@ use obsidian_db::Db;
 use obsidian_instances::{InstanceManager, read_server_properties};
 use obsidian_runner::RunState;
 use obsidian_worldmap::level::discover;
-use obsidian_worldmap::players::{EntityPosition, PlayerList, parse_list, parse_positions};
+use obsidian_worldmap::players::{EntityPosition, EntityRotation, PlayerList, parse_list, parse_positions, parse_rotations};
 use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::time::MissedTickBehavior;
 use utoipa::ToSchema;
 
 use self::console::Console;
-use self::heads::Heads;
+use self::skins::Skins;
 use self::rcon::RconClient;
 use crate::jars;
 use crate::settings;
@@ -77,8 +77,13 @@ pub struct LivePlayer {
 	/// Dimension id, such as `minecraft:the_nether`.
 	pub dimension: String,
 	pub position: [f64; 3],
-	/// The head's file name in the head cache.
-	pub head: String,
+	/// Facing in degrees, as the game reports it: yaw turns the body and pitch tilts the head.
+	pub yaw: f64,
+	pub pitch: f64,
+	/// The skin's file name in the skin cache.
+	pub skin: String,
+	/// `wide` or `slim`: the arm model the skin is drawn with.
+	pub model: String,
 }
 
 impl WorldMapPlayers {
@@ -119,20 +124,20 @@ pub struct LiveService {
 	instances: InstanceManager,
 	bus: EventBus,
 	demand: TopicDemand,
-	heads: Heads,
+	skins: Skins,
 	snapshots: Mutex<HashMap<InstanceId, WorldMapPlayers>>,
 }
 
 impl LiveService {
 	pub fn new(db: Db, paths: Arc<Paths>, instances: InstanceManager, bus: EventBus, demand: TopicDemand) -> Result<Arc<Self>> {
-		let heads = Heads::new(&paths.cache_dir)?;
+		let skins = Skins::new(&paths.cache_dir)?;
 		Ok(Arc::new(Self {
 			db,
 			paths,
 			instances,
 			bus,
 			demand,
-			heads,
+			skins,
 			snapshots: Mutex::new(HashMap::new()),
 		}))
 	}
@@ -145,8 +150,8 @@ impl LiveService {
 		self.snapshots.lock().unwrap_or_else(PoisonError::into_inner).get(&id).cloned()
 	}
 
-	pub fn head_path(&self, name: &str) -> Option<std::path::PathBuf> {
-		heads::is_head_file(name).then(|| self.heads.path(name))
+	pub fn skin_path(&self, name: &str) -> Option<std::path::PathBuf> {
+		skins::is_skin_file(name).then(|| self.skins.path(name))
 	}
 
 	/// Writes the RCON keys into the server's properties. The server reads them when it next starts.
@@ -268,21 +273,25 @@ impl LiveService {
 			}
 		};
 
-		self.ensure_head_defaults(session, &instance.mc_version).await;
-		let usercache = heads::user_cache(&instance.directory);
+		self.ensure_skin_defaults(session, &instance.mc_version).await;
+		let usercache = skins::user_cache(&instance.directory);
 		let mut players = Vec::with_capacity(found.len());
 		for player in found {
 			let uuid = usercache.get(&player.name.to_ascii_lowercase()).cloned();
 			if let (Some(uuid), true) = (&uuid, settings.consent) {
 				self.request_skin(session, uuid);
 			}
-			let head = self.heads.file_for(uuid.as_deref());
+			let skin = self.skins.skin_for(uuid.as_deref());
+			let model = skins::model_of(&skin).name().to_owned();
 			players.push(LivePlayer {
 				name: player.name,
 				uuid,
 				dimension: player.dimension,
 				position: player.position,
-				head,
+				yaw: player.yaw,
+				pitch: player.pitch,
+				skin,
+				model,
 			});
 		}
 		Ok(Sampled::Reading(Reading { source, message, players }))
@@ -313,28 +322,28 @@ impl LiveService {
 		}
 	}
 
-	async fn ensure_head_defaults(&self, session: &mut Session, mc_version: &str) {
+	async fn ensure_skin_defaults(&self, session: &mut Session, mc_version: &str) {
 		if session.defaults_ready {
 			return;
 		}
 		let client_jar = jars::client_jar_path(&self.paths, mc_version);
-		if client_jar.is_file() && self.heads.ensure_defaults(&client_jar).await.is_ok() {
+		if client_jar.is_file() && self.skins.ensure_defaults(&client_jar).await.is_ok() {
 			session.defaults_ready = true;
 		}
 	}
 
 	fn request_skin(&self, session: &mut Session, uuid: &str) {
-		if self.heads.has(&heads::skin_file(uuid)) {
+		if self.skins.has_skin(uuid) {
 			return;
 		}
 		if session.skin_requests.get(uuid).is_some_and(|asked| asked.elapsed() < SKIN_RETRY) {
 			return;
 		}
 		session.skin_requests.insert(uuid.to_owned(), Instant::now());
-		let heads = self.heads.clone();
+		let skins = self.skins.clone();
 		let uuid = uuid.to_owned();
 		tokio::spawn(async move {
-			if let Err(error) = heads.fetch_skin(&uuid).await {
+			if let Err(error) = skins.fetch_skin(&uuid).await {
 				tracing::debug!(%error, %uuid, "could not fetch a skin");
 			}
 		});
@@ -393,6 +402,8 @@ struct Found {
 	name: String,
 	dimension: String,
 	position: [f64; 3],
+	yaw: f64,
+	pitch: f64,
 }
 
 /// Where the commands go: over RCON when it answers, otherwise through the console.
@@ -423,6 +434,20 @@ impl Transport<'_> {
 			}
 		}
 	}
+
+	async fn rotations(&mut self, command: &str, wanted: &std::collections::BTreeSet<String>) -> Result<Vec<EntityRotation>> {
+		match self {
+			Self::Rcon(client) => Ok(parse_rotations(&client.command(command).await?)),
+			Self::Console(console) => {
+				let replies = console
+					.ask(command, POSITION_WAIT, |lines| {
+						all_named(lines, wanted, |line| parse_rotations(line).into_iter().map(|turn| turn.name).collect())
+					})
+					.await?;
+				Ok(replies.iter().flat_map(|line| parse_rotations(line)).collect())
+			}
+		}
+	}
 }
 
 /// Reads who is online, then where each of them stands, one dimension at a time, stopping once everyone is placed.
@@ -438,21 +463,43 @@ async fn gather(mut transport: Transport<'_>, dimensions: &[String]) -> Result<V
 			break;
 		}
 		let command = format!("execute as @a at @s if dimension {dimension} run data get entity @s Pos");
+		let mut placed = Vec::new();
 		for position in transport.positions(&command, &wanted).await? {
 			if wanted.remove(&position.name) {
-				found.push(Found {
-					name: position.name,
-					dimension: dimension.clone(),
-					position: position.position,
-				});
+				placed.push((position.name, position.position));
 			}
 		}
+		if placed.is_empty() {
+			continue;
+		}
+		let names: std::collections::BTreeSet<String> = placed.iter().map(|(name, _)| name.clone()).collect();
+		let command = format!("execute as @a at @s if dimension {dimension} run data get entity @s Rotation");
+		let turns: HashMap<String, (f64, f64)> = transport
+			.rotations(&command, &names)
+			.await?
+			.into_iter()
+			.map(|turn| (turn.name, (turn.yaw, turn.pitch)))
+			.collect();
+		found.extend(placed.into_iter().map(|(name, position)| {
+			let (yaw, pitch) = turns.get(&name).copied().unwrap_or_default();
+			Found {
+				name,
+				dimension: dimension.clone(),
+				position,
+				yaw,
+				pitch,
+			}
+		}));
 	}
 	Ok(found)
 }
 
 fn all_found(lines: &[String], wanted: &std::collections::BTreeSet<String>) -> bool {
-	let placed: HashSet<String> = lines.iter().flat_map(|line| parse_positions(line)).map(|found| found.name).collect();
+	all_named(lines, wanted, |line| parse_positions(line).into_iter().map(|found| found.name).collect())
+}
+
+fn all_named(lines: &[String], wanted: &std::collections::BTreeSet<String>, named: impl Fn(&str) -> Vec<String>) -> bool {
+	let placed: HashSet<String> = lines.iter().flat_map(|line| named(line)).collect();
 	wanted.iter().all(|name| placed.contains(name))
 }
 
