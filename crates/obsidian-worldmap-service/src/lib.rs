@@ -1,6 +1,7 @@
 //! Keeps each instance's world map rendered: the settings that control it, the consent-gated Mojang jars it needs,
 //! and the render jobs that run when the world changes, when a server stops, and on a full pass.
 
+mod background;
 mod bundle;
 mod detail;
 mod job;

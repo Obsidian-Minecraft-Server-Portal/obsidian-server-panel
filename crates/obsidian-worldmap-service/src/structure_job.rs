@@ -1,11 +1,10 @@
 //! Writes the structure a browser meshes for each pending region, along with the tables that give its ids meaning. Regions are
-//! read on a pool whose threads start at the lowest priority the system offers, so a render never starves the server beside it.
+//! read on the map pool, whose threads start at the lowest priority the system offers, so a render never starves the server beside it.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
-use std::sync::OnceLock;
 
 use obsidian_common::Result;
 use obsidian_worldmap::atlas::Atlas;
@@ -13,27 +12,11 @@ use obsidian_worldmap::render::Pack;
 use obsidian_worldmap::structure::{BiomeTable, StateTable};
 use rayon::prelude::*;
 use serde::Deserialize;
-use thread_priority::{ThreadPriority, set_current_thread_priority};
 
+use crate::background::pool;
 use crate::job::{Pending, other};
 
 pub const STRUCTURE_FOLDER: &str = "structure";
-
-static POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
-
-fn pool() -> &'static rayon::ThreadPool {
-    POOL.get_or_init(|| {
-        let cores = std::thread::available_parallelism().map_or(1, |cores| cores.get());
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(cores.saturating_sub(2).clamp(1, 8))
-            .thread_name(|index| format!("worldmap-{index}"))
-            .start_handler(|_| {
-                let _ = set_current_thread_priority(ThreadPriority::Min);
-            })
-            .build()
-            .expect("the world map thread pool")
-    })
-}
 
 /// Writes the structure of every pending region, grouped by dimension, and rewrites that dimension's tables.
 pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas) -> Result<()> {

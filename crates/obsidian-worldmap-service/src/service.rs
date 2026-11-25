@@ -14,6 +14,7 @@ use obsidian_worldmap::level::discover;
 use obsidian_worldmap::players::is_poll_reply;
 use serde_json::json;
 
+use crate::background;
 use crate::bundle;
 use crate::detail;
 use crate::pack_cache::PackCache;
@@ -171,12 +172,11 @@ impl WorldMapService {
 		let sources = self.sources(&instance).await?;
 		let packs = Arc::clone(&self.packs);
 		let draw_folder = folder.to_owned();
-		tokio::task::spawn_blocking(move || {
+		background::spawn(move || {
 			let pack = packs.get(id, &key, &sources)?;
 			detail::draw_region(&pack, &map_dir, &draw_folder, &region_file, region)
 		})
-		.await
-		.map_err(|error| CommonError::Other(error.to_string()))??;
+		.await?;
 		Ok(location)
 	}
 
@@ -325,11 +325,7 @@ impl WorldMapService {
 			packs: Arc::clone(&self.packs),
 		};
 		let progress = task.clone();
-		let outcome = tokio::task::spawn_blocking(move || {
-			job::run(job, &mut |fraction, message| progress.progress(fraction, message))
-		})
-		.await
-		.map_err(|error| CommonError::Other(error.to_string()))??;
+		let outcome = background::spawn(move || job::run(job, &mut |fraction, message| progress.progress(fraction, message))).await?;
 		state::save(&map_dir, &outcome.state).await?;
 		Ok(outcome)
 	}

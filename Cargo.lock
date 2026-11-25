@@ -4743,6 +4743,7 @@ version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "libc",
  "obsidian-auth",
  "obsidian-common",
  "obsidian-db",
@@ -4763,6 +4764,7 @@ dependencies = [
  "tokio",
  "tracing",
  "utoipa",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
