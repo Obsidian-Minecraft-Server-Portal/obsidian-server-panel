@@ -1,15 +1,17 @@
-//! Region-level structure work: the states and biomes a region uses, and its sections written as volume records. Chunks are
-//! parsed one at a time, so a region never holds more than one chunk's sections beyond the file itself.
+//! Region-level structure work: the states and biomes a region uses, and its sections written as one pack. Chunks are parsed
+//! one at a time, so a region never holds more than one chunk's sections beyond the file itself.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 use super::cell::OPEN_SKY;
+use super::folder::{LEGACY_FOLDER, PACK_FOLDER};
+use super::pack::write_pack;
 use super::volume::Volume;
 use super::{BiomeTable, StateTable, section_volume};
 use crate::chunk::{BlockDefaults, BlockState, Chunk, Section};
-use crate::error::Result;
+use crate::error::{Result, WorldmapError};
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
 
 #[derive(Default)]
@@ -30,30 +32,37 @@ pub fn vocabulary(region: &Path, defaults: &BlockDefaults) -> Result<Vocabulary>
     Ok(vocabulary)
 }
 
-/// Where a section's volume record is kept, relative to its dimension folder.
-pub fn section_path(chunk_x: i32, section_y: i32, chunk_z: i32) -> String {
-    let region = format!("r.{}.{}", chunk_x.div_euclid(32), chunk_z.div_euclid(32));
-    format!("structure/sections/{region}/section_{chunk_x}_{section_y}_{chunk_z}.obsv")
-}
-
-/// Writes one `section_<chunk x>_<y>_<chunk z>.obsv` into `dir` for each section that is not open-sky air, and returns how many
-/// were written.
-pub fn write_sections(region: &Path, dir: &Path, defaults: &BlockDefaults, states: &StateTable, biomes: &BiomeTable) -> Result<usize> {
-    let mut written = 0;
-    fs::create_dir_all(dir)?;
-    for_each_chunk(region, defaults, |chunk| {
-        for section in chunk.sections() {
-            let origin = [chunk.x * 16, section.y() * 16, chunk.z * 16];
-            let volume = section_volume(section, origin, states, biomes)?;
-            if is_open_air(section, &volume) {
-                continue;
+/// Writes the sections of the region at `region` into its pack under `structure_dir`, then removes the per-section files an
+/// earlier render left for that region. Returns how many sections the pack holds.
+pub fn write_region_pack(
+    region: &Path,
+    structure_dir: &Path,
+    defaults: &BlockDefaults,
+    states: &StateTable,
+    biomes: &BiomeTable,
+) -> Result<usize> {
+    let stem = region
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .ok_or_else(|| WorldmapError::Structure(format!("{} is not a region file", region.display())))?;
+    let destination = structure_dir.join(PACK_FOLDER).join(format!("{stem}.obsr"));
+    let written = write_pack(&destination, |pack| {
+        for_each_chunk(region, defaults, |chunk| {
+            for section in chunk.sections() {
+                let origin = [chunk.x * 16, section.y() * 16, chunk.z * 16];
+                let volume = section_volume(section, origin, states, biomes)?;
+                if !is_open_air(section, &volume) {
+                    pack.push([chunk.x, section.y(), chunk.z], &volume.encode())?;
+                }
             }
-            let name = format!("section_{}_{}_{}.obsv", chunk.x, section.y(), chunk.z);
-            fs::write(dir.join(name), volume.encode())?;
-            written += 1;
-        }
-        Ok(())
+            Ok(())
+        })
     })?;
+    let legacy = structure_dir.join(LEGACY_FOLDER).join(stem);
+    if legacy.exists() {
+        fs::remove_dir_all(legacy)?;
+    }
+    let _ = fs::remove_dir(structure_dir.join(LEGACY_FOLDER));
     Ok(written)
 }
 
@@ -80,6 +89,7 @@ fn for_each_chunk(region: &Path, defaults: &BlockDefaults, mut visit: impl FnMut
 
 #[cfg(test)]
 mod tests {
+    use super::super::pack::PackReader;
     use super::*;
     use crate::test_support::{chunk_nbt, chunk_nbt_with_sky_light, region_bytes};
 
@@ -96,14 +106,15 @@ mod tests {
         let defaults = BlockDefaults::default();
         let mut states = StateTable::default();
         states.extend(vocabulary(&region, &defaults).unwrap().states);
-        let out = dir.path().join("sections");
-        let written = write_sections(&region, &out, &defaults, &states, &BiomeTable::with_plains()).unwrap();
-        let mut names: Vec<String> = fs::read_dir(&out)
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
-            .collect();
-        names.sort();
+        let structure = dir.path().join("structure");
+        fs::create_dir_all(structure.join("sections").join("r.0.0")).unwrap();
+        fs::write(structure.join("sections").join("r.0.0").join("section_0_0_0.obsv"), b"old").unwrap();
+        let written = write_region_pack(&region, &structure, &defaults, &states, &BiomeTable::with_plains()).unwrap();
+        let mut pack = PackReader::open(&structure.join("regions").join("r.0.0.obsr")).unwrap().unwrap();
         assert_eq!(written, 2);
-        assert_eq!(names, ["section_0_0_0.obsv", "section_2_0_0.obsv"]);
+        assert!(pack.section([0, 0, 0]).unwrap().is_some());
+        assert!(pack.section([1, 0, 0]).unwrap().is_none());
+        assert!(pack.section([2, 0, 0]).unwrap().is_some());
+        assert!(!structure.join("sections").exists(), "the per-section files of the region are gone");
     }
 }

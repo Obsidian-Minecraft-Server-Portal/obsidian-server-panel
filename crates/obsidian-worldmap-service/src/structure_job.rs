@@ -53,12 +53,7 @@ pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas, pacer: &Pacer) -> 
         pool().install(|| {
             items.par_iter().try_for_each(|item| {
                 pacer.wait_turn();
-                let Some(stem) = item.region_path.file_stem() else { return Ok(()) };
-                let section_dir = directory.join("sections").join(stem);
-                if section_dir.exists() {
-                    fs::remove_dir_all(&section_dir)?;
-                }
-                pack.write_region_sections(&item.region_path, &section_dir, &states, &biomes)
+                pack.write_region_pack(&item.region_path, &directory, &states, &biomes)
                     .map(|_| ())
                     .map_err(other)
             })

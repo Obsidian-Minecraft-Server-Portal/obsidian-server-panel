@@ -64,8 +64,8 @@ impl Pack {
 		structure::vocabulary(region, &self.defaults)
 	}
 
-	pub fn write_region_sections(&self, region: &Path, dir: &Path, states: &StateTable, biomes: &BiomeTable) -> Result<usize> {
-		structure::write_sections(region, dir, &self.defaults, states, biomes)
+	pub fn write_region_pack(&self, region: &Path, structure_dir: &Path, states: &StateTable, biomes: &BiomeTable) -> Result<usize> {
+		structure::write_region_pack(region, structure_dir, &self.defaults, states, biomes)
 	}
 }
 

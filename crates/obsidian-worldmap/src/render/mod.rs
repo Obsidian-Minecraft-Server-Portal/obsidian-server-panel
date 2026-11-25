@@ -11,7 +11,7 @@ use crate::chunk::{BlockDefaults, Chunk, is_air};
 use crate::colour::BlockColours;
 use crate::error::Result;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
-use crate::structure::section_path;
+use crate::structure::region_pack_path;
 use crate::tiles::{encode_png, render_tile};
 use crate::world::BlockWorld;
 
@@ -67,6 +67,8 @@ pub fn render_region(path: &Path, dimension_dir: &Path, defaults: &BlockDefaults
 		fs::remove_dir_all(&legacy_meshes)?;
 	}
 
+	let pack_file = region_pack_path((region_x, region_z));
+	let pack_file = pack_file.as_str();
 	let mut sections: Vec<SectionEntry> = world
 		.chunks()
 		.filter(|chunk| owns(chunk, region_x, region_z))
@@ -79,7 +81,7 @@ pub fn render_region(path: &Path, dimension_dir: &Path, defaults: &BlockDefaults
 					x: chunk.x,
 					y: section.y(),
 					z: chunk.z,
-					file: section_path(chunk.x, section.y(), chunk.z),
+					file: pack_file.to_owned(),
 				})
 		})
 		.collect();
@@ -178,7 +180,7 @@ mod tests {
 				x: 0,
 				y: 0,
 				z: 0,
-				file: "structure/sections/r.0.0/section_0_0_0.obsv".to_owned(),
+				file: "structure/regions/r.0.0.obsr".to_owned(),
 			}]
 		);
 		assert!(out.join(&manifest.tile).exists());
