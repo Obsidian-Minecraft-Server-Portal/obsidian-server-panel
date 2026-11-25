@@ -73,8 +73,8 @@ async fn handle(
 			let (status, lines, receiver) = shared.subscribe(backlog);
 			*events = Some(receiver);
 			let mut frames = encode(&status.message())?;
-			for text in lines {
-				frames.extend(encode(&RunnerMsg::Line { text })?);
+			if backlog {
+				frames.extend(encode(&RunnerMsg::Backlog { lines })?);
 			}
 			write.write_all(&frames).await?;
 			write.flush().await?;

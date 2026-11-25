@@ -27,6 +27,7 @@ pub enum RunState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RunnerMsg {
+	Backlog { lines: Vec<String> },
 	Line { text: String },
 	Status { state: RunState, pid: Option<u32>, started_at: Option<DateTime<Utc>> },
 	Exited { code: Option<i32> },

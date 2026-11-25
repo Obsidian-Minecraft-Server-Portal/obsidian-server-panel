@@ -47,7 +47,12 @@ async fn runner_round_trip() {
 		}
 		tokio::time::sleep(Duration::from_millis(50)).await;
 	};
-	next_until(&mut events, |m| matches!(m, RunnerMsg::Line { text } if text.contains("Done ("))).await;
+	next_until(&mut events, |m| match m {
+		RunnerMsg::Line { text } => text.contains("Done ("),
+		RunnerMsg::Backlog { lines } => lines.iter().any(|text| text.contains("Done (")),
+		_ => false,
+	})
+	.await;
 
 	let mut command = RunnerClient::connect(&paths, INSTANCE).await.expect("connect");
 	command.send(&ClientMsg::Command { line: "hello".into() }).await.expect("send command");

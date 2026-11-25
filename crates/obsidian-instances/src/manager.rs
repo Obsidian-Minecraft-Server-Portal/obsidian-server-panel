@@ -24,6 +24,8 @@ const DEFAULT_MEMORY_MAX_MB: u32 = 2048;
 const MAX_NAME_CHARS: usize = 64;
 const CONSOLE_TAP_CAPACITY: usize = 4096;
 
+pub type ReplayFilter = Box<dyn Fn(&str) -> bool + Send + Sync>;
+
 #[derive(Clone)]
 pub struct InstanceManager {
 	pub(crate) db: Db,
@@ -38,6 +40,7 @@ pub struct InstanceManager {
 	pub(crate) monitor: Arc<AtomicBool>,
 	pub(crate) pre_start: OnceLock<Arc<dyn PreStartHook>>,
 	pub(crate) console_tap: broadcast::Sender<ConsoleLine>,
+	pub(crate) replay_filter: Arc<OnceLock<ReplayFilter>>,
 }
 
 impl InstanceManager {
@@ -62,6 +65,7 @@ impl InstanceManager {
 			monitor: Arc::new(AtomicBool::new(false)),
 			pre_start: OnceLock::new(),
 			console_tap: broadcast::channel(CONSOLE_TAP_CAPACITY).0,
+			replay_filter: Arc::new(OnceLock::new()),
 		}
 	}
 
@@ -72,6 +76,10 @@ impl InstanceManager {
 	/// Every console line of every instance, before filtering. Lines arrive in the order the server printed them.
 	pub fn console_lines(&self) -> broadcast::Receiver<ConsoleLine> {
 		self.console_tap.subscribe()
+	}
+
+	pub fn set_replay_filter(&self, hides: impl Fn(&str) -> bool + Send + Sync + 'static) {
+		let _ = self.replay_filter.set(Box::new(hides));
 	}
 
 	/// Keeps the lines `filter` matches out of the console tab and its topic. They still reach [`Self::console_lines`].

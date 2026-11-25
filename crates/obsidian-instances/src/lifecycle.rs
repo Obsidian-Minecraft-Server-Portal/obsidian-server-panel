@@ -312,6 +312,7 @@ impl InstanceManager {
 		tokio::spawn(async move {
 			while let Some(message) = events.recv().await {
 				match message {
+					RunnerMsg::Backlog { lines } => manager.on_backlog(id, lines),
 					RunnerMsg::Line { text } => manager.on_line(id, text),
 					RunnerMsg::Status { state, pid, started_at } => {
 						let since = (state == RunState::Crashed).then(|| manager.started_at(id)).flatten();
@@ -328,6 +329,16 @@ impl InstanceManager {
 	}
 
 	fn on_line(&self, id: InstanceId, text: String) {
+		self.record_line(id, text, false);
+	}
+
+	fn on_backlog(&self, id: InstanceId, lines: Vec<String>) {
+		for text in lines {
+			self.record_line(id, text, true);
+		}
+	}
+
+	fn record_line(&self, id: InstanceId, text: String, replayed: bool) {
 		let shown = {
 			let mut live = self.live();
 			let entry = live.entry(id).or_default();
@@ -335,13 +346,16 @@ impl InstanceManager {
 				entry.stats.tps = Some(tps);
 			}
 			entry.roster.observe(&text);
-			let hidden = entry.console_filter.as_ref().is_some_and(|filter| filter.hides(&text));
+			let hidden = (replayed && self.replay_filter.get().is_some_and(|hides| hides(&text)))
+				|| entry.console_filter.as_ref().is_some_and(|filter| filter.hides(&text));
 			if !hidden {
 				entry.push_console(text.clone());
 			}
 			!hidden
 		};
-		let _ = self.console_tap.send(ConsoleLine { instance: id, text: text.clone() });
+		if !replayed {
+			let _ = self.console_tap.send(ConsoleLine { instance: id, text: text.clone() });
+		}
 		if shown {
 			self.bus.publish(console_topic(id), json!({ "line": text }));
 		}

@@ -11,6 +11,7 @@ use obsidian_instances::{Instance, InstanceManager, read_server_properties};
 use obsidian_java::JavaManager;
 use obsidian_runner::RunState;
 use obsidian_worldmap::level::discover;
+use obsidian_worldmap::players::is_poll_reply;
 use serde_json::json;
 
 use crate::job::{self, BuildMode, OUTPUT_FOLDER, Sources};
@@ -49,6 +50,7 @@ impl WorldMapService {
 		bus: EventBus,
 		demand: TopicDemand,
 	) -> Result<Arc<Self>> {
+		instances.set_replay_filter(is_poll_reply);
 		let live = LiveService::new(db.clone(), Arc::clone(&paths), instances.clone(), bus.clone(), demand)?;
 		Ok(Arc::new(Self {
 			db,
