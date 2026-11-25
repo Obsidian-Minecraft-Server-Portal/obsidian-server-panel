@@ -36,7 +36,7 @@ export function WorldMapSettingsCard({ instanceId }: { instanceId: number }) {
         />
         <SwitchRow
           label="Allow downloads from Mojang"
-          description="Lets the panel download this version's client and server jars. The client jar supplies textures and block models. Nothing downloads until this is on."
+          description="Lets the panel download this version's client and server jars, and player skins for the map's heads. The client jar supplies textures and block models. Nothing downloads until this is on."
           isSelected={current.consent}
           isDisabled={update.isPending}
           onChange={(consent) => change({ consent })}
@@ -61,6 +61,13 @@ export function WorldMapSettingsCard({ instanceId }: { instanceId: number }) {
           isSelected={current.fullPassHours > 0}
           isDisabled={update.isPending}
           onChange={(daily) => change({ fullPassHours: daily ? 24 : 0 })}
+        />
+        <SwitchRow
+          label="Read player positions over RCON"
+          description="Off reads positions through the console. On reads them over RCON, which answers faster but listens on every network interface, so its port is reachable from your network. The panel sets a random password. The change applies the next time the server starts."
+          isSelected={current.rcon}
+          isDisabled={update.isPending}
+          onChange={(rcon) => change({ rcon })}
         />
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
