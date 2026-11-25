@@ -153,10 +153,13 @@ impl LiveService {
 	pub async fn configure_rcon(&self, id: InstanceId, enabled: bool) -> Result<()> {
 		let mut properties = self.instances.properties(id).await?;
 		if enabled {
-			if properties.get("rcon.port").and_then(|port| port.parse::<u16>().ok()).is_none() {
-				let port = self.free_rcon_port(id).await?;
-				properties.insert("rcon.port".into(), port.to_string());
-			}
+			let taken = self.rcon_ports_elsewhere(id).await?;
+			let current = properties.get("rcon.port").and_then(|port| port.parse::<u16>().ok());
+			let port = match current.filter(|port| !taken.contains(port)) {
+				Some(port) => port,
+				None => free_rcon_port(&taken).await?,
+			};
+			properties.insert("rcon.port".into(), port.to_string());
 			if properties.get("rcon.password").is_none_or(String::is_empty) {
 				properties.insert("rcon.password".into(), obsidian_auth::generate_token());
 			}
@@ -165,7 +168,7 @@ impl LiveService {
 		self.instances.set_properties(id, properties).await
 	}
 
-	async fn free_rcon_port(&self, id: InstanceId) -> Result<u16> {
+	async fn rcon_ports_elsewhere(&self, id: InstanceId) -> Result<HashSet<u16>> {
 		let rows: Vec<(i64, String)> = sqlx::query_as("SELECT id, directory FROM instances").fetch_all(self.db.pool()).await?;
 		let mut taken = HashSet::new();
 		for (_, directory) in rows.iter().filter(|(other_id, _)| *other_id != id) {
@@ -173,12 +176,7 @@ impl LiveService {
 				taken.extend(properties.get("rcon.port").and_then(|port| port.parse::<u16>().ok()));
 			}
 		}
-		for port in FIRST_RCON_PORT..=u16::MAX {
-			if !taken.contains(&port) && TcpListener::bind(("0.0.0.0", port)).await.is_ok() {
-				return Ok(port);
-			}
-		}
-		Err(CommonError::Conflict("no free port is left for RCON".into()))
+		Ok(taken)
 	}
 
 	async fn run(self: Arc<Self>) {
@@ -464,4 +462,13 @@ fn now_millis() -> i64 {
 
 fn other(error: impl std::fmt::Display) -> CommonError {
 	CommonError::Other(error.to_string())
+}
+
+async fn free_rcon_port(taken: &HashSet<u16>) -> Result<u16> {
+	for port in FIRST_RCON_PORT..=u16::MAX {
+		if !taken.contains(&port) && TcpListener::bind(("0.0.0.0", port)).await.is_ok() {
+			return Ok(port);
+		}
+	}
+	Err(CommonError::Conflict("no free port is left for RCON".into()))
 }
