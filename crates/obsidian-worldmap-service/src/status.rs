@@ -14,6 +14,8 @@ pub struct WorldMapStatus {
 	pub last_full_pass: Option<i64>,
 	/// Regions rendered so far, across every dimension.
 	pub regions: usize,
+	/// Unix milliseconds of the last render that drew a region. It changes whenever the map changes.
+	pub revision: i64,
 	pub dimensions: Vec<WorldMapDimensionStatus>,
 }
 

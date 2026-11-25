@@ -14,6 +14,8 @@ use obsidian_worldmap::level::discover;
 use obsidian_worldmap::players::is_poll_reply;
 use serde_json::json;
 
+use crate::bundle;
+use crate::detail::{self, Packs};
 use crate::job::{self, BuildMode, OUTPUT_FOLDER, Sources};
 use crate::live::{LiveService, WorldMapPlayers};
 use crate::manifest::{self, WorldMapManifest};
@@ -38,6 +40,7 @@ pub struct WorldMapService {
 	bus: EventBus,
 	slots: Mutex<HashMap<InstanceId, Slot>>,
 	live: Arc<LiveService>,
+	details: Arc<Packs>,
 }
 
 impl WorldMapService {
@@ -61,6 +64,7 @@ impl WorldMapService {
 			bus,
 			slots: Mutex::new(HashMap::new()),
 			live,
+			details: Arc::new(Mutex::new(HashMap::new())),
 		}))
 	}
 
@@ -124,6 +128,7 @@ impl WorldMapService {
 			pack_key: render_state.pack_key.clone(),
 			last_full_pass: render_state.last_full_pass,
 			regions: render_state.regions.len(),
+			revision: render_state.revision,
 			dimensions,
 		})
 	}
@@ -136,6 +141,60 @@ impl WorldMapService {
 	pub async fn file(&self, id: InstanceId, relative: &str) -> Result<PathBuf> {
 		let instance = self.instances.get(id).await?;
 		manifest::file_path(&instance.directory.join(OUTPUT_FOLDER), relative)
+	}
+
+	/// One textured detail tile of a region. It is drawn the first time it is asked for, then served from disk.
+	pub async fn detail(&self, id: InstanceId, folder: &str, region: (i32, i32), tile: (usize, usize)) -> Result<PathBuf> {
+		let instance = self.instances.get(id).await?;
+		let map_dir = instance.directory.join(OUTPUT_FOLDER);
+		let location = detail::tile_path(&map_dir, folder, region, tile)?;
+		if tokio::fs::metadata(&location).await.is_ok() {
+			return Ok(location);
+		}
+		let key = state::load(&map_dir)
+			.await
+			.pack_key
+			.ok_or_else(|| CommonError::NotFound("the map has not rendered yet".into()))?;
+		let level = level_name(&instance.directory).await?;
+		let region_file = detail::region_path(&instance.directory, &level, folder, region)?;
+		let sources = self.sources(&instance).await?;
+		let packs = Arc::clone(&self.details);
+		let png = tokio::task::spawn_blocking(move || detail::draw(&packs, id, &key, &sources, &region_file, tile))
+			.await
+			.map_err(|error| CommonError::Other(error.to_string()))??;
+		if let Some(parent) = location.parent() {
+			tokio::fs::create_dir_all(parent).await?;
+		}
+		tokio::fs::write(&location, png).await?;
+		Ok(location)
+	}
+
+	/// The sections of one cell, packed into one bundle. Nothing is drawn here: a render has already written them.
+	pub async fn cell(&self, id: InstanceId, folder: &str, cell: (i32, i32, i32)) -> Result<Vec<u8>> {
+		let instance = self.instances.get(id).await?;
+		let folder_dir = manifest::file_path(&instance.directory.join(OUTPUT_FOLDER), folder)?;
+		bundle::cell(&folder_dir, cell).await
+	}
+
+	pub(crate) fn release_idle_packs(&self) {
+		detail::release_idle(&self.details);
+	}
+
+	/// The jars a render of this instance used. Nothing is downloaded here: a render has already fetched them.
+	async fn sources(&self, instance: &Instance) -> Result<Sources> {
+		let minecraft = instance.mc_version.as_str();
+		let sources = Sources {
+			client_jar: jars::client_jar_path(&self.paths, minecraft),
+			server_jar: jars::server_jar_path(&self.paths, minecraft),
+			mod_jars: mod_jars(&instance.directory).await?,
+			blocks_report: jars::blocks_report_path(&self.paths, minecraft),
+		};
+		for path in [&sources.client_jar, &sources.server_jar, &sources.blocks_report] {
+			if !jars::is_file(path).await {
+				return Err(CommonError::NotFound("the map's jars are missing, so render the map again".into()));
+			}
+		}
+		Ok(sources)
 	}
 
 	pub(crate) fn db(&self) -> &Db {

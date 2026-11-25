@@ -1,8 +1,10 @@
 use actix_files::NamedFile;
-use actix_web::{HttpResponse, get, post, put, web};
+use actix_web::http::header::{self, HeaderValue};
+use actix_web::{HttpRequest, HttpResponse, Responder, get, post, put, web};
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
 use obsidian_worldmap_service::{WorldMapManifest, WorldMapPlayers, WorldMapSettings, WorldMapStatus};
+use serde::Deserialize;
 
 use crate::auth::{AuthUser, require_instance_perm};
 use crate::error::ApiResult;
@@ -16,7 +18,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(manifest)
 		.service(file)
 		.service(players)
-		.service(skin);
+		.service(skin)
+		.service(detail)
+		.service(cell);
 }
 
 #[utoipa::path(
@@ -118,11 +122,66 @@ pub async fn manifest(state: web::Data<AppState>, user: AuthUser, path: web::Pat
 }
 
 #[get("/instances/{id}/worldmap/files/{path:.*}")]
-pub async fn file(state: web::Data<AppState>, user: AuthUser, path: web::Path<(InstanceId, String)>) -> ApiResult<NamedFile> {
+pub async fn file(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	req: HttpRequest,
+	path: web::Path<(InstanceId, String)>,
+	query: web::Query<VersionQuery>,
+) -> ApiResult<HttpResponse> {
 	let (id, relative) = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
 	let location = state.worldmap.file(id, &relative).await?;
-	NamedFile::open(location).map_err(|_| CommonError::NotFound(format!("map file {relative}")).into())
+	let file = NamedFile::open(location).map_err(|_| CommonError::NotFound(format!("map file {relative}")))?;
+	let mut response = file.respond_to(&req);
+	response
+		.headers_mut()
+		.insert(header::CACHE_CONTROL, HeaderValue::from_static(cache_control(query.v.is_some())));
+	Ok(response)
+}
+
+/// Every section of one cell of the dimension, as one bundle. A `v` query marks the copy as immutable.
+#[get("/instances/{id}/worldmap/dimensions/{folder}/cells/{cx}/{cy}/{cz}")]
+pub async fn cell(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(InstanceId, String, i32, i32, i32)>,
+	query: web::Query<VersionQuery>,
+) -> ApiResult<HttpResponse> {
+	let (id, folder, cx, cy, cz) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
+	let bundle = state.worldmap.cell(id, &folder, (cx, cy, cz)).await?;
+	Ok(HttpResponse::Ok()
+		.content_type("application/octet-stream")
+		.insert_header(("Cache-Control", cache_control(query.v.is_some())))
+		.body(bundle))
+}
+
+/// One region's textured tile at `tx`, `tz` within it, drawn on first request. A `v` query marks the copy as immutable.
+#[get("/instances/{id}/worldmap/dimensions/{folder}/detail/{rx}/{rz}/{tx}/{tz}")]
+pub async fn detail(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	path: web::Path<(InstanceId, String, i32, i32, usize, usize)>,
+	query: web::Query<VersionQuery>,
+) -> ApiResult<HttpResponse> {
+	let (id, folder, rx, rz, tx, tz) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
+	let location = state.worldmap.detail(id, &folder, (rx, rz), (tx, tz)).await?;
+	let png = tokio::fs::read(&location).await.map_err(|error| CommonError::Other(error.to_string()))?;
+	Ok(HttpResponse::Ok()
+		.content_type("image/png")
+		.insert_header(("Cache-Control", cache_control(query.v.is_some())))
+		.body(png))
+}
+
+#[derive(Deserialize)]
+pub struct VersionQuery {
+	v: Option<String>,
+}
+
+fn cache_control(versioned: bool) -> &'static str {
+	if versioned { "public, max-age=31536000, immutable" } else { "no-cache" }
 }
 
 #[utoipa::path(

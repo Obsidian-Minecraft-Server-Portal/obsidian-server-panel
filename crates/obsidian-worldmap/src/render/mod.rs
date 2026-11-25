@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
@@ -22,11 +23,14 @@ const LAST_CHUNK: usize = CHUNKS_PER_SIDE - 1;
 
 /// What one region wrote, stored as `regions/r.X.Z.json` in its dimension folder. Paths are relative to that folder.
 #[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct RegionManifest {
 	pub x: i32,
 	pub z: i32,
 	pub tile: String,
 	pub sections: Vec<SectionEntry>,
+	/// Unix milliseconds when the region was drawn. Viewers key cached files by it, so a redraw replaces them.
+	pub rendered_at: i64,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -59,6 +63,10 @@ pub fn render_region(
 	let stem = format!("r.{region_x}.{region_z}");
 	let tile = format!("tiles/{stem}.png");
 	write(&dimension_dir.join(&tile), &encode_png(&render_tile(&world, region_x, region_z, colours))?)?;
+	let detail = dimension_dir.join("detail").join(&stem);
+	if detail.exists() {
+		fs::remove_dir_all(&detail)?;
+	}
 
 	let sections_dir = dimension_dir.join("sections").join(&stem);
 	if sections_dir.exists() {
@@ -90,10 +98,15 @@ pub fn render_region(
 		z: region_z,
 		tile,
 		sections,
+		rendered_at: rendered_at(),
 	};
 	let json = serde_json::to_vec(&manifest).map_err(std::io::Error::other)?;
 	write(&dimension_dir.join("regions").join(format!("{stem}.json")), &json)?;
 	Ok(manifest)
+}
+
+fn rendered_at() -> i64 {
+	SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |elapsed| elapsed.as_millis() as i64)
 }
 
 fn owns(chunk: &Chunk, region_x: i32, region_z: i32) -> bool {

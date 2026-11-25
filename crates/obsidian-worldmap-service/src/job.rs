@@ -109,6 +109,9 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 			Err(error) => failed.push(format!("{}: {error}", item.key)),
 		}
 	}
+	if rendered > 0 {
+		state.revision = Utc::now().timestamp_millis();
+	}
 	Ok(Outcome { state, rendered, failed })
 }
 
@@ -218,6 +221,6 @@ fn write_pack(map_dir: &Path, pack_key: &str, atlas: &Atlas) -> Result<()> {
 	Ok(())
 }
 
-fn other(error: impl Display) -> CommonError {
+pub(crate) fn other(error: impl Display) -> CommonError {
 	CommonError::Other(error.to_string())
 }

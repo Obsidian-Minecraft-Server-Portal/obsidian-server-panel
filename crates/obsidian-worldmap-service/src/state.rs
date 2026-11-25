@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 const STATE_FILE: &str = "state.json";
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct RenderState {
 	pub pack_key: Option<String>,
 	pub last_full_pass: Option<i64>,
 	/// Keyed by dimension folder and region, such as `minecraft_overworld/r.0.0`.
 	pub regions: BTreeMap<String, RegionState>,
+	/// Unix milliseconds of the last render that drew a region, so a viewer knows when to fetch the map again.
+	pub revision: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

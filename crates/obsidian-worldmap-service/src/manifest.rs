@@ -31,6 +31,8 @@ pub struct WorldMapTile {
 	pub x: i32,
 	pub z: i32,
 	pub file: String,
+	/// Unix milliseconds when the region was drawn. Cached copies of the tile and its sections are keyed by it.
+	pub version: i64,
 }
 
 #[derive(Deserialize)]
@@ -50,6 +52,8 @@ struct RegionFile {
 	z: i32,
 	tile: String,
 	sections: Vec<WorldMapSection>,
+	#[serde(rename = "renderedAt", default)]
+	rendered_at: i64,
 }
 
 pub async fn dimension(map_dir: &Path, folder: &str) -> Result<WorldMapManifest> {
@@ -69,6 +73,7 @@ pub async fn dimension(map_dir: &Path, folder: &str) -> Result<WorldMapManifest>
 			x: region.x,
 			z: region.z,
 			file: format!("{folder}/{}", region.tile),
+			version: region.rendered_at,
 		});
 		sections.extend(region.sections.into_iter().map(|section| WorldMapSection {
 			file: format!("{folder}/{}", section.file),

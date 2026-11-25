@@ -43,6 +43,7 @@ async fn periodic(service: Arc<WorldMapService>) {
 	let mut ticker = tokio::time::interval(WATCH_INTERVAL);
 	loop {
 		ticker.tick().await;
+		service.release_idle_packs();
 		let Ok(ids) = settings::enabled_instances(service.db()).await else { continue };
 		for id in ids {
 			check_instance(&service, id).await;

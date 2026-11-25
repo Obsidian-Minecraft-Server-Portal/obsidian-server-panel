@@ -137,6 +137,10 @@ pub fn client_jar_path(paths: &Paths, mc_version: &str) -> PathBuf {
 	version_dir(paths, mc_version).join(Artifact::Client.file_name())
 }
 
+pub fn server_jar_path(paths: &Paths, mc_version: &str) -> PathBuf {
+	version_dir(paths, mc_version).join(Artifact::Server.file_name())
+}
+
 fn tail(text: &str) -> String {
 	let mut tail: Vec<char> = text.chars().rev().take(400).collect();
 	tail.reverse();
