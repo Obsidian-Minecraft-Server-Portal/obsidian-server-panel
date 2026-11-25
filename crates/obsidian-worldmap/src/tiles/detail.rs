@@ -7,7 +7,7 @@ use crate::biome::Biome;
 use crate::chunk::{BlockDefaults, Chunk};
 use crate::colour::{BlockColours, SPRITE_SIZE};
 use crate::error::Result;
-use crate::mesh::BlockWorld;
+use crate::world::BlockWorld;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
 use crate::tiles::{shade_factor, slope_factor, top_height};
 

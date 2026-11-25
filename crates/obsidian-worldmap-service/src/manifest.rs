@@ -23,7 +23,6 @@ pub struct WorldMapSection {
 	pub y: i32,
 	pub z: i32,
 	pub file: String,
-	pub quads: usize,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

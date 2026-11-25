@@ -25,6 +25,9 @@ use crate::state::{self, RenderState};
 use crate::status::{WorldMapDimensionStatus, WorldMapStatus};
 use crate::{jars, policy};
 
+type RegionGate = Arc<tokio::sync::Mutex<()>>;
+type DrawGates = Mutex<HashMap<(InstanceId, String, (i32, i32)), RegionGate>>;
+
 #[derive(Default)]
 struct Slot {
 	running: bool,
@@ -42,7 +45,7 @@ pub struct WorldMapService {
 	slots: Mutex<HashMap<InstanceId, Slot>>,
 	live: Arc<LiveService>,
 	packs: Arc<PackCache>,
-	draw_gates: Mutex<HashMap<(InstanceId, String, (i32, i32)), Arc<tokio::sync::Mutex<()>>>>,
+	draw_gates: DrawGates,
 }
 
 impl WorldMapService {
@@ -186,14 +189,7 @@ impl WorldMapService {
 			.map_err(|error| CommonError::Other(error.to_string()))?
 	}
 
-	/// The sections of one cell, packed into one bundle. Nothing is drawn here: a render has already written them.
-	pub async fn cell(&self, id: InstanceId, folder: &str, cell: (i32, i32, i32)) -> Result<Vec<u8>> {
-		let instance = self.instances.get(id).await?;
-		let folder_dir = manifest::file_path(&instance.directory.join(OUTPUT_FOLDER), folder)?;
-		bundle::cell(&folder_dir, cell).await
-	}
-
-	fn draw_gate(&self, id: InstanceId, folder: &str, region: (i32, i32)) -> Arc<tokio::sync::Mutex<()>> {
+	fn draw_gate(&self, id: InstanceId, folder: &str, region: (i32, i32)) -> RegionGate {
 		let mut gates = self.draw_gates.lock().unwrap_or_else(PoisonError::into_inner);
 		Arc::clone(
 			gates

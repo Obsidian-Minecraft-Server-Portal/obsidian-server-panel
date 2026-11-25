@@ -9,7 +9,6 @@ use crate::atlas::{Atlas, Layer};
 use crate::biome::{Biome, BiomeRegistry, GrassModifier};
 use crate::chunk::{BlockState, is_air};
 use crate::colour::Tints;
-use crate::mesh::full_faces;
 use crate::models::bake_state;
 use crate::models::geometry::{Direction, Quad, TintKind};
 
@@ -124,6 +123,36 @@ fn full_mask(quads: &[Quad], atlas: &Atlas) -> u8 {
         .enumerate()
         .filter(|(_, full)| **full)
         .fold(0, |mask, (index, _)| mask | (1 << index))
+}
+
+/// The sides a block fills with an opaque face, indexed by direction: a quad lying on a side and spanning its whole face.
+fn full_faces(quads: &[Quad], atlas: &Atlas) -> [bool; 6] {
+    let mut full = [false; 6];
+    for quad in quads {
+        if atlas.layer(&quad.texture) == Layer::Opaque && covers_block_face(quad) {
+            full[usize::from(quad.direction.index())] = true;
+        }
+    }
+    full
+}
+
+fn covers_block_face(quad: &Quad) -> bool {
+    let (axis, boundary) = match quad.direction {
+        Direction::Down => (1, 0.0),
+        Direction::Up => (1, 16.0),
+        Direction::North => (2, 0.0),
+        Direction::South => (2, 16.0),
+        Direction::West => (0, 0.0),
+        Direction::East => (0, 16.0),
+    };
+    if quad.corners.iter().any(|corner| (corner[axis] - boundary).abs() > 1e-3) {
+        return false;
+    }
+    [0, 1, 2].into_iter().filter(|other| *other != axis).all(|other| {
+        let low = quad.corners.iter().map(|corner| corner[other]).fold(f32::MAX, f32::min);
+        let high = quad.corners.iter().map(|corner| corner[other]).fold(f32::MIN, f32::max);
+        low.abs() < 1e-3 && (high - 16.0).abs() < 1e-3
+    })
 }
 
 fn quad_entry(quad: &Quad, atlas: &Atlas) -> QuadEntry {

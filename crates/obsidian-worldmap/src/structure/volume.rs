@@ -26,7 +26,7 @@ impl Light {
             Self::Uniform(level) => *level,
             Self::Nibbles(bytes) => {
                 let byte = bytes[index / 2];
-                if index % 2 == 0 { byte & 0x0F } else { byte >> 4 }
+                if index.is_multiple_of(2) { byte & 0x0F } else { byte >> 4 }
             }
         }
     }

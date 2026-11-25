@@ -8,7 +8,6 @@ pub mod colour;
 pub mod error;
 mod jar;
 pub mod level;
-pub mod mesh;
 pub mod models;
 pub mod players;
 pub mod region;
@@ -16,6 +15,7 @@ pub mod render;
 pub mod skins;
 pub mod structure;
 pub mod tiles;
+pub mod world;
 
 #[cfg(test)]
 mod test_support;

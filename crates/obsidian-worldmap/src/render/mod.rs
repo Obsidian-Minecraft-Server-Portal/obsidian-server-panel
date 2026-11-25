@@ -1,4 +1,5 @@
-//! Renders one region into its top-down tile and section meshes, and records what was written in a region manifest.
+//! Renders one region into its top-down tile, and records what was written in a region manifest. Block structure is written
+//! separately by the structure module; the browser meshes it.
 
 use std::fs;
 use std::path::Path;
@@ -6,12 +7,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use crate::chunk::{BlockDefaults, Chunk};
+use crate::chunk::{BlockDefaults, Chunk, is_air};
 use crate::colour::BlockColours;
 use crate::error::Result;
-use crate::mesh::{BlockWorld, MeshContext, format};
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
+use crate::structure::section_path;
 use crate::tiles::{encode_png, render_tile};
+use crate::world::BlockWorld;
 
 mod pack;
 
@@ -28,6 +30,7 @@ pub struct RegionManifest {
 	pub x: i32,
 	pub z: i32,
 	pub tile: String,
+	/// Every section holding a block other than air, in order.
 	pub sections: Vec<SectionEntry>,
 	/// Unix milliseconds when the region was drawn. Viewers key cached files by it, so a redraw replaces them.
 	pub rendered_at: i64,
@@ -39,26 +42,18 @@ pub struct SectionEntry {
 	pub y: i32,
 	pub z: i32,
 	pub file: String,
-	pub quads: usize,
 }
 
-/// Writes the tile, the section meshes and the manifest of the region at `path` under `dimension_dir`.
+/// Writes the top-down tile and the manifest of the region at `path` under `dimension_dir`.
 ///
-/// Culling needs the blocks along each shared edge, so the chunks on the facing edges of the neighbouring regions are
-/// loaded for lookups but not drawn. A missing neighbour leaves its faces visible, the same as an unknown block would.
-pub fn render_region(
-	path: &Path,
-	dimension_dir: &Path,
-	defaults: &BlockDefaults,
-	colours: &mut BlockColours<'_>,
-	mesher: &mut MeshContext<'_>,
-) -> Result<RegionManifest> {
+/// Tiles need the blocks along each shared edge for slope shading, so the chunks on the facing edges of the neighbouring
+/// regions are loaded for lookups but not drawn. A missing neighbour leaves its edge flat, the same as an unknown block.
+pub fn render_region(path: &Path, dimension_dir: &Path, defaults: &BlockDefaults, colours: &mut BlockColours<'_>) -> Result<RegionManifest> {
 	let region = RegionFile::open(path)?;
 	let (region_x, region_z) = region.region_coords();
 	let mut chunks = load_chunks(&region)?;
 	chunks.extend(neighbour_edges(path, region_x, region_z));
 	let world = BlockWorld::new(chunks, defaults);
-	mesher.bake_world(&world);
 
 	let stem = format!("r.{region_x}.{region_z}");
 	let tile = format!("tiles/{stem}.png");
@@ -67,31 +62,28 @@ pub fn render_region(
 	if detail.exists() {
 		fs::remove_dir_all(&detail)?;
 	}
+	let legacy_meshes = dimension_dir.join("sections").join(&stem);
+	if legacy_meshes.exists() {
+		fs::remove_dir_all(&legacy_meshes)?;
+	}
 
-	let sections_dir = dimension_dir.join("sections").join(&stem);
-	if sections_dir.exists() {
-		fs::remove_dir_all(&sections_dir)?;
-	}
-	let mut sections = Vec::new();
-	let owned = world.chunks().filter(|chunk| owns(chunk, region_x, region_z));
-	for chunk in owned {
-		for section in chunk.sections() {
-			let Some(mesh) = mesher.mesh_section(&world, chunk.x, section.y(), chunk.z) else { continue };
-			let quads: usize = mesh.layers.iter().map(Vec::len).sum();
-			if quads == 0 {
-				continue;
-			}
-			let name = format!("section_{}_{}_{}.obsm", chunk.x, section.y(), chunk.z);
-			write(&sections_dir.join(&name), &format::encode(&mesh))?;
-			sections.push(SectionEntry {
-				x: chunk.x,
-				y: section.y(),
-				z: chunk.z,
-				file: format!("sections/{stem}/{name}"),
-				quads,
-			});
-		}
-	}
+	let mut sections: Vec<SectionEntry> = world
+		.chunks()
+		.filter(|chunk| owns(chunk, region_x, region_z))
+		.flat_map(|chunk| {
+			chunk
+				.sections()
+				.iter()
+				.filter(|section| !section.palette().iter().all(|state| is_air(&state.name)))
+				.map(move |section| SectionEntry {
+					x: chunk.x,
+					y: section.y(),
+					z: chunk.z,
+					file: section_path(chunk.x, section.y(), chunk.z),
+				})
+		})
+		.collect();
+	sections.sort_by_key(|entry| (entry.x, entry.y, entry.z));
 
 	let manifest = RegionManifest {
 		x: region_x,
@@ -160,10 +152,7 @@ fn write(path: &Path, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::atlas::{Atlas, block_textures};
 	use crate::biome::BiomeRegistry;
-	use crate::mesh::format;
-	use crate::models::geometry::Direction;
 	use crate::test_support::{chunk_nbt, region_bytes, stone_assets};
 
 	fn solid_chunk(x: i32, z: i32) -> Vec<u8> {
@@ -174,23 +163,24 @@ mod tests {
 	}
 
 	#[test]
-	fn culls_faces_against_blocks_in_the_neighbouring_region() {
+	fn manifest_lists_the_sections_holding_blocks_under_their_structure_paths() {
 		let dir = tempfile::tempdir().unwrap();
-		let west = dir.path().join("r.0.0.mca");
-		let east = dir.path().join("r.1.0.mca");
-		fs::write(&west, region_bytes(&[(31, 0, solid_chunk(31, 0))])).unwrap();
-		fs::write(&east, region_bytes(&[(0, 0, solid_chunk(32, 0))])).unwrap();
+		let region = dir.path().join("r.0.0.mca");
+		fs::write(&region, region_bytes(&[(0, 0, solid_chunk(0, 0))])).unwrap();
 		let assets = stone_assets();
 		let biomes = BiomeRegistry::default();
-		let atlas = Atlas::build(&assets, block_textures(&assets).iter().map(String::as_str));
-		let mut mesher = MeshContext::new(&assets, &biomes, atlas);
 		let mut colours = BlockColours::new(&assets, &biomes);
 		let out = dir.path().join("out");
-		let manifest = render_region(&west, &out, &BlockDefaults::default(), &mut colours, &mut mesher).unwrap();
-		assert!(manifest.sections.iter().all(|section| section.x == 31), "only this region's chunks are drawn");
-		let edge = manifest.sections.iter().find(|section| section.y == 0).expect("the edge section has visible faces");
-		let mesh = format::decode(&fs::read(out.join(&edge.file)).unwrap()).unwrap();
-		let east_faces = mesh.layers.iter().flatten().filter(|quad| quad.direction == Direction::East).count();
-		assert_eq!(east_faces, 0, "faces against the neighbour's solid blocks are culled");
+		let manifest = render_region(&region, &out, &BlockDefaults::default(), &mut colours).unwrap();
+		assert_eq!(
+			manifest.sections,
+			vec![SectionEntry {
+				x: 0,
+				y: 0,
+				z: 0,
+				file: "structure/sections/r.0.0/section_0_0_0.obsv".to_owned(),
+			}]
+		);
+		assert!(out.join(&manifest.tile).exists());
 	}
 }

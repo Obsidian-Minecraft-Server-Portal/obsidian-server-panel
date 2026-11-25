@@ -8,7 +8,7 @@ use crate::biome::Biome;
 use crate::chunk::Chunk;
 use crate::colour::BlockColours;
 use crate::error::Result;
-use crate::mesh::BlockWorld;
+use crate::world::BlockWorld;
 use crate::region::CHUNKS_PER_SIDE;
 
 const CHUNK_PIXELS: i32 = 16;

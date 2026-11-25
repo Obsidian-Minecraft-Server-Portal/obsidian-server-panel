@@ -26,11 +26,6 @@ impl BiomeRegistry {
 	pub fn get(&self, id: &str) -> &Biome {
 		self.biomes.get(id).unwrap_or(&Biome::PLAINS)
 	}
-
-	#[cfg(test)]
-	pub(crate) fn insert(&mut self, id: &str, biome: Biome) {
-		self.biomes.insert(id.to_owned(), biome);
-	}
 }
 
 /// `data/<namespace>/worldgen/biome/<path>.json` defines the biome `<namespace>:<path>`.

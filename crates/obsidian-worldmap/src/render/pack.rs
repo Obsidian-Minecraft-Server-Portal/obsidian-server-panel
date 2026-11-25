@@ -11,7 +11,6 @@ use crate::chunk::{BlockDefaults, BlockState};
 use crate::structure::{self, BiomeEntry, BiomeTable, BlockTable, StateTable, Vocabulary};
 use crate::colour::{BlockColours, SurfaceCache};
 use crate::error::Result;
-use crate::mesh::MeshContext;
 use crate::region::RegionFile;
 use crate::render::{RegionManifest, render_region};
 use crate::tiles::detail;
@@ -74,24 +73,23 @@ impl Pack {
 pub struct Renderer<'a> {
 	pack: &'a Pack,
 	colours: BlockColours<'a>,
-	mesher: MeshContext<'a>,
+	atlas: Atlas,
 }
 
 impl<'a> Renderer<'a> {
 	pub fn new(pack: &'a Pack) -> Self {
-		let atlas = Atlas::build(&pack.assets, block_textures(&pack.assets).iter().map(String::as_str));
 		Self {
 			pack,
 			colours: BlockColours::new(&pack.assets, &pack.biomes),
-			mesher: MeshContext::new(&pack.assets, &pack.biomes, atlas),
+			atlas: Atlas::build(&pack.assets, block_textures(&pack.assets).iter().map(String::as_str)),
 		}
 	}
 
 	pub fn atlas(&self) -> &Atlas {
-		self.mesher.atlas()
+		&self.atlas
 	}
 
 	pub fn render_region(&mut self, region: &Path, dimension_dir: &Path) -> Result<RegionManifest> {
-		render_region(region, dimension_dir, &self.pack.defaults, &mut self.colours, &mut self.mesher)
+		render_region(region, dimension_dir, &self.pack.defaults, &mut self.colours)
 	}
 }

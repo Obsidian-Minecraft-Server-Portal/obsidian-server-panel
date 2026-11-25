@@ -11,7 +11,7 @@ mod volume;
 
 pub use cell::{CELL_BLOCKS, SectionStore, assemble, read_bundle};
 pub use export::{BiomeEntry, BlockEntry, BlockTable, QuadEntry, biome_table, block_table};
-pub use region::{Vocabulary, vocabulary, write_sections};
+pub use region::{Vocabulary, section_path, vocabulary, write_sections};
 pub use section::section_volume;
 pub use tables::{AIR_ID, BiomeTable, PLAINS_ID, StateTable};
 pub use volume::{BIOME_CELLS, Biomes, Light, Volume};

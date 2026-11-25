@@ -28,6 +28,12 @@ pub fn vocabulary(region: &Path, defaults: &BlockDefaults) -> Result<Vocabulary>
     Ok(vocabulary)
 }
 
+/// Where a section's volume record is kept, relative to its dimension folder.
+pub fn section_path(chunk_x: i32, section_y: i32, chunk_z: i32) -> String {
+    let region = format!("r.{}.{}", chunk_x.div_euclid(32), chunk_z.div_euclid(32));
+    format!("structure/sections/{region}/section_{chunk_x}_{section_y}_{chunk_z}.obsv")
+}
+
 /// Writes one `section_<chunk x>_<y>_<chunk z>.obsv` per section into `dir`, and returns how many were written.
 pub fn write_sections(region: &Path, dir: &Path, defaults: &BlockDefaults, states: &StateTable, biomes: &BiomeTable) -> Result<usize> {
     let mut written = 0;
