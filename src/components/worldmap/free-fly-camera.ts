@@ -90,10 +90,14 @@ export class FreeFlyCamera {
     };
   }
 
-  /** Moves for the keys held over `seconds`, then points `camera` the way the player looks. */
+  /**
+   * Moves for the keys held over `seconds`, then points `camera` the way the player looks. W and S follow the look
+   * direction, up or down included, as spectator flight does. A and D strafe across it, and Space and Shift rise and fall.
+   */
   update(seconds: number, camera: PerspectiveCamera): void {
     const speed = FLY_SPEED * seconds * (this.isDown("ControlLeft", "ControlRight") ? SPRINT_MULTIPLIER : 1);
-    const forward = new Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const horizontal = Math.cos(this.pitch);
+    const forward = new Vector3(-Math.sin(this.yaw) * horizontal, Math.sin(this.pitch), -Math.cos(this.yaw) * horizontal);
     const right = new Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const move = new Vector3();
     if (this.isDown("KeyW")) move.add(forward);

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { MapManifest, MapSource } from "../components/worldmap/map-source";
+import type { MapManifest, MapSource, MapTile } from "../components/worldmap/map-source";
 import { api, BASE } from "./client";
 import { isInstanceId } from "./instances";
 import { useTopic } from "./ws";
@@ -26,19 +26,13 @@ export interface WorldMapStatus {
   packKey: string | null;
   lastFullPass: number | null;
   regions: number;
+  revision: number;
   dimensions: WorldMapDimension[];
 }
 
-export interface WorldMapTile {
-  x: number;
-  z: number;
-  file: string;
-}
+export type WorldMapTile = MapTile;
 
-export interface WorldMapManifest extends MapManifest {
-  packKey: string;
-  tiles: WorldMapTile[];
-}
+export type WorldMapManifest = MapManifest;
 
 export type LiveState = "pending" | "live" | "offline" | "unavailable";
 
@@ -99,9 +93,9 @@ export function useRenderWorldMap(instanceId: number) {
   });
 }
 
-export function useWorldMapManifest(instanceId: number, folder: string) {
+export function useWorldMapManifest(instanceId: number, folder: string, revision: number) {
   return useQuery({
-    queryKey: [...worldMapKey(instanceId), "manifest", folder] as const,
+    queryKey: [...worldMapKey(instanceId), "manifest", folder, revision] as const,
     queryFn: () => api.get<WorldMapManifest>(`/instances/${instanceId}/worldmap/dimensions/${folder}`),
     enabled: isInstanceId(instanceId),
     staleTime: 0,
@@ -110,11 +104,30 @@ export function useWorldMapManifest(instanceId: number, folder: string) {
 
 /** The viewer's source for one dimension. Files are served from the instance's map folder. */
 export function worldMapSource(instanceId: number, folder: string): MapSource {
-  const files = `${BASE}/instances/${instanceId}/worldmap/files/`;
+  const root = `/instances/${instanceId}/worldmap`;
+  const dimension = `${root}/dimensions/${folder}`;
   return {
-    loadManifest: () => api.get<WorldMapManifest>(`/instances/${instanceId}/worldmap/dimensions/${folder}`),
-    fileUrl: (file) => `${files}${file}`,
+    loadManifest: () => api.get<WorldMapManifest>(dimension),
+    fileUrl: (file, version) => `${BASE}${root}/files/${file}${versionQuery(version)}`,
+    cellUrl: ([cx, cy, cz], version) => `${BASE}${dimension}/cells/${cx}/${cy}/${cz}${versionQuery(version)}`,
   };
+}
+
+/** A textured detail tile: block tile `tileX`, `tileZ` inside region `regionX`, `regionZ`. The server draws it on first request. */
+export function worldMapDetailUrl(
+  instanceId: number,
+  folder: string,
+  regionX: number,
+  regionZ: number,
+  tileX: number,
+  tileZ: number,
+  version: number,
+): string {
+  return `${BASE}/instances/${instanceId}/worldmap/dimensions/${folder}/detail/${regionX}/${regionZ}/${tileX}/${tileZ}${versionQuery(version)}`;
+}
+
+function versionQuery(version: number | string | undefined): string {
+  return version === undefined ? "" : `?v=${version}`;
 }
 
 export function worldMapSkinBase(instanceId: number): string {

@@ -12,10 +12,9 @@ import {
 } from "../../api/worldmap";
 import { EmptyState } from "../ui/EmptyState";
 import { SectionTabs } from "../ui/SectionTabs";
+import { mapMemory, rememberView, type MapView } from "./map-memory";
 import { TileView } from "./TileView";
 import { WorldMapViewer } from "./WorldMapViewer";
-
-type View = "top" | "free";
 
 const NO_PLAYERS: readonly LivePlayer[] = [];
 
@@ -24,8 +23,8 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   const status = useWorldMapStatus(instanceId);
   const live = useWorldMapPlayers(instanceId, canViewPlayers);
   const players = live.data?.players ?? NO_PLAYERS;
-  const [picked, setPicked] = useState<string | null>(null);
-  const [view, setView] = useState<View>("top");
+  const [picked, setPicked] = useState<string | null>(() => mapMemory(instanceId).folder ?? null);
+  const [view, setViewState] = useState<MapView>(() => mapMemory(instanceId).view ?? "top");
 
   if (status.isPending) return <p className="text-sm text-ink-3">Loading world map…</p>;
   if (status.isError) return <p className="text-sm text-rose">{status.error.message}</p>;
@@ -47,25 +46,32 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   }
 
   const tabs = dimensions.map((entry) => ({ id: entry.folder, label: dimensionLabel(entry.id) }));
-  const revision = status.data.rendering ? "busy" : `${status.data.lastFullPass ?? 0}`;
+  const chooseDimension = (folder: string) => {
+    setPicked(folder);
+    rememberView(instanceId, { folder });
+  };
+  const chooseView = (next: MapView) => {
+    setViewState(next);
+    rememberView(instanceId, { view: next });
+  };
 
   return (
     <div className="flex min-h-[32rem] flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {tabs.length > 1 ? (
-          <SectionTabs label="Dimensions" tabs={tabs} value={dimension.folder} onChange={setPicked} />
+          <SectionTabs label="Dimensions" tabs={tabs} value={dimension.folder} onChange={chooseDimension} />
         ) : (
           <p className="font-mono text-xs text-ink-3 uppercase">{dimensionLabel(dimension.id)}</p>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <SectionTabs<View>
+          <SectionTabs<MapView>
             label="View"
             tabs={[
               { id: "top", label: "Top" },
               { id: "free", label: "3D" },
             ]}
             value={view}
-            onChange={setView}
+            onChange={chooseView}
           />
           <span className="font-mono text-xs text-ink-3">{summaryLine(status.data)}</span>
         </div>
@@ -78,19 +84,21 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
       <div className="relative h-[70vh] min-h-[32rem] overflow-hidden rounded-panel border border-line bg-canvas">
         {view === "top" ? (
           <TileView
-            key={`${dimension.folder}-${revision}`}
+            key={dimension.folder}
             instanceId={instanceId}
             folder={dimension.folder}
             dimensionId={dimension.id}
             players={players}
+            revision={status.data.revision}
           />
         ) : (
           <FreeView
-            key={`${dimension.folder}-${revision}`}
+            key={dimension.folder}
             instanceId={instanceId}
             folder={dimension.folder}
             dimensionId={dimension.id}
             players={players}
+            revision={status.data.revision}
           />
         )}
       </div>
@@ -103,12 +111,22 @@ interface FreeViewProps {
   folder: string;
   dimensionId: string;
   players: readonly LivePlayer[];
+  revision: number;
 }
 
-function FreeView({ instanceId, folder, dimensionId, players }: FreeViewProps) {
+function FreeView({ instanceId, folder, dimensionId, players, revision }: FreeViewProps) {
   const source = useMemo(() => worldMapSource(instanceId, folder), [instanceId, folder]);
   const inDimension = useMemo(() => players.filter((player) => player.dimension === dimensionId), [players, dimensionId]);
-  return <WorldMapViewer source={source} players={inDimension} skinBase={worldMapSkinBase(instanceId)} />;
+  return (
+    <WorldMapViewer
+      source={source}
+      instanceId={instanceId}
+      folder={folder}
+      revision={revision}
+      players={inDimension}
+      skinBase={worldMapSkinBase(instanceId)}
+    />
+  );
 }
 
 function summaryLine(status: WorldMapStatus): string {

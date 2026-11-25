@@ -15,22 +15,41 @@ import {
   WebGLRenderer,
 } from "three";
 import type { LivePlayer } from "../../api/worldmap";
+import { type BundleEntry, decodeCellBundle } from "./cell-bundle";
 import { FreeFlyCamera } from "./free-fly-camera";
-import type { MapManifest, MapSource, SectionEntry } from "./map-source";
-import { decodeSectionMesh, type SectionMesh } from "./mesh-format";
+import { dimensionMemory, rememberDimension } from "./map-memory";
+import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-source";
+import { decodeSectionMesh } from "./mesh-format";
 import { PlayerMarkers } from "./player-markers";
 import { buildLayerGeometry } from "./section-geometry";
 
-/** Sections whose centre is closer than this to the camera are loaded, in blocks. */
+/** Cells whose nearest point is closer than this to the camera are loaded, in blocks. */
 const LOAD_DISTANCE = 160;
-/** Loaded sections farther than LOAD_DISTANCE plus this margin are released. */
+/** Loaded cells farther than LOAD_DISTANCE plus this margin are released. */
 const UNLOAD_MARGIN = 96;
-const MAX_CONCURRENT_LOADS = 4;
+/** A cell is four chunks and four sections on each side: 64 blocks, the grid the server bundles by. */
+const CELL_BLOCKS = 64;
+/** Cells per region side, since a region is 32 chunks. */
+const CELLS_PER_REGION = 8;
+const MAX_CONCURRENT_LOADS = 6;
+const RETRY_MS = 30_000;
+/** How often the camera's place is written to memory while it moves, in seconds. */
+const REMEMBER_EVERY = 0.25;
+const DEFAULT_PITCH = -0.45;
+const LOOK_DOWN_HEIGHT = 40;
 const SKY = new Color(0x9ec9f5);
 
-interface LoadedSection {
-  centre: Vector3;
-  group: Group;
+type CellState = "idle" | "queued" | "loading" | "loaded";
+
+interface Cell {
+  coord: CellCoord;
+  version: number;
+  /** Bumped when the cell's contents change, so a response that is still in flight is dropped. */
+  generation: number;
+  state: CellState;
+  retryAt: number;
+  sections: number;
+  groups: Group[];
   geometries: BufferGeometry[];
 }
 
@@ -42,20 +61,31 @@ interface Progress {
 
 export interface WorldMapViewerProps {
   source: MapSource;
+  instanceId: number;
+  folder: string;
+  /** Changes when the map changes. The viewer fetches the manifest again and streams only the cells that changed. */
+  revision: number;
   players: readonly LivePlayer[];
   skinBase: string;
 }
 
-const keyOf = (entry: SectionEntry) => `${entry.x},${entry.y},${entry.z}`;
-const centreOf = (entry: SectionEntry) => new Vector3(entry.x * 16 + 8, entry.y * 16 + 8, entry.z * 16 + 8);
-
-/** A free-fly 3D view of a region's section meshes, streamed in around the camera. */
-export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProps) {
+/** A free-fly 3D view of the section meshes, streamed in cell by cell around the camera. */
+export function WorldMapViewer({ source, instanceId, folder, revision, players, skinBase }: WorldMapViewerProps) {
   const playersRef = useRef(players);
   playersRef.current = players;
   const markersRef = useRef<PlayerMarkers | null>(null);
+  const reloadRef = useRef<(() => void) | null>(null);
+  const revisionRef = useRef(revision);
   const containerRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState<Progress>({ message: "Loading manifest", loaded: 0, total: 0 });
+
+  useEffect(() => {
+    if (revisionRef.current === revision) {
+      return;
+    }
+    revisionRef.current = revision;
+    reloadRef.current?.();
+  }, [revision]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -65,13 +95,15 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
     let disposed = false;
     let frame = 0;
     let last = performance.now();
+    let inFlight = 0;
+    let placed = false;
+    let sinceRemembered = 0;
     let manifest: MapManifest | undefined;
     let atlas: Texture | undefined;
+    let atlasKey: string | undefined;
     let materials: MeshBasicMaterial[] | undefined;
-    let reported = -1;
-    const loaded = new Map<string, LoadedSection>();
-    const queued = new Map<string, SectionEntry>();
-    const inFlight = new Set<string>();
+    let reported = "";
+    const cells = new Map<string, Cell>();
 
     const renderer = new WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -87,6 +119,22 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
     markers.update(playersRef.current);
     markersRef.current = markers;
 
+    let lastPlace = "";
+    const rememberPlace = () => {
+      const place = [fly.position.x, fly.position.y, fly.position.z, fly.yaw, fly.pitch].join(",");
+      if (place === lastPlace) {
+        return;
+      }
+      lastPlace = place;
+      rememberDimension(instanceId, folder, {
+        x: fly.position.x,
+        y: fly.position.y,
+        z: fly.position.z,
+        yaw: fly.yaw,
+        pitch: fly.pitch,
+      });
+    };
+
     let viewportHeight = 1;
     const resize = () => {
       const width = Math.max(1, container.clientWidth);
@@ -100,52 +148,98 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
     const observer = new ResizeObserver(resize);
     observer.observe(container);
 
+    const loadedSections = () => {
+      let count = 0;
+      for (const cell of cells.values()) {
+        if (cell.state === "loaded") count += cell.sections;
+      }
+      return count;
+    };
+
     const report = (message: string) => {
-      if (disposed || (message === "Streaming" && reported === loaded.size)) {
+      const loaded = loadedSections();
+      const key = `${message}:${loaded}`;
+      if (disposed || key === reported) {
         return;
       }
-      reported = loaded.size;
-      setProgress({ message, loaded: loaded.size, total: manifest?.sections.length ?? 0 });
+      reported = key;
+      setProgress({ message, loaded, total: manifest?.sections.length ?? 0 });
     };
 
-    const unload = (key: string) => {
-      const section = loaded.get(key);
-      if (!section) {
-        return;
+    const release = (cell: Cell) => {
+      for (const group of cell.groups) {
+        scene.remove(group);
       }
-      scene.remove(section.group);
-      section.geometries.forEach((geometry) => geometry.dispose());
-      loaded.delete(key);
+      cell.geometries.forEach((geometry) => geometry.dispose());
+      cell.groups = [];
+      cell.geometries = [];
+      cell.sections = 0;
+      cell.state = "idle";
     };
 
-    const addSection = (entry: SectionEntry, mesh: SectionMesh, layerMaterials: MeshBasicMaterial[]) => {
-      const group = new Group();
-      group.position.set(entry.x * 16, entry.y * 16, entry.z * 16);
-      const geometries: BufferGeometry[] = [];
-      mesh.layers.forEach((layer, index) => {
-        if (layer.quadCount === 0) {
-          return;
-        }
-        const geometry = buildLayerGeometry(layer);
-        geometries.push(geometry);
-        group.add(new Mesh(geometry, layerMaterials[index]));
-      });
-      scene.add(group);
-      loaded.set(keyOf(entry), { centre: centreOf(entry), group, geometries });
+    const addCell = (cell: Cell, entries: BundleEntry[], layerMaterials: MeshBasicMaterial[]) => {
+      const decoded = entries.map((entry) => ({ entry, mesh: decodeSectionMesh(entry.mesh) }));
+      for (const { entry, mesh } of decoded) {
+        const group = new Group();
+        group.position.set(entry.x * 16, entry.y * 16, entry.z * 16);
+        mesh.layers.forEach((layer, index) => {
+          if (layer.quadCount === 0) {
+            return;
+          }
+          const geometry = buildLayerGeometry(layer);
+          cell.geometries.push(geometry);
+          group.add(new Mesh(geometry, layerMaterials[index]));
+        });
+        scene.add(group);
+        cell.groups.push(group);
+      }
+      cell.sections = decoded.length;
+      cell.state = "loaded";
     };
 
-    const takeNearestQueued = (): [string, SectionEntry] | undefined => {
-      let best: [string, SectionEntry] | undefined;
+    const load = (cell: Cell, layerMaterials: MeshBasicMaterial[]) => {
+      const generation = cell.generation;
+      fetch(source.cellUrl(cell.coord, cell.version))
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`cell ${cell.coord.join(",")} failed with ${response.status}`);
+          }
+          return response.arrayBuffer();
+        })
+        .then((buffer) => {
+          if (disposed || cell.generation !== generation) {
+            return;
+          }
+          if (distanceToCell(cell.coord, fly.position) > LOAD_DISTANCE + UNLOAD_MARGIN) {
+            cell.state = "idle";
+            return;
+          }
+          addCell(cell, decodeCellBundle(buffer), layerMaterials);
+          report("Streaming");
+        })
+        .catch((error: unknown) => {
+          if (disposed || cell.generation !== generation) {
+            return;
+          }
+          cell.state = "idle";
+          cell.retryAt = performance.now() + RETRY_MS;
+          console.error(`could not load cell ${cell.coord.join(",")}`, error);
+        })
+        .finally(() => {
+          inFlight--;
+        });
+    };
+
+    const nearestQueued = (): Cell | undefined => {
+      let best: Cell | undefined;
       let bestDistance = Infinity;
-      for (const [key, entry] of queued) {
-        const distance = centreOf(entry).distanceTo(fly.position);
+      for (const cell of cells.values()) {
+        if (cell.state !== "queued") continue;
+        const distance = distanceToCell(cell.coord, fly.position);
         if (distance < bestDistance) {
-          best = [key, entry];
+          best = cell;
           bestDistance = distance;
         }
-      }
-      if (best) {
-        queued.delete(best[0]);
       }
       return best;
     };
@@ -155,34 +249,14 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
         return;
       }
       const layerMaterials = materials;
-      while (inFlight.size < MAX_CONCURRENT_LOADS) {
-        const next = takeNearestQueued();
+      while (inFlight < MAX_CONCURRENT_LOADS) {
+        const next = nearestQueued();
         if (!next) {
           return;
         }
-        const [key, entry] = next;
-        inFlight.add(key);
-        fetch(source.fileUrl(entry.file))
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`${entry.file} failed with ${response.status}`);
-            }
-            return response.arrayBuffer();
-          })
-          .then((buffer) => {
-            inFlight.delete(key);
-            if (disposed || centreOf(entry).distanceTo(fly.position) > LOAD_DISTANCE) {
-              return;
-            }
-            addSection(entry, decodeSectionMesh(buffer), layerMaterials);
-            report("Streaming");
-          })
-          .catch((error: unknown) => {
-            inFlight.delete(key);
-            if (!disposed) {
-              console.error(`could not load section ${key}`, error);
-            }
-          });
+        next.state = "loading";
+        inFlight++;
+        load(next, layerMaterials);
       }
     };
 
@@ -190,62 +264,105 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
       if (!manifest) {
         return;
       }
-      for (const [key, section] of loaded) {
-        if (section.centre.distanceTo(fly.position) > LOAD_DISTANCE + UNLOAD_MARGIN) {
-          unload(key);
-        }
-      }
-      for (const entry of manifest.sections) {
-        const key = keyOf(entry);
-        if (loaded.has(key) || inFlight.has(key) || queued.has(key)) {
-          continue;
-        }
-        if (centreOf(entry).distanceTo(fly.position) <= LOAD_DISTANCE) {
-          queued.set(key, entry);
+      const now = performance.now();
+      for (const cell of cells.values()) {
+        const distance = distanceToCell(cell.coord, fly.position);
+        if (cell.state === "loaded" && distance > LOAD_DISTANCE + UNLOAD_MARGIN) {
+          release(cell);
+        } else if (cell.state === "queued" && distance > LOAD_DISTANCE) {
+          cell.state = "idle";
+        } else if (cell.state === "idle" && distance <= LOAD_DISTANCE && now >= cell.retryAt) {
+          cell.state = "queued";
         }
       }
       pump();
+      report("Streaming");
     };
 
-    const placeCamera = (loadedManifest: MapManifest) => {
+    const placeLookingDown = (loadedManifest: MapManifest) => {
       if (loadedManifest.sections.length === 0) {
         return;
       }
       const xs = loadedManifest.sections.flatMap((entry) => [entry.x * 16, entry.x * 16 + 16]);
       const zs = loadedManifest.sections.flatMap((entry) => [entry.z * 16, entry.z * 16 + 16]);
-      const topY = Math.max(...loadedManifest.sections.map((entry) => entry.y * 16 + 16));
-      fly.position.set((Math.min(...xs) + Math.max(...xs)) / 2, topY + 40, (Math.min(...zs) + Math.max(...zs)) / 2 + 80);
+      fly.position.set((Math.min(...xs) + Math.max(...xs)) / 2, heightAboveTop(loadedManifest), (Math.min(...zs) + Math.max(...zs)) / 2 + 80);
       fly.yaw = 0;
-      fly.pitch = -0.45;
+      fly.pitch = DEFAULT_PITCH;
     };
 
-    source
-      .loadManifest()
-      .then((loadedManifest) => {
-        if (disposed) {
-          return;
+    const placeInitially = (loadedManifest: MapManifest) => {
+      const remembered = dimensionMemory(instanceId, folder);
+      if (remembered.x === undefined || remembered.z === undefined) {
+        placeLookingDown(loadedManifest);
+        return;
+      }
+      fly.position.set(remembered.x, remembered.y ?? heightAboveTop(loadedManifest), remembered.z);
+      fly.yaw = remembered.yaw ?? 0;
+      fly.pitch = remembered.pitch ?? DEFAULT_PITCH;
+    };
+
+    const applyManifest = (next: MapManifest) => {
+      manifest = next;
+      const versions = new Map(next.tiles.map((tile) => [`${tile.x},${tile.z}`, tile.version]));
+      const coords = new Map<string, CellCoord>();
+      for (const section of next.sections) {
+        const coord = cellOf(section);
+        coords.set(coord.join(","), coord);
+      }
+      for (const [key, cell] of cells) {
+        if (!coords.has(key)) {
+          cell.generation++;
+          release(cell);
+          cells.delete(key);
         }
-        manifest = loadedManifest;
-        placeCamera(loadedManifest);
-        atlas = new TextureLoader().load(source.fileUrl(loadedManifest.atlas));
-        atlas.colorSpace = SRGBColorSpace;
-        atlas.magFilter = NearestFilter;
-        atlas.minFilter = NearestFilter;
-        atlas.generateMipmaps = false;
-        atlas.flipY = false;
-        const map = atlas;
-        materials = [
-          new MeshBasicMaterial({ map, vertexColors: true }),
-          new MeshBasicMaterial({ map, vertexColors: true, alphaTest: 0.5 }),
-          new MeshBasicMaterial({ map, vertexColors: true, transparent: true, depthWrite: false }),
-        ];
-        report("Streaming");
-      })
-      .catch((error: unknown) => {
-        if (!disposed) {
-          setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, total: 0 });
+      }
+      for (const [key, coord] of coords) {
+        const version = versions.get(regionOf(coord)) ?? 0;
+        const existing = cells.get(key);
+        if (!existing) {
+          cells.set(key, { coord, version, generation: 0, state: "idle", retryAt: 0, sections: 0, groups: [], geometries: [] });
+        } else if (existing.version !== version) {
+          release(existing);
+          existing.version = version;
+          existing.generation++;
+          existing.retryAt = 0;
         }
-      });
+      }
+      if (!atlas || atlasKey !== next.packKey) {
+        const replacement = loadAtlas(source.fileUrl(next.atlas, next.packKey));
+        atlas?.dispose();
+        atlas = replacement;
+        atlasKey = next.packKey;
+        if (materials) {
+          for (const material of materials) {
+            material.map = replacement;
+            material.needsUpdate = true;
+          }
+        } else {
+          materials = createMaterials(replacement);
+        }
+      }
+      if (!placed) {
+        placeInitially(next);
+        placed = true;
+      }
+      report("Streaming");
+    };
+
+    const loadManifest = () => {
+      source
+        .loadManifest()
+        .then((loaded) => {
+          if (!disposed) applyManifest(loaded);
+        })
+        .catch((error: unknown) => {
+          if (!disposed) {
+            setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, total: 0 });
+          }
+        });
+    };
+    reloadRef.current = loadManifest;
+    loadManifest();
 
     const tick = (now: number) => {
       if (disposed) {
@@ -255,6 +372,13 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
       last = now;
       fly.update(seconds, camera);
       refresh();
+      if (placed) {
+        sinceRemembered += seconds;
+        if (sinceRemembered >= REMEMBER_EVERY) {
+          sinceRemembered = 0;
+          rememberPlace();
+        }
+      }
       markers.frame(camera, viewportHeight);
       renderer.render(scene, camera);
       frame = requestAnimationFrame(tick);
@@ -266,9 +390,14 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
       cancelAnimationFrame(frame);
       observer.disconnect();
       detachInput();
-      for (const key of [...loaded.keys()]) {
-        unload(key);
+      if (placed) {
+        rememberPlace();
       }
+      for (const cell of cells.values()) {
+        release(cell);
+      }
+      cells.clear();
+      reloadRef.current = null;
       markersRef.current = null;
       markers.dispose();
       atlas?.dispose();
@@ -276,7 +405,7 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [source, skinBase]);
+  }, [source, skinBase, instanceId, folder]);
 
   useEffect(() => {
     markersRef.current?.update(players);
@@ -300,8 +429,46 @@ export function WorldMapViewer({ source, players, skinBase }: WorldMapViewerProp
       >
         {progress.message} · {progress.loaded}/{progress.total} sections
         <br />
-        Click the view to fly. WASD move, Space and Shift up and down, Ctrl to go faster, Esc to release.
+        Click the view to fly. WASD move along the view, Space and Shift up and down, Ctrl to go faster, Esc to release.
       </div>
     </div>
   );
+}
+
+function cellOf(entry: SectionEntry): CellCoord {
+  return [Math.floor(entry.x / 4), Math.floor(entry.y / 4), Math.floor(entry.z / 4)];
+}
+
+/** The region a cell lies in, as the `x,z` key of the manifest's tiles. */
+function regionOf(coord: CellCoord): string {
+  return `${Math.floor(coord[0] / CELLS_PER_REGION)},${Math.floor(coord[2] / CELLS_PER_REGION)}`;
+}
+
+/** Distance in blocks from `point` to the nearest face of a cell, or zero when the point is inside it. */
+function distanceToCell(coord: CellCoord, point: Vector3): number {
+  const gap = (value: number, low: number) => Math.max(low - value, 0, value - (low + CELL_BLOCKS));
+  return Math.hypot(gap(point.x, coord[0] * CELL_BLOCKS), gap(point.y, coord[1] * CELL_BLOCKS), gap(point.z, coord[2] * CELL_BLOCKS));
+}
+
+/** The height that looks over the top of the map: the highest section, and a margin above it. */
+function heightAboveTop(manifest: MapManifest): number {
+  return Math.max(0, ...manifest.sections.map((entry) => entry.y * 16 + 16)) + LOOK_DOWN_HEIGHT;
+}
+
+function loadAtlas(url: string): Texture {
+  const texture = new TextureLoader().load(url);
+  texture.colorSpace = SRGBColorSpace;
+  texture.magFilter = NearestFilter;
+  texture.minFilter = NearestFilter;
+  texture.generateMipmaps = false;
+  texture.flipY = false;
+  return texture;
+}
+
+function createMaterials(map: Texture): MeshBasicMaterial[] {
+  return [
+    new MeshBasicMaterial({ map, vertexColors: true }),
+    new MeshBasicMaterial({ map, vertexColors: true, alphaTest: 0.5 }),
+    new MeshBasicMaterial({ map, vertexColors: true, transparent: true, depthWrite: false }),
+  ];
 }
