@@ -1,5 +1,5 @@
 //! Asks questions through the server console. A command is typed as an operator would type it, and its replies are the
-//! console lines the server prints next. Those lines are hidden from the console tab while the poller runs.
+//! console lines the server prints next. Those lines are hidden from the console tab while the poller waits for them.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -12,9 +12,6 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::time::{Instant, timeout_at};
 
 use super::now_millis;
-
-/// Replies stay hidden this long after each command, which is ample for the server to answer it.
-const HIDE_FOR_MS: i64 = 3_000;
 
 pub struct Console {
 	instances: InstanceManager,
@@ -44,7 +41,7 @@ impl Console {
 	/// Sends `command`, then collects the console lines that answer it until `done` is satisfied or `wait` runs out.
 	pub async fn ask(&self, command: &str, wait: Duration, mut done: impl FnMut(&[String]) -> bool) -> Result<Vec<String>> {
 		let mut lines = self.instances.console_lines();
-		self.hide_until.store(now_millis() + HIDE_FOR_MS, Ordering::Relaxed);
+		self.hide_until.store(now_millis() + wait.as_millis() as i64, Ordering::Relaxed);
 		self.instances.send_command(self.id, command).await?;
 		let deadline = Instant::now() + wait;
 		let mut replies = Vec::new();
@@ -60,6 +57,7 @@ impl Console {
 				Err(RecvError::Closed) => break,
 			}
 		}
+		self.hide_until.store(0, Ordering::Relaxed);
 		Ok(replies)
 	}
 }
