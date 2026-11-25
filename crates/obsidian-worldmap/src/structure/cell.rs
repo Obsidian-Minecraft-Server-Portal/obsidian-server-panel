@@ -15,7 +15,7 @@ const CHUNKS_PER_CELL: i32 = 4;
 const SECTIONS_PER_CELL: i32 = 4;
 const MAGIC: [u8; 4] = *b"OBSB";
 const VERSION: u16 = 1;
-const OPEN_SKY: u8 = 15;
+pub(super) const OPEN_SKY: u8 = 15;
 
 /// The stored volume record of the section at a chunk and section coordinate, or `None` when none is stored.
 pub trait SectionStore {
@@ -262,5 +262,68 @@ mod tests {
             }
         }
         assert_eq!(checked, 66 * 66 * 66);
+    }
+
+    fn air_record(chunk_x: i32, section_y: i32, chunk_z: i32) -> Vec<u8> {
+        Volume {
+            origin: [chunk_x * 16, section_y * 16, chunk_z * 16],
+            size: [16; 3],
+            palette: vec![AIR_ID],
+            indices: vec![0; 4096],
+            sky: VoxelLight::Uniform(OPEN_SKY),
+            block: VoxelLight::Uniform(0),
+            biomes: None,
+        }
+        .encode()
+    }
+
+    fn voxel_values(bundle: &[u8]) -> HashMap<[i32; 3], (u32, u8, u8)> {
+        let (_, records) = read_bundle(bundle).unwrap();
+        let mut values = HashMap::new();
+        for record in records {
+            let volume = Volume::decode(&record).unwrap();
+            for index in 0..volume.voxels() {
+                let x = index % usize::from(volume.size[0]);
+                let z = index / usize::from(volume.size[0]) % usize::from(volume.size[2]);
+                let y = index / (usize::from(volume.size[0]) * usize::from(volume.size[2]));
+                let world = [volume.origin[0] + x as i32, volume.origin[1] + y as i32, volume.origin[2] + z as i32];
+                let id = volume.palette[usize::from(volume.indices[index])];
+                values.insert(world, (id, volume.sky.at(index), volume.block.at(index)));
+            }
+        }
+        values
+    }
+
+    #[test]
+    fn a_missing_open_sky_air_section_reads_like_a_stored_one() {
+        let cell = [0, 0, 0];
+        let mut stored = HashMap::new();
+        let mut missing = HashMap::new();
+        for chunk_z in -1..=4 {
+            for chunk_x in -1..=4 {
+                for section_y in -1..=4 {
+                    let key = [chunk_x, section_y, chunk_z];
+                    if section_y == 2 {
+                        stored.insert(key, air_record(chunk_x, section_y, chunk_z));
+                    } else {
+                        let record = section_record(chunk_x, section_y, chunk_z);
+                        stored.insert(key, record.clone());
+                        missing.insert(key, record);
+                    }
+                }
+            }
+        }
+        let with_air = voxel_values(&assemble(cell, &mut World { sections: stored }).unwrap());
+        let without_air = voxel_values(&assemble(cell, &mut World { sections: missing }).unwrap());
+        let open_air = (AIR_ID, OPEN_SKY, 0);
+        for x in -1..=CELL_BLOCKS {
+            for y in -1..=CELL_BLOCKS {
+                for z in -1..=CELL_BLOCKS {
+                    let world = [x, y, z];
+                    let expected = with_air.get(&world).copied().unwrap_or(open_air);
+                    assert_eq!(without_air.get(&world).copied().unwrap_or(open_air), expected, "at {world:?}");
+                }
+            }
+        }
     }
 }

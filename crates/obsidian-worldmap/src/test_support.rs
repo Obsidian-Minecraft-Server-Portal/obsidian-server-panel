@@ -3,7 +3,7 @@
 use std::io::{Cursor, Write};
 use std::path::Path;
 
-use fastnbt::LongArray;
+use fastnbt::{ByteArray, LongArray};
 use serde::Serialize;
 
 type Cells<'a> = &'a [((usize, usize, usize), &'a str)];
@@ -26,6 +26,8 @@ struct Section {
 	block_states: Container,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	biomes: Option<Biomes>,
+	#[serde(rename = "SkyLight", skip_serializing_if = "Option::is_none")]
+	sky_light: Option<ByteArray>,
 }
 
 #[derive(Serialize)]
@@ -54,20 +56,25 @@ struct Biomes {
 /// One section at Y = 0 holding `blocks` given as section-local (x, y, z) and a block id. Every other block is air.
 /// Palette entries are compounds, as 1.13 to 1.21 write them.
 pub fn chunk_nbt(x: i32, z: i32, data_version: i32, blocks: &[((usize, usize, usize), &str)]) -> Vec<u8> {
-	build(x, z, data_version, blocks, false, None)
+	build(x, z, data_version, blocks, false, None, None)
 }
 
 /// Same chunk with bare palette names, as 26.x writes blocks that have no properties.
 pub fn chunk_nbt_bare(x: i32, z: i32, data_version: i32, blocks: &[((usize, usize, usize), &str)]) -> Vec<u8> {
-	build(x, z, data_version, blocks, true, None)
+	build(x, z, data_version, blocks, true, None, None)
 }
 
 /// Same chunk with biomes given per 4x4x4 cell. Cells not listed are `minecraft:plains`.
 pub fn chunk_nbt_with_biomes(x: i32, z: i32, data_version: i32, blocks: Cells<'_>, biomes: Cells<'_>) -> Vec<u8> {
-	build(x, z, data_version, blocks, false, Some(biomes))
+	build(x, z, data_version, blocks, false, Some(biomes), None)
 }
 
-fn build(x: i32, z: i32, data_version: i32, blocks: Cells<'_>, bare: bool, biomes: Option<Cells<'_>>) -> Vec<u8> {
+/// Same chunk as `chunk_nbt`, with the section's sky light set to `level` everywhere.
+pub fn chunk_nbt_with_sky_light(x: i32, z: i32, data_version: i32, level: u8) -> Vec<u8> {
+	build(x, z, data_version, &[], false, None, Some(level))
+}
+
+fn build(x: i32, z: i32, data_version: i32, blocks: Cells<'_>, bare: bool, biomes: Option<Cells<'_>>, sky_light: Option<u8>) -> Vec<u8> {
 	let mut palette = vec!["minecraft:air".to_owned()];
 	let mut indices = vec![0_u16; 4096];
 	for &((block_x, block_y, block_z), name) in blocks {
@@ -87,6 +94,7 @@ fn build(x: i32, z: i32, data_version: i32, blocks: Cells<'_>, bare: bool, biome
 				data: LongArray::new(pack(&indices, 4)),
 			},
 			biomes: biomes.map(biome_container),
+			sky_light: sky_light.map(|level| ByteArray::new(vec![((level << 4) | level) as i8; 2048])),
 		}],
 	};
 	fastnbt::to_bytes(&root).expect("synthetic chunk serializes")
