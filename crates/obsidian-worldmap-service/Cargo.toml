@@ -4,7 +4,9 @@ version = "0.0.0"
 edition = "2024"
 
 [dependencies]
+base64 = "0.22"
 chrono = { workspace = true }
+obsidian-auth = { workspace = true }
 obsidian-common = { workspace = true }
 obsidian-db = { workspace = true }
 obsidian-instances = { workspace = true }
@@ -13,6 +15,7 @@ obsidian-loaders = { workspace = true }
 obsidian-runner = { workspace = true }
 obsidian-worldmap = { workspace = true }
 piston-mc = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

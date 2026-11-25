@@ -4741,7 +4741,9 @@ dependencies = [
 name = "obsidian-worldmap-service"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
+ "obsidian-auth",
  "obsidian-common",
  "obsidian-db",
  "obsidian-instances",
@@ -4750,6 +4752,7 @@ dependencies = [
  "obsidian-runner",
  "obsidian-worldmap",
  "piston-mc",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2 0.11.1",

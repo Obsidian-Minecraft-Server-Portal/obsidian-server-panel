@@ -7,6 +7,7 @@ use crate::state::AppState;
 const INSTANCE_PREFIX: &str = "instance";
 const CONSOLE_CHANNEL: &str = "console";
 const BACKUPS_CHANNEL: &str = "backups";
+const PLAYERS_CHANNEL: &str = "players";
 const GLOBAL_TOPICS: [&str; 2] = ["tasks", "notifications"];
 
 pub async fn authorize(state: &AppState, user: &AuthUser, topic: &str) -> ApiResult<()> {
@@ -23,6 +24,7 @@ pub async fn authorize(state: &AppState, user: &AuthUser, topic: &str) -> ApiRes
 			let allowed = match channel {
 				CONSOLE_CHANNEL => granted.contains(Permission::CONSOLE_READ),
 				BACKUPS_CHANNEL => granted.contains(Permission::BACKUPS_DOWNLOAD),
+				PLAYERS_CHANNEL => granted.contains(Permission::MAP_PLAYERS),
 				_ => !granted.is_empty(),
 			};
 			if allowed {

@@ -1,0 +1,1 @@
+ALTER TABLE instance_worldmap ADD COLUMN rcon INTEGER NOT NULL DEFAULT 0;

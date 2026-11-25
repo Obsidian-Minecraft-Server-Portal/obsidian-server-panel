@@ -5,7 +5,7 @@ use color_eyre::Result;
 use color_eyre::eyre::eyre;
 use obsidian_auth::{AuthService, SecretBox};
 use obsidian_backups::BackupStore;
-use obsidian_common::{EventBus, Paths, TaskRegistry};
+use obsidian_common::{EventBus, Paths, TaskRegistry, TopicDemand};
 use obsidian_content::ContentManager;
 use obsidian_db::Db;
 use obsidian_instances::InstanceManager;
@@ -34,6 +34,7 @@ pub struct AppState {
 	pub scheduler: Arc<Scheduler>,
 	pub migrations: Arc<MigrationManager>,
 	pub worldmap: Arc<WorldMapService>,
+	pub demand: TopicDemand,
 }
 
 impl AppState {
@@ -77,6 +78,7 @@ impl AppState {
 		if let (Some(username), Some(password)) = (&config.admin.username, &config.admin.password) {
 			auth.bootstrap_admin(username, config.admin.email.as_deref(), password).await?;
 		}
+		let demand = TopicDemand::default();
 		let worldmap = WorldMapService::new(
 			db.clone(),
 			Arc::new(paths.clone()),
@@ -84,7 +86,8 @@ impl AppState {
 			(*instances).clone(),
 			tasks.clone(),
 			bus.clone(),
-		);
+			demand.clone(),
+		)?;
 		let state = Self {
 			config: Arc::new(config),
 			paths: Arc::new(paths),
@@ -99,6 +102,7 @@ impl AppState {
 			scheduler,
 			migrations,
 			worldmap,
+			demand,
 		};
 		state.instances.set_pre_start_hook(Arc::new(ResourcePackStart::new(state.clone())));
 		state.worldmap.start();

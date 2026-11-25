@@ -11,7 +11,7 @@ pub const MAX_FULL_PASS_HOURS: u32 = 8760;
 pub struct WorldMapSettings {
 	/// Shows the built-in map in the instance's Map tab.
 	pub enabled: bool,
-	/// Lets the panel download Mojang's client and server jars for this Minecraft version.
+	/// Lets the panel download Mojang's client and server jars for this Minecraft version, and player skins.
 	pub consent: bool,
 	/// Re-renders changed regions every few minutes while the server runs.
 	pub watch_while_running: bool,
@@ -19,6 +19,8 @@ pub struct WorldMapSettings {
 	pub render_after_stop: bool,
 	/// Renders every region again this often. Zero turns the full pass off.
 	pub full_pass_hours: u32,
+	/// Reads player positions over RCON rather than the console. RCON listens on every network interface, so it is opt-in.
+	pub rcon: bool,
 }
 
 impl Default for WorldMapSettings {
@@ -29,6 +31,7 @@ impl Default for WorldMapSettings {
 			watch_while_running: true,
 			render_after_stop: true,
 			full_pass_hours: 24,
+			rcon: false,
 		}
 	}
 }
@@ -43,19 +46,20 @@ impl WorldMapSettings {
 }
 
 pub async fn load(db: &Db, id: InstanceId) -> Result<WorldMapSettings> {
-	let row: Option<(bool, bool, bool, bool, i64)> = sqlx::query_as(
-		"SELECT enabled, consent, watch_while_running, render_after_stop, full_pass_hours FROM instance_worldmap WHERE instance_id = ?",
+	let row: Option<(bool, bool, bool, bool, i64, bool)> = sqlx::query_as(
+		"SELECT enabled, consent, watch_while_running, render_after_stop, full_pass_hours, rcon FROM instance_worldmap WHERE instance_id = ?",
 	)
 	.bind(id)
 	.fetch_optional(db.pool())
 	.await?;
 	Ok(match row {
-		Some((enabled, consent, watch_while_running, render_after_stop, full_pass_hours)) => WorldMapSettings {
+		Some((enabled, consent, watch_while_running, render_after_stop, full_pass_hours, rcon)) => WorldMapSettings {
 			enabled,
 			consent,
 			watch_while_running,
 			render_after_stop,
 			full_pass_hours: u32::try_from(full_pass_hours).unwrap_or(0),
+			rcon,
 		},
 		None => WorldMapSettings::default(),
 	})
@@ -63,11 +67,11 @@ pub async fn load(db: &Db, id: InstanceId) -> Result<WorldMapSettings> {
 
 pub async fn save(db: &Db, id: InstanceId, settings: &WorldMapSettings) -> Result<()> {
 	sqlx::query(
-		"INSERT INTO instance_worldmap (instance_id, enabled, consent, watch_while_running, render_after_stop, full_pass_hours)
-		VALUES (?, ?, ?, ?, ?, ?)
+		"INSERT INTO instance_worldmap (instance_id, enabled, consent, watch_while_running, render_after_stop, full_pass_hours, rcon)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(instance_id) DO UPDATE SET enabled = excluded.enabled, consent = excluded.consent,
 			watch_while_running = excluded.watch_while_running, render_after_stop = excluded.render_after_stop,
-			full_pass_hours = excluded.full_pass_hours",
+			full_pass_hours = excluded.full_pass_hours, rcon = excluded.rcon",
 	)
 	.bind(id)
 	.bind(settings.enabled)
@@ -75,6 +79,7 @@ pub async fn save(db: &Db, id: InstanceId, settings: &WorldMapSettings) -> Resul
 	.bind(settings.watch_while_running)
 	.bind(settings.render_after_stop)
 	.bind(i64::from(settings.full_pass_hours))
+	.bind(settings.rcon)
 	.execute(db.pool())
 	.await?;
 	Ok(())

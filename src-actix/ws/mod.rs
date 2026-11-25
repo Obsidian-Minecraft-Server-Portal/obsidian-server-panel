@@ -10,7 +10,7 @@ use actix_web::{HttpRequest, HttpResponse, get, rt, web};
 use actix_ws::{Message, MessageStream, Session};
 use futures_util::StreamExt;
 use obsidian_auth::AuthUser;
-use obsidian_common::Event;
+use obsidian_common::{DemandLease, Event};
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::broadcast::{self, error::RecvError};
@@ -42,7 +42,8 @@ pub async fn socket(
 	let credential = crate::auth::credential(&req).ok_or(crate::error::ApiError::Unauthorized)?;
 	let (response, session, stream) = actix_ws::handle(&req, payload)?;
 	let events = state.bus.subscribe();
-	rt::spawn(serve(session, stream, events, state.into_inner(), credential, user.0));
+	let lease = state.demand.lease();
+	rt::spawn(serve(session, stream, events, state.into_inner(), credential, user.0, lease));
 	Ok(response)
 }
 
@@ -53,6 +54,7 @@ async fn serve(
 	state: std::sync::Arc<AppState>,
 	credential: Credential,
 	mut user: AuthUser,
+	lease: DemandLease,
 ) {
 	let mut topics = HashSet::new();
 	let mut heartbeat = tokio::time::interval(HEARTBEAT);
@@ -64,10 +66,14 @@ async fn serve(
 				let Some(Ok(message)) = incoming else { break };
 				last_seen = Instant::now();
 				match message {
-					Message::Text(text) => match handle_op(&state, &user, &mut topics, &text).await {
-						Some(error) => session.text(error).await,
-						None => Ok(()),
-					},
+					Message::Text(text) => {
+						let reply = handle_op(&state, &user, &mut topics, &text).await;
+						lease.set(&topics);
+						match reply {
+							Some(error) => session.text(error).await,
+							None => Ok(()),
+						}
+					}
 					Message::Ping(bytes) => session.pong(&bytes).await,
 					Message::Close(_) => break,
 					_ => Ok(()),
@@ -76,7 +82,7 @@ async fn serve(
 			event = events.recv() => match event {
 				Ok(event) if access::concerns(&event, &user) => {
 					revalidation.reset();
-					revalidate(&mut session, &state, &credential, &mut user, &mut topics).await
+					revalidate(&mut session, &state, &credential, &mut user, &mut topics, &lease).await
 				}
 				Ok(event) if visible(&event, &user, &topics) => {
 					session.text(json!({ "topic": event.topic, "data": event.data }).to_string()).await
@@ -84,7 +90,7 @@ async fn serve(
 				Ok(_) | Err(RecvError::Lagged(_)) => Ok(()),
 				Err(RecvError::Closed) => break,
 			},
-			_ = revalidation.tick() => revalidate(&mut session, &state, &credential, &mut user, &mut topics).await,
+			_ = revalidation.tick() => revalidate(&mut session, &state, &credential, &mut user, &mut topics, &lease).await,
 			_ = heartbeat.tick() => {
 				if last_seen.elapsed() > CLIENT_TIMEOUT {
 					break;
@@ -105,8 +111,11 @@ async fn revalidate(
 	credential: &Credential,
 	user: &mut AuthUser,
 	topics: &mut HashSet<String>,
+	lease: &DemandLease,
 ) -> Result<(), actix_ws::Closed> {
-	match access::revalidate(state, credential, user, topics).await {
+	let outcome = access::revalidate(state, credential, user, topics).await;
+	lease.set(topics);
+	match outcome {
 		Revalidation::Close => Err(actix_ws::Closed),
 		Revalidation::Keep { revoked } => {
 			for reason in revoked {

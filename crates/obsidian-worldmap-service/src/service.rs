@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use chrono::Utc;
-use obsidian_common::{CommonError, EventBus, InstanceId, Paths, Result, TaskHandle, TaskRegistry};
+use obsidian_common::{CommonError, EventBus, InstanceId, Paths, Result, TaskHandle, TaskRegistry, TopicDemand};
 use obsidian_db::Db;
 use obsidian_instances::{Instance, InstanceManager, read_server_properties};
 use obsidian_java::JavaManager;
@@ -14,6 +14,7 @@ use obsidian_worldmap::level::discover;
 use serde_json::json;
 
 use crate::job::{self, BuildMode, OUTPUT_FOLDER, Sources};
+use crate::live::{LiveService, WorldMapPlayers};
 use crate::manifest::{self, WorldMapManifest};
 use crate::settings::{self, WorldMapSettings};
 use crate::state::{self, RenderState};
@@ -35,6 +36,7 @@ pub struct WorldMapService {
 	tasks: TaskRegistry,
 	bus: EventBus,
 	slots: Mutex<HashMap<InstanceId, Slot>>,
+	live: Arc<LiveService>,
 }
 
 impl WorldMapService {
@@ -45,8 +47,10 @@ impl WorldMapService {
 		instances: InstanceManager,
 		tasks: TaskRegistry,
 		bus: EventBus,
-	) -> Arc<Self> {
-		Arc::new(Self {
+		demand: TopicDemand,
+	) -> Result<Arc<Self>> {
+		let live = LiveService::new(db.clone(), Arc::clone(&paths), instances.clone(), bus.clone(), demand)?;
+		Ok(Arc::new(Self {
 			db,
 			paths,
 			java,
@@ -54,12 +58,26 @@ impl WorldMapService {
 			tasks,
 			bus,
 			slots: Mutex::new(HashMap::new()),
-		})
+			live,
+		}))
 	}
 
-	/// Starts the triggers that render after a stop, watch running servers and run full passes.
+	/// Starts the triggers that render after a stop, watch running servers and run full passes, and the live poller.
 	pub fn start(self: &Arc<Self>) {
 		policy::spawn(Arc::clone(self));
+		self.live.spawn();
+	}
+
+	/// The latest player reading. Players are only read while a client watches them and the server runs.
+	pub async fn players(&self, id: InstanceId) -> Result<WorldMapPlayers> {
+		if self.instances.status(id).await?.state != RunState::Running {
+			return Ok(WorldMapPlayers::offline("The server is not running."));
+		}
+		Ok(self.live.snapshot(id).unwrap_or_else(WorldMapPlayers::pending))
+	}
+
+	pub fn head_path(&self, name: &str) -> Option<PathBuf> {
+		self.live.head_path(name)
 	}
 
 	pub async fn settings(&self, id: InstanceId) -> Result<WorldMapSettings> {
@@ -71,6 +89,9 @@ impl WorldMapService {
 		self.instances.get(id).await?;
 		let previous = settings::load(&self.db, id).await?;
 		settings::save(&self.db, id, &update).await?;
+		if update.rcon != previous.rcon {
+			self.live.configure_rcon(id, update.rcon).await?;
+		}
 		if update.enabled && !previous.enabled {
 			self.request(id, BuildMode::Full);
 		}

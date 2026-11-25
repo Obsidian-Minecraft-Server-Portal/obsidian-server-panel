@@ -133,6 +133,10 @@ fn version_dir(paths: &Paths, mc_version: &str) -> PathBuf {
 	paths.cache_dir.join(CACHE_FOLDER).join("minecraft").join(mc_version)
 }
 
+pub fn client_jar_path(paths: &Paths, mc_version: &str) -> PathBuf {
+	version_dir(paths, mc_version).join(Artifact::Client.file_name())
+}
+
 fn tail(text: &str) -> String {
 	let mut tail: Vec<char> = text.chars().rev().take(400).collect();
 	tail.reverse();

@@ -2,7 +2,7 @@ use actix_files::NamedFile;
 use actix_web::{HttpResponse, get, post, put, web};
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
-use obsidian_worldmap_service::{WorldMapManifest, WorldMapSettings, WorldMapStatus};
+use obsidian_worldmap_service::{WorldMapManifest, WorldMapPlayers, WorldMapSettings, WorldMapStatus};
 
 use crate::auth::{AuthUser, require_instance_perm};
 use crate::error::ApiResult;
@@ -14,7 +14,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(render)
 		.service(status)
 		.service(manifest)
-		.service(file);
+		.service(file)
+		.service(players)
+		.service(head);
 }
 
 #[utoipa::path(
@@ -121,4 +123,32 @@ pub async fn file(state: web::Data<AppState>, user: AuthUser, path: web::Path<(I
 	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
 	let location = state.worldmap.file(id, &relative).await?;
 	NamedFile::open(location).map_err(|_| CommonError::NotFound(format!("map file {relative}")).into())
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/{id}/worldmap/players",
+	tag = "instances",
+	params(("id" = i64, Path, description = "Instance id")),
+	responses(
+		(status = 200, description = "The latest reading of who is online and where", body = WorldMapPlayers),
+		(status = 403, description = "Missing map.players permission"),
+	)
+)]
+#[get("/instances/{id}/worldmap/players")]
+pub async fn players(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>) -> ApiResult<web::Json<WorldMapPlayers>> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_PLAYERS).await?;
+	Ok(web::Json(state.worldmap.players(id).await?))
+}
+
+#[get("/instances/{id}/worldmap/heads/{file}")]
+pub async fn head(state: web::Data<AppState>, user: AuthUser, path: web::Path<(InstanceId, String)>) -> ApiResult<NamedFile> {
+	let (id, name) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_PLAYERS).await?;
+	let location = state
+		.worldmap
+		.head_path(&name)
+		.ok_or_else(|| CommonError::NotFound(format!("head {name}")))?;
+	NamedFile::open(location).map_err(|_| CommonError::NotFound(format!("head {name}")).into())
 }

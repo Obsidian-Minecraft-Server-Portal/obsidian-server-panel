@@ -3,6 +3,7 @@
 
 mod job;
 mod jars;
+mod live;
 mod manifest;
 mod policy;
 mod service;
@@ -13,6 +14,7 @@ mod status;
 #[cfg(test)]
 mod tests;
 
+pub use live::{LivePlayer, LiveState, WorldMapPlayers};
 pub use manifest::{WorldMapManifest, WorldMapSection, WorldMapTile};
 pub use service::WorldMapService;
 pub use settings::WorldMapSettings;
