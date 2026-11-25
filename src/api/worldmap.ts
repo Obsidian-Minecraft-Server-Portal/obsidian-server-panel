@@ -109,7 +109,7 @@ export function worldMapSource(instanceId: number, folder: string): MapSource {
   return {
     loadManifest: () => api.get<WorldMapManifest>(dimension),
     fileUrl: (file, version) => `${BASE}${root}/files/${file}${versionQuery(version)}`,
-    cellUrl: ([cx, cy, cz], version) => `${BASE}${dimension}/cells/${cx}/${cy}/${cz}${versionQuery(version)}`,
+    structureCellUrl: ([cx, cy, cz], version) => `${BASE}${dimension}/structure/cells/${cx}/${cy}/${cz}${versionQuery(version)}`,
   };
 }
 

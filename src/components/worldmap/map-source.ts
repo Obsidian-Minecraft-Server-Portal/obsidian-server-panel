@@ -32,6 +32,6 @@ export interface MapSource {
   loadManifest(): Promise<MapManifest>;
   /** A file in the map folder. `version` names the cached copy, so a redraw fetches a fresh one. */
   fileUrl(file: string, version?: number | string): string;
-  /** One cell's bundle of section meshes, named by the version of the region it lies in. */
-  cellUrl(cell: CellCoord, version: number): string;
+  /** One cell's structure bundle: its sections and the border around them, meshed by the viewer. */
+  structureCellUrl(cell: CellCoord, version: number): string;
 }

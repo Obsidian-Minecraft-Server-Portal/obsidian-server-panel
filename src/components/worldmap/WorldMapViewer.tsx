@@ -1,29 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  BufferGeometry,
   Color,
-  Group,
   MathUtils,
-  Mesh,
-  MeshBasicMaterial,
   NearestFilter,
   PerspectiveCamera,
   Scene,
   SRGBColorSpace,
   Texture,
   TextureLoader,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from "three";
 import type { LivePlayer } from "../../api/worldmap";
-import { type BundleEntry, decodeCellBundle } from "./cell-bundle";
 import { FreeFlyCamera } from "./free-fly-camera";
 import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-source";
-import { decodeSectionMesh } from "./mesh-format";
 import { PlayerMarkers } from "./player-markers";
-import { buildLayerGeometry } from "./section-geometry";
+import { CellMesher, type MeshedCell, workerCount } from "./structure/cell-mesher";
+import { type CellMaterials, type CellObject, buildCell, createCellMaterials } from "./structure/cell-scene";
+import type { BiomeJson, BlockTableJson } from "./structure/tables";
 
 /** Cells whose nearest point is closer than this to the camera are loaded, in blocks. */
 const LOAD_DISTANCE = 160;
@@ -54,9 +51,7 @@ interface Cell {
   generation: number;
   state: CellState;
   retryAt: number;
-  sections: number;
-  groups: Group[];
-  geometries: BufferGeometry[];
+  object?: CellObject;
 }
 
 interface Progress {
@@ -77,7 +72,7 @@ export interface WorldMapViewerProps {
   focus: MapFocus | null;
 }
 
-/** A free-fly 3D view of the section meshes, streamed in cell by cell around the camera. */
+/** A free-fly 3D view of the cells, streamed in around the camera. Each cell is meshed in a worker from its structure. */
 export function WorldMapViewer({ source, instanceId, folder, revision, players, skinBase, focus }: WorldMapViewerProps) {
   const playersRef = useRef(players);
   playersRef.current = players;
@@ -112,7 +107,9 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     let manifest: MapManifest | undefined;
     let atlas: Texture | undefined;
     let atlasKey: string | undefined;
-    let materials: MeshBasicMaterial[] | undefined;
+    let materials: CellMaterials | undefined;
+    let mesher: CellMesher | undefined;
+    let mesherKey: string | undefined;
     let reported = "";
     const cells = new Map<string, Cell>();
 
@@ -159,16 +156,16 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     const observer = new ResizeObserver(resize);
     observer.observe(container);
 
-    const loadedSections = () => {
+    const loadedCells = () => {
       let count = 0;
       for (const cell of cells.values()) {
-        if (cell.state === "loaded") count += cell.sections;
+        if (cell.state === "loaded") count++;
       }
       return count;
     };
 
     const report = (message: string) => {
-      const loaded = loadedSections();
+      const loaded = loadedCells();
       const busy = inFlight > 0;
       const key = `${message}:${loaded}:${busy}`;
       if (disposed || key === reported) {
@@ -179,47 +176,32 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     };
 
     const release = (cell: Cell) => {
-      for (const group of cell.groups) {
-        scene.remove(group);
+      if (cell.object) {
+        scene.remove(cell.object.group);
+        cell.object.dispose();
+        cell.object = undefined;
       }
-      cell.geometries.forEach((geometry) => geometry.dispose());
-      cell.groups = [];
-      cell.geometries = [];
-      cell.sections = 0;
       cell.state = "idle";
     };
 
-    const addCell = (cell: Cell, entries: BundleEntry[], layerMaterials: MeshBasicMaterial[]) => {
-      const inset: [number, number] = manifest ? [0.5 / manifest.atlasWidth, 0.5 / manifest.atlasHeight] : [0, 0];
-      const decoded = entries.map((entry) => ({ entry, mesh: decodeSectionMesh(entry.mesh, inset) }));
-      for (const { entry, mesh } of decoded) {
-        const group = new Group();
-        group.position.set(entry.x * 16, entry.y * 16, entry.z * 16);
-        mesh.layers.forEach((layer, index) => {
-          if (layer.quadCount === 0) {
-            return;
-          }
-          const geometry = buildLayerGeometry(layer);
-          cell.geometries.push(geometry);
-          group.add(new Mesh(geometry, layerMaterials[index]));
-        });
-        scene.add(group);
-        cell.groups.push(group);
-      }
-      cell.sections = decoded.length;
+    const attach = (cell: Cell, meshed: MeshedCell, cellMaterials: CellMaterials) => {
+      const object = buildCell(meshed.cell, meshed.layers, cellMaterials);
+      scene.add(object.group);
+      cell.object = object;
       cell.state = "loaded";
     };
 
-    const load = (cell: Cell, layerMaterials: MeshBasicMaterial[]) => {
+    const load = (cell: Cell, cellMesher: CellMesher, cellMaterials: CellMaterials) => {
       const generation = cell.generation;
-      fetch(source.cellUrl(cell.coord, cell.version))
+      fetch(source.structureCellUrl(cell.coord, cell.version))
         .then((response) => {
           if (!response.ok) {
             throw new Error(`cell ${cell.coord.join(",")} failed with ${response.status}`);
           }
           return response.arrayBuffer();
         })
-        .then((buffer) => {
+        .then((bundle) => cellMesher.mesh(bundle))
+        .then((meshed) => {
           if (disposed || cell.generation !== generation) {
             return;
           }
@@ -227,7 +209,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
             cell.state = "idle";
             return;
           }
-          addCell(cell, decodeCellBundle(buffer), layerMaterials);
+          attach(cell, meshed, cellMaterials);
           report("Streaming");
         })
         .catch((error: unknown) => {
@@ -258,10 +240,11 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     };
 
     const pump = () => {
-      if (!manifest || !materials) {
+      if (!manifest || !materials || !mesher) {
         return;
       }
-      const layerMaterials = materials;
+      const cellMesher = mesher;
+      const cellMaterials = materials;
       while (inFlight < MAX_CONCURRENT_LOADS) {
         const next = nearestQueued();
         if (!next) {
@@ -269,7 +252,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         }
         next.state = "loading";
         inFlight++;
-        load(next, layerMaterials);
+        load(next, cellMesher, cellMaterials);
       }
     };
 
@@ -314,6 +297,32 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       fly.pitch = remembered.pitch ?? DEFAULT_PITCH;
     };
 
+    const loadTables = (packKey: string) => {
+      mesherKey = packKey;
+      Promise.all([
+        fetchJson<BlockTableJson>(source.fileUrl(`${folder}/structure/blocks.json`, packKey)),
+        fetchJson<BiomeJson[]>(source.fileUrl(`${folder}/structure/biomes.json`, packKey)),
+      ])
+        .then(([blocks, biomes]) => {
+          if (disposed || mesherKey !== packKey) {
+            return;
+          }
+          mesher?.dispose();
+          mesher = new CellMesher(blocks, biomes, workerCount());
+          for (const cell of cells.values()) {
+            cell.generation++;
+            release(cell);
+            cell.retryAt = 0;
+          }
+          pump();
+        })
+        .catch((error: unknown) => {
+          if (!disposed) {
+            setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, busy: false });
+          }
+        });
+    };
+
     const applyManifest = (next: MapManifest) => {
       manifest = next;
       const versions = new Map(next.tiles.map((tile) => [`${tile.x},${tile.z}`, tile.version]));
@@ -333,7 +342,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         const version = versions.get(regionOf(coord)) ?? 0;
         const existing = cells.get(key);
         if (!existing) {
-          cells.set(key, { coord, version, generation: 0, state: "idle", retryAt: 0, sections: 0, groups: [], geometries: [] });
+          cells.set(key, { coord, version, generation: 0, state: "idle", retryAt: 0, object: undefined });
         } else if (existing.version !== version) {
           release(existing);
           existing.version = version;
@@ -347,13 +356,13 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         atlas = replacement;
         atlasKey = next.packKey;
         if (materials) {
-          for (const material of materials) {
-            material.map = replacement;
-            material.needsUpdate = true;
-          }
+          useAtlas(materials, replacement, next.atlasWidth, next.atlasHeight);
         } else {
-          materials = createMaterials(replacement);
+          materials = createCellMaterials(replacement, next.atlasWidth, next.atlasHeight);
         }
+      }
+      if (mesherKey !== next.packKey) {
+        loadTables(next.packKey);
       }
       if (!placed) {
         placeInitially(next);
@@ -413,11 +422,14 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         release(cell);
       }
       cells.clear();
+      mesher?.dispose();
       reloadRef.current = null;
       markersRef.current = null;
       markers.dispose();
       atlas?.dispose();
-      materials?.forEach((material) => material.dispose());
+      if (materials) {
+        disposeMaterials(materials);
+      }
       renderer.dispose();
       renderer.domElement.remove();
     };
@@ -434,7 +446,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       {(!streaming || progress.busy) && (
         <div className="pointer-events-none absolute top-3 right-3 flex items-center gap-2 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 font-mono text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
           {progress.busy && <span className="size-1.5 animate-pulse rounded-full bg-accent" />}
-          {streaming ? `${progress.loaded} sections` : progress.message}
+          {streaming ? `${progress.loaded} cells` : progress.message}
         </div>
       )}
       <div className="pointer-events-none absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
@@ -520,10 +532,27 @@ function loadAtlas(url: string): Texture {
   return texture;
 }
 
-function createMaterials(map: Texture): MeshBasicMaterial[] {
-  return [
-    new MeshBasicMaterial({ map, vertexColors: true }),
-    new MeshBasicMaterial({ map, vertexColors: true, alphaTest: 0.5 }),
-    new MeshBasicMaterial({ map, vertexColors: true, transparent: true, depthWrite: false }),
-  ];
+function useAtlas(materials: CellMaterials, texture: Texture, width: number, height: number): void {
+  for (const material of materials.instanced) {
+    material.uniforms.uAtlas.value = texture;
+    material.uniforms.uAtlasSize.value = new Vector2(width, height);
+  }
+  for (const material of materials.explicit) {
+    material.map = texture;
+    material.needsUpdate = true;
+  }
+}
+
+function disposeMaterials(materials: CellMaterials): void {
+  for (const material of [...materials.instanced, ...materials.explicit]) {
+    material.dispose();
+  }
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${url} failed with ${response.status}`);
+  }
+  return (await response.json()) as T;
 }
