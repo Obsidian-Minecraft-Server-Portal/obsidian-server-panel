@@ -15,11 +15,12 @@ use serde::Deserialize;
 
 use crate::background::pool;
 use crate::job::{Pending, other};
+use crate::pacing::Pacer;
 
 pub const STRUCTURE_FOLDER: &str = "structure";
 
 /// Writes the structure of every pending region, grouped by dimension, and rewrites that dimension's tables.
-pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas) -> Result<()> {
+pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas, pacer: &Pacer) -> Result<()> {
     let mut dimensions: BTreeMap<&Path, Vec<&Pending>> = BTreeMap::new();
     for item in pending {
         dimensions.entry(item.dimension_dir.as_path()).or_default().push(item);
@@ -32,7 +33,10 @@ pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas) -> Result<()> {
         let vocabularies = pool().install(|| {
             items
                 .par_iter()
-                .map(|item| pack.region_vocabulary(&item.region_path).map_err(other))
+                .map(|item| {
+                    pacer.wait_turn();
+                    pack.region_vocabulary(&item.region_path).map_err(other)
+                })
                 .collect::<Result<Vec<_>>>()
         })?;
         let mut block_states = BTreeSet::new();
@@ -48,6 +52,7 @@ pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas) -> Result<()> {
         fs::write(directory.join("biomes.json"), serde_json::to_vec(&pack.biome_table(biomes.names()))?)?;
         pool().install(|| {
             items.par_iter().try_for_each(|item| {
+                pacer.wait_turn();
                 let Some(stem) = item.region_path.file_stem() else { return Ok(()) };
                 let section_dir = directory.join("sections").join(stem);
                 if section_dir.exists() {

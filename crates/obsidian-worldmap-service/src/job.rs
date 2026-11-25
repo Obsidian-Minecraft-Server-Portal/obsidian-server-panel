@@ -16,6 +16,7 @@ use obsidian_worldmap::render::Renderer;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
+use crate::pacing::Pacer;
 use crate::pack_cache::PackCache;
 use crate::state::{RegionState, RenderState};
 use crate::structure_job;
@@ -54,6 +55,7 @@ pub struct Job {
 	pub state: RenderState,
 	pub instance: InstanceId,
 	pub packs: Arc<PackCache>,
+	pub pacer: Pacer,
 }
 
 pub struct Outcome {
@@ -88,7 +90,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	progress(0.0, "Loading the assets".into());
 	let mut renderer = Renderer::new(&pack.pack);
 	write_pack(&map_dir, &job.pack_key, renderer.atlas())?;
-	structure_job::write(&pending, &pack.pack, renderer.atlas())?;
+	structure_job::write(&pending, &pack.pack, renderer.atlas(), &job.pacer)?;
 	if mode == BuildMode::Full {
 		state.last_full_pass = Some(now);
 	}
@@ -97,6 +99,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	let mut rendered = 0;
 	let mut failed = Vec::new();
 	for (index, item) in pending.into_iter().enumerate() {
+		job.pacer.wait_turn();
 		progress(index as f32 / total as f32, format!("Rendering {}", item.key));
 		match renderer.render_region(&item.region_path, &item.dimension_dir) {
 			Ok(_) => {

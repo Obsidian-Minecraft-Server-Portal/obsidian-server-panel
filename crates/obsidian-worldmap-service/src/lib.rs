@@ -8,6 +8,7 @@ mod job;
 mod jars;
 mod live;
 mod manifest;
+mod pacing;
 mod pack_cache;
 mod policy;
 mod service;

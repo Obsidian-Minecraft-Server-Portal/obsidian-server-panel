@@ -17,6 +17,7 @@ use serde_json::json;
 use crate::background;
 use crate::bundle;
 use crate::detail;
+use crate::pacing::Pacer;
 use crate::pack_cache::PackCache;
 use crate::job::{self, BuildMode, OUTPUT_FOLDER, Sources};
 use crate::live::{LiveService, WorldMapPlayers};
@@ -323,6 +324,7 @@ impl WorldMapService {
 			state: state::load(&map_dir).await,
 			instance: instance.id,
 			packs: Arc::clone(&self.packs),
+			pacer: Pacer::new(self.instances.clone(), tokio::runtime::Handle::current(), instance.id),
 		};
 		let progress = task.clone();
 		let outcome = background::spawn(move || job::run(job, &mut |fraction, message| progress.progress(fraction, message))).await?;
