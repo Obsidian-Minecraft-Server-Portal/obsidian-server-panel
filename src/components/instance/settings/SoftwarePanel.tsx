@@ -76,6 +76,7 @@ export function SoftwarePanel({ view }: { view: InstanceView }) {
             mcVersion={draft.mcVersion}
             value={draft.loaderVersion}
             onChange={chooseBuild}
+            autoPick={draft.loader !== view.loader || draft.mcVersion !== view.mc_version}
             isDisabled={busy}
           />
         </div>

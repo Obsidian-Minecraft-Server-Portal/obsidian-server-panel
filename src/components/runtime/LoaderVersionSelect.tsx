@@ -8,9 +8,11 @@ interface LoaderVersionSelectProps {
   value: string | null;
   onChange: (version: string | null) => void;
   isDisabled?: boolean;
+  /** Whether an empty build takes the newest one. A saved instance keeps an empty build empty until its loader or version changes. */
+  autoPick?: boolean;
 }
 
-export function LoaderVersionSelect({ loader, mcVersion, value, onChange, isDisabled }: LoaderVersionSelectProps) {
+export function LoaderVersionSelect({ loader, mcVersion, value, onChange, isDisabled, autoPick = true }: LoaderVersionSelectProps) {
   const { data, isLoading, isError } = useLoaderVersions(loader, mcVersion);
   const options = useMemo(
     () => (data ?? []).map((version, index) => ({ id: version, label: version, detail: index === 0 ? "Latest" : undefined })),
@@ -20,8 +22,8 @@ export function LoaderVersionSelect({ loader, mcVersion, value, onChange, isDisa
   const latest = data?.[0] ?? null;
 
   useEffect(() => {
-    if (value === null && latest !== null && !isDisabled) onChange(latest);
-  }, [value, latest, isDisabled, onChange]);
+    if (autoPick && value === null && latest !== null && !isDisabled) onChange(latest);
+  }, [autoPick, value, latest, isDisabled, onChange]);
 
   const placeholder = !mcVersion
     ? "Choose a Minecraft version first"
