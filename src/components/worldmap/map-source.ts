@@ -4,7 +4,6 @@ export interface SectionEntry {
   y: number;
   z: number;
   file: string;
-  quads: number;
 }
 
 /** One region's overview tile. `version` is the time the region was drawn, which names its cached copies. */
