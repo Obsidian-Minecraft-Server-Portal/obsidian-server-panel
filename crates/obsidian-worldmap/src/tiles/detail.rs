@@ -7,8 +7,9 @@ use crate::biome::Biome;
 use crate::chunk::{BlockDefaults, Chunk};
 use crate::colour::{BlockColours, SPRITE_SIZE};
 use crate::error::Result;
+use crate::mesh::BlockWorld;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
-use crate::tiles::shade_factor;
+use crate::tiles::{shade_factor, slope_factor, top_height};
 
 /// Detail tiles along one side of a region.
 pub const TILES_PER_SIDE: usize = CHUNKS_PER_SIDE / 2;
@@ -30,19 +31,24 @@ pub fn render_detail_tile(
 	let (region_x, region_z) = region.region_coords();
 	let origin_x = region_x * CHUNKS_PER_SIDE as i32 + (tile_x * CHUNKS_PER_TILE) as i32;
 	let origin_z = region_z * CHUNKS_PER_SIDE as i32 + (tile_z * CHUNKS_PER_TILE) as i32;
-	let mut image = RgbaImage::new(TILE_PIXELS, TILE_PIXELS);
-	for local_z in tile_z * CHUNKS_PER_TILE..(tile_z + 1) * CHUNKS_PER_TILE {
+	let first_z = (tile_z * CHUNKS_PER_TILE).saturating_sub(1);
+	let mut chunks = Vec::new();
+	for local_z in first_z..(tile_z + 1) * CHUNKS_PER_TILE {
 		for local_x in tile_x * CHUNKS_PER_TILE..(tile_x + 1) * CHUNKS_PER_TILE {
-			let Some(nbt) = region.chunk_nbt(local_x, local_z)? else { continue };
-			let mut chunk = Chunk::parse(&nbt)?;
-			chunk.fill_default_properties(defaults);
-			draw_chunk(&mut image, &chunk, origin_x, origin_z, colours);
+			if let Some(nbt) = region.chunk_nbt(local_x, local_z)? {
+				chunks.push(Chunk::parse(&nbt)?);
+			}
 		}
+	}
+	let world = BlockWorld::new(chunks, defaults);
+	let mut image = RgbaImage::new(TILE_PIXELS, TILE_PIXELS);
+	for chunk in world.chunks() {
+		draw_chunk(&mut image, &world, chunk, origin_x, origin_z, colours);
 	}
 	Ok(image)
 }
 
-fn draw_chunk(image: &mut RgbaImage, chunk: &Chunk, origin_x: i32, origin_z: i32, colours: &mut BlockColours) {
+fn draw_chunk(image: &mut RgbaImage, world: &BlockWorld, chunk: &Chunk, origin_x: i32, origin_z: i32, colours: &mut BlockColours) {
 	let (offset_x, offset_z) = (chunk.x - origin_x, chunk.z - origin_z);
 	let inside = 0..CHUNKS_PER_TILE as i32;
 	if !inside.contains(&offset_x) || !inside.contains(&offset_z) {
@@ -58,14 +64,15 @@ fn draw_chunk(image: &mut RgbaImage, chunk: &Chunk, origin_x: i32, origin_z: i32
 			let (sprite, tint) = colours.texels(state, biome, world_x, world_z);
 			let left = ((offset_x as usize * CHUNK_BLOCKS + local_x) * SPRITE_SIZE as usize) as u32;
 			let top = ((offset_z as usize * CHUNK_BLOCKS + local_z) * SPRITE_SIZE as usize) as u32;
-			paint(image, left, top, sprite, tint, shade_factor(y));
+			let factor = shade_factor(y) * slope_factor(y, top_height(world, world_x, world_z - 1));
+			paint(image, left, top, sprite, tint, factor);
 		}
 	}
 }
 
 fn paint(image: &mut RgbaImage, left: u32, top: u32, sprite: &RgbaImage, tint: [u8; 3], shade: f32) {
 	for (x, y, texel) in sprite.enumerate_pixels() {
-		let colour: [u8; 3] = std::array::from_fn(|channel| (f32::from(texel[channel]) * f32::from(tint[channel]) / 255.0 * shade) as u8);
+		let colour: [u8; 3] = std::array::from_fn(|channel| (f32::from(texel[channel]) * f32::from(tint[channel]) / 255.0 * shade).min(255.0) as u8);
 		image.put_pixel(left + x, top + y, Rgba([colour[0], colour[1], colour[2], 255]));
 	}
 }

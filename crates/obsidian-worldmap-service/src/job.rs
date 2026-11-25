@@ -17,6 +17,8 @@ use sha2::{Digest, Sha256};
 use crate::state::{RegionState, RenderState};
 
 pub const OUTPUT_FOLDER: &str = "obsidian-map";
+/// Raised whenever the renderer draws differently, so existing maps redraw in full instead of mixing old and new output.
+const RENDERER_VERSION: u32 = 2;
 const COOLDOWN_SECS: i64 = 60;
 /// Offsets of the regions that share an edge with a region.
 const NEIGHBOURS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
@@ -118,6 +120,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 /// Names the pack by everything its renders depend on, so a new client, server, block report or mod set starts a full pass.
 pub fn pack_key(mc_version: &str, files: &[&Path]) -> Result<String> {
 	let mut hasher = Sha256::new();
+	hasher.update(format!("renderer {RENDERER_VERSION}\n").as_bytes());
 	hasher.update(mc_version.as_bytes());
 	for path in files {
 		let metadata = fs::metadata(path)?;
