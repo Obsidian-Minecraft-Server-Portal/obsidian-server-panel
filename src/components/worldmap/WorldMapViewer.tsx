@@ -453,7 +453,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
 
   const streaming = progress.message === "Streaming";
   return (
-    <div className="relative size-full overflow-hidden bg-black">
+    <div className="absolute inset-0 overflow-hidden bg-black">
       <div ref={containerRef} className="absolute inset-0" />
       {(!streaming || progress.busy) && (
         <div className="pointer-events-none absolute top-3 right-3 flex items-center gap-2 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 font-mono text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
