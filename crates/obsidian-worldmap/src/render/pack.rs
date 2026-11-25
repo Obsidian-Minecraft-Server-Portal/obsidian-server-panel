@@ -1,0 +1,68 @@
+//! The assets, biomes and block defaults that a set of renders shares, and the renderer that draws regions with them.
+
+use std::path::{Path, PathBuf};
+
+use crate::assets::AssetStore;
+use crate::atlas::{Atlas, block_textures};
+use crate::biome::BiomeRegistry;
+use crate::chunk::BlockDefaults;
+use crate::colour::BlockColours;
+use crate::error::Result;
+use crate::mesh::MeshContext;
+use crate::render::{RegionManifest, render_region};
+
+/// Where a pack's data comes from. Mods load after the client and server jars, so they override both, as in the game.
+pub struct PackSources<'a> {
+	pub client_jar: &'a Path,
+	pub server_jar: &'a Path,
+	pub mod_jars: &'a [PathBuf],
+	pub blocks_report: &'a Path,
+}
+
+/// Loaded once per build: the assets, biome definitions and block defaults every region is drawn with.
+pub struct Pack {
+	assets: AssetStore,
+	biomes: BiomeRegistry,
+	defaults: BlockDefaults,
+}
+
+impl Pack {
+	pub fn load(sources: &PackSources<'_>) -> Result<Self> {
+		let mut assets = AssetStore::default();
+		assets.add_jar(sources.client_jar)?;
+		let mut biomes = BiomeRegistry::default();
+		biomes.add_jar(sources.server_jar)?;
+		for jar in sources.mod_jars {
+			assets.add_jar(jar)?;
+			biomes.add_jar(jar)?;
+		}
+		let defaults = BlockDefaults::parse(&std::fs::read(sources.blocks_report)?)?;
+		Ok(Self { assets, biomes, defaults })
+	}
+}
+
+/// Draws the regions of one pack. The atlas is fixed by the pack, so every region's UVs agree with each other.
+pub struct Renderer<'a> {
+	pack: &'a Pack,
+	colours: BlockColours<'a>,
+	mesher: MeshContext<'a>,
+}
+
+impl<'a> Renderer<'a> {
+	pub fn new(pack: &'a Pack) -> Self {
+		let atlas = Atlas::build(&pack.assets, block_textures(&pack.assets).iter().map(String::as_str));
+		Self {
+			pack,
+			colours: BlockColours::new(&pack.assets, &pack.biomes),
+			mesher: MeshContext::new(&pack.assets, &pack.biomes, atlas),
+		}
+	}
+
+	pub fn atlas(&self) -> &Atlas {
+		self.mesher.atlas()
+	}
+
+	pub fn render_region(&mut self, region: &Path, dimension_dir: &Path) -> Result<RegionManifest> {
+		render_region(region, dimension_dir, &self.pack.defaults, &mut self.colours, &mut self.mesher)
+	}
+}

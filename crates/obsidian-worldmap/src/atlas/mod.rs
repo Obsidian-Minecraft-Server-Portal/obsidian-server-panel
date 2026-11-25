@@ -7,8 +7,8 @@ use image::imageops::{self, FilterType};
 use image::{Rgba, RgbaImage};
 
 use crate::assets::AssetStore;
-use crate::models::geometry::MISSING_TEXTURE;
-use crate::models::split_id;
+use crate::models::geometry::{MISSING_TEXTURE, resolve_texture};
+use crate::models::{Blockstate, resolve_model, split_id};
 
 pub const CELL: u32 = 16;
 const TRANSLUCENT_WORDS: [&str; 3] = ["glass", "ice", "water"];
@@ -73,6 +73,22 @@ impl Atlas {
 	fn slot(&self, texture: &str) -> Slot {
 		self.slots.get(texture).copied().unwrap_or_else(|| self.slots[MISSING_TEXTURE])
 	}
+}
+
+/// Every texture a blockstate in `assets` can draw. An atlas built from this set serves every region of the same assets,
+/// so UVs stay valid as regions are re-rendered one at a time.
+pub fn block_textures(assets: &AssetStore) -> BTreeSet<String> {
+	let mut textures = BTreeSet::new();
+	for (_, _, json) in assets.entries_under("blockstates/") {
+		let Ok(blockstate) = Blockstate::parse(json) else { continue };
+		for model in blockstate.model_ids() {
+			let Ok(resolved) = resolve_model(assets, model) else { continue };
+			let faces = resolved.elements.iter().flat_map(|element| element.faces.values().map(|face| face.texture.as_str()));
+			let references = resolved.textures.values().map(String::as_str).chain(faces);
+			textures.extend(references.map(|reference| resolve_texture(reference, &resolved.textures)));
+		}
+	}
+	textures
 }
 
 /// The top square of the texture, so animated frame stacks use their first frame.
@@ -148,6 +164,19 @@ mod tests {
 		assets.insert("minecraft".into(), "textures/block/b.png".into(), png(&[[0, 0, 0, 0], [0, 200, 0, 255]]));
 		assets.insert("minecraft".into(), "textures/block/glass.png".into(), png(&[[255, 255, 255, 255]]));
 		assets
+	}
+
+	#[test]
+	fn collects_the_textures_of_every_blockstate_model() {
+		let mut assets = assets();
+		assets.insert("minecraft".into(), "blockstates/log.json".into(), br#"{"variants": {"axis=y": {"model": "minecraft:block/log_y"}}}"#.to_vec());
+		assets.insert(
+			"minecraft".into(),
+			"models/block/log_y.json".into(),
+			br##"{"textures": {"side": "block/a"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#side"}, "down": {"texture": "minecraft:block/b"}}}]}"##.to_vec(),
+		);
+		let textures: Vec<String> = block_textures(&assets).into_iter().collect();
+		assert_eq!(textures, ["minecraft:block/a", "minecraft:block/b"]);
 	}
 
 	#[test]

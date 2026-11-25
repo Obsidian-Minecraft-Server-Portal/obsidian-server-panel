@@ -204,7 +204,7 @@ fn default_uv(direction: Direction, point: [f32; 3]) -> (f32, f32) {
 }
 
 /// Texture references without a namespace belong to `minecraft`, as they do in the game.
-fn resolve_texture(reference: &str, textures: &BTreeMap<String, String>) -> String {
+pub(crate) fn resolve_texture(reference: &str, textures: &BTreeMap<String, String>) -> String {
 	let resolved = match reference.strip_prefix('#') {
 		Some(variable) => textures.get(variable).map_or(MISSING_TEXTURE, String::as_str),
 		None => reference,

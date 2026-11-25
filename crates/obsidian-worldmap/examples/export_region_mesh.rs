@@ -9,6 +9,7 @@
 use std::path::PathBuf;
 
 use obsidian_worldmap::assets::AssetStore;
+use obsidian_worldmap::atlas::{Atlas, block_textures};
 use obsidian_worldmap::biome::BiomeRegistry;
 use obsidian_worldmap::chunk::{BlockDefaults, Chunk};
 use obsidian_worldmap::mesh::{BlockWorld, MeshContext, format};
@@ -47,7 +48,9 @@ fn main() -> obsidian_worldmap::Result<()> {
 		.flat_map(|chunk| chunk.sections().iter().map(move |section| (chunk.x, section.y(), chunk.z)))
 		.collect();
 
-	let mut context = MeshContext::new(&assets, &biomes, &world);
+	let atlas = Atlas::build(&assets, block_textures(&assets).iter().map(String::as_str));
+	let mut context = MeshContext::new(&assets, &biomes, atlas);
+	context.bake_world(&world);
 	context.atlas().image().save(output.join("atlas.png"))?;
 	let (atlas_width, atlas_height) = context.atlas().image().dimensions();
 	let mut entries = Vec::new();

@@ -31,6 +31,14 @@ impl AssetStore {
 			.map(Vec::as_slice)
 	}
 
+	/// Every entry under `folder` in any namespace, as (namespace, path inside it, bytes).
+	pub fn entries_under<'a>(&'a self, folder: &'a str) -> impl Iterator<Item = (&'a str, &'a str, &'a [u8])> + 'a {
+		self.entries
+			.iter()
+			.filter(move |((_, relative), _)| relative.starts_with(folder))
+			.map(|((namespace, relative), bytes)| (namespace.as_str(), relative.as_str(), bytes.as_slice()))
+	}
+
 	pub(crate) fn insert(&mut self, namespace: String, relative: String, bytes: Vec<u8>) {
 		self.entries.insert((namespace, relative), bytes);
 	}

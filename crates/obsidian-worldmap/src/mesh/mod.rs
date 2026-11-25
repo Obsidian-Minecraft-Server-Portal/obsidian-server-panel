@@ -41,6 +41,7 @@ struct Baked {
 }
 
 pub struct MeshContext<'a> {
+	assets: &'a AssetStore,
 	atlas: Atlas,
 	blocks: HashMap<String, Baked>,
 	tints: Tints,
@@ -48,34 +49,13 @@ pub struct MeshContext<'a> {
 }
 
 impl<'a> MeshContext<'a> {
-	/// Bakes every block state in the world and packs their textures. Build once per region, then mesh sections.
-	pub fn new(assets: &AssetStore, biomes: &'a BiomeRegistry, world: &BlockWorld) -> Self {
-		let mut states: BTreeMap<String, BlockState> = BTreeMap::new();
-		for chunk in world.chunks() {
-			for section in chunk.sections() {
-				for state in section.palette().iter().filter(|state| !is_air(&state.name)) {
-					states.entry(block_key(state)).or_insert_with(|| state.clone());
-				}
-			}
-		}
-		let baked: Vec<(String, Vec<Quad>)> = states
-			.iter()
-			.map(|(key, state)| (key.clone(), bake_state(assets, state)))
-			.collect();
-		let atlas = Atlas::build(
-			assets,
-			baked.iter().flat_map(|(_, quads)| quads.iter().map(|quad| quad.texture.as_str())),
-		);
-		let blocks = baked
-			.into_iter()
-			.map(|(key, quads)| {
-				let full = full_faces(&quads, &atlas);
-				(key, Baked { quads, full })
-			})
-			.collect();
+	/// `atlas` should pack every texture the assets can draw (see [`crate::atlas::block_textures`]), so UVs stay valid
+	/// while regions are rendered one at a time.
+	pub fn new(assets: &'a AssetStore, biomes: &'a BiomeRegistry, atlas: Atlas) -> Self {
 		Self {
+			assets,
 			atlas,
-			blocks,
+			blocks: HashMap::new(),
 			tints: Tints::new(assets),
 			biomes,
 		}
@@ -85,8 +65,28 @@ impl<'a> MeshContext<'a> {
 		&self.atlas
 	}
 
+	/// Bakes the block states of `world` that earlier worlds did not need. Call before meshing the sections of `world`.
+	pub fn bake_world(&mut self, world: &BlockWorld) {
+		let mut missing: BTreeMap<String, BlockState> = BTreeMap::new();
+		for chunk in world.chunks() {
+			for section in chunk.sections() {
+				for state in section.palette().iter().filter(|state| !is_air(&state.name)) {
+					let key = block_key(state);
+					if !self.blocks.contains_key(&key) {
+						missing.entry(key).or_insert_with(|| state.clone());
+					}
+				}
+			}
+		}
+		for (key, state) in missing {
+			let quads = bake_state(self.assets, &state);
+			let full = full_faces(&quads, &self.atlas);
+			self.blocks.insert(key, Baked { quads, full });
+		}
+	}
+
 	/// The section's visible faces. `None` when the chunk or section is not loaded.
-	pub fn mesh_section(&mut self, world: &BlockWorld, chunk_x: i32, section_y: i32, chunk_z: i32) -> Option<SectionMesh> {
+	pub fn mesh_section(&self, world: &BlockWorld, chunk_x: i32, section_y: i32, chunk_z: i32) -> Option<SectionMesh> {
 		let section = world.chunk(chunk_x, chunk_z)?.section(section_y)?;
 		let biomes = self.biomes;
 		let section_biomes: Vec<&Biome> = section.biome_palette().iter().map(|id| biomes.get(id)).collect();
@@ -195,6 +195,7 @@ fn encode_uv(uv: [f32; 2]) -> [u16; 2] {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::atlas::block_textures;
 	use crate::chunk::{BlockDefaults, Chunk};
 	use crate::test_support::{chunk_nbt, chunk_nbt_with_biomes};
 
@@ -233,12 +234,19 @@ mod tests {
 		BlockWorld::new([chunk], &BlockDefaults::default())
 	}
 
+	fn mesher<'a>(assets: &'a AssetStore, biomes: &'a BiomeRegistry, world: &BlockWorld) -> MeshContext<'a> {
+		let atlas = Atlas::build(assets, block_textures(assets).iter().map(String::as_str));
+		let mut context = MeshContext::new(assets, biomes, atlas);
+		context.bake_world(world);
+		context
+	}
+
 	#[test]
 	fn hides_the_face_shared_by_two_touching_opaque_blocks() {
 		let assets = stone_assets();
 		let biomes = BiomeRegistry::default();
 		let world = world_with(&[((0, 0, 0), "minecraft:stone"), ((1, 0, 0), "minecraft:stone")]);
-		let mut context = MeshContext::new(&assets, &biomes, &world);
+		let context = mesher(&assets, &biomes, &world);
 		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
 		assert_eq!(mesh.layers[Layer::Opaque as usize].len(), 10);
 		assert!(mesh.layers[Layer::Cutout as usize].is_empty());
@@ -249,7 +257,7 @@ mod tests {
 		let assets = stone_assets();
 		let biomes = BiomeRegistry::default();
 		let world = world_with(&[((15, 15, 15), "minecraft:stone")]);
-		let mut context = MeshContext::new(&assets, &biomes, &world);
+		let context = mesher(&assets, &biomes, &world);
 		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
 		assert_eq!(mesh.layers[Layer::Opaque as usize].len(), 6);
 		for quad in mesh.layers.iter().flatten() {
@@ -279,7 +287,7 @@ mod tests {
 				..Biome::PLAINS
 			},
 		);
-		let mut context = MeshContext::new(&assets, &biomes, &world);
+		let context = mesher(&assets, &biomes, &world);
 		let mesh = context.mesh_section(&world, 0, 0, 0).unwrap();
 		let quads: Vec<&MeshQuad> = mesh.layers.iter().flatten().collect();
 		assert_eq!(quads.len(), 1);

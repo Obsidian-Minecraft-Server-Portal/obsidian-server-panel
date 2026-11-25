@@ -52,9 +52,26 @@ impl Choice {
 			Self::Many(list) => list.first().cloned(),
 		}
 	}
+
+	fn all(&self) -> std::slice::Iter<'_, Variant> {
+		match self {
+			Self::Single(variant) => std::slice::from_ref(variant).iter(),
+			Self::Many(list) => list.iter(),
+		}
+	}
 }
 
 impl Blockstate {
+	/// Every model the blockstate can draw, whatever the properties.
+	pub fn model_ids(&self) -> Vec<&str> {
+		self.variants
+			.values()
+			.flat_map(Choice::all)
+			.chain(self.multipart.iter().flat_map(|part| part.apply.all()))
+			.map(|variant| variant.model.as_str())
+			.collect()
+	}
+
 	pub fn parse(json: &[u8]) -> Result<Self> {
 		serde_json::from_slice(json).map_err(|error| WorldmapError::Asset(format!("blockstate JSON: {error}")))
 	}
