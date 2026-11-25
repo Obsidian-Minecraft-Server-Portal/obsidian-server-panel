@@ -1,5 +1,6 @@
 use actix_files::NamedFile;
 use actix_web::http::header::{self, HeaderValue};
+use actix_web::middleware::Compress;
 use actix_web::{HttpRequest, HttpResponse, Responder, get, post, put, web};
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
@@ -20,7 +21,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(players)
 		.service(skin)
 		.service(detail)
-		.service(structure_cell);
+		.service(
+			web::resource("/instances/{id}/worldmap/dimensions/{folder}/structure/cells/{cx}/{cy}/{cz}")
+				.wrap(Compress::default())
+				.route(web::get().to(structure_cell)),
+		);
 }
 
 #[utoipa::path(
@@ -140,8 +145,8 @@ pub async fn file(
 	Ok(response)
 }
 
-/// The structure of one cell: its sections and the border around them, as one bundle. A `v` query marks the copy as immutable.
-#[get("/instances/{id}/worldmap/dimensions/{folder}/structure/cells/{cx}/{cy}/{cz}")]
+/// The structure of one cell: its sections and the border around them, as one bundle, compressed when the client accepts it.
+/// A `v` query marks the copy as immutable.
 pub async fn structure_cell(
 	state: web::Data<AppState>,
 	user: AuthUser,
