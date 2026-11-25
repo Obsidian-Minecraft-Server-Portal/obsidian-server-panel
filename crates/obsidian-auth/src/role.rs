@@ -36,12 +36,13 @@ impl Role {
 	}
 
 	pub fn permissions(self) -> Permission {
-		let viewer = Permission::CONSOLE_READ | Permission::FILES_READ;
+		let viewer = Permission::CONSOLE_READ | Permission::FILES_READ | Permission::MAP_VIEW;
 		let operator = viewer
 			| Permission::CONSOLE_SEND
 			| Permission::POWER_START
 			| Permission::POWER_STOP
-			| Permission::POWER_RESTART;
+			| Permission::POWER_RESTART
+			| Permission::MAP_PLAYERS;
 		let moderator = operator
 			| Permission::POWER_KILL
 			| Permission::FILES_WRITE

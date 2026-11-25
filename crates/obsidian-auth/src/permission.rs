@@ -23,10 +23,12 @@ bitflags! {
 		const PLAYERS_MANAGE = 1 << 17;
 		const SETTINGS_EDIT = 1 << 18;
 		const MEMBERS_MANAGE = 1 << 19;
+		const MAP_VIEW = 1 << 20;
+		const MAP_PLAYERS = 1 << 21;
 	}
 }
 
-pub const PERMISSION_NAMES: [(&str, Permission); 20] = [
+pub const PERMISSION_NAMES: [(&str, Permission); 22] = [
 	("console.read", Permission::CONSOLE_READ),
 	("console.send", Permission::CONSOLE_SEND),
 	("power.start", Permission::POWER_START),
@@ -47,6 +49,8 @@ pub const PERMISSION_NAMES: [(&str, Permission); 20] = [
 	("players.manage", Permission::PLAYERS_MANAGE),
 	("settings.edit", Permission::SETTINGS_EDIT),
 	("members.manage", Permission::MEMBERS_MANAGE),
+	("map.view", Permission::MAP_VIEW),
+	("map.players", Permission::MAP_PLAYERS),
 ];
 
 impl Permission {
