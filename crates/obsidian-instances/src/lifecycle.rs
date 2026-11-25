@@ -79,6 +79,9 @@ impl InstanceManager {
 		if self.is_migrating(id) {
 			return Err(CommonError::Conflict("a migration is running for this server".into()));
 		}
+		if !self.is_active_instance(id) && RunnerClient::connect(&self.paths, id).await.is_ok() {
+			return Err(CommonError::Conflict("the server is still stopping".into()));
+		}
 		if let Some(hook) = self.pre_start.get()
 			&& let Err(error) = hook.before_start(id).await
 		{
@@ -118,6 +121,7 @@ impl InstanceManager {
 			self.stop(id).await?;
 			let timeout = Duration::from_secs(self.stop_timeout().await?) + RESTART_GRACE;
 			self.wait_inactive(id, timeout).await?;
+			self.wait_runner_exit(id, timeout).await?;
 		}
 		self.start(id).await
 	}
@@ -130,14 +134,8 @@ impl InstanceManager {
 			if let Err(error) = self.stop(id).await {
 				tracing::warn!(%error, instance = id, "failed to stop server");
 			}
-			let pid_file = self.paths.runners_dir.join(format!("{id}.pid"));
-			let deadline = Instant::now() + limit;
-			while tokio::fs::try_exists(&pid_file).await.unwrap_or(false) {
-				if Instant::now() >= deadline {
-					tracing::warn!(instance = id, "server did not stop before shutdown");
-					break;
-				}
-				tokio::time::sleep(WAIT_POLL).await;
+			if self.wait_runner_exit(id, limit).await.is_err() {
+				tracing::warn!(instance = id, "server did not stop before shutdown");
 			}
 		}))
 		.await;
@@ -445,6 +443,18 @@ impl InstanceManager {
 			.fetch_optional(self.db.pool())
 			.await?;
 		Ok(value.and_then(|value| value.trim().parse().ok()).unwrap_or(DEFAULT_STOP_TIMEOUT_SECS))
+	}
+
+	async fn wait_runner_exit(&self, id: InstanceId, limit: Duration) -> Result<()> {
+		let pid_file = self.paths.runners_dir.join(format!("{id}.pid"));
+		let deadline = Instant::now() + limit;
+		while tokio::fs::try_exists(&pid_file).await.unwrap_or(false) {
+			if Instant::now() >= deadline {
+				return Err(CommonError::Conflict("the server did not stop in time".into()));
+			}
+			tokio::time::sleep(WAIT_POLL).await;
+		}
+		Ok(())
 	}
 
 	async fn wait_inactive(&self, id: InstanceId, limit: Duration) -> Result<()> {

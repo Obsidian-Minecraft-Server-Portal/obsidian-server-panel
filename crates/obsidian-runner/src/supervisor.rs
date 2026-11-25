@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -43,8 +44,8 @@ pub async fn supervise(paths: &Paths, id: InstanceId, config: RunnerConfig) -> R
 	tokio::time::sleep(EXIT_GRACE).await;
 
 	server.abort();
-	let _ = tokio::fs::remove_file(&socket).await;
-	let _ = tokio::fs::remove_file(&pid_file).await;
+	let _ = server.await;
+	remove_pid_file_if_ours(&pid_file).await;
 	outcome.map(|_| ())
 }
 
@@ -80,6 +81,12 @@ async fn run_server(
 	shared.detach_stdin().await;
 	let _ = tokio::join!(stdout, stderr);
 	Ok(status.code())
+}
+
+async fn remove_pid_file_if_ours(pid_file: &Path) {
+	if tokio::fs::read_to_string(pid_file).await.is_ok_and(|pid| pid.trim() == std::process::id().to_string()) {
+		let _ = tokio::fs::remove_file(pid_file).await;
+	}
 }
 
 async fn pump<R: AsyncRead + Unpin>(reader: Option<R>, shared: Arc<Shared>) {
