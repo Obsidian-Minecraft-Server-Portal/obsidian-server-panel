@@ -28,6 +28,7 @@ export class CellMesher {
   private readonly busy = new Map<Worker, Job>();
   private readonly queue: Job[] = [];
   private nextId = 1;
+  private paused = false;
 
   constructor(blocks: BlockTableJson, biomes: BiomeJson[], count: number) {
     for (let index = 0; index < count; index++) {
@@ -58,8 +59,17 @@ export class CellMesher {
     }
   }
 
+  pause(): void {
+    this.paused = true;
+  }
+
+  resume(): void {
+    this.paused = false;
+    this.dispatch();
+  }
+
   private dispatch(): void {
-    while (this.idle.length > 0 && this.queue.length > 0) {
+    while (!this.paused && this.idle.length > 0 && this.queue.length > 0) {
       const worker = this.idle.pop()!;
       const job = this.queue.shift()!;
       this.busy.set(worker, job);

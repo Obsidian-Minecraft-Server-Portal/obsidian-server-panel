@@ -240,7 +240,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     };
 
     const pump = () => {
-      if (!manifest || !materials || !mesher) {
+      if (document.hidden || !manifest || !materials || !mesher) {
         return;
       }
       const cellMesher = mesher;
@@ -255,6 +255,16 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         load(next, cellMesher, cellMaterials);
       }
     };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        mesher?.pause();
+        return;
+      }
+      mesher?.resume();
+      pump();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const refresh = () => {
       if (!manifest) {
@@ -309,6 +319,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
           }
           mesher?.dispose();
           mesher = new CellMesher(blocks, biomes, workerCount());
+          if (document.hidden) mesher.pause();
           for (const cell of cells.values()) {
             cell.generation++;
             release(cell);
@@ -414,6 +425,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       detachInput();
       if (placed) {
         rememberPlace();
