@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::error::{Result, WorldmapError};
 
-const TEXTURE_HOST: &str = "https://textures.minecraft.net/";
+const TEXTURE_HOST: &str = "textures.minecraft.net/";
 const SKIN_SIZES: [(u32, u32); 2] = [(64, 64), (64, 32)];
 
 /// The arm model a skin is drawn with: wide arms are four pixels across, slim arms three.
@@ -59,14 +59,18 @@ pub fn default_is_alex(uuid: &str) -> bool {
 pub fn skin_ref(textures_json: &[u8]) -> Option<SkinRef> {
 	let profile: Profile = serde_json::from_slice(textures_json).ok()?;
 	let skin = profile.textures.skin?;
-	if !skin.url.starts_with(TEXTURE_HOST) {
+	let rest = skin.url.strip_prefix("https://").or_else(|| skin.url.strip_prefix("http://"))?;
+	if !rest.starts_with(TEXTURE_HOST) {
 		return None;
 	}
 	let model = match skin.metadata.and_then(|metadata| metadata.model).as_deref() {
 		Some("slim") => Model::Slim,
 		_ => Model::Wide,
 	};
-	Some(SkinRef { url: skin.url, model })
+	Some(SkinRef {
+		url: format!("https://{rest}"),
+		model,
+	})
 }
 
 /// Rejects anything that is not a player skin, so a cached skin is always one the viewer can draw.
@@ -132,8 +136,12 @@ mod tests {
 		);
 		let slim = br#"{"textures": {"SKIN": {"url": "https://textures.minecraft.net/texture/def", "metadata": {"model": "slim"}}}}"#;
 		assert_eq!(skin_ref(slim).map(|skin| skin.model), Some(Model::Slim));
+		let plain = br#"{"textures": {"SKIN": {"url": "http://textures.minecraft.net/texture/abc"}}}"#;
+		assert_eq!(skin_ref(plain).map(|skin| skin.url).as_deref(), Some("https://textures.minecraft.net/texture/abc"));
 		let elsewhere = br#"{"textures": {"SKIN": {"url": "https://example.com/skin.png"}}}"#;
 		assert_eq!(skin_ref(elsewhere), None);
+		let lookalike = br#"{"textures": {"SKIN": {"url": "http://textures.minecraft.net.example.com/skin.png"}}}"#;
+		assert_eq!(skin_ref(lookalike), None);
 		assert_eq!(skin_ref(br#"{"textures": {}}"#), None);
 	}
 
