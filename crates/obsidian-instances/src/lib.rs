@@ -18,6 +18,7 @@ mod software;
 mod store;
 
 pub use hooks::PreStartHook;
+pub use live::{ConsoleFilter, ConsoleLine};
 pub use manager::InstanceManager;
 pub use migration_lock::MigrationLock;
 pub use properties::{read as read_server_properties, write as write_server_properties};

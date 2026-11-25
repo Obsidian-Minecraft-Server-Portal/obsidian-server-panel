@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::fmt;
+use std::sync::Arc;
 
 use obsidian_common::InstanceId;
 use obsidian_runner::RunState;
@@ -8,11 +10,39 @@ use crate::roster::Roster;
 
 pub const CONSOLE_LINES: usize = 1000;
 
+/// A console line as the server printed it, before any filter.
+#[derive(Debug, Clone)]
+pub struct ConsoleLine {
+	pub instance: InstanceId,
+	pub text: String,
+}
+
+/// Keeps matching console lines out of the console tab and its topic while it is set.
+#[derive(Clone)]
+pub struct ConsoleFilter(Arc<dyn Fn(&str) -> bool + Send + Sync>);
+
+impl ConsoleFilter {
+	pub fn new(hides: impl Fn(&str) -> bool + Send + Sync + 'static) -> Self {
+		Self(Arc::new(hides))
+	}
+
+	pub fn hides(&self, line: &str) -> bool {
+		(self.0)(line)
+	}
+}
+
+impl fmt::Debug for ConsoleFilter {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str("ConsoleFilter")
+	}
+}
+
 #[derive(Debug, Default)]
 pub struct Live {
 	pub status: InstanceStatus,
 	pub port: u16,
 	pub console: VecDeque<String>,
+	pub console_filter: Option<ConsoleFilter>,
 	pub stats: InstanceStats,
 	pub roster: Roster,
 	pub upnp_port: Option<u16>,

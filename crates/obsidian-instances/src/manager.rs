@@ -7,10 +7,11 @@ use obsidian_common::{CommonError, EventBus, InstanceId, Loader, Paths, Result, 
 use obsidian_db::Db;
 use obsidian_java::JavaManager;
 use obsidian_net::UpnpManager;
+use tokio::sync::broadcast;
 
 use crate::hooks::PreStartHook;
 use crate::install::InstallOutcome;
-use crate::live::Live;
+use crate::live::{ConsoleFilter, ConsoleLine, Live};
 use crate::migration_lock::MigrationLock;
 use crate::settings::UPNP_DEFAULT_KEY;
 use crate::software::software_change;
@@ -21,6 +22,7 @@ const DEFAULT_PORT: u16 = 25565;
 const DEFAULT_MEMORY_MIN_MB: u32 = 1024;
 const DEFAULT_MEMORY_MAX_MB: u32 = 2048;
 const MAX_NAME_CHARS: usize = 64;
+const CONSOLE_TAP_CAPACITY: usize = 4096;
 
 #[derive(Clone)]
 pub struct InstanceManager {
@@ -35,6 +37,7 @@ pub struct InstanceManager {
 	pub(crate) migrating: Arc<Mutex<HashSet<InstanceId>>>,
 	pub(crate) monitor: Arc<AtomicBool>,
 	pub(crate) pre_start: OnceLock<Arc<dyn PreStartHook>>,
+	pub(crate) console_tap: broadcast::Sender<ConsoleLine>,
 }
 
 impl InstanceManager {
@@ -58,11 +61,22 @@ impl InstanceManager {
 			migrating: Arc::default(),
 			monitor: Arc::new(AtomicBool::new(false)),
 			pre_start: OnceLock::new(),
+			console_tap: broadcast::channel(CONSOLE_TAP_CAPACITY).0,
 		}
 	}
 
 	pub fn set_pre_start_hook(&self, hook: Arc<dyn PreStartHook>) {
 		let _ = self.pre_start.set(hook);
+	}
+
+	/// Every console line of every instance, before filtering. Lines arrive in the order the server printed them.
+	pub fn console_lines(&self) -> broadcast::Receiver<ConsoleLine> {
+		self.console_tap.subscribe()
+	}
+
+	/// Keeps the lines `filter` matches out of the console tab and its topic. They still reach [`Self::console_lines`].
+	pub fn set_console_filter(&self, id: InstanceId, filter: Option<ConsoleFilter>) {
+		self.live().entry(id).or_default().console_filter = filter;
 	}
 
 	pub async fn create(&self, request: CreateInstance, owner: UserId) -> Result<Instance> {

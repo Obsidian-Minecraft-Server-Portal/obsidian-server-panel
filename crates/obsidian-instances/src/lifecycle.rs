@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 
 use crate::crash;
 use crate::install::load_launch;
-use crate::live::{self, console_topic, status_topic};
+use crate::live::{self, ConsoleLine, console_topic, status_topic};
 use crate::manager::InstanceManager;
 use crate::model::{Instance, InstanceStats, InstanceStatus};
 use crate::monitor;
@@ -330,16 +330,23 @@ impl InstanceManager {
 	}
 
 	fn on_line(&self, id: InstanceId, text: String) {
-		{
+		let _ = self.console_tap.send(ConsoleLine { instance: id, text: text.clone() });
+		let shown = {
 			let mut live = self.live();
 			let entry = live.entry(id).or_default();
 			if let Some(tps) = parse_tps(&text) {
 				entry.stats.tps = Some(tps);
 			}
 			entry.roster.observe(&text);
-			entry.push_console(text.clone());
+			let hidden = entry.console_filter.as_ref().is_some_and(|filter| filter.hides(&text));
+			if !hidden {
+				entry.push_console(text.clone());
+			}
+			!hidden
+		};
+		if shown {
+			self.bus.publish(console_topic(id), json!({ "line": text }));
 		}
-		self.bus.publish(console_topic(id), json!({ "line": text }));
 	}
 
 	fn on_status(&self, id: InstanceId, status: InstanceStatus) {
