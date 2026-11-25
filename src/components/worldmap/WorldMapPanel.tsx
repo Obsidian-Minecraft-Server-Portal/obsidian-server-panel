@@ -56,7 +56,7 @@ export function WorldMapPanel({ instanceId }: { instanceId: number }) {
           <span className="font-mono text-xs text-ink-3">{summaryLine(status.data)}</span>
         </div>
       </div>
-      <div className="flex min-h-[60vh] flex-1 overflow-hidden rounded-panel border border-line bg-canvas">
+      <div className="relative h-[70vh] min-h-[32rem] overflow-hidden rounded-panel border border-line bg-canvas">
         {view === "top" ? (
           <TileView key={`${dimension.folder}-${revision}`} instanceId={instanceId} folder={dimension.folder} />
         ) : (

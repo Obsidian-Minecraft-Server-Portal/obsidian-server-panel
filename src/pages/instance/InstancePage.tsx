@@ -79,7 +79,11 @@ export function InstancePage() {
   const view = instance.data;
   if (!view) return <p className="px-4 sm:px-8 py-8 text-sm text-ink-3">Loading instance…</p>;
 
-  const mapTabShown = maps.isPending || worldMap.data?.enabled === true || (maps.data ?? []).some((map) => map.settings.enabled);
+  const mapTabShown =
+    maps.isPending ||
+    (canViewMap && worldMap.isPending) ||
+    worldMap.data?.enabled === true ||
+    (maps.data ?? []).some((map) => map.settings.enabled);
   const visibleTabs = Object.entries(TABS).filter(
     ([key, entry]) => hasPermission(view, entry.permission) && (key !== "map" || mapTabShown),
   );
