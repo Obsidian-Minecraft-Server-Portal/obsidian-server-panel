@@ -1,13 +1,13 @@
 //! The blocking half of a render: finds the regions that need drawing, loads the pack and draws them.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use chrono::Utc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use obsidian_common::{CommonError, InstanceId, Result};
 use obsidian_worldmap::atlas::Atlas;
@@ -56,6 +56,7 @@ pub struct Job {
 	pub instance: InstanceId,
 	pub packs: Arc<PackCache>,
 	pub pacer: Pacer,
+	pub focus: FocusMap,
 }
 
 pub struct Outcome {
@@ -69,7 +70,22 @@ pub(crate) struct Pending {
 	pub(crate) dimension_dir: PathBuf,
 	pub(crate) region_path: PathBuf,
 	pub(crate) source_modified: i64,
+	pub(crate) folder: String,
+	pub(crate) region: (i32, i32),
 }
+
+/// Where the view is looking: the dimension folder and region it is centred on, and when it reported that.
+#[derive(Debug, Clone)]
+pub struct FocusPoint {
+	pub folder: String,
+	pub region: (i32, i32),
+	pub at: Instant,
+}
+
+pub type FocusMap = Arc<Mutex<HashMap<InstanceId, FocusPoint>>>;
+
+/// A view that has not reported for this long no longer steers the render order.
+const FOCUS_TTL: Duration = Duration::from_secs(10 * 60);
 
 pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	let map_dir = job.instance_dir.join(OUTPUT_FOLDER);
@@ -99,9 +115,10 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	let total = pending.len();
 	let mut rendered = 0;
 	let mut failed = Vec::new();
-	for (index, item) in pending.into_iter().enumerate() {
+	let mut remaining = pending;
+	while let Some(item) = take_nearest(&mut remaining, focus_of(&job.focus, job.instance).as_ref()) {
 		job.pacer.wait_turn();
-		progress(index as f32 / total as f32, format!("Rendering {}", item.key));
+		progress((rendered + failed.len()) as f32 / total as f32, format!("Rendering {}", item.key));
 		match renderer.render_region(&item.region_path, &item.dimension_dir) {
 			Ok(_) => {
 				state.failed.remove(&item.key);
@@ -124,6 +141,26 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 		state.revision = Utc::now().timestamp_millis();
 	}
 	Ok(Outcome { state, rendered, failed })
+}
+
+/// The place the view reported, when it reported one recently enough to steer the render order.
+fn focus_of(focus: &FocusMap, instance: InstanceId) -> Option<FocusPoint> {
+	let points = focus.lock().unwrap_or_else(PoisonError::into_inner);
+	points.get(&instance).filter(|point| point.at.elapsed() < FOCUS_TTL).cloned()
+}
+
+/// Takes the pending region nearest the view, so the regions being looked at are drawn first. Regions of other dimensions wait
+/// until the viewed dimension has none left.
+pub(crate) fn take_nearest(remaining: &mut Vec<Pending>, focus: Option<&FocusPoint>) -> Option<Pending> {
+	let index = remaining.iter().enumerate().min_by_key(|(_, item)| focus_rank(item, focus))?.0;
+	Some(remaining.remove(index))
+}
+
+fn focus_rank(item: &Pending, focus: Option<&FocusPoint>) -> (bool, i64) {
+	let Some(focus) = focus else { return (false, 0) };
+	let dx = i64::from(item.region.0) - i64::from(focus.region.0);
+	let dz = i64::from(item.region.1) - i64::from(focus.region.1);
+	(item.folder != focus.folder, dx * dx + dz * dz)
 }
 
 /// Names the pack by everything its renders depend on, so a new client, server, block report or mod set starts a full pass.
@@ -191,6 +228,8 @@ pub(crate) fn pending_regions(
 			if due.contains(&(x, z)) {
 				pending.push(Pending {
 					key: format!("{folder}/r.{x}.{z}"),
+					folder: folder.clone(),
+					region: (x, z),
 					dimension_dir: dimension_dir.clone(),
 					region_path,
 					source_modified,

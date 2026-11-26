@@ -4,7 +4,7 @@ use actix_web::middleware::Compress;
 use actix_web::{HttpRequest, HttpResponse, Responder, get, post, put, web};
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
-use obsidian_worldmap_service::{WorldMapManifest, WorldMapPlayers, WorldMapSettings, WorldMapStatus};
+use obsidian_worldmap_service::{WorldMapFocus, WorldMapManifest, WorldMapPlayers, WorldMapSettings, WorldMapStatus};
 use serde::Deserialize;
 
 use crate::auth::{AuthUser, require_instance_perm};
@@ -15,6 +15,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 	cfg.service(get_settings)
 		.service(update_settings)
 		.service(render)
+		.service(focus)
 		.service(status)
 		.service(manifest)
 		.service(file)
@@ -67,6 +68,25 @@ pub async fn update_settings(
 	let id = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::SETTINGS_EDIT).await?;
 	Ok(web::Json(state.worldmap.update_settings(id, update).await?))
+}
+
+#[utoipa::path(
+	post,
+	path = "/api/v1/instances/{id}/worldmap/focus",
+	tag = "instances",
+	params(("id" = i64, Path, description = "Instance id")),
+	request_body = WorldMapFocus,
+	responses(
+		(status = 202, description = "The view is recorded, and its regions are drawn first"),
+		(status = 403, description = "Missing map.view permission"),
+	)
+)]
+#[post("/instances/{id}/worldmap/focus")]
+pub async fn focus(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>, view: web::Json<WorldMapFocus>) -> ApiResult<HttpResponse> {
+	let id = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
+	state.worldmap.focus(id, view.into_inner()).await?;
+	Ok(HttpResponse::Accepted().finish())
 }
 
 #[utoipa::path(

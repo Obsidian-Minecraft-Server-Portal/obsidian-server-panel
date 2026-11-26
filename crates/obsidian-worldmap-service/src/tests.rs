@@ -118,6 +118,66 @@ fn a_watch_check_waits_out_the_cooldown_before_rendering_a_changed_region() {
 	assert_eq!(pending_regions(dir.path(), "world", &state, BuildMode::Watch, now + 50).unwrap().len(), 1);
 }
 
+#[test]
+fn a_settled_render_waits_for_quiet_and_never_for_more_than_the_max_wait() {
+	let start = tokio::time::Instant::now();
+	let mut settle = crate::watch::Settle::default();
+	assert_eq!(settle.due(), None);
+	settle.observe(start);
+	assert_eq!(settle.due(), Some(start + Duration::from_secs(5)));
+	settle.observe(start + Duration::from_secs(3));
+	assert_eq!(settle.due(), Some(start + Duration::from_secs(8)));
+	settle.observe(start + Duration::from_secs(55));
+	assert_eq!(settle.due(), Some(start + Duration::from_secs(60)));
+	settle.take();
+	assert_eq!(settle.due(), None);
+}
+
+#[test]
+fn only_region_files_count_as_writes() {
+	assert!(crate::watch::is_region_file(Path::new("world/region/r.0.0.mca")));
+	assert!(!crate::watch::is_region_file(Path::new("world/entities/r.0.0.mca")));
+	assert!(!crate::watch::is_region_file(Path::new("world/region/r.0.0.txt")));
+}
+
+fn pending_at(folder: &str, x: i32, z: i32) -> crate::job::Pending {
+	crate::job::Pending {
+		key: format!("{folder}/r.{x}.{z}"),
+		dimension_dir: std::path::PathBuf::new(),
+		region_path: std::path::PathBuf::new(),
+		source_modified: 0,
+		folder: folder.to_owned(),
+		region: (x, z),
+	}
+}
+
+#[test]
+fn the_region_nearest_the_view_is_drawn_first() {
+	let mut remaining = vec![
+		pending_at("minecraft_overworld", 5, 5),
+		pending_at("minecraft_overworld", 1, 0),
+		pending_at("minecraft_nether", 0, 0),
+		pending_at("minecraft_overworld", 0, 0),
+	];
+	let view = crate::job::FocusPoint {
+		folder: "minecraft_overworld".into(),
+		region: (0, 0),
+		at: std::time::Instant::now(),
+	};
+	let mut order = Vec::new();
+	while let Some(next) = crate::job::take_nearest(&mut remaining, Some(&view)) {
+		order.push(next.key);
+	}
+	assert_eq!(order, ["minecraft_overworld/r.0.0", "minecraft_overworld/r.1.0", "minecraft_overworld/r.5.5", "minecraft_nether/r.0.0"]);
+}
+
+#[test]
+fn without_a_view_the_regions_keep_their_order() {
+	let mut remaining = vec![pending_at("minecraft_overworld", 5, 5), pending_at("minecraft_overworld", 1, 0)];
+	let first = crate::job::take_nearest(&mut remaining, None).unwrap();
+	assert_eq!(first.key, "minecraft_overworld/r.5.5");
+}
+
 fn modified_secs(path: &Path) -> i64 {
 	let modified = std::fs::metadata(path).unwrap().modified().unwrap();
 	modified.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64

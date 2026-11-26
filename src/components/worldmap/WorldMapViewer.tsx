@@ -136,6 +136,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         return;
       }
       lastPlace = place;
+      source.reportView?.(fly.position.x, fly.position.z);
       rememberDimension(instanceId, folder, {
         x: fly.position.x,
         y: fly.position.y,

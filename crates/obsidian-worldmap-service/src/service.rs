@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Instant;
 
 use chrono::Utc;
 use obsidian_common::{CommonError, EventBus, InstanceId, Paths, Result, TaskHandle, TaskRegistry, TopicDemand};
@@ -12,14 +13,17 @@ use obsidian_java::JavaManager;
 use obsidian_runner::RunState;
 use obsidian_worldmap::level::discover;
 use obsidian_worldmap::players::is_poll_reply;
+use serde::Deserialize;
 use serde_json::json;
+use utoipa::ToSchema;
 
 use crate::background;
 use crate::bundle;
 use crate::detail;
 use crate::pacing::Pacer;
 use crate::pack_cache::PackCache;
-use crate::job::{self, BuildMode, OUTPUT_FOLDER, Sources};
+use crate::job::{self, BuildMode, FocusMap, FocusPoint, OUTPUT_FOLDER, Sources};
+use crate::watch::Watches;
 use crate::live::{LiveService, WorldMapPlayers};
 use crate::manifest::{self, WorldMapManifest};
 use crate::settings::{self, WorldMapSettings};
@@ -29,6 +33,20 @@ use crate::{jars, policy};
 
 type RegionGate = Arc<tokio::sync::Mutex<()>>;
 type DrawGates = Mutex<HashMap<(InstanceId, String, (i32, i32)), RegionGate>>;
+
+/// Where the view is looking: a dimension folder such as `minecraft_overworld`, and a block position inside it.
+#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldMapFocus {
+	pub folder: String,
+	pub x: f64,
+	pub z: f64,
+}
+
+/// The region a block coordinate falls in. A region is 512 blocks on a side.
+fn region_of(block: f64) -> i32 {
+	(block / 512.0).floor() as i32
+}
 
 #[derive(Default)]
 struct Slot {
@@ -48,6 +66,8 @@ pub struct WorldMapService {
 	live: Arc<LiveService>,
 	packs: Arc<PackCache>,
 	draw_gates: DrawGates,
+	focus_points: FocusMap,
+	watches: Watches,
 }
 
 impl WorldMapService {
@@ -73,6 +93,8 @@ impl WorldMapService {
 			live,
 			packs: Arc::new(PackCache::default()),
 			draw_gates: Mutex::new(HashMap::new()),
+			focus_points: Arc::new(Mutex::new(HashMap::new())),
+			watches: Watches::default(),
 		}))
 	}
 
@@ -244,21 +266,65 @@ impl WorldMapService {
 		last.is_none_or(|at| Utc::now().timestamp() - at >= i64::from(hours) * 3600)
 	}
 
-	/// Whether a watch build would render anything, so a frequent check starts no build, and no task, when nothing changed. A running
-	/// build has not saved its state yet, so the check waits for it to finish.
-	pub(crate) async fn has_changed_regions(&self, id: InstanceId) -> bool {
-		if self.slots.lock().unwrap_or_else(PoisonError::into_inner).get(&id).is_some_and(|slot| slot.running) {
-			return false;
-		}
+	/// Whether a build in `mode` would render anything. A frequent caller uses it, so it starts no task when nothing changed.
+	pub(crate) async fn has_pending_regions(&self, id: InstanceId, mode: BuildMode) -> bool {
 		let Ok(instance) = self.instances.get(id).await else { return false };
 		let Ok(level) = level_name(&instance.directory).await else { return false };
 		let current_state = state::load(&instance.directory.join(OUTPUT_FOLDER)).await;
 		let directory = instance.directory.clone();
 		tokio::task::spawn_blocking(move || {
-			job::pending_regions(&directory, &level, &current_state, BuildMode::Watch, Utc::now().timestamp()).is_ok_and(|pending| !pending.is_empty())
+			job::pending_regions(&directory, &level, &current_state, mode, Utc::now().timestamp()).is_ok_and(|pending| !pending.is_empty())
 		})
 		.await
 		.unwrap_or(false)
+	}
+
+	/// Records where the view is looking, so its regions are drawn first, and starts a render if they have changed.
+	pub async fn focus(self: &Arc<Self>, id: InstanceId, view: WorldMapFocus) -> Result<()> {
+		self.instances.get(id).await?;
+		let point = FocusPoint {
+			folder: view.folder,
+			region: (region_of(view.x), region_of(view.z)),
+			at: Instant::now(),
+		};
+		self.focus_points.lock().unwrap_or_else(PoisonError::into_inner).insert(id, point);
+		if self.has_pending_regions(id, BuildMode::Changed).await {
+			self.request(id, BuildMode::Changed);
+		}
+		Ok(())
+	}
+
+	/// Starts the region watcher while the server runs and the world map watches it, and stops it otherwise.
+	pub(crate) async fn reconcile_watch(self: &Arc<Self>, id: InstanceId) {
+		let watching = match settings::load(&self.db, id).await {
+			Ok(current) => current.enabled && current.watch_while_running && self.is_running(id).await,
+			Err(_) => false,
+		};
+		if !watching {
+			self.stop_watch(id);
+			return;
+		}
+		let Ok(instance) = self.instances.get(id).await else { return };
+		let Ok(level) = level_name(&instance.directory).await else { return };
+		if let Err(error) = self.watches.start(Arc::downgrade(self), id, &instance.directory.join(level)) {
+			tracing::warn!(%error, instance = id, "could not watch the region files");
+		}
+	}
+
+	pub(crate) fn stop_watch(&self, id: InstanceId) {
+		self.watches.stop(id);
+	}
+
+	/// Asks the server to write its changed chunks to disk, which is what the region watcher sees.
+	pub(crate) async fn save_world(&self, id: InstanceId) {
+		if let Err(error) = self.instances.send_command(id, "save-all flush").await {
+			tracing::warn!(%error, instance = id, "could not ask the server to save");
+		}
+	}
+
+	/// Whether someone has the map open. The server is saved on a timer only then.
+	pub(crate) fn map_in_use(&self, id: InstanceId) -> bool {
+		self.live.watched().contains(&id)
 	}
 
 	/// Queues a build for `id`. One build runs per instance, and requests that arrive meanwhile merge into the next one.
@@ -342,6 +408,7 @@ impl WorldMapService {
 			instance: instance.id,
 			packs: Arc::clone(&self.packs),
 			pacer: Pacer::new(self.instances.clone(), tokio::runtime::Handle::current(), instance.id),
+			focus: Arc::clone(&self.focus_points),
 		};
 		let progress = task.clone();
 		let outcome = background::spawn(move || job::run(job, &mut |fraction, message| progress.progress(fraction, message))).await?;

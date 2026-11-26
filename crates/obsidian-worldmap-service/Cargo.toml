@@ -23,6 +23,7 @@ sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
+notify = "8"
 rayon = "1"
 thread-priority = "3"
 

@@ -204,7 +204,7 @@ impl LiveService {
 		}
 	}
 
-	fn watched(&self) -> HashSet<InstanceId> {
+	pub(crate) fn watched(&self) -> HashSet<InstanceId> {
 		self.demand
 			.watched_topics()
 			.iter()
