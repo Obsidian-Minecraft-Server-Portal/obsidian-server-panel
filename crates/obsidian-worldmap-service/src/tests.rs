@@ -84,6 +84,40 @@ fn a_changed_region_brings_its_neighbours_back_into_the_queue() {
 	assert_eq!(keys, ["minecraft_overworld/r.0.0", "minecraft_overworld/r.1.0"]);
 }
 
+#[test]
+fn a_region_that_failed_waits_for_its_file_to_change() {
+	let dir = tempfile::tempdir().unwrap();
+	let region_dir = dir.path().join("world").join("region");
+	std::fs::create_dir_all(&region_dir).unwrap();
+	let path = region_dir.join("r.0.0.mca");
+	std::fs::write(&path, b"x").unwrap();
+	let now = modified_secs(&path) + 3600;
+	let mut state = RenderState::default();
+	state.failed.insert("minecraft_overworld/r.0.0".to_owned(), modified_secs(&path));
+	assert!(pending_regions(dir.path(), "world", &state, BuildMode::Watch, now).unwrap().is_empty());
+	assert_eq!(pending_regions(dir.path(), "world", &state, BuildMode::Full, now).unwrap().len(), 1);
+	let edited = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+	edited.set_modified(SystemTime::now() + Duration::from_secs(120)).unwrap();
+	let pending = pending_regions(dir.path(), "world", &state, BuildMode::Watch, now).unwrap();
+	let keys: Vec<&str> = pending.iter().map(|item| item.key.as_str()).collect();
+	assert_eq!(keys, ["minecraft_overworld/r.0.0"]);
+}
+
+#[test]
+fn a_watch_check_waits_out_the_cooldown_before_rendering_a_changed_region() {
+	let dir = tempfile::tempdir().unwrap();
+	let region_dir = dir.path().join("world").join("region");
+	std::fs::create_dir_all(&region_dir).unwrap();
+	let path = region_dir.join("r.0.0.mca");
+	std::fs::write(&path, b"x").unwrap();
+	std::fs::OpenOptions::new().write(true).open(&path).unwrap().set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000)).unwrap();
+	let now = 1_000_100;
+	let mut state = RenderState::default();
+	state.regions.insert("minecraft_overworld/r.0.0".to_owned(), RegionState { source_modified: 999_000, rendered_at: now - 10 });
+	assert!(pending_regions(dir.path(), "world", &state, BuildMode::Watch, now).unwrap().is_empty());
+	assert_eq!(pending_regions(dir.path(), "world", &state, BuildMode::Watch, now + 50).unwrap().len(), 1);
+}
+
 fn modified_secs(path: &Path) -> i64 {
 	let modified = std::fs::metadata(path).unwrap().modified().unwrap();
 	modified.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64

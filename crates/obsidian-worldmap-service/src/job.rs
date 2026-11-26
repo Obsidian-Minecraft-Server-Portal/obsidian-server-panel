@@ -31,7 +31,7 @@ const NEIGHBOURS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 /// Least to most thorough, so queued requests can be merged by taking the larger one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BuildMode {
-	/// Regions whose files changed, and only once they have been quiet for a minute.
+	/// Regions whose files changed since their last render, each at most once a minute.
 	Watch,
 	/// Regions whose files changed since they were rendered.
 	Changed,
@@ -78,6 +78,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	let mode = if pack_changed { BuildMode::Full } else { job.mode };
 	if pack_changed {
 		state.regions.clear();
+		state.failed.clear();
 	}
 	let now = Utc::now().timestamp();
 	let pending = pending_regions(&job.instance_dir, &job.level_name, &state, mode, now)?;
@@ -103,6 +104,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 		progress(index as f32 / total as f32, format!("Rendering {}", item.key));
 		match renderer.render_region(&item.region_path, &item.dimension_dir) {
 			Ok(_) => {
+				state.failed.remove(&item.key);
 				state.regions.insert(
 					item.key,
 					RegionState {
@@ -112,7 +114,10 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 				);
 				rendered += 1;
 			}
-			Err(error) => failed.push(format!("{}: {error}", item.key)),
+			Err(error) => {
+				state.failed.insert(item.key.clone(), item.source_modified);
+				failed.push(format!("{}: {error}", item.key));
+			}
 		}
 	}
 	if rendered > 0 {
@@ -165,7 +170,8 @@ pub(crate) fn pending_regions(
 				.ok()
 				.and_then(|time| time.duration_since(UNIX_EPOCH).ok())
 				.map_or(0, |duration| duration.as_secs() as i64);
-			let previous = state.regions.get(&format!("{folder}/r.{x}.{z}")).copied();
+			let key = format!("{folder}/r.{x}.{z}");
+			let previous = state.regions.get(&key).copied();
 			let changed = match mode {
 				BuildMode::Full => true,
 				BuildMode::Changed => previous.is_none_or(|rendered| rendered.source_modified != source_modified),
@@ -173,7 +179,8 @@ pub(crate) fn pending_regions(
 					previous.is_none_or(|rendered| rendered.source_modified != source_modified && now - rendered.rendered_at >= COOLDOWN_SECS)
 				}
 			};
-			if changed {
+			let failed_on_this_file = mode != BuildMode::Full && state.failed.get(&key) == Some(&source_modified);
+			if changed && !failed_on_this_file {
 				due.insert((x, z));
 			}
 			files.insert((x, z), (region_path, source_modified));

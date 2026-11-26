@@ -244,6 +244,23 @@ impl WorldMapService {
 		last.is_none_or(|at| Utc::now().timestamp() - at >= i64::from(hours) * 3600)
 	}
 
+	/// Whether a watch build would render anything, so a frequent check starts no build, and no task, when nothing changed. A running
+	/// build has not saved its state yet, so the check waits for it to finish.
+	pub(crate) async fn has_changed_regions(&self, id: InstanceId) -> bool {
+		if self.slots.lock().unwrap_or_else(PoisonError::into_inner).get(&id).is_some_and(|slot| slot.running) {
+			return false;
+		}
+		let Ok(instance) = self.instances.get(id).await else { return false };
+		let Ok(level) = level_name(&instance.directory).await else { return false };
+		let current_state = state::load(&instance.directory.join(OUTPUT_FOLDER)).await;
+		let directory = instance.directory.clone();
+		tokio::task::spawn_blocking(move || {
+			job::pending_regions(&directory, &level, &current_state, BuildMode::Watch, Utc::now().timestamp()).is_ok_and(|pending| !pending.is_empty())
+		})
+		.await
+		.unwrap_or(false)
+	}
+
 	/// Queues a build for `id`. One build runs per instance, and requests that arrive meanwhile merge into the next one.
 	pub(crate) fn request(self: &Arc<Self>, id: InstanceId, mode: BuildMode) {
 		let start = {

@@ -15,6 +15,8 @@ pub struct RenderState {
 	pub last_full_pass: Option<i64>,
 	/// Keyed by dimension folder and region, such as `minecraft_overworld/r.0.0`.
 	pub regions: BTreeMap<String, RegionState>,
+	/// Regions whose last render failed, with the modification time it failed on. They are retried only once the file changes.
+	pub failed: BTreeMap<String, i64>,
 	/// Unix milliseconds of the last render that drew a region, so a viewer knows when to fetch the map again.
 	pub revision: i64,
 }
