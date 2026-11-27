@@ -96,6 +96,8 @@ pub struct Quad {
 	pub shade: Option<Direction>,
 	pub tint: Option<BlockTint>,
 	pub ambient_occlusion: bool,
+	/// Whether the face is part of a fluid's surface, which the browser lowers to the fluid's height.
+	pub fluid: bool,
 }
 
 /// Quads for every face of one element, before any blockstate rotation.
@@ -125,6 +127,7 @@ pub fn element_quads(element: &Element, textures: &BTreeMap<String, String>, tin
 			shade: shade_direction(element, direction),
 			tint: face.tintindex.and(tint),
 			ambient_occlusion,
+			fluid: false,
 		});
 	}
 	quads
@@ -154,6 +157,7 @@ pub fn transform_quad(quad: &Quad, x: i32, y: i32, uvlock: bool) -> Quad {
 		shade: quad.shade.map(rotate_direction),
 		tint: quad.tint,
 		ambient_occlusion: quad.ambient_occlusion,
+		fluid: quad.fluid,
 	}
 }
 

@@ -6,7 +6,7 @@ pub mod geometry;
 mod model;
 mod resolve;
 
-pub use bake::bake_state;
+pub use bake::{bake_state, holds_water};
 pub use blockstate::{Blockstate, Variant};
 pub use model::{Element, ElementRotation, Face, ModelFile, RotationValue};
 pub use resolve::{ResolvedModel, resolve_model};

@@ -1,18 +1,34 @@
-//! Bakes a block state into quads: its chosen variants or multipart cases, with their rotations applied.
+//! Bakes a block state into quads: its chosen variants or multipart cases, with their rotations applied, and the water it holds.
 
 use std::collections::BTreeMap;
 
 use crate::assets::AssetStore;
 use crate::chunk::BlockState;
 use crate::colour::block_tint;
-use crate::models::geometry::{BlockTint, MISSING_TEXTURE, Quad, element_quads, transform_quad};
+use crate::models::geometry::{BlockTint, MISSING_TEXTURE, Quad, TintKind, element_quads, transform_quad};
 use crate::models::{Blockstate, Element, Face, Variant, resolve_model, split_id};
 
 pub fn bake_state(assets: &AssetStore, state: &BlockState) -> Vec<Quad> {
-	let tint = block_tint(&state.name, &state.properties);
-	if let Some(texture) = fluid_texture(&state.name) {
-		return cube(texture, tint);
+	if let Some((texture, tint)) = fluid_texture(&state.name) {
+		return fluid_cube(texture, tint);
 	}
+	let mut quads = model_quads(assets, state, block_tint(&state.name, &state.properties));
+	if holds_water(state) {
+		quads.extend(fluid_cube("minecraft:block/water_still", Some(BlockTint::Biome(TintKind::Water))));
+	}
+	quads
+}
+
+/// Blocks that hold water without being water: waterlogged blocks, and the plants and columns that grow in it.
+pub fn holds_water(state: &BlockState) -> bool {
+	state.properties.get("waterlogged").is_some_and(|value| value == "true")
+		|| matches!(
+			state.name.as_str(),
+			"minecraft:seagrass" | "minecraft:tall_seagrass" | "minecraft:kelp" | "minecraft:kelp_plant" | "minecraft:bubble_column"
+		)
+}
+
+fn model_quads(assets: &AssetStore, state: &BlockState, tint: Option<BlockTint>) -> Vec<Quad> {
 	let (namespace, path) = split_id(&state.name);
 	let variants = assets
 		.get(namespace, &format!("blockstates/{path}.json"))
@@ -36,12 +52,21 @@ fn bake_variant(assets: &AssetStore, variant: &Variant, tint: Option<BlockTint>)
 		.collect()
 }
 
-fn fluid_texture(name: &str) -> Option<&'static str> {
+fn fluid_texture(name: &str) -> Option<(&'static str, Option<BlockTint>)> {
 	match name {
-		"minecraft:water" => Some("minecraft:block/water_still"),
-		"minecraft:lava" => Some("minecraft:block/lava_still"),
+		"minecraft:water" => Some(("minecraft:block/water_still", Some(BlockTint::Biome(TintKind::Water)))),
+		"minecraft:lava" => Some(("minecraft:block/lava_still", None)),
 		_ => None,
 	}
+}
+
+/// A full cube of fluid. The browser lowers its top to the fluid's height, so the faces are marked as fluid.
+fn fluid_cube(texture: &str, tint: Option<BlockTint>) -> Vec<Quad> {
+	let mut quads = cube(texture, tint);
+	for quad in &mut quads {
+		quad.fluid = true;
+	}
+	quads
 }
 
 /// A full cube whose faces are all culled by their neighbours. Used for fluids and blocks with no usable model.
@@ -74,7 +99,7 @@ mod tests {
 	use std::io::Write;
 
 	use super::*;
-	use crate::models::geometry::{Direction, TintKind};
+	use crate::models::geometry::Direction;
 
 	fn store(files: &[(&str, &str)]) -> AssetStore {
 		let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -118,8 +143,22 @@ mod tests {
 		let water = bake_state(&assets, &state("minecraft:water", &[("level", "0")]));
 		assert_eq!(water.len(), 6);
 		assert!(water.iter().all(|quad| quad.tint == Some(BlockTint::Biome(TintKind::Water)) && quad.texture == "minecraft:block/water_still"));
+		assert!(water.iter().all(|quad| quad.fluid));
 		let unknown = bake_state(&assets, &state("othermod:mystery", &[]));
 		assert_eq!(unknown.len(), 6);
 		assert!(unknown.iter().all(|quad| quad.texture == MISSING_TEXTURE && quad.cullface.is_some()));
+	}
+
+	#[test]
+	fn waterlogged_blocks_hold_a_water_cube_beside_their_model() {
+		let assets = store(&[
+			("blockstates/test_block.json", r#"{"variants": {"": {"model": "minecraft:block/test_model"}}}"#),
+			("models/block/test_model.json", MODEL),
+		]);
+		let quads = bake_state(&assets, &state("minecraft:test_block", &[("waterlogged", "true")]));
+		assert_eq!(quads.iter().filter(|quad| quad.fluid).count(), 6);
+		assert_eq!(quads.iter().filter(|quad| !quad.fluid).count(), 6);
+		let dry = bake_state(&assets, &state("minecraft:test_block", &[("waterlogged", "false")]));
+		assert!(dry.iter().all(|quad| !quad.fluid));
 	}
 }
