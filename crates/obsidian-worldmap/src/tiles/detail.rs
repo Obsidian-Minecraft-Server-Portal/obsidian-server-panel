@@ -9,7 +9,7 @@ use crate::colour::{BlockColours, SPRITE_SIZE};
 use crate::error::Result;
 use crate::world::BlockWorld;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
-use crate::tiles::{shade_factor, slope_factor, top_height};
+use crate::tiles::{shade_factor, slope_factor, surface_top, top_height};
 
 /// Detail tiles along one side of a region.
 pub const TILES_PER_SIDE: usize = CHUNKS_PER_SIDE / 2;
@@ -57,14 +57,14 @@ fn draw_chunk(image: &mut RgbaImage, world: &BlockWorld, chunk: &Chunk, origin_x
 	let biomes = colours.biomes();
 	for local_z in 0..CHUNK_BLOCKS {
 		for local_x in 0..CHUNK_BLOCKS {
-			let Some((y, state)) = chunk.column_top(local_x, local_z) else { continue };
-			let biome = chunk.biome_at(local_x, y, local_z).map_or(&Biome::PLAINS, |id| biomes.get(id));
 			let world_x = chunk.x * CHUNK_BLOCKS as i32 + local_x as i32;
 			let world_z = chunk.z * CHUNK_BLOCKS as i32 + local_z as i32;
+			let Some((y, state)) = surface_top(world, colours, world_x, world_z) else { continue };
+			let biome = chunk.biome_at(local_x, y, local_z).map_or(&Biome::PLAINS, |id| biomes.get(id));
+			let factor = shade_factor(y) * slope_factor(y, top_height(world, colours, world_x, world_z - 1));
 			let (sprite, tint) = colours.texels(state, biome, world_x, world_z);
 			let left = ((offset_x as usize * CHUNK_BLOCKS + local_x) * SPRITE_SIZE as usize) as u32;
 			let top = ((offset_z as usize * CHUNK_BLOCKS + local_z) * SPRITE_SIZE as usize) as u32;
-			let factor = shade_factor(y) * slope_factor(y, top_height(world, world_x, world_z - 1));
 			paint(image, left, top, sprite, tint, factor);
 		}
 	}

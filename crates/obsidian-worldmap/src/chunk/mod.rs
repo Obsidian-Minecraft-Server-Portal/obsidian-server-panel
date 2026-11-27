@@ -153,10 +153,15 @@ impl Chunk {
 
 	/// Highest visible block in a column, as (world y, block). `x` and `z` are section-local, 0..16.
 	pub fn column_top(&self, x: usize, z: usize) -> Option<(i32, &BlockState)> {
+		self.column_top_where(x, z, |_| true)
+	}
+
+	/// Highest block in a column that is visible and accepted by `keep`, as (world y, block).
+	pub fn column_top_where(&self, x: usize, z: usize, mut keep: impl FnMut(&BlockState) -> bool) -> Option<(i32, &BlockState)> {
 		self.sections.iter().find_map(|section| {
 			(0..SECTION_SIDE).rev().find_map(|local_y| {
 				let state = section.state_at(x, local_y, z);
-				(!is_invisible(&state.name)).then(|| (section.y * SECTION_SIDE as i32 + local_y as i32, state))
+				(!is_invisible(&state.name) && keep(state)).then(|| (section.y * SECTION_SIDE as i32 + local_y as i32, state))
 			})
 		})
 	}

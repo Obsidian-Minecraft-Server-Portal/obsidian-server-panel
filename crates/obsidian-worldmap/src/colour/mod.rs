@@ -25,6 +25,8 @@ struct Surface {
 	sprite: RgbaImage,
 	average: [u8; 3],
 	tint: Option<TintKind>,
+	/// A plant or other sprite with no top face of its own. The maps leave these out and show the ground beneath.
+	decoration: bool,
 }
 
 /// Decoded textures and block surfaces. Carrying one cache from call to call over the same assets decodes each texture once.
@@ -52,7 +54,12 @@ impl SurfaceCache {
 		let json = assets.get(namespace, &format!("blockstates/{path}.json"))?;
 		let variant = Blockstate::parse(json).ok()?.variants_for(&state.properties).into_iter().next()?;
 		let model = resolve_model(assets, &variant.model).ok()?;
-		let face = top_face(&model)?;
+		let Some(face) = top_face(&model) else {
+			return Some(Surface {
+				decoration: true,
+				..flat(fallback(&state.name))
+			});
+		};
 		let decoded = self.texture(assets, &face_texture(&model, face)?)?;
 		let tint = match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
 			(true, Some(kind)) => Some(kind),
@@ -114,6 +121,11 @@ impl<'a> BlockColours<'a> {
 		}
 	}
 
+	/// Whether the block is a plant or other decoration with no top face, which the top-down tiles skip.
+	pub fn is_decoration(&mut self, state: &BlockState) -> bool {
+		self.cache.surface(self.assets, state).decoration
+	}
+
 	/// The top face's texture at sprite size, and the colour its texels are multiplied by inside `biome`.
 	pub fn texels(&mut self, state: &BlockState, biome: &Biome, x: i32, z: i32) -> (&RgbaImage, [u8; 3]) {
 		let surface = self.cache.surface(self.assets, state);
@@ -139,6 +151,7 @@ fn surface_of(decoded: Decoded, tint: Option<TintKind>) -> Surface {
 		sprite: decoded.sprite,
 		average: decoded.average,
 		tint,
+		decoration: false,
 	}
 }
 
@@ -147,6 +160,7 @@ fn flat(colour: [u8; 3]) -> Surface {
 		sprite: RgbaImage::from_pixel(SPRITE_SIZE, SPRITE_SIZE, Rgba([colour[0], colour[1], colour[2], 255])),
 		average: colour,
 		tint: None,
+		decoration: false,
 	}
 }
 
@@ -265,6 +279,37 @@ mod tests {
 		assert_eq!(sprite.dimensions(), (SPRITE_SIZE, SPRITE_SIZE));
 		assert_eq!(sprite.get_pixel(3, 3), &Rgba([200, 200, 200, 255]));
 		assert_eq!(tint, [10, 20, 30]);
+	}
+
+	#[test]
+	fn marks_cross_models_without_a_top_face_as_decorations() {
+		let mut assets = AssetStore::default();
+		add(&mut assets, "blockstates/test_flower.json", br#"{"variants": {"": {"model": "minecraft:block/test_cross"}}}"#.to_vec());
+		add(
+			&mut assets,
+			"models/block/test_cross.json",
+			br##"{"textures": {"cross": "minecraft:block/test_flower"}, "elements": [{"from": [0,0,8], "to": [16,16,8], "faces": {"north": {"texture": "#cross"}, "south": {"texture": "#cross"}}}]}"##.to_vec(),
+		);
+		add(&mut assets, "blockstates/test_cube.json", br#"{"variants": {"": {"model": "minecraft:block/test_cube"}}}"#.to_vec());
+		add(
+			&mut assets,
+			"models/block/test_cube.json",
+			br##"{"textures": {"all": "minecraft:block/test_top"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#all"}}}]}"##.to_vec(),
+		);
+		add(&mut assets, "textures/block/test_top.png", solid_png([200, 100, 50, 255]));
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
+		let flower = BlockState {
+			name: "minecraft:test_flower".into(),
+			properties: BTreeMap::new(),
+		};
+		let cube = BlockState {
+			name: "minecraft:test_cube".into(),
+			properties: BTreeMap::new(),
+		};
+		assert!(colours.is_decoration(&flower));
+		assert!(!colours.is_decoration(&cube));
+		assert!(!colours.is_decoration(&grass_state()), "without assets a block is a surface, not a decoration");
 	}
 
 	#[test]

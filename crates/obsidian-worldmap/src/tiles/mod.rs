@@ -5,7 +5,7 @@ use std::io::Cursor;
 use image::{ImageFormat, Rgba, RgbaImage};
 
 use crate::biome::Biome;
-use crate::chunk::Chunk;
+use crate::chunk::{BlockState, Chunk};
 use crate::colour::BlockColours;
 use crate::error::Result;
 use crate::world::BlockWorld;
@@ -40,11 +40,11 @@ fn draw_chunk(image: &mut RgbaImage, world: &BlockWorld, chunk: &Chunk, origin_x
 				continue;
 			}
 			let (block_x, block_z) = (local_x as usize, local_z as usize);
-			if let Some((y, state)) = chunk.column_top(block_x, block_z) {
+			let world_x = chunk.x * CHUNK_PIXELS + local_x;
+			let world_z = chunk.z * CHUNK_PIXELS + local_z;
+			if let Some((y, state)) = surface_top(world, colours, world_x, world_z) {
 				let biome = chunk.biome_at(block_x, y, block_z).map_or(&Biome::PLAINS, |id| biomes.get(id));
-				let world_x = chunk.x * CHUNK_PIXELS + local_x;
-				let world_z = chunk.z * CHUNK_PIXELS + local_z;
-				let factor = shade_factor(y) * slope_factor(y, top_height(world, world_x, world_z - 1));
+				let factor = shade_factor(y) * slope_factor(y, top_height(world, colours, world_x, world_z - 1));
 				let [r, g, b] = shade(colours.colour(state, biome, world_x, world_z), factor);
 				image.put_pixel(px as u32, pz as u32, Rgba([r, g, b, 255]));
 			}
@@ -64,12 +64,18 @@ pub(crate) fn slope_factor(y: i32, north: Option<i32>) -> f32 {
 	north.map_or(1.0, |north| 1.0 + (y - north).clamp(-SLOPE_LIMIT, SLOPE_LIMIT) as f32 * SLOPE_STEP)
 }
 
-/// Height of the highest block in the column at absolute block `x`, `z`, when its chunk is loaded.
-pub(crate) fn top_height(world: &BlockWorld, x: i32, z: i32) -> Option<i32> {
+/// Height of the ground in the column at absolute block `x`, `z`, when its chunk is loaded.
+pub(crate) fn top_height(world: &BlockWorld, colours: &mut BlockColours, x: i32, z: i32) -> Option<i32> {
+	surface_top(world, colours, x, z).map(|(y, _)| y)
+}
+
+/// Highest block in the column at absolute block `x`, `z` that has a top face to draw. Plants and other decorations are
+/// passed over, so the ground beneath them shows.
+pub(crate) fn surface_top<'w>(world: &'w BlockWorld, colours: &mut BlockColours, x: i32, z: i32) -> Option<(i32, &'w BlockState)> {
 	let chunk = world.chunk(x.div_euclid(CHUNK_PIXELS), z.div_euclid(CHUNK_PIXELS))?;
-	chunk
-		.column_top(x.rem_euclid(CHUNK_PIXELS) as usize, z.rem_euclid(CHUNK_PIXELS) as usize)
-		.map(|(y, _)| y)
+	chunk.column_top_where(x.rem_euclid(CHUNK_PIXELS) as usize, z.rem_euclid(CHUNK_PIXELS) as usize, |state| {
+		!colours.is_decoration(state)
+	})
 }
 
 fn shade(colour: [u8; 3], factor: f32) -> [u8; 3] {
@@ -105,6 +111,23 @@ mod tests {
 		let [r, g, b] = shade(fallback("minecraft:grass_block"), shade_factor(1));
 		assert_eq!(image.get_pixel(0, 0), &Rgba([r, g, b, 255]));
 		assert_eq!(image.get_pixel(1, 0)[3], 0);
+	}
+
+	#[test]
+	fn shows_the_ground_beneath_a_plant_instead_of_the_plant() {
+		let world = world_with(&[((0, 0, 0), "minecraft:stone"), ((0, 1, 0), "minecraft:poppy")]);
+		let mut assets = AssetStore::default();
+		assets.insert("minecraft".into(), "blockstates/poppy.json".into(), br#"{"variants": {"": {"model": "minecraft:block/cross"}}}"#.to_vec());
+		assets.insert(
+			"minecraft".into(),
+			"models/block/cross.json".into(),
+			br##"{"textures": {"cross": "minecraft:block/poppy"}, "elements": [{"from": [0,0,8], "to": [16,16,8], "faces": {"north": {"texture": "#cross"}}}]}"##.to_vec(),
+		);
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
+		let image = render_tile(&world, 0, 0, &mut colours);
+		let [r, g, b] = shade(fallback("minecraft:stone"), shade_factor(0));
+		assert_eq!(image.get_pixel(0, 0), &Rgba([r, g, b, 255]));
 	}
 
 	#[test]
