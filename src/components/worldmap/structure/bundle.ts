@@ -3,9 +3,10 @@
 
 import { StaleTablesError } from "./tables";
 
-/** A cell is 64 blocks a side. The arrays hold one more block on each side, so faces can read their neighbours. */
+/** A cell is 64 blocks a side. The arrays hold two more blocks on each side: the bundle's border, then air for lighting samples that
+ * reach one block past it, so a sample never wraps into the next row. */
 export const CELL_BLOCKS = 64;
-export const PADDED = CELL_BLOCKS + 2;
+export const PADDED = CELL_BLOCKS + 4;
 const PADDED_LAYER = PADDED * PADDED;
 const PADDED_VOXELS = PADDED_LAYER * PADDED;
 const OPEN_SKY = 15;
@@ -14,7 +15,7 @@ const BUNDLE_HEADER = 24;
 export interface CellVoxels {
   /** Cell coordinates, in units of 64 blocks. */
   cell: [number, number, number];
-  /** State id per voxel, index `(y + 1) * 66 * 66 + (z + 1) * 66 + (x + 1)` for cell-local `x`, `y`, `z` from -1 to 64. */
+  /** State id per voxel, index `(y + 2) * PADDED * PADDED + (z + 2) * PADDED + (x + 2)` for cell-local `x`, `y`, `z` from -2 to 65. */
   ids: Uint32Array;
   sky: Uint8Array;
   block: Uint8Array;
@@ -23,7 +24,7 @@ export interface CellVoxels {
 }
 
 export function paddedIndex(x: number, y: number, z: number): number {
-  return (y + 1) * PADDED_LAYER + (z + 1) * PADDED + (x + 1);
+  return (y + 2) * PADDED_LAYER + (z + 2) * PADDED + (x + 2);
 }
 
 /** How many block states and biomes the loaded tables hold. A bundle may only name ids below these. */
