@@ -33,6 +33,4 @@ export interface MapSource {
   fileUrl(file: string, version?: number | string): string;
   /** One cell's structure bundle: its sections and the border around them, meshed by the viewer. */
   structureCellUrl(cell: CellCoord, version: number): string;
-  /** Where the view is looking, in blocks, so the server draws the regions there first. Sources without a server ignore it. */
-  reportView?(x: number, z: number): void;
 }

@@ -1,4 +1,5 @@
 import { PerspectiveCamera, Vector3 } from "three";
+import { enterImmersive, leaveImmersive } from "./immersive";
 
 const LOOK_SENSITIVITY = 0.0022;
 const FLY_SPEED = 12;
@@ -19,6 +20,13 @@ const CONTROL_KEYS = new Set([
   "ControlRight",
 ]);
 
+export interface FlyInput {
+  /** Goes fullscreen while the pointer is captured, so the keys stay in the page and the overlays stay in view. */
+  frame: HTMLElement | null;
+  /** Called when the keys or the mouse move the camera, so a followed player can be let go. */
+  onInput: () => void;
+}
+
 /**
  * Spectator-style camera: flies through blocks with no collision. Click the view to capture the mouse,
  * and press Escape to release it.
@@ -35,15 +43,19 @@ export class FreeFlyCamera {
   /**
    * Connects input to `element`. Holding the right button looks around until it is released; a double click locks the
    * pointer until Escape. Keys move the camera while the view has focus or holds the pointer, so typing elsewhere is safe.
-   * The wheel sets the flying speed. The returned function removes every listener.
+   * The wheel sets the flying speed. The returned function removes every listener and leaves any fullscreen.
    */
-  attach(element: HTMLElement): () => void {
+  attach(element: HTMLElement, input: FlyInput): () => void {
     let holding = false;
     let sticky = false;
     element.tabIndex = 0;
+    const leave = () => {
+      if (input.frame) leaveImmersive(input.frame);
+    };
     const lock = () => {
+      if (input.frame) enterImmersive(input.frame);
       try {
-        void Promise.resolve(element.requestPointerLock()).catch(() => undefined);
+        void Promise.resolve(element.requestPointerLock()).catch(leave);
       } catch {
         // Some embedded contexts refuse pointer lock.
       }
@@ -59,6 +71,7 @@ export class FreeFlyCamera {
         holding = false;
         sticky = false;
         this.keys.clear();
+        leave();
       }
     };
     const onPointerDown = (event: PointerEvent) => {
@@ -85,6 +98,7 @@ export class FreeFlyCamera {
       if (!this.captured) {
         return;
       }
+      input.onInput();
       this.yaw -= event.movementX * LOOK_SENSITIVITY;
       this.pitch = clamp(this.pitch - event.movementY * LOOK_SENSITIVITY, -PITCH_LIMIT, PITCH_LIMIT);
     };
@@ -95,6 +109,7 @@ export class FreeFlyCamera {
       if (CONTROL_KEYS.has(event.code)) {
         this.keys.add(event.code);
         event.preventDefault();
+        input.onInput();
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -130,6 +145,7 @@ export class FreeFlyCamera {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
       release();
+      leave();
     };
   }
 

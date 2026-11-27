@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   Color,
-  MathUtils,
   NearestFilter,
   PerspectiveCamera,
   Scene,
@@ -13,15 +12,19 @@ import {
   WebGLRenderer,
 } from "three";
 import type { LivePlayer } from "../../api/worldmap";
+import { applyFocus } from "./follow-camera";
 import { FreeFlyCamera } from "./free-fly-camera";
 import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-source";
+import type { MapStats } from "./map-stats";
 import { PlayerMarkers } from "./player-markers";
+import { PlayerTrack } from "./player-track";
 import { CellMesher, MESH_VERSION, type MeshedCell, workerCount } from "./structure/cell-mesher";
 import { type CellMaterials, type CellObject, buildCell, createCellMaterials } from "./structure/cell-scene";
 import { type MeshKey, openMeshCache } from "./structure/mesh-cache";
 import type { BiomeJson, BlockTableJson } from "./structure/tables";
+import type { ViewPlace } from "./use-viewer-heartbeat";
 
 /** Cells whose nearest point is closer than this to the camera are loaded, in blocks. */
 const LOAD_DISTANCE = 160;
@@ -33,15 +36,13 @@ const CELL_BLOCKS = 64;
 const CELLS_PER_REGION = 8;
 const MAX_CONCURRENT_LOADS = 6;
 const RETRY_MS = 30_000;
-/** How often the camera's place is written to memory while it moves, in seconds. */
+/** How often the camera's place is reported while it moves, in seconds. */
 const REMEMBER_EVERY = 0.25;
+/** How often the statistics are published, in seconds. */
+const STATS_EVERY = 0.5;
 const DEFAULT_PITCH = -0.45;
 const LOOK_DOWN_HEIGHT = 40;
 const SKY = new Color(0x9ec9f5);
-/** Where the camera sits when it looks at a player: behind them, above them, aimed at their eyes. */
-const BEHIND_PLAYER = 7;
-const ABOVE_PLAYER = 3.5;
-const PLAYER_EYE = 1.6;
 
 type CellState = "idle" | "queued" | "loading" | "loaded";
 
@@ -71,19 +72,51 @@ export interface WorldMapViewerProps {
   players: readonly LivePlayer[];
   skinBase: string;
   focus: MapFocus | null;
+  /** The map frame, which goes fullscreen while the pointer is captured, so the overlays stay in view. */
+  frame: RefObject<HTMLElement | null>;
+  stats: MapStats;
+  onPlace: (place: ViewPlace) => void;
+  /** The keys or the mouse moved the camera by hand, so a followed player is let go. */
+  onInput: () => void;
 }
 
 /** A free-fly 3D view of the cells, streamed in around the camera. Each cell is meshed in a worker from its structure. */
-export function WorldMapViewer({ source, instanceId, folder, revision, players, skinBase, focus }: WorldMapViewerProps) {
+export function WorldMapViewer({
+  source,
+  instanceId,
+  folder,
+  revision,
+  players,
+  skinBase,
+  focus,
+  frame: frameRef,
+  stats,
+  onPlace,
+  onInput,
+}: WorldMapViewerProps) {
   const playersRef = useRef(players);
   playersRef.current = players;
   const focusRef = useRef(focus);
   focusRef.current = focus;
+  const placeRef = useRef(onPlace);
+  placeRef.current = onPlace;
+  const inputRef = useRef(onInput);
+  inputRef.current = onInput;
+  const [track] = useState(() => new PlayerTrack());
   const markersRef = useRef<PlayerMarkers | null>(null);
   const reloadRef = useRef<(() => void) | null>(null);
   const revisionRef = useRef(revision);
   const containerRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState<Progress>({ message: "Loading the map", loaded: 0, busy: true });
+
+  useEffect(() => {
+    track.record(players, performance.now());
+    markersRef.current?.update(players);
+  }, [players, track]);
+
+  useEffect(() => {
+    markersRef.current?.hide(focus?.follow === "head" ? focus.name : null);
+  }, [focus]);
 
   useEffect(() => {
     if (revisionRef.current === revision) {
@@ -99,12 +132,12 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       return undefined;
     }
     let disposed = false;
-    let frame = 0;
+    let raf = 0;
     let last = performance.now();
     let inFlight = 0;
     let placed = false;
     let sinceRemembered = 0;
-    let applied: MapFocus | null = null;
+    let applied = -1;
     let manifest: MapManifest | undefined;
     let atlas: Texture | undefined;
     let atlasKey: string | undefined;
@@ -123,11 +156,16 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
     const scene = new Scene();
     const camera = new PerspectiveCamera(70, 1, 0.5, 4000);
     const fly = new FreeFlyCamera();
-    const detachInput = fly.attach(renderer.domElement);
+    const detachInput = fly.attach(renderer.domElement, { frame: frameRef.current, onInput: () => inputRef.current() });
     const markers = new PlayerMarkers(skinBase);
     scene.add(markers.group);
     markers.update(playersRef.current);
     markersRef.current = markers;
+    stats.set({ gpu: gpuName(renderer) });
+    let frames = 0;
+    let windowMs = 0;
+    let scriptMs = 0;
+    let sinceStats = 0;
 
     let lastPlace = "";
     const rememberPlace = () => {
@@ -136,7 +174,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         return;
       }
       lastPlace = place;
-      source.reportView?.(fly.position.x, fly.position.z);
+      placeRef.current({ x: fly.position.x, y: fly.position.y, z: fly.position.z });
       rememberDimension(instanceId, folder, {
         x: fly.position.x,
         y: fly.position.y,
@@ -165,6 +203,33 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         if (cell.state === "loaded") count++;
       }
       return count;
+    };
+
+    const publishStats = () => {
+      const { busy, queued: waiting } = mesher?.activity() ?? { busy: 0, queued: 0 };
+      let queued = 0;
+      for (const cell of cells.values()) {
+        if (cell.state === "queued") queued++;
+      }
+      stats.set({
+        fps: (frames * 1000) / Math.max(windowMs, 1),
+        frameMs: windowMs / Math.max(frames, 1),
+        scriptMs: scriptMs / Math.max(frames, 1),
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        textures: renderer.info.memory.textures,
+        geometries: renderer.info.memory.geometries,
+        heapMb: heapMegabytes(),
+        cellsLoaded: loadedCells(),
+        cellsQueued: queued,
+        cellsLoading: inFlight,
+        workersBusy: busy,
+        workersQueued: waiting,
+      });
+      frames = 0;
+      windowMs = 0;
+      scriptMs = 0;
+      sinceStats = 0;
     };
 
     const report = (message: string) => {
@@ -309,7 +374,11 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       }
       const xs = loadedManifest.sections.flatMap((entry) => [entry.x * 16, entry.x * 16 + 16]);
       const zs = loadedManifest.sections.flatMap((entry) => [entry.z * 16, entry.z * 16 + 16]);
-      fly.position.set((Math.min(...xs) + Math.max(...xs)) / 2, heightAboveTop(loadedManifest), (Math.min(...zs) + Math.max(...zs)) / 2 + 80);
+      fly.position.set(
+        (Math.min(...xs) + Math.max(...xs)) / 2,
+        heightAboveTop(loadedManifest),
+        (Math.min(...zs) + Math.max(...zs)) / 2 + 80,
+      );
       fly.yaw = 0;
       fly.pitch = DEFAULT_PITCH;
     };
@@ -385,7 +454,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
         atlas = replacement;
         atlasKey = next.packKey;
         if (materials) {
-          useAtlas(materials, replacement, next.atlasWidth, next.atlasHeight);
+          bindAtlas(materials, replacement, next.atlasWidth, next.atlasHeight);
         } else {
           materials = createCellMaterials(replacement, next.atlasWidth, next.atlasHeight);
         }
@@ -419,10 +488,13 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       if (disposed) {
         return;
       }
-      const seconds = Math.min((now - last) / 1000, 0.1);
+      const started = performance.now();
+      const real = Math.max(0, now - last);
+      const seconds = Math.min(real / 1000, 0.1);
       last = now;
       if (placed) {
-        applied = followFocus(fly, focusRef.current, applied);
+        const current = focusRef.current;
+        applied = applyFocus(fly, current, current ? track.pose(current.name, now) : undefined, applied);
       }
       fly.update(seconds, camera);
       refresh();
@@ -433,15 +505,22 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
           rememberPlace();
         }
       }
-      markers.frame(camera, viewportHeight);
+      markers.frame(camera, viewportHeight, (name) => track.pose(name, now));
       renderer.render(scene, camera);
-      frame = requestAnimationFrame(tick);
+      frames++;
+      windowMs += real;
+      scriptMs += performance.now() - started;
+      sinceStats += seconds;
+      if (sinceStats >= STATS_EVERY) {
+        publishStats();
+      }
+      raf = requestAnimationFrame(tick);
     };
-    frame = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(tick);
 
     return () => {
       disposed = true;
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(raf);
       observer.disconnect();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       detachInput();
@@ -464,11 +543,7 @@ export function WorldMapViewer({ source, instanceId, folder, revision, players, 
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [source, skinBase, instanceId, folder]);
-
-  useEffect(() => {
-    markersRef.current?.update(players);
-  }, [players]);
+  }, [source, skinBase, instanceId, folder, track, stats, frameRef]);
 
   const streaming = progress.message === "Streaming";
   return (
@@ -505,34 +580,6 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
   );
 }
 
-/** Puts the camera behind a newly focused player, looking at them, and while following moves it along with them. */
-function followFocus(fly: FreeFlyCamera, focus: MapFocus | null, applied: MapFocus | null): MapFocus | null {
-  if (!focus) {
-    return null;
-  }
-  if (!applied || applied.nonce !== focus.nonce) {
-    lookAtPlayer(fly, focus);
-    return focus;
-  }
-  if (focus.follow) {
-    fly.position.x += focus.x - applied.x;
-    fly.position.y += focus.y - applied.y;
-    fly.position.z += focus.z - applied.z;
-    return focus;
-  }
-  return applied;
-}
-
-function lookAtPlayer(fly: FreeFlyCamera, focus: MapFocus): void {
-  const yaw = MathUtils.degToRad(focus.yaw);
-  fly.position.set(focus.x + Math.sin(yaw) * BEHIND_PLAYER, focus.y + ABOVE_PLAYER, focus.z - Math.cos(yaw) * BEHIND_PLAYER);
-  const dx = focus.x - fly.position.x;
-  const dy = focus.y + PLAYER_EYE - fly.position.y;
-  const dz = focus.z - fly.position.z;
-  fly.yaw = Math.atan2(-dx, -dz);
-  fly.pitch = Math.atan2(dy, Math.hypot(dx, dz));
-}
-
 function cellOf(entry: SectionEntry): CellCoord {
   return [Math.floor(entry.x / 4), Math.floor(entry.y / 4), Math.floor(entry.z / 4)];
 }
@@ -563,7 +610,7 @@ function loadAtlas(url: string): Texture {
   return texture;
 }
 
-function useAtlas(materials: CellMaterials, texture: Texture, width: number, height: number): void {
+function bindAtlas(materials: CellMaterials, texture: Texture, width: number, height: number): void {
   for (const material of materials.instanced) {
     material.uniforms.uAtlas.value = texture;
     material.uniforms.uAtlasSize.value = new Vector2(width, height);
@@ -586,4 +633,15 @@ async function fetchJson<T>(url: string): Promise<T> {
     throw new Error(`${url} failed with ${response.status}`);
   }
   return (await response.json()) as T;
+}
+
+function gpuName(renderer: WebGLRenderer): string {
+  const gl = renderer.getContext();
+  const info = gl.getExtension("WEBGL_debug_renderer_info");
+  return info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "hidden by the browser";
+}
+
+function heapMegabytes(): number | null {
+  const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
+  return memory ? memory.usedJSHeapSize / 1048576 : null;
 }

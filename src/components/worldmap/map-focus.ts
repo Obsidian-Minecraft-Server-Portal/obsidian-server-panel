@@ -1,13 +1,12 @@
+/** How a followed player is framed: from behind them, or from inside their head. */
+export type FollowMode = "behind" | "head";
+
 /**
- * A player the views should look at. A new `nonce` moves the view to them once. While `follow` is set, the view keeps
- * tracking them as their position updates.
+ * The player the views centre on. A new `nonce` moves the views to them once. `follow` keeps them on the player as they
+ * move, and `null` leaves the view free.
  */
 export interface MapFocus {
-  x: number;
-  y: number;
-  z: number;
-  /** Minecraft yaw in degrees: 0 faces south (+Z), 90 faces west. */
-  yaw: number;
+  name: string;
   nonce: number;
-  follow: boolean;
+  follow: FollowMode | null;
 }

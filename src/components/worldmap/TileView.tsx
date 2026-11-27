@@ -8,6 +8,7 @@ import {
   type WorldMapTile,
 } from "../../api/worldmap";
 import type { MapFocus } from "./map-focus";
+import type { ViewPlace } from "./use-viewer-heartbeat";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import { PlayerTag } from "./PlayerTag";
 
@@ -61,6 +62,7 @@ export function TileView({
   revision,
   focus,
   onPan,
+  onPlace,
 }: {
   instanceId: number;
   folder: string;
@@ -70,6 +72,7 @@ export function TileView({
   focus: MapFocus | null;
   /** Called when the viewer drags the map, so following a player can stop. */
   onPan: () => void;
+  onPlace: (place: ViewPlace) => void;
 }) {
   const manifest = useWorldMapManifest(instanceId, folder, revision);
   const tiles = manifest.data?.tiles ?? [];
@@ -79,17 +82,24 @@ export function TileView({
   const frame = useRef<HTMLDivElement>(null);
   const view = stored ?? defaultView(tiles);
   const appliedFocus = useRef(-1);
+  const followed = focus ? players.find((player) => player.name === focus.name) : undefined;
+  const followedX = followed?.position[0];
+  const followedZ = followed?.position[2];
 
   useEffect(() => {
-    if (!focus) return;
+    if (!focus || followedX === undefined || followedZ === undefined) return;
     const fresh = focus.nonce !== appliedFocus.current;
     if (!fresh && !focus.follow) return;
     appliedFocus.current = focus.nonce;
     setStored((current) => {
       const zoom = current?.zoom ?? DEFAULT_ZOOM;
-      return { x: focus.x, z: focus.z, zoom: fresh ? Math.max(zoom, FOCUS_ZOOM) : zoom };
+      return { x: followedX, z: followedZ, zoom: fresh ? Math.max(zoom, FOCUS_ZOOM) : zoom };
     });
-  }, [focus]);
+  }, [focus, followedX, followedZ]);
+
+  useEffect(() => {
+    if (stored) onPlace({ x: stored.x, y: 0, z: stored.z });
+  }, [stored, onPlace]);
 
   useEffect(() => {
     if (!stored && tiles.length > 0) {

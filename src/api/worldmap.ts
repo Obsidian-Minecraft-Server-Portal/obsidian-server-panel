@@ -103,27 +103,33 @@ export function useWorldMapManifest(instanceId: number, folder: string, revision
 }
 
 /** The viewer's source for one dimension. Files are served from the instance's map folder. */
-/** The view's place is sent at most this often, and only once it has moved this far. */
-const FOCUS_EVERY_MS = 2000;
-const FOCUS_MOVE_BLOCKS = 64;
-
 export function worldMapSource(instanceId: number, folder: string): MapSource {
   const root = `/instances/${instanceId}/worldmap`;
   const dimension = `${root}/dimensions/${folder}`;
-  let reported: { x: number; z: number; at: number } | undefined;
   return {
     loadManifest: () => api.get<WorldMapManifest>(dimension),
     fileUrl: (file, version) => `${BASE}${root}/files/${file}${versionQuery(version)}`,
     structureCellUrl: ([cx, cy, cz], version) => `${BASE}${dimension}/structure/cells/${cx}/${cy}/${cz}${versionQuery(version)}`,
-    reportView: (x, z) => {
-      const now = Date.now();
-      if (reported && now - reported.at < FOCUS_EVERY_MS && Math.hypot(x - reported.x, z - reported.z) < FOCUS_MOVE_BLOCKS) {
-        return;
-      }
-      reported = { x, z, at: now };
-      void api.post(`${root}/focus`, { folder, x, z }).catch(() => undefined);
-    },
   };
+}
+
+/** What a map view reports about itself, so the server counts it as a viewer and knows where it is looking. */
+export interface ViewReport {
+  viewer: string;
+  folder: string;
+  x: number;
+  y: number;
+  z: number;
+  mode: "top" | "free";
+  follow: string | null;
+}
+
+export function reportWorldMapView(instanceId: number, report: ViewReport): Promise<void> {
+  return api.post<void>(`/instances/${instanceId}/worldmap/focus`, report);
+}
+
+export function leaveWorldMapView(instanceId: number, viewer: string): Promise<void> {
+  return api.delete(`/instances/${instanceId}/worldmap/focus/${encodeURIComponent(viewer)}`);
 }
 
 /** A textured detail tile: block tile `tileX`, `tileZ` inside region `regionX`, `regionZ`. The server draws it on first request. */

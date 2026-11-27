@@ -2,29 +2,50 @@ import { cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import { dimensionLabel, playersSummary, type LivePlayer, type WorldMapPlayers } from "../../api/worldmap";
 import { Tip } from "../ui/Tip";
+import type { FollowMode } from "./map-focus";
 import { PlayerFace } from "./PlayerTag";
+
+/** The player the views follow, and whether they are followed from behind or from inside their head. */
+export interface Following {
+  name: string;
+  mode: FollowMode;
+}
 
 interface PlayersPanelProps {
   live: WorldMapPlayers | undefined;
   dimensionId: string;
   skinBase: string;
   focused: string | null;
-  following: string | null;
+  following: Following | null;
+  onClose: () => void;
   onFocus: (player: LivePlayer) => void;
-  onFollow: (player: LivePlayer) => void;
+  onFollow: (player: LivePlayer, mode: FollowMode) => void;
 }
 
-/** Who is online, with a click to look at a player and a toggle to keep the view on them. */
-export function PlayersPanel({ live, dimensionId, skinBase, focused, following, onFocus, onFollow }: PlayersPanelProps) {
+/**
+ * Who is online, in a panel that slides over the map. A click looks at a player. The locate button follows them from behind,
+ * and the eye button puts the view inside their head.
+ */
+export function PlayersPanel({ live, dimensionId, skinBase, focused, following, onClose, onFocus, onFollow }: PlayersPanelProps) {
   const players = live?.players ?? [];
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-panel lg:w-72">
+    <aside className="absolute top-12 right-3 bottom-3 z-10 flex w-72 max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
       <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon icon="lucide:users" width={15} height={15} className="text-ink-3" />
           <h3 className="text-sm font-semibold text-ink-0">Players</h3>
+          <span className="rounded-full bg-input px-2 py-0.5 font-mono text-[11px] text-ink-2">{players.length}</span>
         </div>
-        <span className="rounded-full bg-input px-2 py-0.5 font-mono text-[11px] text-ink-2">{players.length}</span>
+        <Tip label="Close" placement="left">
+          <button
+            type="button"
+            aria-label="Close the players panel"
+            onClick={onClose}
+            className="grid size-7 place-items-center rounded-[9px] text-ink-3 outline-none hover:bg-input hover:text-ink-0 focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <Icon icon="lucide:x" width={15} height={15} />
+          </button>
+        </Tip>
       </header>
       {players.length === 0 ? (
         <p className={cn("px-4 py-6 text-center text-sm", live?.state === "unavailable" ? "text-rose" : "text-ink-3")}>
@@ -39,9 +60,9 @@ export function PlayersPanel({ live, dimensionId, skinBase, focused, following, 
               elsewhere={player.dimension !== dimensionId}
               skinBase={skinBase}
               focused={focused === player.name}
-              following={following === player.name}
+              mode={following?.name === player.name ? following.mode : null}
               onFocus={() => onFocus(player)}
-              onFollow={() => onFollow(player)}
+              onFollow={(mode) => onFollow(player, mode)}
             />
           ))}
         </ul>
@@ -58,18 +79,19 @@ interface PlayerRowProps {
   elsewhere: boolean;
   skinBase: string;
   focused: boolean;
-  following: boolean;
+  /** How this player is followed right now, if they are. */
+  mode: FollowMode | null;
   onFocus: () => void;
-  onFollow: () => void;
+  onFollow: (mode: FollowMode) => void;
 }
 
-function PlayerRow({ player, elsewhere, skinBase, focused, following, onFocus, onFollow }: PlayerRowProps) {
+function PlayerRow({ player, elsewhere, skinBase, focused, mode, onFocus, onFollow }: PlayerRowProps) {
   const [x, y, z] = player.position.map(Math.floor);
   return (
     <li
       className={cn(
         "group flex items-center gap-1 rounded-control transition-colors",
-        following ? "bg-accent-tint" : focused ? "bg-raised" : "hover:bg-raised",
+        mode ? "bg-accent-tint" : focused ? "bg-raised" : "hover:bg-raised",
       )}
     >
       <button
@@ -85,20 +107,51 @@ function PlayerRow({ player, elsewhere, skinBase, focused, following, onFocus, o
           </span>
         </span>
       </button>
-      <Tip label={following ? "Stop following" : "Follow"} placement="left">
-        <button
-          type="button"
-          aria-label={following ? `Stop following ${player.name}` : `Follow ${player.name}`}
-          aria-pressed={following}
-          onClick={onFollow}
-          className={cn(
-            "mr-1 grid size-8 shrink-0 place-items-center rounded-[9px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            following ? "text-accent" : "text-ink-3 hover:bg-input hover:text-ink-0",
-          )}
-        >
-          <Icon icon={following ? "lucide:locate-fixed" : "lucide:locate"} width={16} height={16} />
-        </button>
-      </Tip>
+      <ModeButton
+        label={`Follow ${player.name} from behind`}
+        tip="Follow from behind"
+        icon={mode === "behind" ? "lucide:locate-fixed" : "lucide:locate"}
+        active={mode === "behind"}
+        onPress={() => onFollow("behind")}
+      />
+      <ModeButton
+        label={`Look out of ${player.name}'s head`}
+        tip="Look from inside their head"
+        icon="lucide:eye"
+        active={mode === "head"}
+        onPress={() => onFollow("head")}
+      />
     </li>
+  );
+}
+
+function ModeButton({
+  label,
+  tip,
+  icon,
+  active,
+  onPress,
+}: {
+  label: string;
+  tip: string;
+  icon: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Tip label={active ? "Stop" : tip} placement="left">
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        onClick={onPress}
+        className={cn(
+          "grid size-8 shrink-0 place-items-center rounded-[9px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          active ? "text-accent" : "text-ink-3 hover:bg-input hover:text-ink-0",
+        )}
+      >
+        <Icon icon={icon} width={16} height={16} />
+      </button>
+    </Tip>
   );
 }

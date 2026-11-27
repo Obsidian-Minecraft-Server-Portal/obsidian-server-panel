@@ -62,6 +62,10 @@ export class CellMesher {
     }
   }
 
+  activity(): { busy: number; queued: number } {
+    return { busy: this.busy.size, queued: this.queue.length };
+  }
+
   pause(): void {
     this.paused = true;
   }

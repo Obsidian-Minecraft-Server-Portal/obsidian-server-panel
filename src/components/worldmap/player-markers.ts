@@ -12,6 +12,7 @@ import {
 	Vector3,
 } from "three";
 import type { LivePlayer } from "../../api/worldmap";
+import type { PlayerPose } from "./player-track";
 import { buildRig, CHARACTER_HEIGHT, disposeRig, type PlayerRig } from "./player-model";
 
 /** Players are drawn 1.75 blocks tall at every distance, like a player in game. */
@@ -50,6 +51,7 @@ export class PlayerMarkers {
 	private readonly materials = new Map<string, MeshBasicMaterial>();
 	private readonly legacySkins = new Set<string>();
 	private readonly loader = new TextureLoader();
+	private hidden: string | null = null;
 
 	constructor(skinBase: string) {
 		this.skinBase = skinBase;
@@ -69,20 +71,28 @@ export class PlayerMarkers {
 		}
 	}
 
-	frame(camera: PerspectiveCamera, viewportHeight: number): void {
+	frame(camera: PerspectiveCamera, viewportHeight: number, poseOf: (name: string) => PlayerPose | undefined): void {
 		const worldPerPixel = (2 * Math.tan(MathUtils.degToRad(camera.fov) / 2)) / viewportHeight;
 		for (const marker of this.markers.values()) {
-			const distance = marker.anchor.distanceTo(camera.position);
 			const { player, rig } = marker;
+			const pose = poseOf(player.name) ?? { dimension: player.dimension, position: player.position, yaw: player.yaw, pitch: player.pitch };
+			const hidden = player.name === this.hidden;
+			marker.anchor.set(pose.position[0], pose.position[1], pose.position[2]);
+			const distance = marker.anchor.distanceTo(camera.position);
+			rig.root.visible = !hidden;
 			rig.root.position.copy(marker.anchor);
-			rig.root.rotation.set(0, MathUtils.degToRad(-player.yaw), 0);
+			rig.root.rotation.set(0, MathUtils.degToRad(-pose.yaw), 0);
 			rig.root.scale.setScalar(RIG_SCALE);
-			rig.head.rotation.set(MathUtils.degToRad(player.pitch), 0, 0);
+			rig.head.rotation.set(MathUtils.degToRad(pose.pitch), 0, 0);
 			const tagHeight = TAG_PIXELS * distance * worldPerPixel;
-			marker.tag.visible = distance <= TAG_RANGE;
+			marker.tag.visible = !hidden && distance <= TAG_RANGE;
 			marker.tag.position.set(marker.anchor.x, marker.anchor.y + PLAYER_HEIGHT + TAG_LIFT, marker.anchor.z);
 			marker.tag.scale.set(tagHeight * marker.tagAspect, tagHeight, 1);
 		}
+	}
+
+	hide(name: string | null): void {
+		this.hidden = name;
 	}
 
 	dispose(): void {
