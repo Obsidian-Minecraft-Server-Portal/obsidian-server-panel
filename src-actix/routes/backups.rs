@@ -1,22 +1,15 @@
-use std::io::{self, Write};
-
-use actix_web::http::header::CONTENT_DISPOSITION;
-use actix_web::web::Bytes;
 use actix_web::{HttpResponse, delete, get, post, put, web};
-use futures_util::stream;
 use obsidian_auth::Permission;
 use obsidian_backups::{BackupPolicy, SnapshotInfo, StoreStats, TreeEntry};
 use obsidian_common::{CommonError, InstanceId};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 use utoipa::ToSchema;
 
+use super::streaming;
 use crate::auth::{AuthUser, require_instance_perm};
 use crate::error::ApiResult;
 use crate::schedule_executor::{MANUAL_LABEL, backup_now, is_live, restore_now};
 use crate::state::AppState;
-
-const DOWNLOAD_QUEUE: usize = 16;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct BackupStarted {
@@ -255,21 +248,15 @@ pub async fn download_backup(
 	let (instance, snap) = path.into_inner();
 	require_instance_perm(&state, &user, instance, Permission::BACKUPS_DOWNLOAD).await?;
 	let info = state.backups.get(instance, &snap).await?;
-	let (sender, receiver) = mpsc::channel::<Bytes>(DOWNLOAD_QUEUE);
+	let (writer, body) = streaming::channel();
 	let backups = state.backups.clone();
 	let export_id = snap.clone();
 	tokio::spawn(async move {
-		if let Err(error) = backups.export_zip(instance, &export_id, ChannelWriter(sender)).await {
+		if let Err(error) = backups.export_zip(instance, &export_id, writer).await {
 			tracing::error!(%error, instance, "backup download aborted");
 		}
 	});
-	let body = stream::unfold(receiver, |mut receiver| async move {
-		receiver.recv().await.map(|chunk| (Ok::<Bytes, actix_web::Error>(chunk), receiver))
-	});
-	Ok(HttpResponse::Ok()
-		.content_type("application/zip")
-		.insert_header((CONTENT_DISPOSITION, format!("attachment; filename=\"{}.zip\"", info.id)))
-		.streaming(body))
+	Ok(streaming::zip_response(&format!("{}.zip", info.id), body))
 }
 
 #[utoipa::path(
@@ -296,19 +283,4 @@ pub async fn delete_backup(
 	require_instance_perm(&state, &user, instance, Permission::BACKUPS_DELETE).await?;
 	state.backups.delete(instance, &snap).await?;
 	Ok(HttpResponse::NoContent().finish())
-}
-
-struct ChannelWriter(mpsc::Sender<Bytes>);
-
-impl Write for ChannelWriter {
-	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-		self.0
-			.blocking_send(Bytes::copy_from_slice(buf))
-			.map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "download closed"))?;
-		Ok(buf.len())
-	}
-
-	fn flush(&mut self) -> io::Result<()> {
-		Ok(())
-	}
 }

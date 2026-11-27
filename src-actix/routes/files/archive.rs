@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::io::{self, BufWriter, Seek, Write};
-use std::path::{Component, Path, PathBuf};
+use std::io;
+use std::path::{Path, PathBuf};
 
 use actix_files::NamedFile;
 use actix_web::http::header::ContentDisposition;
@@ -10,22 +10,30 @@ use obsidian_common::{CommonError, InstanceId, Result};
 use obsidian_sftp::jail;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
-use utoipa::ToSchema;
-use walkdir::WalkDir;
-use zip::write::SimpleFileOptions;
+use utoipa::{IntoParams, ToSchema};
 
 use super::browse::PathQuery;
+use super::compress::{self, ArchiveJob, Reservation};
+use super::stored_zip;
 use super::util::{authorize, blocking, invalid, io_err, parent_path, resolve};
 use crate::auth::AuthUser;
 use crate::error::ApiResult;
+use crate::routes::streaming;
 use crate::state::AppState;
+
+const MAX_SELECTION: usize = 512;
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ArchiveRequest {
-	/// Entries to include. Folders are added recursively.
+	/// Entries to include. Folders are added recursively. Each must be inside the folder the zip is written to.
 	pub paths: Vec<String>,
 	/// Destination `.zip` path. Must not exist yet.
 	pub dest: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ArchiveStarted {
+	pub task_id: u64,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -40,6 +48,16 @@ pub struct ExtractRequest {
 pub struct ArchiveResult {
 	pub path: String,
 	pub entries: usize,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct SelectionQuery {
+	/// Folder that holds the selection. Entries in the zip are named relative to it.
+	#[serde(default)]
+	pub dir: String,
+	/// JSON array of instance-relative paths. Each must be inside `dir`.
+	pub paths: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,7 +85,12 @@ impl ArchiveKind {
 	tag = "files",
 	params(("id" = i64, Path, description = "Instance id")),
 	request_body = ArchiveRequest,
-	responses((status = 200, description = "Zip created", body = ArchiveResult), (status = 409, description = "Destination exists"))
+	responses(
+		(status = 202, description = "Zip started as a background task", body = ArchiveStarted),
+		(status = 400, description = "Invalid entries or archive name"),
+		(status = 404, description = "An entry does not exist"),
+		(status = 409, description = "The destination exists or is already being written"),
+	)
 )]
 #[post("/archive")]
 pub async fn archive_entries(
@@ -75,15 +98,25 @@ pub async fn archive_entries(
 	user: AuthUser,
 	id: web::Path<InstanceId>,
 	body: web::Json<ArchiveRequest>,
-) -> ApiResult<web::Json<ArchiveResult>> {
+) -> ApiResult<HttpResponse> {
 	let root = authorize(&state, &user, *id, Permission::FILES_READ | Permission::FILES_WRITE).await?;
-	let dest = resolve(&root, &body.dest).await?;
-	let mut sources = Vec::with_capacity(body.paths.len());
-	for path in &body.paths {
-		sources.push(resolve(&root, path).await?);
+	let ArchiveRequest { paths, dest: rel } = body.into_inner();
+	if paths.is_empty() {
+		return Err(CommonError::Invalid("nothing to compress".into()).into());
 	}
-	let entries = blocking(move || write_zip(&sources, &root, &dest)).await?;
-	Ok(web::Json(ArchiveResult { path: body.dest.clone(), entries }))
+	ensure_zip_name(&rel)?;
+	let dest = resolve(&root, &rel).await?;
+	let folder = dest.parent().unwrap_or(&root).to_path_buf();
+	let mut sources = Vec::with_capacity(paths.len());
+	for path in &paths {
+		sources.push(resolve_inside(&root, path, &folder).await?);
+	}
+	let reservation = Reservation::claim(&dest)?;
+	let name = file_name(&dest, "archive.zip");
+	let task = state.tasks.create("file_archive", format!("Compress to {name}"), Some(user.id));
+	let started = ArchiveStarted { task_id: task.id() };
+	compress::spawn(task, ArchiveJob { rel, sources, folder, dest, reservation });
+	Ok(HttpResponse::Accepted().json(started))
 }
 
 #[utoipa::path(
@@ -120,7 +153,7 @@ pub async fn extract_archive(
 	tag = "files",
 	params(("id" = i64, Path, description = "Instance id"), PathQuery),
 	responses(
-		(status = 200, description = "File contents, or a zip of a folder", content_type = "application/octet-stream"),
+		(status = 200, description = "File contents, or a streamed zip of a folder", content_type = "application/octet-stream"),
 		(status = 404, description = "Path does not exist"),
 	)
 )]
@@ -143,72 +176,81 @@ pub async fn download(
 	}
 
 	let name = format!("{}.zip", file_name(&path, "instance"));
-	let scratch = state.paths.uploads_dir.clone();
-	let file = blocking(move || {
-		let base = path.parent().unwrap_or(&root);
-		let (buffer, _) = zip_into(BufWriter::new(tempfile::tempfile_in(scratch)?), std::slice::from_ref(&path), base, None)?;
-		let mut file = buffer.into_inner().map_err(|e| e.into_error())?;
-		file.rewind()?;
-		Ok(file)
-	})
-	.await?;
-	let named = NamedFile::from_file(file, PathBuf::from(&name)).map_err(io_err)?;
-	Ok(named.set_content_disposition(ContentDisposition::attachment(name)).into_response(&req))
+	let folder = path.parent().unwrap_or(&root).to_path_buf();
+	stream_zip(&name, vec![path], folder).await
+}
+
+#[utoipa::path(
+	get,
+	path = "/api/v1/instances/{id}/files/zip",
+	tag = "files",
+	params(("id" = i64, Path, description = "Instance id"), SelectionQuery),
+	responses(
+		(status = 200, description = "Streamed zip of the selection", content_type = "application/zip"),
+		(status = 400, description = "Invalid selection"),
+		(status = 404, description = "An entry does not exist"),
+	)
+)]
+#[get("/zip")]
+pub async fn zip_selection(
+	state: web::Data<AppState>,
+	user: AuthUser,
+	id: web::Path<InstanceId>,
+	query: web::Query<SelectionQuery>,
+) -> ApiResult<HttpResponse> {
+	let root = authorize(&state, &user, *id, Permission::FILES_READ).await?;
+	let relatives: Vec<String> = serde_json::from_str(&query.paths).map_err(invalid)?;
+	if relatives.is_empty() || relatives.len() > MAX_SELECTION {
+		return Err(CommonError::Invalid(format!("select between 1 and {MAX_SELECTION} entries")).into());
+	}
+	let dir = query.dir.trim_matches('/');
+	let folder = resolve(&root, dir).await?;
+	if !fs::metadata(&folder).await.map_err(io_err)?.is_dir() {
+		return Err(CommonError::Invalid("the selection must be inside a folder".into()).into());
+	}
+	let mut sources = Vec::with_capacity(relatives.len());
+	for relative in &relatives {
+		sources.push(resolve_inside(&root, relative, &folder).await?);
+	}
+	stream_zip(&selection_name(dir), sources, folder).await
 }
 
 fn file_name(path: &Path, fallback: &str) -> String {
 	path.file_name().map_or_else(|| fallback.to_owned(), |name| name.to_string_lossy().into_owned())
 }
 
-fn write_zip(sources: &[PathBuf], base: &Path, dest: &Path) -> Result<usize> {
-	let file = std::fs::OpenOptions::new().write(true).create_new(true).open(dest)?;
-	let outcome = zip_into(BufWriter::new(file), sources, base, Some(dest))
-		.and_then(|(mut buffer, entries)| Ok(buffer.flush().map(|_| entries)?));
-	if outcome.is_err() {
-		let _ = std::fs::remove_file(dest);
+fn ensure_zip_name(rel: &str) -> Result<()> {
+	if rel.to_ascii_lowercase().ends_with(".zip") {
+		Ok(())
+	} else {
+		Err(CommonError::Invalid("the archive name must end in .zip".into()))
 	}
-	outcome
 }
 
-/// Entry names are relative to `base` with `/` separators. Symlinks are skipped so an archive
-/// cannot carry links out of the instance.
-fn zip_into<W: Write + Seek>(out: W, sources: &[PathBuf], base: &Path, skip: Option<&Path>) -> Result<(W, usize)> {
-	let mut writer = zip::ZipWriter::new(out);
-	let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-	let mut entries = 0;
-	for source in sources {
-		for entry in WalkDir::new(source).follow_links(false) {
-			let entry = entry.map_err(|e| CommonError::Other(e.to_string()))?;
-			let path = entry.path();
-			if Some(path) == skip || entry.file_type().is_symlink() {
-				continue;
-			}
-			let Ok(relative) = path.strip_prefix(base) else { continue };
-			let name = zip_name(relative);
-			if name.is_empty() {
-				continue;
-			}
-			if entry.file_type().is_dir() {
-				writer.add_directory(format!("{name}/"), options).map_err(zip_err)?;
-			} else {
-				writer.start_file(name, options).map_err(zip_err)?;
-				io::copy(&mut File::open(path)?, &mut writer)?;
-			}
-			entries += 1;
+async fn resolve_inside(root: &Path, relative: &str, folder: &Path) -> ApiResult<PathBuf> {
+	let path = resolve(root, relative).await?;
+	if !path.starts_with(folder) {
+		return Err(CommonError::Invalid(format!("`{relative}` is outside the folder of the archive")).into());
+	}
+	fs::symlink_metadata(&path).await.map_err(io_err)?;
+	Ok(path)
+}
+
+fn selection_name(dir: &str) -> String {
+	let folder = dir.rsplit('/').next().filter(|part| !part.is_empty()).unwrap_or("files");
+	format!("{folder}.zip")
+}
+
+/// The tree is walked before responding, so a failing walk is an error response, not a truncated download.
+async fn stream_zip(file_name: &str, sources: Vec<PathBuf>, folder: PathBuf) -> ApiResult<HttpResponse> {
+	let plan = blocking(move || stored_zip::collect(&sources, &folder, &[])).await?;
+	let (writer, body) = streaming::channel();
+	tokio::task::spawn_blocking(move || {
+		if let Err(error) = stored_zip::write_stream(writer, &plan.entries, |_, _| {}) {
+			tracing::warn!(%error, "zip download aborted");
 		}
-	}
-	Ok((writer.finish().map_err(zip_err)?, entries))
-}
-
-fn zip_name(relative: &Path) -> String {
-	relative
-		.components()
-		.filter_map(|component| match component {
-			Component::Normal(part) => Some(part.to_string_lossy()),
-			_ => None,
-		})
-		.collect::<Vec<_>>()
-		.join("/")
+	});
+	Ok(streaming::zip_response(file_name, body))
 }
 
 fn extract_zip(root: &Path, archive: &Path, dest_rel: &str) -> Result<usize> {
@@ -253,11 +295,4 @@ fn extract_tar_gz(root: &Path, archive: &Path, dest_rel: &str) -> Result<usize> 
 		extracted += 1;
 	}
 	Ok(extracted)
-}
-
-fn zip_err(error: zip::result::ZipError) -> CommonError {
-	match error {
-		zip::result::ZipError::Io(io) => CommonError::Io(io),
-		other => CommonError::Other(other.to_string()),
-	}
 }

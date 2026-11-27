@@ -18,6 +18,7 @@ pub mod members;
 pub mod migration;
 pub mod modpacks;
 pub mod serverpack;
+pub mod streaming;
 pub mod notifications;
 pub mod schedules;
 pub mod settings;

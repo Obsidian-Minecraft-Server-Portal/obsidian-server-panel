@@ -1,5 +1,7 @@
 pub mod archive;
 pub mod browse;
+mod compress;
+mod stored_zip;
 pub mod uploads;
 mod util;
 
@@ -17,6 +19,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 			.service(archive::archive_entries)
 			.service(archive::extract_archive)
 			.service(archive::download)
+			.service(archive::zip_selection)
 			.service(uploads::create_upload)
 			.service(uploads::upload_status)
 			.service(uploads::upload_chunk)
