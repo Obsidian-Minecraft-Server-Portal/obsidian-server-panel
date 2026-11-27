@@ -8,7 +8,7 @@ use crate::assets::AssetStore;
 use crate::atlas::{Atlas, block_textures};
 use crate::biome::BiomeRegistry;
 use crate::chunk::{BlockDefaults, BlockState};
-use crate::structure::{self, BiomeEntry, BiomeTable, BlockTable, StateTable, Vocabulary};
+use crate::structure::{self, BiomeEntry, BiomeTable, BlockTable, Lighting, StateTable, Vocabulary};
 use crate::colour::{BlockColours, SurfaceCache};
 use crate::error::Result;
 use crate::region::RegionFile;
@@ -52,8 +52,8 @@ impl Pack {
 		image
 	}
 
-	pub fn block_table(&self, states: &[BlockState], atlas: &Atlas, ambient_light: f32) -> BlockTable {
-		structure::block_table(&self.assets, states, atlas, ambient_light)
+	pub fn block_table(&self, states: &[BlockState], atlas: &Atlas, lighting: &Lighting) -> BlockTable {
+		structure::block_table(&self.assets, states, atlas, lighting)
 	}
 
 	pub fn biome_table(&self, names: &[String]) -> Vec<BiomeEntry> {

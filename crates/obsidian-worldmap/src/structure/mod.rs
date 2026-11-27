@@ -12,7 +12,7 @@ mod tables;
 mod volume;
 
 pub use cell::{CELL_BLOCKS, SectionStore, assemble, read_bundle};
-pub use export::{BiomeEntry, BlockEntry, BlockTable, QuadEntry, ambient_light, biome_table, block_table};
+pub use export::{BiomeEntry, BlockEntry, BlockTable, Lighting, QuadEntry, biome_table, block_table, lighting};
 pub use folder::{cell_bundle, region_pack_path};
 pub use region::{Vocabulary, vocabulary, write_region_pack};
 pub use section::section_volume;

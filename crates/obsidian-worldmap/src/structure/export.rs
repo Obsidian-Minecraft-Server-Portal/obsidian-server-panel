@@ -9,8 +9,8 @@ use crate::atlas::{Atlas, Layer};
 use crate::biome::{Biome, BiomeRegistry, GrassModifier};
 use crate::chunk::{BlockState, is_invisible};
 use crate::colour::Tints;
-use crate::models::bake_state;
 use crate::models::geometry::{BlockTint, Direction, Quad, TintKind};
+use crate::models::{bake_state, holds_water};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,6 +19,8 @@ pub struct BlockTable {
     pub atlas_height: u32,
     /// The least light a block takes in its dimension, from 0 to 1.
     pub ambient_light: f32,
+    /// The brightness of a face by direction (down, up, north, south, west, east), as the dimension's type sets it.
+    pub cardinal_lighting: [f32; 6],
     pub names: Vec<String>,
     pub states: Vec<BlockEntry>,
 }
@@ -31,10 +33,14 @@ pub struct BlockEntry {
     pub air: bool,
     /// 0 for none, 1 for water, 2 for lava.
     pub fluid: u8,
+    /// A fluid state's level: 0 is a source, 1 to 7 flow thinner, and 8 and up are falling.
+    pub fluid_level: u8,
     /// Bit `n` is set when the state has a full opaque face on the side with direction index `n`.
     pub full: u8,
-    /// Whether the state leaves out the faces it would draw against its own kind, as vanilla's glass does.
-    pub skip_same: bool,
+    /// Whether the state's collision is a full block, which darkens the corners of the blocks beside it.
+    pub shade_full: bool,
+    /// Which faces the state leaves out beside a neighbour of its kind: 0 for none, 1 for the same block, 2 for any leaves.
+    pub skip: u8,
     pub quads: Vec<QuadEntry>,
 }
 
@@ -58,6 +64,8 @@ pub struct QuadEntry {
     pub colour: Option<[u8; 3]>,
     /// Whether the face takes ambient occlusion from its neighbours.
     pub ao: bool,
+    /// Whether the face is part of a fluid's surface, which follows the fluid's height.
+    pub fluid: bool,
     /// 0 for opaque, 1 for cutout, 2 for translucent.
     pub layer: u8,
 }
@@ -74,7 +82,31 @@ pub struct BiomeEntry {
     pub grass_modifier: &'static str,
 }
 
-pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas, ambient_light: f32) -> BlockTable {
+/// The light a dimension's type gives its blocks.
+pub struct Lighting {
+    pub ambient: f32,
+    pub cardinal: [f32; 6],
+}
+
+/// The overworld and the end use the default face brightness. The nether's down and up faces are brighter.
+pub fn lighting(dimension: &str) -> Lighting {
+    match dimension {
+        "minecraft_the_nether" => Lighting {
+            ambient: 0.1,
+            cardinal: [0.9, 0.9, 0.8, 0.8, 0.6, 0.6],
+        },
+        "minecraft_the_end" => Lighting {
+            ambient: 0.25,
+            cardinal: [0.5, 1.0, 0.8, 0.8, 0.6, 0.6],
+        },
+        _ => Lighting {
+            ambient: 0.0,
+            cardinal: [0.5, 1.0, 0.8, 0.8, 0.6, 0.6],
+        },
+    }
+}
+
+pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas, lighting: &Lighting) -> BlockTable {
     let mut names: Vec<String> = Vec::new();
     let mut name_ids: HashMap<&str, u32> = HashMap::new();
     let entries = states
@@ -88,9 +120,11 @@ pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas, am
             BlockEntry {
                 name,
                 air: is_invisible(&state.name),
-                fluid: fluid_kind(&state.name),
+                fluid: fluid_kind(state),
+                fluid_level: fluid_level(state),
                 full: full_mask(&quads, atlas),
-                skip_same: skips_same_block(&state.name),
+                shade_full: shade_full(&quads),
+                skip: skip_kind(&state.name),
                 quads: quads.iter().map(|quad| quad_entry(quad, atlas)).collect(),
             }
         })
@@ -99,7 +133,8 @@ pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas, am
     BlockTable {
         atlas_width,
         atlas_height,
-        ambient_light,
+        ambient_light: lighting.ambient,
+        cardinal_lighting: lighting.cardinal,
         names,
         states: entries,
     }
@@ -123,25 +158,37 @@ pub fn biome_table(assets: &AssetStore, biomes: &BiomeRegistry, names: &[String]
         .collect()
 }
 
-/// The least light a dimension's type gives its blocks, by the dimension's folder name.
-pub fn ambient_light(dimension: &str) -> f32 {
-    match dimension {
-        "minecraft_the_nether" => 0.1,
-        "minecraft_the_end" => 0.25,
-        _ => 0.0,
-    }
-}
-
-fn fluid_kind(name: &str) -> u8 {
-    match name {
+fn fluid_kind(state: &BlockState) -> u8 {
+    match state.name.as_str() {
         "minecraft:water" => 1,
         "minecraft:lava" => 2,
+        _ if holds_water(state) => 1,
         _ => 0,
     }
 }
 
-fn skips_same_block(name: &str) -> bool {
-    name.ends_with("glass")
+fn fluid_level(state: &BlockState) -> u8 {
+    match state.name.as_str() {
+        "minecraft:water" | "minecraft:lava" => state.properties.get("level").and_then(|level| level.parse().ok()).unwrap_or(0),
+        _ => 0,
+    }
+}
+
+fn skip_kind(name: &str) -> u8 {
+    if name.ends_with("glass") {
+        1
+    } else if name.ends_with("_leaves") {
+        2
+    } else {
+        0
+    }
+}
+
+/// Fluid cubes do not count: water has no collision shape, so it leaves the corners beside it bright.
+fn shade_full(quads: &[Quad]) -> bool {
+    Direction::ALL
+        .iter()
+        .all(|&direction| quads.iter().any(|quad| !quad.fluid && quad.direction == direction && covers_block_face(quad)))
 }
 
 fn full_mask(quads: &[Quad], atlas: &Atlas) -> u8 {
@@ -202,6 +249,7 @@ fn quad_entry(quad: &Quad, atlas: &Atlas) -> QuadEntry {
             _ => None,
         },
         ao: quad.ambient_occlusion,
+        fluid: quad.fluid,
         layer: match atlas.layer(&quad.texture) {
             Layer::Opaque => 0,
             Layer::Cutout => 1,
