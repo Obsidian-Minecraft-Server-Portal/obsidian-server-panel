@@ -110,10 +110,10 @@ mod tests {
         fs::write(structure.join("sections").join("r.0.0").join("section_0_0_0.obsv"), b"old").unwrap();
         let written = write_region_pack(&region, &structure, &defaults, &states, &BiomeTable::with_plains()).unwrap();
         let mut pack = PackReader::open(&structure.join("regions").join("r.0.0.obsr")).unwrap().unwrap();
-        assert_eq!(written, 2);
+        assert_eq!(written, 1);
         assert!(pack.section([0, 0, 0]).unwrap().is_some());
         assert!(pack.section([1, 0, 0]).unwrap().is_none());
-        assert!(pack.section([2, 0, 0]).unwrap().is_some());
+        assert!(pack.section([2, 0, 0]).unwrap().is_none(), "stored light of 0 under open sky is raised to open sky");
         assert!(pack.section([3, 0, 0]).unwrap().is_none());
         assert!(!structure.join("sections").exists(), "the per-section files of the region are gone");
     }

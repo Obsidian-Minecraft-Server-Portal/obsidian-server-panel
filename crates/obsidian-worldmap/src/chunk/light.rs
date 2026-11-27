@@ -3,7 +3,8 @@
 use fastnbt::ByteArray;
 
 const PACKED_LEN: usize = 2048;
-const OPEN_SKY: u8 = 15;
+/// The level open sky gives every cell that nothing covers.
+pub const OPEN_SKY: u8 = 15;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Light {
@@ -21,6 +22,19 @@ impl Light {
 			return Some(Self::Uniform(first & 0x0F));
 		}
 		Some(Self::Packed(packed))
+	}
+
+	/// The levels of every cell in the index order `at` reads, which collapse to one level when they all share it.
+	pub fn from_levels(levels: &[u8]) -> Self {
+		let first = levels[0];
+		if levels.iter().all(|&level| level == first) {
+			return Self::Uniform(first);
+		}
+		let mut packed = Box::new([0_u8; PACKED_LEN]);
+		for (byte, pair) in packed.iter_mut().zip(levels.chunks_exact(2)) {
+			*byte = pair[0] | (pair[1] << 4);
+		}
+		Self::Packed(packed)
 	}
 
 	pub fn at(&self, x: usize, y: usize, z: usize) -> u8 {
@@ -68,6 +82,14 @@ mod tests {
 		bytes[0] = 0x3A_u8 as i8;
 		let light = Light::from_nibbles(ByteArray::new(bytes)).unwrap();
 		assert_eq!((light.at(0, 0, 0), light.at(1, 0, 0)), (10, 3));
+	}
+
+	#[test]
+	fn levels_round_trip_through_the_packed_form() {
+		let levels: Vec<u8> = (0..4096).map(|index| (index % 16) as u8).collect();
+		let light = Light::from_levels(&levels);
+		assert_eq!(light.at(5, 3, 9), levels[(3 << 8) | (9 << 4) | 5]);
+		assert_eq!(Light::from_levels(&[7; 4096]), Light::Uniform(7));
 	}
 
 	#[test]

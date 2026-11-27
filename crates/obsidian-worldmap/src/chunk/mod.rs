@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 pub use defaults::BlockDefaults;
 
 use fastnbt::{ByteArray, LongArray};
-use light::SectionLight;
+use light::{OPEN_SKY, SectionLight};
 use serde::Deserialize;
 
 use crate::error::{Result, WorldmapError};
@@ -108,6 +108,7 @@ impl Chunk {
 			.filter_map(|section| decode_section(section, spanning).transpose())
 			.collect::<Result<Vec<_>>>()?;
 		sections.sort_by_key(|section| std::cmp::Reverse(section.y));
+		raise_sky_to_open_columns(&mut sections);
 		Ok(Self {
 			x,
 			z,
@@ -164,6 +165,55 @@ impl Chunk {
 				(!is_invisible(&state.name) && keep(state)).then(|| (section.y * SECTION_SIDE as i32 + local_y as i32, state))
 			})
 		})
+	}
+}
+
+/// Raises each cell's sky light to what open sky reaches straight down its column. A chunk lit before its neighbours existed can
+/// store too little light beside its edges, which the map would draw as a dark band.
+fn raise_sky_to_open_columns(sections: &mut [Section]) {
+	let mut columns = [OPEN_SKY; SECTION_SIDE * SECTION_SIDE];
+	let floors: Vec<Vec<u8>> = sections
+		.iter()
+		.map(|section| {
+			let reductions: Vec<Option<u8>> = section.palette.iter().map(|state| light_reduction(&state.name)).collect();
+			let mut floor = vec![0_u8; BLOCKS_PER_SECTION];
+			for y in (0..SECTION_SIDE).rev() {
+				for z in 0..SECTION_SIDE {
+					for x in 0..SECTION_SIDE {
+						let index = (y << 8) | (z << 4) | x;
+						let level = &mut columns[(z << 4) | x];
+						match reductions[usize::from(section.indices[index])] {
+							Some(reduction) => {
+								*level = level.saturating_sub(reduction);
+								floor[index] = *level;
+							}
+							None => *level = 0,
+						}
+					}
+				}
+			}
+			floor
+		})
+		.collect();
+	for (section, floor) in sections.iter_mut().zip(floors) {
+		let stored: Vec<u8> = (0..BLOCKS_PER_SECTION)
+			.map(|index| section.light.sky.at(index & 15, index >> 8, (index >> 4) & 15))
+			.collect();
+		let raised: Vec<u8> = stored.iter().zip(&floor).map(|(&sky, &open)| sky.max(open)).collect();
+		if raised != stored {
+			section.light.sky = Light::from_levels(&raised);
+		}
+	}
+}
+
+/// How much a block dims the sky light that passes through it. `None` blocks it, which keeps the floor low wherever unsure.
+fn light_reduction(name: &str) -> Option<u8> {
+	if is_invisible(name) || name.ends_with("glass") {
+		Some(0)
+	} else if name == "minecraft:water" || name.ends_with("_leaves") {
+		Some(1)
+	} else {
+		None
 	}
 }
 
@@ -391,5 +441,42 @@ mod tests {
 	fn has_no_biomes_without_a_biome_palette() {
 		let chunk = Chunk::parse(&chunk_nbt(0, 0, 3955, &[((0, 0, 0), "minecraft:stone")])).unwrap();
 		assert_eq!(chunk.biome_at(0, 0, 0), None);
+	}
+
+	fn air() -> BlockState {
+		BlockState {
+			name: "minecraft:air".into(),
+			properties: BTreeMap::new(),
+		}
+	}
+
+	fn section(y: i32, palette: Vec<BlockState>, indices: Vec<u16>) -> Section {
+		Section {
+			y,
+			palette,
+			indices,
+			biome_palette: Vec::new(),
+			biome_indices: Vec::new(),
+			light: SectionLight {
+				sky: Light::Uniform(0),
+				block: Light::Uniform(0),
+			},
+		}
+	}
+
+	#[test]
+	fn sky_light_is_raised_to_what_open_sky_reaches_down_each_column() {
+		let stone = BlockState {
+			name: "minecraft:stone".into(),
+			properties: BTreeMap::new(),
+		};
+		let mut lower = vec![0_u16; BLOCKS_PER_SECTION];
+		lower[15 << 8] = 1;
+		let mut sections = vec![section(1, vec![air()], vec![0; BLOCKS_PER_SECTION]), section(0, vec![air(), stone], lower)];
+		raise_sky_to_open_columns(&mut sections);
+		assert_eq!(sections[0].light_at(3, 3, 3).0, OPEN_SKY);
+		assert_eq!(sections[1].light_at(1, 15, 0).0, OPEN_SKY);
+		assert_eq!(sections[1].light_at(0, 15, 0).0, 0);
+		assert_eq!(sections[1].light_at(0, 14, 0).0, 0);
 	}
 }
