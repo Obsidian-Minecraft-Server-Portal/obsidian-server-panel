@@ -52,6 +52,11 @@ export function useTasks() {
   });
 }
 
+export function useTaskById(taskId: number | null): TaskView | undefined {
+  const { data } = useTasks();
+  return taskId === null ? undefined : data?.find((entry) => entry.id === taskId);
+}
+
 export function useDismissTask() {
   const queryClient = useQueryClient();
   return useMutation({

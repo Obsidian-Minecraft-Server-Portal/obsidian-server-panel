@@ -17,7 +17,8 @@ export interface FileOps {
   rename: (from: string, to: string) => Promise<void>;
   move: (paths: string[], destDir: string) => Promise<void>;
   remove: (paths: string[]) => Promise<void>;
-  archive: (paths: string[], dest: string) => Promise<void>;
+  /** Starts a background zip and resolves with its task id. */
+  archive: (paths: string[], dest: string) => Promise<number>;
   extract: (path: string) => Promise<void>;
   save: (path: string, content: string) => Promise<void>;
 }
@@ -45,7 +46,7 @@ export function useFileOps(instanceId: number): FileOps {
           }
         }),
       remove: (paths) => mutate(() => deleteEntries(instanceId, paths)),
-      archive: (paths, dest) => mutate(() => archiveEntries(instanceId, paths, dest)),
+      archive: (paths, dest) => archiveEntries(instanceId, paths, dest).then((started) => started.task_id),
       extract: (path) => mutate(() => extractArchive(instanceId, path)),
       save: (path, content) => mutate(() => writeText(instanceId, path, content)),
     };

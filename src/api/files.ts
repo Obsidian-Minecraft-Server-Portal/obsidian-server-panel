@@ -24,6 +24,10 @@ export interface UploadStatus {
   offset: number;
 }
 
+export interface ArchiveStarted {
+  task_id: number;
+}
+
 export interface ArchiveResult {
   path: string;
   entries: number;
@@ -57,12 +61,15 @@ export const deleteEntries = (id: number, paths: string[]) =>
   api.post<{ deleted: number }>(`${filesPath(id)}/delete`, { paths });
 
 export const archiveEntries = (id: number, paths: string[], dest: string) =>
-  api.post<ArchiveResult>(`${filesPath(id)}/archive`, { paths, dest });
+  api.post<ArchiveStarted>(`${filesPath(id)}/archive`, { paths, dest });
 
 export const extractArchive = (id: number, path: string) =>
   api.post<ArchiveResult>(`${filesPath(id)}/extract`, { path });
 
 export const downloadUrl = (id: number, path: string) => `${BASE}${filesPath(id)}/download?${query({ path })}`;
+
+export const selectionUrl = (id: number, dir: string, paths: string[]) =>
+  `${BASE}${filesPath(id)}/zip?${query({ dir, paths: JSON.stringify(paths) })}`;
 
 export const createUpload = (id: number, path: string, size: number) =>
   api.post<UploadStatus>(`${filesPath(id)}/uploads`, { path, size });

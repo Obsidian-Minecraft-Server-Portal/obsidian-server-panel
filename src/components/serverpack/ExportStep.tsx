@@ -2,7 +2,7 @@ import { Input, Label, TextField } from "@heroui/react";
 import { CheckboxRow } from "../ui/CheckboxRow";
 import { useEffect, useRef, useState } from "react";
 import { useExportServerPack, type AnalysisResult, type ServerPackReceipt } from "../../api/serverpack";
-import { useTasks, type TaskView } from "../../api/tasks";
+import { useTaskById, type TaskView } from "../../api/tasks";
 import { LOADER_META } from "../runtime/loaderMeta";
 import { ProgressBar } from "../ui/ProgressBar";
 import { GhostButton } from "../ui/GhostButton";
@@ -83,11 +83,6 @@ export function ExportStep({ draft, decisions, onBack, onDone }: ExportStepProps
       </aside>
     </div>
   );
-}
-
-function useTaskById(taskId: number | null): TaskView | undefined {
-  const { data } = useTasks();
-  return taskId === null ? undefined : data?.find((entry) => entry.id === taskId);
 }
 
 function receiptOf(task: TaskView): ServerPackReceipt | null {

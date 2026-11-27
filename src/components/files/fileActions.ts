@@ -7,7 +7,7 @@ export type FileAction = MenuAction;
 export interface FileActionHandlers {
   open: (entry: FileEntry) => void;
   edit: (entry: FileEntry) => void;
-  download: (entry: FileEntry) => void;
+  download: (entries: FileEntry[]) => void;
   rename: (entry: FileEntry) => void;
   move: (entries: FileEntry[]) => void;
   archive: (entries: FileEntry[]) => void;
@@ -26,12 +26,17 @@ export function actionsFor(entries: FileEntry[], handlers: FileActionHandlers): 
     } else {
       actions.push({ key: "edit", label: "Edit", icon: "lucide:file-pen-line", run: () => handlers.edit(single) });
     }
-    actions.push({
-      key: "download",
-      label: single.is_dir ? "Download as zip" : "Download",
-      icon: "lucide:download",
-      run: () => handlers.download(single),
-    });
+  }
+
+  const zipped = entries.length > 1 || single.is_dir;
+  actions.push({
+    key: "download",
+    label: zipped ? "Download as zip" : "Download",
+    icon: "lucide:download",
+    run: () => handlers.download(entries),
+  });
+
+  if (entries.length === 1) {
     actions.push({ key: "rename", label: "Rename", icon: "lucide:pencil", run: () => handlers.rename(single) });
   }
 

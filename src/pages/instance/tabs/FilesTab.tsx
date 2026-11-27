@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
-import { downloadUrl, useDirectory, type FileEntry } from "../../../api/files";
+import { downloadUrl, selectionUrl, useDirectory, type FileEntry } from "../../../api/files";
 import { useInstance } from "../../../api/instances";
 import { Breadcrumbs } from "../../../components/files/Breadcrumbs";
 import { ContextMenu } from "../../../components/ui/ContextMenu";
@@ -13,6 +13,7 @@ import { SftpCard } from "../../../components/files/SftpCard";
 import { UploadPanel } from "../../../components/files/UploadPanel";
 import { actionsFor, type FileActionHandlers } from "../../../components/files/fileActions";
 import { errorMessage, normalizeDir, parentPath, triggerDownload } from "../../../components/files/fileUtils";
+import { useArchiveRefresh } from "../../../components/files/useArchiveRefresh";
 import { useFileOps } from "../../../components/files/useFileOps";
 import { useSelection } from "../../../components/files/useSelection";
 import { uploadQueue } from "../../../components/files/useUploads";
@@ -40,6 +41,7 @@ export function FilesTab() {
   const { selected, pick, focusOnly } = useSelection(order);
   const selectedEntries = useMemo(() => entries.filter((entry) => selected.has(entry.path)), [entries, selected]);
   const ops = useFileOps(id);
+  useArchiveRefresh(id);
 
   const [editing, setEditing] = useState<string | null>(null);
   const [dialog, setDialog] = useState<FileDialog | null>(null);
@@ -85,14 +87,19 @@ export function FilesTab() {
     () => ({
       open: (entry) => (entry.is_dir ? navigate(entry.path) : openFile(entry.path)),
       edit: (entry) => openFile(entry.path),
-      download: (entry) => triggerDownload(downloadUrl(id, entry.path)),
+      download: (picked) =>
+        triggerDownload(
+          picked.length === 1
+            ? downloadUrl(id, picked[0].path)
+            : selectionUrl(id, dir, picked.map((entry) => entry.path)),
+        ),
       rename: (entry) => setDialog({ kind: "rename", entry }),
       move: (picked) => setDialog({ kind: "move", entries: picked }),
       archive: (picked) => setDialog({ kind: "archive", entries: picked }),
       extract: (entry) => void attempt(() => ops.extract(entry.path)),
       remove: (picked) => setDialog({ kind: "delete", entries: picked }),
     }),
-    [id, navigate, openFile, attempt, ops],
+    [id, dir, navigate, openFile, attempt, ops],
   );
 
   const onContextMenu = useCallback(

@@ -7,7 +7,7 @@ import type { Project, ProjectVersion } from "../../api/content";
 import { useInstallModpack } from "../../api/content";
 import { instancesKey } from "../../api/instances";
 import { useAnalyzeModpack } from "../../api/serverpack";
-import { useTasks, type TaskView } from "../../api/tasks";
+import { useTaskById, type TaskView } from "../../api/tasks";
 import { CheckboxRow } from "../ui/CheckboxRow";
 import { ProgressBar } from "../ui/ProgressBar";
 import { GhostButton } from "../ui/GhostButton";
@@ -174,11 +174,6 @@ function NoServerPackForm({ action, onClose }: { action: ModpackAction; onClose:
       </Modal.Footer>
     </>
   );
-}
-
-function useTaskById(taskId: number | null): TaskView | undefined {
-  const { data } = useTasks();
-  return taskId === null ? undefined : data?.find((entry) => entry.id === taskId);
 }
 
 function draftIdOf(task: TaskView): string | null {
