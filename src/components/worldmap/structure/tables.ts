@@ -18,6 +18,8 @@ export interface QuadJson {
   /** The fixed colour the block state carries, in place of a biome tint. */
   colour: [number, number, number] | null;
   ao: boolean;
+  /** Whether the face is part of a fluid's surface, which follows the fluid's height. */
+  fluid: boolean;
   layer: number;
 }
 
@@ -26,7 +28,10 @@ export interface BlockJson {
   air: boolean;
   fluid: number;
   full: number;
-  skipSame: boolean;
+  fluidLevel: number;
+  shadeFull: boolean;
+  /** 0 for none, 1 for the same block, or 2 for any leaves. */
+  skip: number;
   quads: QuadJson[];
 }
 
@@ -34,6 +39,8 @@ export interface BlockTableJson {
   atlasWidth: number;
   atlasHeight: number;
   ambientLight: number;
+  /** The brightness of each face direction: down, up, north, south, west, east. */
+  cardinalLighting: number[];
   names: string[];
   states: BlockJson[];
 }
@@ -61,6 +68,8 @@ export interface PreparedQuad {
   tint: number;
   colour: [number, number, number] | null;
   ao: boolean;
+  /** Whether the face is part of a fluid's surface, which follows the fluid's height. */
+  fluid: boolean;
   layer: number;
   /** Texel coordinates, 0 to 16, two per corner, before the atlas offset. */
   texel: Float32Array;
@@ -76,7 +85,9 @@ export interface PreparedBlock {
   air: boolean;
   fluid: number;
   full: number;
-  skipSame: boolean;
+  fluidLevel: number;
+  shadeFull: boolean;
+  skip: number;
   name: number;
   quads: PreparedQuad[];
 }
@@ -87,6 +98,7 @@ export interface PreparedTable {
   atlasWidth: number;
   atlasHeight: number;
   ambientLight: number;
+  cardinal: number[];
 }
 
 export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): PreparedTable {
@@ -95,7 +107,9 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
       air: state.air,
       fluid: state.fluid,
       full: state.full,
-      skipSame: state.skipSame,
+      fluidLevel: state.fluidLevel,
+      shadeFull: state.shadeFull,
+      skip: state.skip,
       name: state.name,
       quads: state.quads.map((quad) => ({
         corners: Float32Array.from(quad.corners),
@@ -106,17 +120,19 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
         tint: quad.tint,
         colour: quad.colour,
         ao: quad.ao,
+        fluid: quad.fluid,
         layer: quad.layer,
         texel: Float32Array.from(quad.uvs),
         pattern: symmetryOf(Float32Array.from(quad.corners), Float32Array.from(quad.uvs), quad.direction),
         cell: [quad.cell[0], quad.cell[1]],
-        unit: coversBlockFace(Float32Array.from(quad.corners), quad.direction),
+        unit: !quad.fluid && coversBlockFace(Float32Array.from(quad.corners), quad.direction),
       })),
     })),
     biomes,
     atlasWidth: blocks.atlasWidth,
     atlasHeight: blocks.atlasHeight,
     ambientLight: Math.fround(blocks.ambientLight),
+    cardinal: blocks.cardinalLighting.map((value) => Math.fround(value)),
   };
 }
 

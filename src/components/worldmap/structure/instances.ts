@@ -3,10 +3,8 @@
 
 import { mergeFaces } from "./cell-greedy";
 import { type Face, TANGENTS } from "./cell-mesh";
-import type { PreparedQuad, PreparedTable } from "./tables";
+import { type PreparedQuad, type PreparedTable, UNSHADED } from "./tables";
 
-/** Vanilla's directional brightness: down, up, north, south, west, east, then full brightness for unshaded faces. */
-export const FACE_SHADE = [0.5, 1, 0.8, 0.8, 0.6, 0.6, 1];
 /** Triangles of a quad split along its corner 0 to 2 diagonal, or its 1 to 3 diagonal, in quad order. */
 const ZERO_TWO = [0, 1, 2, 0, 2, 3];
 const ONE_THREE = [0, 1, 3, 1, 2, 3];
@@ -21,7 +19,7 @@ export interface InstanceArrays {
   /** Blocks along the first and second tangent axes of the face, two per instance. */
   size: Uint8Array;
   direction: Uint8Array;
-  /** The shade index of each instance, as `FACE_SHADE`. */
+  /** The shade index of each instance. Directional brightness is already in the corner light, so this is always unshaded. */
   shade: Uint8Array;
   /** The texture symmetry (0 to 7), plus 8 when the faces split along the template's 0 to 2 diagonal. */
   pattern: Uint8Array;
@@ -99,7 +97,7 @@ function addInstance(
   builder.origin.push(origin[0], origin[1], origin[2]);
   builder.size.push(width, height);
   builder.direction.push(quad.direction);
-  builder.shade.push(quad.shade);
+  builder.shade.push(UNSHADED);
   builder.pattern.push(quad.pattern | (splitsAlongZeroTwo ? 8 : 0));
   builder.cell.push(quad.cell[0], quad.cell[1]);
   builder.tint.push(tint[0], tint[1], tint[2]);
@@ -119,14 +117,13 @@ function addExplicit(builder: LayerBuilder, face: Face, table: PreparedTable): v
   const uvs = insetUvs(quad, table);
   for (let corner = 0; corner < 4; corner++) {
     builder.positions.push(
-      face.x + quad.corners[corner * 3] / 16,
-      face.y + quad.corners[corner * 3 + 1] / 16,
-      face.z + quad.corners[corner * 3 + 2] / 16,
+      face.x + face.corners[corner * 3] / 16,
+      face.y + face.corners[corner * 3 + 1] / 16,
+      face.z + face.corners[corner * 3 + 2] / 16,
     );
     builder.uvs.push(uvs[corner * 2], uvs[corner * 2 + 1]);
-    const shade = FACE_SHADE[quad.shade];
     for (const channel of face.tint) {
-      builder.colours.push((channel / 255) * shade * (face.light[corner] / 255));
+      builder.colours.push((channel / 255) * (face.light[corner] / 255));
     }
   }
   const light = face.light;

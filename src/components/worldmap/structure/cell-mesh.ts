@@ -1,9 +1,10 @@
-// Faces of one cell, with the culling, ambient occlusion and light that the server's block tables describe.
+// Faces of one cell, lit and culled the way the game draws them: smooth lighting from the four blocks around each corner, flat
+// lighting for models without ambient occlusion, the brightness of each face direction, and the heights and culling of fluids.
 // Corners and texture coordinates stay in the server's integer packing, so the output can be compared with it exactly.
 
 import { tintFor } from "./biome-tint";
 import { CELL_BLOCKS, type CellVoxels, PADDED, paddedIndex } from "./bundle";
-import type { PreparedBlock, PreparedQuad, PreparedTable } from "./tables";
+import { type PreparedBlock, type PreparedQuad, type PreparedTable, UNSHADED } from "./tables";
 
 const PLANE = PADDED * PADDED;
 /** Index step to the neighbour each direction points at: down, up, north, south, west, east. */
@@ -18,9 +19,17 @@ export const TANGENTS = [
   [1, 2],
 ];
 const AXIS_STEP = [1, PLANE, PADDED];
-const OCCLUSION = [Math.fround(0.4), Math.fround(0.6), Math.fround(0.8), 1];
+const DOWN = 0;
+const UP = 1;
+const AIR_STATE = 0;
+const OPEN_SKY = 15;
 const FULL_LIGHT = 15;
-const ALL_FACES = 0b111111;
+const FULL_BLOCK_FACES = 0b111111;
+/** The shade a full-block neighbour gives a corner. Other blocks leave the corner bright. */
+const FULL_BLOCK_SHADE = 0.2;
+const BLOCK_HEIGHT = 16;
+const SOURCE_AMOUNT = 8;
+const FLUID_STEPS = 9;
 const WHITE = [255, 255, 255];
 
 /** One visible face of a block, with the block's cell-local coordinates. */
@@ -29,21 +38,10 @@ export interface Face {
   y: number;
   z: number;
   quad: PreparedQuad;
+  /** The quad's corners, lowered to the fluid's surface where the quad is part of one. */
+  corners: Float32Array;
   tint: number[];
-  /** Brightness of each corner, 0 to 255. */
-  light: number[];
-}
-
-export interface EmittedQuad {
-  /** Chunk x, section y and chunk z of the block the quad belongs to. */
-  section: [number, number, number];
-  layer: number;
-  /** Corners as x, y, z in 1/256 of a block, relative to the section origin. */
-  corners: number[];
-  /** Atlas coordinates, two per corner, as u16. */
-  uvs: number[];
-  direction: number;
-  tint: number[];
+  /** Brightness of each corner, 0 to 255, with the face's directional brightness already in it. */
   light: number[];
 }
 
@@ -58,35 +56,26 @@ export function meshCell(voxels: CellVoxels, table: PreparedTable): Face[] {
           continue;
         }
         const biome = table.biomes[voxels.biomes[(y * CELL_BLOCKS + z) * CELL_BLOCKS + x]];
+        const height = fluidHeight(voxels, table.blocks, index);
         for (const quad of block.quads) {
           if (quad.cullface >= 0 && isCulled(voxels, table.blocks, block, quad, index)) {
             continue;
           }
           const tint = quad.colour ?? (quad.tint < 0 ? WHITE : tintFor(quad.tint, biome, cellX(voxels) + x, cellZ(voxels) + z));
-          const light = quad.ao
-            ? cornerLight(voxels, table.blocks, index, quad, table.ambientLight)
-            : flatLight(voxels, index, quad, table.ambientLight);
-          faces.push({ x, y, z, quad, tint, light });
+          faces.push({
+            x,
+            y,
+            z,
+            quad,
+            corners: quad.fluid ? lowered(quad.corners, height) : quad.corners,
+            tint,
+            light: quad.ao ? smoothLight(voxels, table, index, quad) : flatLight(voxels, table, index, quad),
+          });
         }
       }
     }
   }
   return faces;
-}
-
-export function emit(face: Face, cell: [number, number, number]): EmittedQuad {
-  const absoluteX = cell[0] * CELL_BLOCKS + face.x;
-  const absoluteY = cell[1] * CELL_BLOCKS + face.y;
-  const absoluteZ = cell[2] * CELL_BLOCKS + face.z;
-  return {
-    section: [Math.floor(absoluteX / 16), Math.floor(absoluteY / 16), Math.floor(absoluteZ / 16)],
-    layer: face.quad.layer,
-    corners: positions(face.quad, face.x & 15, face.y & 15, face.z & 15),
-    uvs: Array.from(face.quad.uvs),
-    direction: face.quad.direction,
-    tint: face.tint,
-    light: face.light,
-  };
 }
 
 function cellX(voxels: CellVoxels): number {
@@ -97,66 +86,133 @@ function cellZ(voxels: CellVoxels): number {
   return voxels.cell[2] * CELL_BLOCKS;
 }
 
+/** The block at a padded index. Positions past the border the bundle carries read as air. */
+function blockAt(voxels: CellVoxels, blocks: PreparedBlock[], at: number): PreparedBlock {
+  return blocks[voxels.ids[at] ?? AIR_STATE];
+}
+
 function isCulled(voxels: CellVoxels, blocks: PreparedBlock[], block: PreparedBlock, quad: PreparedQuad, index: number): boolean {
-  const neighbour = blocks[voxels.ids[index + DIRECTION_STEP[quad.cullface]]];
+  const neighbourIndex = index + DIRECTION_STEP[quad.cullface];
+  const neighbour = blockAt(voxels, blocks, neighbourIndex);
   if (neighbour.air) {
     return false;
   }
-  if (neighbour.name === block.name && (block.fluid !== 0 || block.skipSame)) {
+  if (quad.fluid && block.fluid !== 0 && neighbour.fluid === block.fluid && fluidHidden(voxels, blocks, quad.cullface, index, neighbourIndex)) {
+    return true;
+  }
+  if (block.skip === 1 && neighbour.name === block.name) {
+    return true;
+  }
+  if (block.skip === 2 && neighbour.skip === 2) {
     return true;
   }
   return ((neighbour.full >> (quad.cullface ^ 1)) & 1) === 1;
 }
 
-function positions(quad: PreparedQuad, localX: number, localY: number, localZ: number): number[] {
-  const local = [localX, localY, localZ];
-  const out: number[] = [];
-  for (let corner = 0; corner < 4; corner++) {
-    for (let axis = 0; axis < 3; axis++) {
-      const offset = Math.fround(quad.corners[corner * 3 + axis] / 16);
-      out.push(Math.round(Math.fround(Math.fround(local[axis] + offset) * 256)));
-    }
+/** A fluid face inside a column of the same fluid is hidden. A side beside a neighbour of the same fluid shows only where the
+ * neighbour's surface is lower. */
+function fluidHidden(voxels: CellVoxels, blocks: PreparedBlock[], face: number, index: number, neighbourIndex: number): boolean {
+  if (face === UP || face === DOWN) {
+    return true;
   }
-  return out;
+  return fluidHeight(voxels, blocks, neighbourIndex) >= fluidHeight(voxels, blocks, index);
 }
 
-function cornerLight(voxels: CellVoxels, blocks: PreparedBlock[], index: number, quad: PreparedQuad, ambient: number): number[] {
-  const front = index + DIRECTION_STEP[quad.direction];
+/** The height of a fluid's surface in model units: a full block inside a column of the same fluid, else the fluid's amount. */
+function fluidHeight(voxels: CellVoxels, blocks: PreparedBlock[], index: number): number {
+  const block = blockAt(voxels, blocks, index);
+  if (block.fluid === 0) {
+    return 0;
+  }
+  if (blockAt(voxels, blocks, index + PLANE).fluid === block.fluid) {
+    return BLOCK_HEIGHT;
+  }
+  const amount = block.fluidLevel >= 8 ? SOURCE_AMOUNT : SOURCE_AMOUNT - block.fluidLevel;
+  return (BLOCK_HEIGHT * amount) / FLUID_STEPS;
+}
+
+function lowered(corners: Float32Array, height: number): Float32Array {
+  const result = corners.slice();
+  for (let component = 1; component < result.length; component += 3) {
+    if (result[component] > BLOCK_HEIGHT - 0.5) {
+      result[component] = height;
+    }
+  }
+  return result;
+}
+
+/** The smooth lighting of a face, as the game computes it: each corner averages the shade of the two blocks beside it, the block
+ * diagonal to it and the block the face looks at, and blends their light the same way. */
+function smoothLight(voxels: CellVoxels, table: PreparedTable, index: number, quad: PreparedQuad): number[] {
+  const out = DIRECTION_STEP[quad.direction];
+  const base = quad.unit ? index + out : index;
   const [first, second] = TANGENTS[quad.direction];
+  const opaque = (at: number) => blockAt(voxels, table.blocks, at).full === FULL_BLOCK_FACES;
+  const shade = (at: number) => (blockAt(voxels, table.blocks, at).shadeFull ? FULL_BLOCK_SHADE : 1);
+  const centre = quad.unit && opaque(index + out) ? lightCoords(voxels, index) : lightCoords(voxels, index + out);
+  const directional = directionalFactor(table, quad);
   const light: number[] = [0, 0, 0, 0];
   for (let corner = 0; corner < 4; corner++) {
     const firstSide = quad.corners[corner * 3 + first] < 8 ? -1 : 1;
     const secondSide = quad.corners[corner * 3 + second] < 8 ? -1 : 1;
-    const besideFirst = front + firstSide * AXIS_STEP[first];
-    const besideSecond = front + secondSide * AXIS_STEP[second];
-    const diagonal = besideFirst + secondSide * AXIS_STEP[second];
-    const occludedFirst = isOccluder(voxels, blocks, besideFirst);
-    const occludedSecond = isOccluder(voxels, blocks, besideSecond);
-    const occlusion =
-      occludedFirst && occludedSecond
-        ? 0
-        : 3 - (Number(occludedFirst) + Number(occludedSecond) + Number(isOccluder(voxels, blocks, diagonal)));
-    const level =
-      (lightLevel(voxels, front) + lightLevel(voxels, besideFirst) + lightLevel(voxels, besideSecond) + lightLevel(voxels, diagonal)) / 4;
-    light[corner] = Math.round(Math.fround(Math.fround(OCCLUSION[occlusion] * lightCurve(level, ambient)) * 255));
+    const sideFirst = base + firstSide * AXIS_STEP[first];
+    const sideSecond = base + secondSide * AXIS_STEP[second];
+    const open = !opaque(sideFirst + out) || !opaque(sideSecond + out);
+    const diagonal = open ? sideFirst + secondSide * AXIS_STEP[second] : base - AXIS_STEP[first];
+    const shadeValue = (shade(sideFirst) + shade(sideSecond) + shade(diagonal) + shade(base)) / 4;
+    const blended = smoothBlend(lightCoords(voxels, sideFirst), lightCoords(voxels, sideSecond), lightCoords(voxels, diagonal), centre);
+    light[corner] = clampByte(255 * shadeValue * directional * lightCurve(Math.max(sky(blended), blockLevel(blended)), table.ambientLight));
   }
   return light;
 }
 
-/** Faces of models without ambient occlusion take one brightness, from the cell their cullface points at or from their own. */
-function flatLight(voxels: CellVoxels, index: number, quad: PreparedQuad, ambient: number): number[] {
-  const source = quad.cullface >= 0 ? index + DIRECTION_STEP[quad.cullface] : index;
-  const value = Math.round(Math.fround(lightCurve(lightLevel(voxels, source), ambient) * 255));
+/** The brightness of a model without ambient occlusion: one level for each face, from the cell the face looks at. */
+function flatLight(voxels: CellVoxels, table: PreparedTable, index: number, quad: PreparedQuad): number[] {
+  const source = quad.unit ? index + DIRECTION_STEP[quad.direction] : index;
+  const level = Math.max(skyAt(voxels, source), blockLightAt(voxels, source));
+  const value = clampByte(255 * directionalFactor(table, quad) * lightCurve(level, table.ambientLight));
   return [value, value, value, value];
 }
 
-function isOccluder(voxels: CellVoxels, blocks: PreparedBlock[], index: number): boolean {
-  const block = blocks[voxels.ids[index]];
-  return !block.air && block.full === ALL_FACES;
+/** Unshaded faces take the brightness of the up face, as the game shades faces it cannot orient. */
+function directionalFactor(table: PreparedTable, quad: PreparedQuad): number {
+  return table.cardinal[quad.shade === UNSHADED ? UP : quad.shade];
 }
 
-function lightLevel(voxels: CellVoxels, index: number): number {
-  return Math.max(voxels.sky[index], voxels.block[index]);
+function skyAt(voxels: CellVoxels, at: number): number {
+  return voxels.sky[at] ?? OPEN_SKY;
+}
+
+function blockLightAt(voxels: CellVoxels, at: number): number {
+  return voxels.block[at] ?? 0;
+}
+
+/** The packed light of a cell, in the game's layout: block light in bits 4 to 7 and sky light in bits 20 to 23. */
+function lightCoords(voxels: CellVoxels, at: number): number {
+  return (blockLightAt(voxels, at) << 4) | (skyAt(voxels, at) << 20);
+}
+
+function sky(packed: number): number {
+  return (packed >> 20) & 0xf;
+}
+
+function blockLevel(packed: number): number {
+  return (packed >> 4) & 0xf;
+}
+
+/** The game's blend of four packed light values. A sample with no sky or block light takes the centre's, so a dark neighbour does
+ * not darken a corner the centre lights. */
+function smoothBlend(a: number, b: number, c: number, centre: number): number {
+  const lit = sky(centre) > 2 || blockLevel(centre) > 2;
+  const total = (lit ? replaceDark(a, centre) : a) + (lit ? replaceDark(b, centre) : b) + (lit ? replaceDark(c, centre) : c) + centre;
+  return (total >> 2) & 0x00ff00ff;
+}
+
+function replaceDark(value: number, centre: number): number {
+  if (value === 0) {
+    return centre;
+  }
+  return sky(value) === 0 ? value | (centre & 0xff0000) : value;
 }
 
 function lightCurve(level: number, ambient: number): number {
@@ -164,4 +220,8 @@ function lightCurve(level: number, ambient: number): number {
   const numerator = Math.fround(Math.fround(1 - ambient) * t);
   const denominator = Math.fround(4 - Math.fround(3 * t));
   return Math.fround(ambient + Math.fround(numerator / denominator));
+}
+
+function clampByte(value: number): number {
+  return Math.min(255, Math.max(0, Math.round(value)));
 }
