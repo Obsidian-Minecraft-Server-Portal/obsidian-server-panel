@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MapManifest, MapSource, MapTile } from "../components/worldmap/map-source";
 import { api, BASE } from "./client";
 import { isInstanceId } from "./instances";
@@ -99,6 +99,7 @@ export function useWorldMapManifest(instanceId: number, folder: string, revision
     queryFn: () => api.get<WorldMapManifest>(`/instances/${instanceId}/worldmap/dimensions/${folder}`),
     enabled: isInstanceId(instanceId),
     staleTime: 0,
+    placeholderData: keepPreviousData,
   });
 }
 

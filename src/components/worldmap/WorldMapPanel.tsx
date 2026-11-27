@@ -234,14 +234,14 @@ interface FreeViewProps {
 
 function FreeView({ instanceId, folder, dimensionId, players, revision, focus, stats, onPlace, onInput }: FreeViewProps) {
   const source = useMemo(() => worldMapSource(instanceId, folder), [instanceId, folder]);
-  const inDimension = useMemo(() => players.filter((player) => player.dimension === dimensionId), [players, dimensionId]);
   return (
     <WorldMapViewer
       source={source}
       instanceId={instanceId}
       folder={folder}
+      dimensionId={dimensionId}
       revision={revision}
-      players={inDimension}
+      players={players}
       skinBase={worldMapSkinBase(instanceId)}
       focus={focus}
       stats={stats}
