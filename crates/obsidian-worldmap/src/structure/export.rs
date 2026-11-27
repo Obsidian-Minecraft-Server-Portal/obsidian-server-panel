@@ -37,10 +37,16 @@ pub struct BlockEntry {
     pub fluid_level: u8,
     /// Bit `n` is set when the state has a full opaque face on the side with direction index `n`.
     pub full: u8,
-    /// Whether the state's collision is a full block, which darkens the corners of the blocks beside it.
+    /// Whether the state's collision is a full block. Faces flat against one take the game's cube lighting.
+    pub collision_full: bool,
+    /// Whether the state darkens the corners of the blocks beside it: a full collision, except for transparent blocks.
     pub shade_full: bool,
-    /// Which faces the state leaves out beside a neighbour of its kind: 0 for none, 1 for the same block, 2 for any leaves.
+    /// Which faces the state leaves out beside a neighbour of the same block: 0 for none, 1 for the same block.
     pub skip: u8,
+    /// Whether the state is iron bars or a pane, which leave out the faces that meet a neighbouring bar.
+    pub bars: bool,
+    /// Bit `n` is set when the state connects toward the side with direction index `n`, for bars and panes.
+    pub connections: u8,
     pub quads: Vec<QuadEntry>,
 }
 
@@ -117,14 +123,18 @@ pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas, li
                 (names.len() - 1) as u32
             });
             let quads = bake_state(assets, state);
+            let collision_full = full_collision(&quads);
             BlockEntry {
                 name,
                 air: is_invisible(&state.name),
                 fluid: fluid_kind(state),
                 fluid_level: fluid_level(state),
-                full: full_mask(&quads, atlas),
-                shade_full: shade_full(&quads),
+                full: if does_not_occlude(&state.name) { 0 } else { full_mask(&quads, atlas) },
+                collision_full,
+                shade_full: collision_full && !is_transparent(&state.name),
                 skip: skip_kind(&state.name),
+                bars: is_bars(&state.name),
+                connections: connections(state),
                 quads: quads.iter().map(|quad| quad_entry(quad, atlas)).collect(),
             }
         })
@@ -175,17 +185,38 @@ fn fluid_level(state: &BlockState) -> u8 {
 }
 
 fn skip_kind(name: &str) -> u8 {
-    if name.ends_with("glass") {
-        1
-    } else if name.ends_with("_leaves") {
-        2
-    } else {
-        0
-    }
+    u8::from(is_half_transparent(name))
+}
+
+/// Blocks the game draws as a `TransparentBlock`: they shade nothing beside them.
+fn is_transparent(name: &str) -> bool {
+    matches!(name, "minecraft:glass" | "minecraft:tinted_glass") || name.ends_with("_stained_glass") || name.ends_with("copper_grate")
+}
+
+/// Blocks the game draws as a `HalfTransparentBlock` or one of its subclasses: faces against the same block are left out.
+fn is_half_transparent(name: &str) -> bool {
+    is_transparent(name) || matches!(name, "minecraft:ice" | "minecraft:frosted_ice" | "minecraft:honey_block" | "minecraft:slime_block")
+}
+
+/// Blocks the game gives `noOcclusion`, so the faces beside them are never culled by them: leaves, shulker boxes, translucent
+/// blocks and bars.
+fn does_not_occlude(name: &str) -> bool {
+    name.ends_with("_leaves") || name.ends_with("shulker_box") || is_half_transparent(name) || is_bars(name)
+}
+
+fn is_bars(name: &str) -> bool {
+    name.ends_with("_bars") || name.ends_with("glass_pane")
+}
+
+fn connections(state: &BlockState) -> u8 {
+    [("north", 2), ("south", 3), ("west", 4), ("east", 5)]
+        .into_iter()
+        .filter(|(property, _)| state.properties.get(*property).is_some_and(|value| value == "true"))
+        .fold(0, |mask, (_, face)| mask | (1 << face))
 }
 
 /// Fluid cubes do not count: water has no collision shape, so it leaves the corners beside it bright.
-fn shade_full(quads: &[Quad]) -> bool {
+fn full_collision(quads: &[Quad]) -> bool {
     Direction::ALL
         .iter()
         .all(|&direction| quads.iter().any(|quad| !quad.fluid && quad.direction == direction && covers_block_face(quad)))
@@ -263,5 +294,40 @@ fn modifier_name(modifier: GrassModifier) -> &'static str {
         GrassModifier::None => "none",
         GrassModifier::DarkForest => "darkForest",
         GrassModifier::Swamp => "swamp",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::*;
+
+    fn state(name: &str, properties: &[(&str, &str)]) -> BlockState {
+        BlockState {
+            name: name.into(),
+            properties: properties.iter().map(|(key, value)| (key.to_string(), value.to_string())).collect::<BTreeMap<_, _>>(),
+        }
+    }
+
+    #[test]
+    fn leaves_neither_occlude_nor_skip_their_neighbours() {
+        assert!(does_not_occlude("minecraft:oak_leaves"));
+        assert_eq!(skip_kind("minecraft:oak_leaves"), 0);
+    }
+
+    #[test]
+    fn transparent_blocks_skip_their_own_kind_and_shade_nothing() {
+        assert!(is_transparent("minecraft:white_stained_glass"));
+        assert_eq!(skip_kind("minecraft:glass"), 1);
+        assert!(is_half_transparent("minecraft:ice") && !is_transparent("minecraft:ice"));
+        assert_eq!(skip_kind("minecraft:ice"), 1);
+    }
+
+    #[test]
+    fn bars_connect_toward_their_true_properties() {
+        let pane = state("minecraft:glass_pane", &[("north", "true"), ("south", "false"), ("east", "true"), ("west", "false")]);
+        assert!(is_bars(&pane.name));
+        assert_eq!(connections(&pane), (1 << 2) | (1 << 5));
     }
 }
