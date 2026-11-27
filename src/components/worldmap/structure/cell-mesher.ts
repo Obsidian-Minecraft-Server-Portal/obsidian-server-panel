@@ -2,7 +2,7 @@
 // with its mesh arrays. Worker count leaves two cores free, so a view that meshes many cells never starves the rest of the system.
 
 import type { LayerArrays } from "./instances";
-import type { BiomeJson, BlockTableJson } from "./tables";
+import { type BiomeJson, type BlockTableJson, StaleTablesError } from "./tables";
 import type { WorkerRequest, WorkerResponse } from "./mesh-worker";
 
 /** Changes with the mesher sources, so meshes cached by an older build are not reused. */
@@ -12,6 +12,9 @@ export interface MeshedCell {
   cell: [number, number, number];
   layers: LayerArrays[];
 }
+
+/** The mesher was replaced or closed while the cell was queued or being meshed. The cell is still wanted, so it is queued again. */
+export class MesherClosedError extends Error {}
 
 interface Job {
   id: number;
@@ -53,7 +56,7 @@ export class CellMesher {
 
   dispose(): void {
     for (const job of [...this.queue, ...this.busy.values()]) {
-      job.reject(new Error("the world map was closed"));
+      job.reject(new MesherClosedError("the mesher was closed"));
     }
     this.queue.length = 0;
     this.busy.clear();
@@ -92,7 +95,7 @@ export class CellMesher {
       if (response.type === "cell") {
         job.resolve({ cell: response.cell, layers: response.layers });
       } else {
-        job.reject(new Error(response.message));
+        job.reject(response.stale ? new StaleTablesError(response.message) : new Error(response.message));
       }
     }
     this.dispatch();

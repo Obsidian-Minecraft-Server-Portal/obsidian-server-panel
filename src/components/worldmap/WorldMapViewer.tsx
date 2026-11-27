@@ -20,10 +20,10 @@ import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-sour
 import type { MapStats } from "./map-stats";
 import { PlayerMarkers } from "./player-markers";
 import { PlayerTrack } from "./player-track";
-import { CellMesher, MESH_VERSION, type MeshedCell, workerCount } from "./structure/cell-mesher";
+import { CellMesher, MESH_VERSION, MesherClosedError, type MeshedCell, workerCount } from "./structure/cell-mesher";
 import { type CellMaterials, type CellObject, buildCell, createCellMaterials } from "./structure/cell-scene";
 import { type MeshKey, openMeshCache } from "./structure/mesh-cache";
-import type { BiomeJson, BlockTableJson } from "./structure/tables";
+import { type BiomeJson, type BlockTableJson, StaleTablesError } from "./structure/tables";
 import type { ViewPlace } from "./use-viewer-heartbeat";
 
 /** Cells whose nearest point is closer than this to the camera are loaded, in blocks. */
@@ -36,6 +36,7 @@ const CELL_BLOCKS = 64;
 const CELLS_PER_REGION = 8;
 const MAX_CONCURRENT_LOADS = 6;
 const RETRY_MS = 30_000;
+const CELL_TIMEOUT_MS = 20_000;
 /** How often the camera's place is reported while it moves, in seconds. */
 const REMEMBER_EVERY = 0.25;
 /** How often the statistics are published, in seconds. */
@@ -139,7 +140,9 @@ export function WorldMapViewer({
     let atlasKey: string | undefined;
     let materials: CellMaterials | undefined;
     let mesher: CellMesher | undefined;
-    let mesherKey: string | undefined;
+    let tablesWanted: string | undefined;
+    let tablesLoaded: string | undefined;
+    const failed = new Set<string>();
     let reported = "";
     const cells = new Map<string, Cell>();
     const meshCache = openMeshCache();
@@ -219,6 +222,7 @@ export function WorldMapViewer({
         cellsLoaded: loadedCells(),
         cellsQueued: queued,
         cellsLoading: inFlight,
+        cellsFailed: failed.size,
         workersBusy: busy,
         workersQueued: waiting,
       });
@@ -260,7 +264,7 @@ export function WorldMapViewer({
     });
 
     const fetchMesh = (cell: Cell, cellMesher: CellMesher, key: MeshKey): Promise<MeshedCell> =>
-      fetch(source.structureCellUrl(cell.coord, cell.version))
+      fetch(source.structureCellUrl(cell.coord, cell.version), { signal: AbortSignal.timeout(CELL_TIMEOUT_MS) })
         .then((response) => {
           if (!response.ok) {
             throw new Error(`cell ${cell.coord.join(",")} failed with ${response.status}`);
@@ -275,6 +279,7 @@ export function WorldMapViewer({
 
     const load = (cell: Cell, cellMesher: CellMesher, cellMaterials: CellMaterials, key: MeshKey) => {
       const generation = cell.generation;
+      const id = cell.coord.join(",");
       meshCache
         .get(key)
         .then((cached) => cached ?? fetchMesh(cell, cellMesher, key))
@@ -287,6 +292,7 @@ export function WorldMapViewer({
             return;
           }
           attach(cell, meshed, cellMaterials);
+          failed.delete(id);
           report("Streaming");
         })
         .catch((error: unknown) => {
@@ -294,8 +300,16 @@ export function WorldMapViewer({
             return;
           }
           cell.state = "idle";
+          if (error instanceof MesherClosedError) {
+            cell.retryAt = 0;
+            return;
+          }
           cell.retryAt = performance.now() + RETRY_MS;
-          console.error(`could not load cell ${cell.coord.join(",")}`, error);
+          failed.add(id);
+          if (error instanceof StaleTablesError) {
+            reloadRef.current?.();
+          }
+          console.error(`could not load cell ${id}`, error);
         })
         .finally(() => {
           inFlight--;
@@ -317,7 +331,7 @@ export function WorldMapViewer({
     };
 
     const pump = () => {
-      if (document.hidden || !manifest || !materials || !mesher) {
+      if (document.hidden || !manifest || !materials || !mesher || tablesLoaded !== tablesKeyOf(manifest)) {
         return;
       }
       const cellMesher = mesher;
@@ -389,24 +403,20 @@ export function WorldMapViewer({
       fly.pitch = remembered.pitch ?? DEFAULT_PITCH;
     };
 
-    const loadTables = (packKey: string) => {
-      mesherKey = packKey;
+    const loadTables = (key: string) => {
+      tablesWanted = key;
       Promise.all([
-        fetchJson<BlockTableJson>(source.fileUrl(`${folder}/structure/blocks.json`, packKey)),
-        fetchJson<BiomeJson[]>(source.fileUrl(`${folder}/structure/biomes.json`, packKey)),
+        fetchJson<BlockTableJson>(source.fileUrl(`${folder}/structure/blocks.json`, key)),
+        fetchJson<BiomeJson[]>(source.fileUrl(`${folder}/structure/biomes.json`, key)),
       ])
         .then(([blocks, biomes]) => {
-          if (disposed || mesherKey !== packKey) {
+          if (disposed || tablesWanted !== key) {
             return;
           }
           mesher?.dispose();
           mesher = new CellMesher(blocks, biomes, workerCount());
           if (document.hidden) mesher.pause();
-          for (const cell of cells.values()) {
-            cell.generation++;
-            release(cell);
-            cell.retryAt = 0;
-          }
+          tablesLoaded = key;
           pump();
         })
         .catch((error: unknown) => {
@@ -429,6 +439,7 @@ export function WorldMapViewer({
           cell.generation++;
           release(cell);
           cells.delete(key);
+          failed.delete(key);
         }
       }
       for (const [key, coord] of coords) {
@@ -454,8 +465,9 @@ export function WorldMapViewer({
           materials = createCellMaterials(replacement, next.atlasWidth, next.atlasHeight);
         }
       }
-      if (mesherKey !== next.packKey) {
-        loadTables(next.packKey);
+      const tables = tablesKeyOf(next);
+      if (tablesWanted !== tables) {
+        loadTables(tables);
       }
       if (!placed) {
         placeInitially(next);
@@ -577,6 +589,11 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
 
 function cellOf(entry: SectionEntry): CellCoord {
   return [Math.floor(entry.x / 4), Math.floor(entry.y / 4), Math.floor(entry.z / 4)];
+}
+
+/** The tables change with every render that adds a block state or biome, not only with the pack, so they are named by both. */
+function tablesKeyOf(manifest: MapManifest): string {
+  return `${manifest.packKey}.${manifest.tablesVersion ?? "0"}`;
 }
 
 /** The region a cell lies in, as the `x,z` key of the manifest's tiles. */

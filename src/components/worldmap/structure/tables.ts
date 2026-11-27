@@ -1,5 +1,8 @@
 // The block and biome tables the server writes beside each dimension's structure (blocks.json and biomes.json).
 
+/** A bundle names a block state or a biome that the loaded tables do not hold, because the tables were fetched before the render. */
+export class StaleTablesError extends Error {}
+
 export type GrassModifier = "none" | "darkForest" | "swamp";
 
 export interface QuadJson {

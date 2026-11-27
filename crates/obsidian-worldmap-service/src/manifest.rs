@@ -1,6 +1,7 @@
 //! What the viewer reads: one dimension's section list and the shared atlas, plus the checks that keep reads inside the map folder.
 
 use std::path::{Component, Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 use obsidian_common::{CommonError, Result};
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,8 @@ pub struct WorldMapManifest {
 	pub atlas: String,
 	pub atlas_width: u32,
 	pub atlas_height: u32,
+	/// Changes whenever a render rewrites the block or biome table. The browser keys its copies of them by it.
+	pub tables_version: String,
 	pub sections: Vec<WorldMapSection>,
 	pub tiles: Vec<WorldMapTile>,
 }
@@ -86,9 +89,27 @@ pub async fn dimension(map_dir: &Path, folder: &str) -> Result<WorldMapManifest>
 		atlas: pack.atlas,
 		atlas_width: pack.atlas_width,
 		atlas_height: pack.atlas_height,
+		tables_version: tables_version(&folder_dir.join("structure")).await,
 		sections,
 		tiles,
 	})
+}
+
+/// Stamps the block and biome tables by size and modification time, which costs two metadata reads rather than a hash.
+pub(crate) async fn tables_version(structure: &Path) -> String {
+	let blocks = table_stamp(&structure.join("blocks.json")).await;
+	let biomes = table_stamp(&structure.join("biomes.json")).await;
+	format!("{blocks}.{biomes}")
+}
+
+async fn table_stamp(path: &Path) -> String {
+	match tokio::fs::metadata(path).await {
+		Ok(metadata) => {
+			let modified = metadata.modified().ok().and_then(|time| time.duration_since(UNIX_EPOCH).ok()).map_or(0, |elapsed| elapsed.as_nanos());
+			format!("{}-{modified}", metadata.len())
+		}
+		Err(_) => "0".to_owned(),
+	}
 }
 
 /// Turns a client path into a path inside the map folder. Only plain names are accepted, so nothing can climb out.

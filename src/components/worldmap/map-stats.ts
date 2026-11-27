@@ -11,6 +11,7 @@ export interface MapStatsValues {
   cellsLoaded: number;
   cellsQueued: number;
   cellsLoading: number;
+  cellsFailed: number;
   workersBusy: number;
   workersQueued: number;
 }

@@ -19,6 +19,8 @@ export interface MapManifest {
   atlas: string;
   atlasWidth: number;
   atlasHeight: number;
+  /** Changes when a render rewrites the block or biome tables. Servers from before it do not send it. */
+  tablesVersion?: string;
   sections: SectionEntry[];
   tiles: MapTile[];
 }

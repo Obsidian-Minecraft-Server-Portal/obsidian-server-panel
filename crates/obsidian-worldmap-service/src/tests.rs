@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::job::{BuildMode, dimension_folder, pack_key, pending_regions, take_next};
-use crate::manifest::file_path;
+use crate::manifest::{file_path, tables_version};
 use crate::settings::{MAX_FULL_PASS_HOURS, WorldMapSettings};
 use crate::state::{RegionState, RenderState, load, save};
 use crate::viewers::{ViewMode, ViewReport, Viewer, Viewers};
@@ -62,6 +62,18 @@ async fn render_state_round_trips_and_a_damaged_file_reads_as_empty() {
 	assert_eq!(load(dir.path()).await, state);
 	tokio::fs::write(dir.path().join("state.json"), b"{not json").await.unwrap();
 	assert_eq!(load(dir.path()).await, RenderState::default());
+}
+
+#[tokio::test]
+async fn the_tables_version_moves_when_a_render_rewrites_a_table() {
+	let dir = tempfile::tempdir().unwrap();
+	assert_eq!(tables_version(dir.path()).await, "0.0");
+	tokio::fs::write(dir.path().join("blocks.json"), b"[]").await.unwrap();
+	tokio::fs::write(dir.path().join("biomes.json"), b"[]").await.unwrap();
+	let first = tables_version(dir.path()).await;
+	assert_eq!(first, tables_version(dir.path()).await);
+	tokio::fs::write(dir.path().join("blocks.json"), b"[{}]").await.unwrap();
+	assert_ne!(first, tables_version(dir.path()).await);
 }
 
 #[test]

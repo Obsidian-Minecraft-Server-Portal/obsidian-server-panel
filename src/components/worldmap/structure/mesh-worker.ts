@@ -3,7 +3,7 @@
 import { paintCell } from "./bundle";
 import { meshCell } from "./cell-mesh";
 import { type LayerArrays, buildLayers } from "./instances";
-import { type BiomeJson, type BlockTableJson, type PreparedTable, prepareTable } from "./tables";
+import { type BiomeJson, type BlockTableJson, type PreparedTable, StaleTablesError, prepareTable } from "./tables";
 
 export type WorkerRequest =
   | { type: "tables"; blocks: BlockTableJson; biomes: BiomeJson[] }
@@ -11,7 +11,7 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { type: "cell"; id: number; cell: [number, number, number]; layers: LayerArrays[] }
-  | { type: "error"; id: number; message: string };
+  | { type: "error"; id: number; message: string; stale: boolean };
 
 interface WorkerScope {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
@@ -31,11 +31,11 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>) => {
     if (!table) {
       throw new Error("the block tables have not arrived");
     }
-    const voxels = paintCell(request.bundle);
+    const voxels = paintCell(request.bundle, { blocks: table.blocks.length, biomes: table.biomes.length });
     const layers = buildLayers(meshCell(voxels, table), table);
     scope.postMessage({ type: "cell", id: request.id, cell: voxels.cell, layers }, layers.flatMap(transferables));
   } catch (error) {
-    scope.postMessage({ type: "error", id: request.id, message: String(error) }, []);
+    scope.postMessage({ type: "error", id: request.id, message: String(error), stale: error instanceof StaleTablesError }, []);
   }
 };
 

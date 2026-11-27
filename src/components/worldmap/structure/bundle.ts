@@ -1,6 +1,8 @@
 // Decodes the cell bundles the server writes (crates/obsidian-worldmap/src/structure/cell.rs and volume.rs) into padded voxel
 // arrays. Everything is little-endian.
 
+import { StaleTablesError } from "./tables";
+
 /** A cell is 64 blocks a side. The arrays hold one more block on each side, so faces can read their neighbours. */
 export const CELL_BLOCKS = 64;
 export const PADDED = CELL_BLOCKS + 2;
@@ -24,7 +26,13 @@ export function paddedIndex(x: number, y: number, z: number): number {
   return (y + 1) * PADDED_LAYER + (z + 1) * PADDED + (x + 1);
 }
 
-export function paintCell(bundle: ArrayBuffer): CellVoxels {
+/** How many block states and biomes the loaded tables hold. A bundle may only name ids below these. */
+export interface TableLimits {
+  blocks: number;
+  biomes: number;
+}
+
+export function paintCell(bundle: ArrayBuffer, limits: TableLimits): CellVoxels {
   const bytes = new Uint8Array(bundle);
   const view = new DataView(bundle);
   if (readMagic(bytes) !== "OBSB" || view.getUint16(4, true) !== 1) {
@@ -41,13 +49,13 @@ export function paintCell(bundle: ArrayBuffer): CellVoxels {
   let at = BUNDLE_HEADER;
   for (let record = 0; record < count; record++) {
     const length = view.getUint32(at, true);
-    paintVolume(bytes.subarray(at + 4, at + 4 + length), voxels);
+    paintVolume(bytes.subarray(at + 4, at + 4 + length), voxels, limits);
     at += 4 + length;
   }
   return voxels;
 }
 
-function paintVolume(bytes: Uint8Array, voxels: CellVoxels): void {
+function paintVolume(bytes: Uint8Array, voxels: CellVoxels, limits: TableLimits): void {
   if (readMagic(bytes) !== "OBSV") {
     throw new Error("volume record has a bad magic");
   }
@@ -62,11 +70,17 @@ function paintVolume(bytes: Uint8Array, voxels: CellVoxels): void {
   for (let index = 0; index < palette.length; index++) {
     palette[index] = reader.u32();
   }
+  if (palette.some((id) => id >= limits.blocks)) {
+    throw new StaleTablesError(`a volume names a block state past the ${limits.blocks} the tables hold`);
+  }
   const width = reader.u8();
   const indices = unpackIndices(reader.take(packedBytes(voxelCount, width)), voxelCount, width);
   const sky = reader.light(voxelCount);
   const block = reader.light(voxelCount);
   const biomes = flags & 1 ? readBiomes(reader) : undefined;
+  if (biomes && biomes.palette.some((id) => id >= limits.biomes)) {
+    throw new StaleTablesError(`a volume names a biome past the ${limits.biomes} the tables hold`);
+  }
 
   const [cellX, cellY, cellZ] = voxels.cell.map((coordinate) => coordinate * CELL_BLOCKS);
   for (let y = 0; y < size[1]; y++) {

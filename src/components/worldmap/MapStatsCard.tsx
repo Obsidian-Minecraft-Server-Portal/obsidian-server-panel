@@ -51,5 +51,5 @@ function thousands(value: number | undefined): string {
 }
 
 function cells(values: Partial<MapStatsValues>): string {
-  return `${values.cellsLoaded ?? 0} loaded · ${values.cellsLoading ?? 0} loading · ${values.cellsQueued ?? 0} queued`;
+  return `${values.cellsLoaded ?? 0} loaded · ${values.cellsLoading ?? 0} loading · ${values.cellsQueued ?? 0} queued · ${values.cellsFailed ?? 0} failed`;
 }
