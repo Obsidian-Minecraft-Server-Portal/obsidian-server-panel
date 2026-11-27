@@ -3,6 +3,7 @@ import { Icon } from "@iconify-icon/react";
 import { dimensionLabel, playersSummary, type LivePlayer, type WorldMapPlayers } from "../../api/worldmap";
 import { Tip } from "../ui/Tip";
 import type { FollowMode } from "./map-focus";
+import { PanelHeader } from "./PanelHeader";
 import { PlayerFace } from "./PlayerTag";
 
 /** The player the views follow, and whether they are followed from behind or from inside their head. */
@@ -30,23 +31,7 @@ export function PlayersPanel({ live, dimensionId, skinBase, focused, following, 
   const players = live?.players ?? [];
   return (
     <aside className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
-      <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Icon icon="lucide:users" width={15} height={15} className="text-ink-3" />
-          <h3 className="text-sm font-semibold text-ink-0">Players</h3>
-          <span className="rounded-full bg-input px-2 py-0.5 font-mono text-[11px] text-ink-2">{players.length}</span>
-        </div>
-        <Tip label="Close" placement="left">
-          <button
-            type="button"
-            aria-label="Close the players panel"
-            onClick={onClose}
-            className="grid size-7 place-items-center rounded-[9px] text-ink-3 outline-none hover:bg-input hover:text-ink-0 focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <Icon icon="lucide:x" width={15} height={15} />
-          </button>
-        </Tip>
-      </header>
+      <PanelHeader icon="lucide:users" title="Players" count={players.length} closeLabel="Close the players panel" onClose={onClose} />
       {players.length === 0 ? (
         <p className={cn("px-4 py-6 text-center text-sm", live?.state === "unavailable" ? "text-rose" : "text-ink-3")}>
           {live?.state === "live" ? "Nobody is online." : playersSummary(live)}

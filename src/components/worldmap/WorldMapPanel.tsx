@@ -11,12 +11,13 @@ import {
   type WorldMapStatus,
 } from "../../api/worldmap";
 import { EmptyState } from "../ui/EmptyState";
-import { SectionTabs } from "../ui/SectionTabs";
 import { useFullscreen } from "../ui/useFullscreen";
 import type { FollowMode, MapFocus } from "./map-focus";
 import { mapMemory, rememberView, type MapView } from "./map-memory";
 import { MapStats } from "./map-stats";
 import { MapStatsCard } from "./MapStatsCard";
+import { DimensionsPanel } from "./DimensionsPanel";
+import { MapToolbarGroup } from "./MapToolbar";
 import { MapToolbarButton } from "./MapToolbarButton";
 import { type Following, PlayersPanel } from "./PlayersPanel";
 import { TileView } from "./TileView";
@@ -36,6 +37,7 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   const [following, setFollowing] = useState<Following | null>(null);
   const [playersOpen, setPlayersOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [dimensionsOpen, setDimensionsOpen] = useState(false);
   const nonce = useRef(0);
   const frame = useRef<HTMLDivElement>(null);
   const stats = useMemo(() => new MapStats(), []);
@@ -102,16 +104,11 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
     setFollowing({ name: player.name, mode });
     focusPlayer(player);
   };
-  const tabs = dimensions.map((entry) => ({ id: entry.folder, label: dimensionLabel(entry.id) }));
 
   return (
     <div className="flex min-h-[32rem] flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {tabs.length > 1 ? (
-          <SectionTabs label="Dimensions" tabs={tabs} value={dimension.folder} onChange={chooseDimension} />
-        ) : (
-          <p className="font-mono text-xs text-ink-3 uppercase">{dimensionLabel(dimension.id)}</p>
-        )}
+        <p className="font-mono text-xs text-ink-3 uppercase">{dimensionLabel(dimension.id)}</p>
         <RenderLine status={status.data} />
       </div>
       <div
@@ -146,33 +143,45 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
           />
         )}
         <div className="absolute top-3 left-3 flex items-start gap-2">
-          <MapToolbarButton label="Top-down" icon="lucide:map" pressed={view === "top"} onPress={() => chooseView("top")} />
-          <MapToolbarButton label="3D" icon="lucide:box" pressed={view === "free"} onPress={() => chooseView("free")} />
-          <MapToolbarButton
-            label="Map statistics"
-            icon="lucide:info"
-            pressed={statsOpen}
-            onPress={() => setStatsOpen((open) => !open)}
-          />
+          <MapToolbarGroup label="View">
+            <MapToolbarButton label="Top-down" icon="lucide:map" pressed={view === "top"} onPress={() => chooseView("top")} />
+            <MapToolbarButton label="3D" icon="lucide:box" pressed={view === "free"} onPress={() => chooseView("free")} />
+          </MapToolbarGroup>
+          <MapToolbarGroup label="Panels">
+            <MapToolbarButton
+              label="Map statistics"
+              icon="lucide:info"
+              pressed={statsOpen}
+              onPress={() => setStatsOpen((open) => !open)}
+            />
+            <MapToolbarButton
+              label="Dimensions"
+              icon="lucide:layers"
+              pressed={dimensionsOpen}
+              onPress={() => setDimensionsOpen((open) => !open)}
+            />
+            {canViewPlayers && (
+              <MapToolbarButton
+                label="Players"
+                icon="lucide:users"
+                pressed={playersOpen}
+                badge={players.length}
+                onPress={() => setPlayersOpen((open) => !open)}
+              />
+            )}
+          </MapToolbarGroup>
           {fullscreen.supported && (
-            <MapToolbarButton
-              label="Fullscreen"
-              icon={fullscreen.active ? "lucide:minimize" : "lucide:maximize"}
-              pressed={fullscreen.active}
-              onPress={fullscreen.toggle}
-            />
-          )}
-          {canViewPlayers && (
-            <MapToolbarButton
-              label="Players"
-              icon="lucide:users"
-              pressed={playersOpen}
-              badge={players.length}
-              onPress={() => setPlayersOpen((open) => !open)}
-            />
+            <MapToolbarGroup label="Fullscreen">
+              <MapToolbarButton
+                label="Fullscreen"
+                icon={fullscreen.active ? "lucide:minimize" : "lucide:maximize"}
+                pressed={fullscreen.active}
+                onPress={fullscreen.toggle}
+              />
+            </MapToolbarGroup>
           )}
         </div>
-        {(statsOpen || (canViewPlayers && playersOpen)) && (
+        {(statsOpen || dimensionsOpen || (canViewPlayers && playersOpen)) && (
           <div
             className={cn(
               "pointer-events-none absolute top-14 left-3 z-10 flex w-80 max-w-[calc(100%-1.5rem)] flex-col gap-2",
@@ -180,9 +189,18 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             )}
           >
             {statsOpen && (
-              <div className="pointer-events-auto self-start">
+              <div className="pointer-events-auto shrink-0 self-start">
                 <MapStatsCard instanceId={instanceId} stats={stats} live={view === "free"} />
               </div>
+            )}
+            {dimensionsOpen && (
+              <DimensionsPanel
+                dimensions={status.data.dimensions}
+                players={players}
+                current={dimension.folder}
+                onChoose={chooseDimension}
+                onClose={() => setDimensionsOpen(false)}
+              />
             )}
             {canViewPlayers && playersOpen && (
               <PlayersPanel
