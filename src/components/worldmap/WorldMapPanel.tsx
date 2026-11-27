@@ -143,7 +143,6 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
           />
         ) : (
           <FreeView
-            key={dimension.folder}
             instanceId={instanceId}
             folder={dimension.folder}
             dimensionId={dimension.id}
