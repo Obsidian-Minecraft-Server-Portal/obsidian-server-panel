@@ -1,6 +1,4 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { cn } from "@heroui/react";
-import { Icon } from "@iconify-icon/react";
 import {
   dimensionLabel,
   renderSummary,
@@ -13,13 +11,12 @@ import {
 } from "../../api/worldmap";
 import { EmptyState } from "../ui/EmptyState";
 import { SectionTabs } from "../ui/SectionTabs";
-import { Tip } from "../ui/Tip";
 import { useFullscreen } from "../ui/useFullscreen";
 import type { FollowMode, MapFocus } from "./map-focus";
 import { mapMemory, rememberView, type MapView } from "./map-memory";
 import { MapStats } from "./map-stats";
 import { MapStatsCard } from "./MapStatsCard";
-import { MapViewToggle } from "./MapViewToggle";
+import { MapToolbarButton } from "./MapToolbarButton";
 import { type Following, PlayersPanel } from "./PlayersPanel";
 import { TileView } from "./TileView";
 import { useViewerHeartbeat } from "./use-viewer-heartbeat";
@@ -148,15 +145,16 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
           />
         )}
         <div className="absolute top-3 left-3 flex items-start gap-2">
-          <MapViewToggle value={view} onChange={chooseView} />
-          <ToolbarButton
+          <MapToolbarButton label="Top-down" icon="lucide:map" pressed={view === "top"} onPress={() => chooseView("top")} />
+          <MapToolbarButton label="3D" icon="lucide:box" pressed={view === "free"} onPress={() => chooseView("free")} />
+          <MapToolbarButton
             label="Map statistics"
             icon="lucide:info"
             pressed={statsOpen}
             onPress={() => setStatsOpen((open) => !open)}
           />
           {fullscreen.supported && (
-            <ToolbarButton
+            <MapToolbarButton
               label="Fullscreen"
               icon={fullscreen.active ? "lucide:minimize" : "lucide:maximize"}
               pressed={fullscreen.active}
@@ -164,7 +162,7 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             />
           )}
           {canViewPlayers && (
-            <ToolbarButton
+            <MapToolbarButton
               label="Players"
               icon="lucide:users"
               pressed={playersOpen}
@@ -173,61 +171,29 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             />
           )}
         </div>
-        {statsOpen && (
-          <div className="absolute top-14 left-3">
-            <MapStatsCard instanceId={instanceId} stats={stats} live={view === "free"} />
+        {(statsOpen || (canViewPlayers && playersOpen)) && (
+          <div className="pointer-events-none absolute top-14 bottom-3 left-3 z-10 flex w-80 max-w-[calc(100%-1.5rem)] flex-col gap-2">
+            {statsOpen && (
+              <div className="pointer-events-auto self-start">
+                <MapStatsCard instanceId={instanceId} stats={stats} live={view === "free"} />
+              </div>
+            )}
+            {canViewPlayers && playersOpen && (
+              <PlayersPanel
+                live={live.data}
+                dimensionId={dimension.id}
+                skinBase={worldMapSkinBase(instanceId)}
+                focused={request?.name ?? null}
+                following={following}
+                onClose={() => setPlayersOpen(false)}
+                onFocus={focusPlayer}
+                onFollow={followPlayer}
+              />
+            )}
           </div>
-        )}
-        {canViewPlayers && playersOpen && (
-          <PlayersPanel
-            live={live.data}
-            dimensionId={dimension.id}
-            skinBase={worldMapSkinBase(instanceId)}
-            focused={request?.name ?? null}
-            following={following}
-            onClose={() => setPlayersOpen(false)}
-            onFocus={focusPlayer}
-            onFollow={followPlayer}
-          />
         )}
       </div>
     </div>
-  );
-}
-
-function ToolbarButton({
-  label,
-  icon,
-  pressed,
-  badge,
-  onPress,
-}: {
-  label: string;
-  icon: string;
-  pressed: boolean;
-  badge?: number;
-  onPress: () => void;
-}) {
-  return (
-    <Tip label={label} placement="bottom">
-      <button
-        type="button"
-        aria-label={label}
-        aria-pressed={pressed}
-        onClick={onPress}
-        className={cn(
-          "relative grid size-8 place-items-center rounded-control border border-line-strong bg-canvas/80 shadow-lift backdrop-blur-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent",
-          pressed ? "text-accent" : "text-ink-2 hover:text-ink-0",
-        )}
-      >
-        <Icon icon={icon} width={16} height={16} />
-        {badge !== undefined && badge > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-4 rounded-full bg-accent px-1 text-center font-mono text-[9px] leading-4 text-[#1A0629]">
-            {badge}
-          </span>
-        )}
-      </button>
-    </Tip>
   );
 }
 

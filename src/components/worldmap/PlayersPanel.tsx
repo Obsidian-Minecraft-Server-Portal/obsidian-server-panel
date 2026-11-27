@@ -29,7 +29,7 @@ interface PlayersPanelProps {
 export function PlayersPanel({ live, dimensionId, skinBase, focused, following, onClose, onFocus, onFollow }: PlayersPanelProps) {
   const players = live?.players ?? [];
   return (
-    <aside className="absolute top-12 right-3 bottom-3 z-10 flex w-72 max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
+    <aside className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
       <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon icon="lucide:users" width={15} height={15} className="text-ink-3" />
