@@ -51,6 +51,8 @@ export class PlayerTrack {
     const history = this.samples.get(name);
     if (!history || history.length === 0) return undefined;
     const at = now - DELAY_MS;
+    const crossed = lastCrossing(history);
+    if (crossed !== undefined && at < history[crossed].at) return history[crossed];
     const last = history.length - 1;
     if (at <= history[0].at) return history[0];
     if (at >= history[last].at) return carry(history[Math.max(last - 1, 0)], history[last], at);
@@ -61,6 +63,14 @@ export class PlayerTrack {
     }
     return history[last];
   }
+}
+
+/** The newest sample taken in a different dimension from the one before it. A change of dimension is shown when it happens. */
+function lastCrossing(history: Sample[]): number | undefined {
+  for (let index = history.length - 1; index > 0; index--) {
+    if (history[index].dimension !== history[index - 1].dimension) return index;
+  }
+  return undefined;
 }
 
 function between(from: Sample, to: Sample, t: number): PlayerPose {

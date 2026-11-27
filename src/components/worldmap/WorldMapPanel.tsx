@@ -1,5 +1,5 @@
 import { cn } from "@heroui/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   dimensionLabel,
   renderSummary,
@@ -17,6 +17,7 @@ import { mapMemory, rememberView, type MapView } from "./map-memory";
 import { MapStats } from "./map-stats";
 import { MapStatsCard } from "./MapStatsCard";
 import { DimensionsPanel } from "./DimensionsPanel";
+import { followTargetFolder } from "./dimension-follow";
 import { MapToolbarGroup } from "./MapToolbar";
 import { MapToolbarButton } from "./MapToolbarButton";
 import { type Following, PlayersPanel } from "./PlayersPanel";
@@ -33,7 +34,7 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   const players = live.data?.players ?? NO_PLAYERS;
   const [picked, setPicked] = useState<string | null>(() => mapMemory(instanceId).folder ?? null);
   const [view, setViewState] = useState<MapView>(() => mapMemory(instanceId).view ?? "top");
-  const [request, setRequest] = useState<{ name: string; nonce: number } | null>(null);
+  const [request, setRequest] = useState<{ name: string; nonce: number; zoom: boolean } | null>(null);
   const [following, setFollowing] = useState<Following | null>(null);
   const [playersOpen, setPlayersOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
@@ -61,10 +62,18 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             name: request.name,
             nonce: request.nonce,
             follow: following && following.name === request.name ? following.mode : null,
+            zoom: request.zoom,
           }
         : null,
     [request, following],
   );
+
+  const followedFolder = followTargetFolder(following?.name, players, status.data?.dimensions ?? []);
+  useEffect(() => {
+    if (followedFolder === undefined || followedFolder === picked) return;
+    showDimension(followedFolder);
+    setRequest((current) => (current ? { ...current, zoom: false } : current));
+  }, [followedFolder, picked]);
 
   if (status.isPending) return <p className="text-sm text-ink-3">Loading world map…</p>;
   if (status.isError) return <p className="text-sm text-rose">{status.error.message}</p>;
@@ -82,9 +91,13 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
     );
   }
 
-  const chooseDimension = (folder: string) => {
+  const showDimension = (folder: string) => {
     setPicked(folder);
     rememberView(instanceId, { folder });
+  };
+  const chooseDimension = (folder: string) => {
+    setFollowing(null);
+    showDimension(folder);
   };
   const chooseView = (next: MapView) => {
     setViewState(next);
@@ -92,9 +105,9 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   };
   const focusPlayer = (player: LivePlayer) => {
     const home = dimensions.find((entry) => entry.id === player.dimension);
-    if (home && home.folder !== dimension.folder) chooseDimension(home.folder);
+    if (home && home.folder !== dimension.folder) showDimension(home.folder);
     nonce.current += 1;
-    setRequest({ name: player.name, nonce: nonce.current });
+    setRequest({ name: player.name, nonce: nonce.current, zoom: true });
   };
   const followPlayer = (player: LivePlayer, mode: FollowMode) => {
     if (following?.name === player.name && following.mode === mode) {

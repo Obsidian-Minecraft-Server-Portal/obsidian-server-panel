@@ -9,4 +9,6 @@ export interface MapFocus {
   name: string;
   nonce: number;
   follow: FollowMode | null;
+  /** Whether a new focus also zooms the top-down view in. A dimension switch re-centres the view without zooming. */
+  zoom: boolean;
 }

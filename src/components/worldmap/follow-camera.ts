@@ -9,11 +9,18 @@ const ABOVE_PLAYER = 3.5;
 const EYE_HEIGHT = 1.62;
 
 /**
- * Keeps the camera on the focused player. A new focus moves it there once, and a followed player keeps it in place. Returns
- * the focus nonce the camera has applied.
+ * Keeps the camera on the focused player. A new focus moves it there once, and a followed player keeps it in place. A pose
+ * from another dimension is not the player's place here, so the camera waits for the player to arrive. Returns the focus
+ * nonce the camera has applied.
  */
-export function applyFocus(fly: FreeFlyCamera, focus: MapFocus | null, pose: PlayerPose | undefined, applied: number): number {
-  if (!focus || !pose) return applied;
+export function applyFocus(
+  fly: FreeFlyCamera,
+  focus: MapFocus | null,
+  pose: PlayerPose | undefined,
+  applied: number,
+  dimensionId: string,
+): number {
+  if (!focus || !pose || pose.dimension !== dimensionId) return applied;
   const fresh = focus.nonce !== applied;
   if (fresh || focus.follow) placeCamera(fly, pose, focus.follow ?? "behind");
   return focus.nonce;

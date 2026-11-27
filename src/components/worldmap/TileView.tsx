@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent, type SyntheticEvent, type WheelEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type SyntheticEvent, type WheelEvent } from "react";
 import {
   useWorldMapManifest,
   worldMapDetailUrl,
@@ -82,18 +82,19 @@ export function TileView({
   const frame = useRef<HTMLDivElement>(null);
   const view = stored ?? defaultView(tiles);
   const appliedFocus = useRef(-1);
-  const followed = focus ? players.find((player) => player.name === focus.name) : undefined;
+  const followed = focus ? players.find((player) => player.name === focus.name && player.dimension === dimensionId) : undefined;
   const followedX = followed?.position[0];
   const followedZ = followed?.position[2];
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!focus || followedX === undefined || followedZ === undefined) return;
     const fresh = focus.nonce !== appliedFocus.current;
     if (!fresh && !focus.follow) return;
     appliedFocus.current = focus.nonce;
+    const zoomsIn = fresh && focus.zoom;
     setStored((current) => {
       const zoom = current?.zoom ?? DEFAULT_ZOOM;
-      return { x: followedX, z: followedZ, zoom: fresh ? Math.max(zoom, FOCUS_ZOOM) : zoom };
+      return { x: followedX, z: followedZ, zoom: zoomsIn ? Math.max(zoom, FOCUS_ZOOM) : zoom };
     });
   }, [focus, followedX, followedZ]);
 

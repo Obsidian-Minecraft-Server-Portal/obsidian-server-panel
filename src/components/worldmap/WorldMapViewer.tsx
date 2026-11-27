@@ -206,7 +206,7 @@ export function WorldMapViewer({
       const session = sessionRef.current;
       if (session?.placed) {
         const current = focusRef.current;
-        applied = applyFocus(fly, current, current ? track.pose(current.name, now) : undefined, applied);
+        applied = applyFocus(fly, current, current ? track.pose(current.name, now) : undefined, applied, dimensionRef.current);
       }
       fly.update(seconds, camera);
       session?.stream.refresh();
