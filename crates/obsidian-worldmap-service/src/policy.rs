@@ -14,6 +14,8 @@ use crate::settings;
 /// How often the watches are reconciled and a full watch build runs. The region watcher renders changes as they settle, so this
 /// only catches what a watcher can miss, such as a changed mod set or client jar.
 const BACKSTOP: Duration = Duration::from_secs(5 * 60);
+/// With nobody viewing, the backstop runs only once every this many ticks, which is 30 minutes.
+const IDLE_TICKS: u64 = 6;
 
 pub fn spawn(service: Arc<WorldMapService>) {
 	tokio::spawn(status_events(Arc::clone(&service)));
@@ -50,13 +52,17 @@ async fn render_after_stop(service: &Arc<WorldMapService>, id: InstanceId) {
 
 async fn periodic(service: Arc<WorldMapService>) {
 	let mut ticker = tokio::time::interval(BACKSTOP);
+	let mut tick: u64 = 0;
 	loop {
 		ticker.tick().await;
+		tick += 1;
 		service.release_idle_packs();
 		let Ok(ids) = settings::enabled_instances(service.db()).await else { continue };
 		for id in ids {
 			service.reconcile_watch(id).await;
-			check_instance(&service, id).await;
+			if service.viewed(id) || tick.is_multiple_of(IDLE_TICKS) {
+				check_instance(&service, id).await;
+			}
 		}
 	}
 }

@@ -1,10 +1,10 @@
 use actix_files::NamedFile;
 use actix_web::http::header::{self, HeaderValue};
 use actix_web::middleware::Compress;
-use actix_web::{HttpRequest, HttpResponse, Responder, get, post, put, web};
+use actix_web::{HttpRequest, HttpResponse, Responder, delete, get, post, put, web};
 use obsidian_auth::Permission;
 use obsidian_common::{CommonError, InstanceId};
-use obsidian_worldmap_service::{WorldMapFocus, WorldMapManifest, WorldMapPlayers, WorldMapSettings, WorldMapStatus};
+use obsidian_worldmap_service::{ViewReport, WorldMapManifest, WorldMapPlayers, WorldMapSettings, WorldMapStatus};
 use serde::Deserialize;
 
 use crate::auth::{AuthUser, require_instance_perm};
@@ -16,6 +16,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(update_settings)
 		.service(render)
 		.service(focus)
+		.service(unfocus)
 		.service(status)
 		.service(manifest)
 		.service(file)
@@ -75,18 +76,36 @@ pub async fn update_settings(
 	path = "/api/v1/instances/{id}/worldmap/focus",
 	tag = "instances",
 	params(("id" = i64, Path, description = "Instance id")),
-	request_body = WorldMapFocus,
+	request_body = ViewReport,
 	responses(
-		(status = 202, description = "The view is recorded, and its regions are drawn first"),
+		(status = 202, description = "The view is recorded, and the regions it can draw are rendered first"),
 		(status = 403, description = "Missing map.view permission"),
 	)
 )]
 #[post("/instances/{id}/worldmap/focus")]
-pub async fn focus(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>, view: web::Json<WorldMapFocus>) -> ApiResult<HttpResponse> {
+pub async fn focus(state: web::Data<AppState>, user: AuthUser, path: web::Path<InstanceId>, view: web::Json<ViewReport>) -> ApiResult<HttpResponse> {
 	let id = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
 	state.worldmap.focus(id, view.into_inner()).await?;
 	Ok(HttpResponse::Accepted().finish())
+}
+
+#[utoipa::path(
+	delete,
+	path = "/api/v1/instances/{id}/worldmap/focus/{viewer}",
+	tag = "instances",
+	params(("id" = i64, Path, description = "Instance id"), ("viewer" = String, Path, description = "The view's id")),
+	responses(
+		(status = 204, description = "The view is no longer counted"),
+		(status = 403, description = "Missing map.view permission"),
+	)
+)]
+#[delete("/instances/{id}/worldmap/focus/{viewer}")]
+pub async fn unfocus(state: web::Data<AppState>, user: AuthUser, path: web::Path<(InstanceId, String)>) -> ApiResult<HttpResponse> {
+	let (id, viewer) = path.into_inner();
+	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
+	state.worldmap.unfocus(id, &viewer).await?;
+	Ok(HttpResponse::NoContent().finish())
 }
 
 #[utoipa::path(

@@ -1,13 +1,13 @@
 //! The blocking half of a render: finds the regions that need drawing, loads the pack and draws them.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use chrono::Utc;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 
 use obsidian_common::{CommonError, InstanceId, Result};
 use obsidian_worldmap::atlas::Atlas;
@@ -20,10 +20,11 @@ use crate::pacing::Pacer;
 use crate::pack_cache::PackCache;
 use crate::state::{RegionState, RenderState};
 use crate::structure_job;
+use crate::viewers::{ViewMode, Viewer, Viewers};
 
 pub const OUTPUT_FOLDER: &str = "obsidian-map";
 /// Raised whenever the renderer draws differently, so existing maps redraw in full instead of mixing old and new output.
-const RENDERER_VERSION: u32 = 3;
+const RENDERER_VERSION: u32 = 4;
 const COOLDOWN_SECS: i64 = 60;
 /// Offsets of the regions that share an edge with a region.
 const NEIGHBOURS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
@@ -56,7 +57,7 @@ pub struct Job {
 	pub instance: InstanceId,
 	pub packs: Arc<PackCache>,
 	pub pacer: Pacer,
-	pub focus: FocusMap,
+	pub viewers: Arc<Viewers>,
 }
 
 pub struct Outcome {
@@ -74,19 +75,6 @@ pub(crate) struct Pending {
 	pub(crate) region: (i32, i32),
 }
 
-/// Where the view is looking: the dimension folder and region it is centred on, and when it reported that.
-#[derive(Debug, Clone)]
-pub struct FocusPoint {
-	pub folder: String,
-	pub region: (i32, i32),
-	pub at: Instant,
-}
-
-pub type FocusMap = Arc<Mutex<HashMap<InstanceId, FocusPoint>>>;
-
-/// A view that has not reported for this long no longer steers the render order.
-const FOCUS_TTL: Duration = Duration::from_secs(10 * 60);
-
 pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	let map_dir = job.instance_dir.join(OUTPUT_FOLDER);
 	let mut state = job.state;
@@ -97,7 +85,11 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 		state.failed.clear();
 	}
 	let now = Utc::now().timestamp();
-	let pending = pending_regions(&job.instance_dir, &job.level_name, &state, mode, now)?;
+	let views = job.viewers.active(job.instance);
+	let pending: Vec<Pending> = pending_regions(&job.instance_dir, &job.level_name, &state, mode, now)?
+		.into_iter()
+		.filter(|item| in_view(item, &views))
+		.collect();
 	state.pack_key = Some(job.pack_key.clone());
 	if pending.is_empty() {
 		return Ok(Outcome { state, rendered: 0, failed: Vec::new() });
@@ -116,7 +108,7 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	let mut rendered = 0;
 	let mut failed = Vec::new();
 	let mut remaining = pending;
-	while let Some(item) = take_nearest(&mut remaining, focus_of(&job.focus, job.instance).as_ref()) {
+	while let Some(item) = take_next(&mut remaining, &job.viewers.active(job.instance)) {
 		job.pacer.wait_turn();
 		progress((rendered + failed.len()) as f32 / total as f32, format!("Rendering {}", item.key));
 		match renderer.render_region(&item.region_path, &item.dimension_dir) {
@@ -143,24 +135,36 @@ pub fn run(job: Job, progress: &mut dyn FnMut(f32, String)) -> Result<Outcome> {
 	Ok(Outcome { state, rendered, failed })
 }
 
-/// The place the view reported, when it reported one recently enough to steer the render order.
-fn focus_of(focus: &FocusMap, instance: InstanceId) -> Option<FocusPoint> {
-	let points = focus.lock().unwrap_or_else(PoisonError::into_inner);
-	points.get(&instance).filter(|point| point.at.elapsed() < FOCUS_TTL).cloned()
+/// A flying view draws the regions around it: its own and the eight beside it, in its dimension. With no flying view, every
+/// region is in view.
+pub(crate) fn in_view(item: &Pending, views: &[Viewer]) -> bool {
+	let flying = || views.iter().filter(|view| view.mode == ViewMode::Free);
+	flying().next().is_none()
+		|| flying().any(|view| view.folder == item.folder && (item.region.0 - view.region.0).abs() <= 1 && (item.region.1 - view.region.1).abs() <= 1)
 }
 
-/// Takes the pending region nearest the view, so the regions being looked at are drawn first. Regions of other dimensions wait
-/// until the viewed dimension has none left.
-pub(crate) fn take_nearest(remaining: &mut Vec<Pending>, focus: Option<&FocusPoint>) -> Option<Pending> {
-	let index = remaining.iter().enumerate().min_by_key(|(_, item)| focus_rank(item, focus))?.0;
+/// Takes the pending region in view that is nearest a view, so the regions being looked at are drawn first. Regions of other
+/// dimensions wait until the viewed dimension has none left. Regions outside every flying view stay pending for a later build.
+pub(crate) fn take_next(remaining: &mut Vec<Pending>, views: &[Viewer]) -> Option<Pending> {
+	let index = remaining
+		.iter()
+		.enumerate()
+		.filter(|(_, item)| in_view(item, views))
+		.min_by_key(|(_, item)| focus_rank(item, views))?
+		.0;
 	Some(remaining.remove(index))
 }
 
-fn focus_rank(item: &Pending, focus: Option<&FocusPoint>) -> (bool, i64) {
-	let Some(focus) = focus else { return (false, 0) };
-	let dx = i64::from(item.region.0) - i64::from(focus.region.0);
-	let dz = i64::from(item.region.1) - i64::from(focus.region.1);
-	(item.folder != focus.folder, dx * dx + dz * dz)
+fn focus_rank(item: &Pending, views: &[Viewer]) -> (bool, i64) {
+	views
+		.iter()
+		.map(|view| {
+			let dx = i64::from(item.region.0) - i64::from(view.region.0);
+			let dz = i64::from(item.region.1) - i64::from(view.region.1);
+			(view.folder != item.folder, dx * dx + dz * dz)
+		})
+		.min()
+		.unwrap_or((false, 0))
 }
 
 /// Names the pack by everything its renders depend on, so a new client, server, block report or mod set starts a full pass.

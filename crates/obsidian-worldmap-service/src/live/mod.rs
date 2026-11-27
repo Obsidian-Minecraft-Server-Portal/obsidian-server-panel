@@ -3,6 +3,7 @@
 //! through the console otherwise.
 
 mod console;
+mod hot;
 mod skins;
 mod rcon;
 
@@ -26,9 +27,11 @@ use self::console::Console;
 use self::skins::Skins;
 use self::rcon::RconClient;
 use crate::jars;
+use crate::viewers::Viewers;
 use crate::settings;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
+const HOT_INTERVAL: Duration = Duration::from_secs(1);
 const LIST_WAIT: Duration = Duration::from_secs(1);
 const POSITION_WAIT: Duration = Duration::from_secs(1);
 const RCON_RETRY: Duration = Duration::from_secs(10);
@@ -124,12 +127,13 @@ pub struct LiveService {
 	instances: InstanceManager,
 	bus: EventBus,
 	demand: TopicDemand,
+	viewers: Arc<Viewers>,
 	skins: Skins,
 	snapshots: Mutex<HashMap<InstanceId, WorldMapPlayers>>,
 }
 
 impl LiveService {
-	pub fn new(db: Db, paths: Arc<Paths>, instances: InstanceManager, bus: EventBus, demand: TopicDemand) -> Result<Arc<Self>> {
+		pub fn new(db: Db, paths: Arc<Paths>, instances: InstanceManager, bus: EventBus, demand: TopicDemand, viewers: Arc<Viewers>) -> Result<Arc<Self>> {
 		let skins = Skins::new(&paths.cache_dir)?;
 		Ok(Arc::new(Self {
 			db,
@@ -137,6 +141,7 @@ impl LiveService {
 			instances,
 			bus,
 			demand,
+			viewers,
 			skins,
 			snapshots: Mutex::new(HashMap::new()),
 		}))
@@ -187,21 +192,43 @@ impl LiveService {
 	async fn run(self: Arc<Self>) {
 		let mut ticker = tokio::time::interval(POLL_INTERVAL);
 		ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+		let mut hot = tokio::time::interval(HOT_INTERVAL);
+		hot.set_missed_tick_behavior(MissedTickBehavior::Delay);
 		let mut sessions: HashMap<InstanceId, Session> = HashMap::new();
 		loop {
-			ticker.tick().await;
-			let watched = self.watched();
-			let released: Vec<InstanceId> = sessions.keys().filter(|id| !watched.contains(id)).copied().collect();
-			for id in released {
-				if let Some(mut session) = sessions.remove(&id) {
-					session.show_replies();
-				}
-			}
-			for id in watched {
-				let session = sessions.entry(id).or_insert_with(|| Session::new(self.instances.clone(), id));
-				self.poll(id, session).await;
+			tokio::select! {
+				_ = ticker.tick() => self.poll_watched(&mut sessions).await,
+				_ = hot.tick() => self.poll_hot_watched(&mut sessions).await,
 			}
 		}
+	}
+
+	async fn poll_watched(&self, sessions: &mut HashMap<InstanceId, Session>) {
+		let watched = self.watched();
+		let released: Vec<InstanceId> = sessions.keys().filter(|id| !watched.contains(id)).copied().collect();
+		for id in released {
+			if let Some(mut session) = sessions.remove(&id) {
+				session.show_replies();
+			}
+		}
+		for id in watched {
+			let session = sessions.entry(id).or_insert_with(|| Session::new(self.instances.clone(), id));
+			self.poll(id, session).await;
+		}
+	}
+
+	async fn poll_hot_watched(&self, sessions: &mut HashMap<InstanceId, Session>) {
+		let watched = self.watched();
+		for (id, session) in sessions.iter_mut() {
+			if watched.contains(id) && session.rcon.is_some() {
+				self.poll_hot(*id, session).await;
+			}
+		}
+	}
+
+	fn publish(&self, id: InstanceId, snapshot: WorldMapPlayers) {
+		self.snapshots.lock().unwrap_or_else(PoisonError::into_inner).insert(id, snapshot.clone());
+		self.bus.publish(players_topic(id), serde_json::to_value(&snapshot).unwrap_or_default());
 	}
 
 	pub(crate) fn watched(&self) -> HashSet<InstanceId> {
@@ -227,8 +254,7 @@ impl LiveService {
 			}
 			Err(error) => WorldMapPlayers::unavailable(error.to_string()),
 		};
-		self.snapshots.lock().unwrap_or_else(PoisonError::into_inner).insert(id, snapshot.clone());
-		self.bus.publish(players_topic(id), serde_json::to_value(&snapshot).unwrap_or_default());
+		self.publish(id, snapshot);
 	}
 
 	async fn sample(&self, id: InstanceId, session: &mut Session) -> Result<Sampled> {

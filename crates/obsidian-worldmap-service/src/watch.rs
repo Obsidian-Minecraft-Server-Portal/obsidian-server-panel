@@ -96,7 +96,7 @@ async fn run(service: Weak<WorldMapService>, id: InstanceId, mut events: mpsc::U
 			}
 			_ = save.tick() => {
 				let Some(service) = service.upgrade() else { return };
-				if service.map_in_use(id) {
+				if service.viewed(id) {
 					service.save_world(id).await;
 				}
 			}

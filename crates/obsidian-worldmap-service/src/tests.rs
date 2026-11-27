@@ -1,10 +1,11 @@
 use std::path::Path;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
-use crate::job::{BuildMode, dimension_folder, pack_key, pending_regions};
+use crate::job::{BuildMode, dimension_folder, pack_key, pending_regions, take_next};
 use crate::manifest::file_path;
 use crate::settings::{MAX_FULL_PASS_HOURS, WorldMapSettings};
 use crate::state::{RegionState, RenderState, load, save};
+use crate::viewers::{ViewMode, ViewReport, Viewer, Viewers};
 
 #[test]
 fn only_plain_names_resolve_inside_the_map_folder() {
@@ -159,13 +160,9 @@ fn the_region_nearest_the_view_is_drawn_first() {
 		pending_at("minecraft_nether", 0, 0),
 		pending_at("minecraft_overworld", 0, 0),
 	];
-	let view = crate::job::FocusPoint {
-		folder: "minecraft_overworld".into(),
-		region: (0, 0),
-		at: std::time::Instant::now(),
-	};
+	let viewers = viewers_of(vec![report("a", "minecraft_overworld", (0, 0), ViewMode::Top)]);
 	let mut order = Vec::new();
-	while let Some(next) = crate::job::take_nearest(&mut remaining, Some(&view)) {
+	while let Some(next) = take_next(&mut remaining, &viewers) {
 		order.push(next.key);
 	}
 	assert_eq!(order, ["minecraft_overworld/r.0.0", "minecraft_overworld/r.1.0", "minecraft_overworld/r.5.5", "minecraft_nether/r.0.0"]);
@@ -174,8 +171,103 @@ fn the_region_nearest_the_view_is_drawn_first() {
 #[test]
 fn without_a_view_the_regions_keep_their_order() {
 	let mut remaining = vec![pending_at("minecraft_overworld", 5, 5), pending_at("minecraft_overworld", 1, 0)];
-	let first = crate::job::take_nearest(&mut remaining, None).unwrap();
+	let first = take_next(&mut remaining, &[]).unwrap();
 	assert_eq!(first.key, "minecraft_overworld/r.5.5");
+}
+
+#[test]
+fn a_flying_view_waits_for_regions_outside_its_neighbourhood() {
+	let mut remaining = vec![
+		pending_at("minecraft_overworld", 0, 0),
+		pending_at("minecraft_overworld", 2, 0),
+		pending_at("minecraft_nether", 0, 0),
+		pending_at("minecraft_overworld", -1, -1),
+		pending_at("minecraft_overworld", 1, 1),
+	];
+	let viewers = viewers_of(vec![report("a", "minecraft_overworld", (0, 0), ViewMode::Free)]);
+	let mut order = Vec::new();
+	while let Some(next) = take_next(&mut remaining, &viewers) {
+		order.push(next.key);
+	}
+	assert_eq!(order, ["minecraft_overworld/r.0.0", "minecraft_overworld/r.-1.-1", "minecraft_overworld/r.1.1"]);
+	assert_eq!(remaining.len(), 2, "regions outside the view stay pending");
+}
+
+#[test]
+fn flying_views_draw_the_regions_around_each_of_them() {
+	let mut remaining = vec![
+		pending_at("minecraft_overworld", 3, 0),
+		pending_at("minecraft_overworld", 5, 1),
+		pending_at("minecraft_overworld", 4, 1),
+		pending_at("minecraft_overworld", 0, 0),
+	];
+	let viewers = viewers_of(vec![
+		report("a", "minecraft_overworld", (0, 0), ViewMode::Free),
+		report("b", "minecraft_overworld", (5, 0), ViewMode::Free),
+	]);
+	let mut order = Vec::new();
+	while let Some(next) = take_next(&mut remaining, &viewers) {
+		order.push(next.key);
+	}
+	assert_eq!(order, ["minecraft_overworld/r.0.0", "minecraft_overworld/r.5.1", "minecraft_overworld/r.4.1"]);
+}
+
+#[test]
+fn top_views_hold_no_region_back() {
+	let mut remaining = vec![pending_at("minecraft_overworld", 9, 9), pending_at("minecraft_nether", 4, 4)];
+	let viewers = viewers_of(vec![report("a", "minecraft_overworld", (0, 0), ViewMode::Top)]);
+	assert_eq!(take_next(&mut remaining, &viewers).map(|next| next.key).as_deref(), Some("minecraft_overworld/r.9.9"));
+	assert_eq!(take_next(&mut remaining, &viewers).map(|next| next.key).as_deref(), Some("minecraft_nether/r.4.4"));
+	assert!(take_next(&mut remaining, &viewers).is_none());
+}
+
+#[test]
+fn a_view_counts_until_its_heartbeats_stop() {
+	let viewers = Viewers::default();
+	let start = Instant::now();
+	viewers.report_at(1, report("a", "minecraft_overworld", (0, 0), ViewMode::Free), start);
+	assert_eq!(viewers.active_at(1, start + Duration::from_secs(30)).len(), 1);
+	assert!(viewers.active_at(1, start + Duration::from_secs(60)).is_empty());
+}
+
+#[test]
+fn a_view_reports_when_it_enters_another_region() {
+	let viewers = Viewers::default();
+	let start = Instant::now();
+	let at = |x: f64| ViewReport { x, ..report("a", "minecraft_overworld", (0, 0), ViewMode::Top) };
+	assert!(viewers.report_at(1, at(10.0), start));
+	assert!(!viewers.report_at(1, at(400.0), start));
+	assert!(viewers.report_at(1, at(600.0), start));
+}
+
+#[test]
+fn only_a_flying_view_leaving_releases_regions() {
+	let viewers = Viewers::default();
+	viewers.report(1, report("top", "minecraft_overworld", (0, 0), ViewMode::Top));
+	viewers.report(1, report("free", "minecraft_overworld", (0, 0), ViewMode::Free));
+	assert!(!viewers.remove(1, "top"));
+	assert!(viewers.remove(1, "free"));
+	assert!(!viewers.remove(1, "free"));
+}
+
+fn report(viewer: &str, folder: &str, region: (i32, i32), mode: ViewMode) -> ViewReport {
+	ViewReport {
+		viewer: viewer.into(),
+		folder: folder.into(),
+		x: f64::from(region.0) * 512.0 + 1.0,
+		y: 64.0,
+		z: f64::from(region.1) * 512.0 + 1.0,
+		mode,
+		follow: None,
+	}
+}
+
+fn viewers_of(reports: Vec<ViewReport>) -> Vec<Viewer> {
+	let viewers = Viewers::default();
+	for report in reports {
+		viewers.report(1, report);
+	}
+	viewers.active(1)
 }
 
 fn modified_secs(path: &Path) -> i64 {

@@ -16,6 +16,7 @@ mod settings;
 mod state;
 mod status;
 mod structure_job;
+mod viewers;
 mod watch;
 
 #[cfg(test)]
@@ -23,6 +24,7 @@ mod tests;
 
 pub use live::{LivePlayer, LiveState, WorldMapPlayers};
 pub use manifest::{WorldMapManifest, WorldMapSection, WorldMapTile};
-pub use service::{WorldMapFocus, WorldMapService};
+pub use service::WorldMapService;
+pub use viewers::{ViewMode, ViewReport};
 pub use settings::WorldMapSettings;
 pub use status::{WorldMapDimensionStatus, WorldMapStatus};
