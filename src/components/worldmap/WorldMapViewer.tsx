@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Color,
   NearestFilter,
@@ -72,8 +72,6 @@ export interface WorldMapViewerProps {
   players: readonly LivePlayer[];
   skinBase: string;
   focus: MapFocus | null;
-  /** The map frame, which goes fullscreen while the pointer is captured, so the overlays stay in view. */
-  frame: RefObject<HTMLElement | null>;
   stats: MapStats;
   onPlace: (place: ViewPlace) => void;
   /** The keys or the mouse moved the camera by hand, so a followed player is let go. */
@@ -89,7 +87,6 @@ export function WorldMapViewer({
   players,
   skinBase,
   focus,
-  frame: frameRef,
   stats,
   onPlace,
   onInput,
@@ -156,7 +153,7 @@ export function WorldMapViewer({
     const scene = new Scene();
     const camera = new PerspectiveCamera(70, 1, 0.5, 4000);
     const fly = new FreeFlyCamera();
-    const detachInput = fly.attach(renderer.domElement, { frame: frameRef.current, onInput: () => inputRef.current() });
+    const detachInput = fly.attach(renderer.domElement, { onInput: () => inputRef.current() });
     const markers = new PlayerMarkers(skinBase);
     scene.add(markers.group);
     markers.update(playersRef.current);
@@ -543,7 +540,7 @@ export function WorldMapViewer({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [source, skinBase, instanceId, folder, track, stats, frameRef]);
+  }, [source, skinBase, instanceId, folder, track, stats]);
 
   const streaming = progress.message === "Streaming";
   return (

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@heroui/react";
 import { Icon } from "@iconify-icon/react";
 import {
@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "../ui/EmptyState";
 import { SectionTabs } from "../ui/SectionTabs";
 import { Tip } from "../ui/Tip";
+import { useFullscreen } from "../ui/useFullscreen";
 import type { FollowMode, MapFocus } from "./map-focus";
 import { mapMemory, rememberView, type MapView } from "./map-memory";
 import { MapStats } from "./map-stats";
@@ -40,6 +41,7 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   const nonce = useRef(0);
   const frame = useRef<HTMLDivElement>(null);
   const stats = useMemo(() => new MapStats(), []);
+  const fullscreen = useFullscreen(frame);
   const attachFrame = useCallback((node: HTMLDivElement | null) => {
     frame.current = node;
     return keepWheelInside(node);
@@ -140,7 +142,6 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             players={players}
             revision={status.data.revision}
             focus={focus}
-            frame={frame}
             stats={stats}
             onPlace={reportView}
             onInput={() => setFollowing(null)}
@@ -154,6 +155,14 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             pressed={statsOpen}
             onPress={() => setStatsOpen((open) => !open)}
           />
+          {fullscreen.supported && (
+            <ToolbarButton
+              label="Fullscreen"
+              icon={fullscreen.active ? "lucide:minimize" : "lucide:maximize"}
+              pressed={fullscreen.active}
+              onPress={fullscreen.toggle}
+            />
+          )}
           {canViewPlayers && (
             <ToolbarButton
               label="Players"
@@ -246,13 +255,12 @@ interface FreeViewProps {
   players: readonly LivePlayer[];
   revision: number;
   focus: MapFocus | null;
-  frame: RefObject<HTMLElement | null>;
   stats: MapStats;
   onPlace: (place: { x: number; y: number; z: number }) => void;
   onInput: () => void;
 }
 
-function FreeView({ instanceId, folder, dimensionId, players, revision, focus, frame, stats, onPlace, onInput }: FreeViewProps) {
+function FreeView({ instanceId, folder, dimensionId, players, revision, focus, stats, onPlace, onInput }: FreeViewProps) {
   const source = useMemo(() => worldMapSource(instanceId, folder), [instanceId, folder]);
   const inDimension = useMemo(() => players.filter((player) => player.dimension === dimensionId), [players, dimensionId]);
   return (
@@ -264,7 +272,6 @@ function FreeView({ instanceId, folder, dimensionId, players, revision, focus, f
       players={inDimension}
       skinBase={worldMapSkinBase(instanceId)}
       focus={focus}
-      frame={frame}
       stats={stats}
       onPlace={onPlace}
       onInput={onInput}

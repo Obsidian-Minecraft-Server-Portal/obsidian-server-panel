@@ -1,5 +1,4 @@
 import { PerspectiveCamera, Vector3 } from "three";
-import { enterImmersive, leaveImmersive } from "./immersive";
 
 const LOOK_SENSITIVITY = 0.0022;
 const FLY_SPEED = 12;
@@ -21,15 +20,13 @@ const CONTROL_KEYS = new Set([
 ]);
 
 export interface FlyInput {
-  /** Goes fullscreen while the pointer is captured, so the keys stay in the page and the overlays stay in view. */
-  frame: HTMLElement | null;
   /** Called when the keys or the mouse move the camera, so a followed player can be let go. */
   onInput: () => void;
 }
 
 /**
- * Spectator-style camera: flies through blocks with no collision. Click the view to capture the mouse,
- * and press Escape to release it.
+ * Spectator-style camera: flies through blocks with no collision. Hold the right button to look around, or
+ * double-click to keep the mouse captured until Escape.
  */
 export class FreeFlyCamera {
   readonly position = new Vector3(0, 80, 0);
@@ -43,19 +40,18 @@ export class FreeFlyCamera {
   /**
    * Connects input to `element`. Holding the right button looks around until it is released; a double click locks the
    * pointer until Escape. Keys move the camera while the view has focus or holds the pointer, so typing elsewhere is safe.
-   * The wheel sets the flying speed. The returned function removes every listener and leaves any fullscreen.
+   * The wheel sets the flying speed. The returned function removes every listener and releases the pointer.
    */
   attach(element: HTMLElement, input: FlyInput): () => void {
     let holding = false;
     let sticky = false;
     element.tabIndex = 0;
-    const leave = () => {
-      if (input.frame) leaveImmersive(input.frame);
-    };
+
     const lock = () => {
-      if (input.frame) enterImmersive(input.frame);
       try {
-        void Promise.resolve(element.requestPointerLock()).catch(leave);
+        void Promise.resolve(element.requestPointerLock()).catch((error: unknown) => {
+          console.warn("Pointer lock was refused:", error);
+        });
       } catch {
         // Some embedded contexts refuse pointer lock.
       }
@@ -71,8 +67,10 @@ export class FreeFlyCamera {
         holding = false;
         sticky = false;
         this.keys.clear();
-        leave();
+        return;
       }
+      // The right button came up before the lock was granted.
+      if (!holding && !sticky) release();
     };
     const onPointerDown = (event: PointerEvent) => {
       element.focus({ preventScroll: true });
@@ -145,7 +143,6 @@ export class FreeFlyCamera {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
       release();
-      leave();
     };
   }
 
