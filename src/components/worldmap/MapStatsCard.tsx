@@ -37,7 +37,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt className="text-ink-3">{label}</dt>
-      <dd className="truncate text-right text-ink-1">{value}</dd>
+      <dd className="text-right break-words text-ink-1">{value}</dd>
     </>
   );
 }

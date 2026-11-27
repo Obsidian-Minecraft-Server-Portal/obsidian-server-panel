@@ -16,7 +16,7 @@ interface DimensionsPanelProps {
 /** Every dimension in the world, with what is rendered of each. Choosing a rendered one shows it on the map. */
 export function DimensionsPanel({ dimensions, players, current, onChoose, onClose }: DimensionsPanelProps) {
   return (
-    <aside className="pointer-events-auto flex min-h-0 flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
+    <aside className="pointer-events-auto flex shrink-0 flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
       <PanelHeader
         icon="lucide:layers"
         title="Dimensions"
@@ -24,7 +24,7 @@ export function DimensionsPanel({ dimensions, players, current, onChoose, onClos
         closeLabel="Close the dimensions panel"
         onClose={onClose}
       />
-      <ul className="min-h-0 flex-1 overflow-y-auto p-2" data-native-scroll>
+      <ul className="max-h-72 overflow-y-auto p-2" data-native-scroll>
         {dimensions.map((dimension) => (
           <DimensionRow
             key={dimension.folder}

@@ -30,7 +30,7 @@ interface PlayersPanelProps {
 export function PlayersPanel({ live, dimensionId, skinBase, focused, following, onClose, onFocus, onFollow }: PlayersPanelProps) {
   const players = live?.players ?? [];
   return (
-    <aside className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
+    <aside className="pointer-events-auto flex min-h-[14rem] flex-1 flex-col overflow-hidden rounded-panel border border-line-strong bg-panel/95 shadow-lift backdrop-blur-md">
       <PanelHeader icon="lucide:users" title="Players" count={players.length} closeLabel="Close the players panel" onClose={onClose} />
       {players.length === 0 ? (
         <p className={cn("px-4 py-6 text-center text-sm", live?.state === "unavailable" ? "text-rose" : "text-ink-3")}>

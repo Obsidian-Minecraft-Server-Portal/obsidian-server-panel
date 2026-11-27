@@ -197,36 +197,38 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
         {(statsOpen || dimensionsOpen || (canViewPlayers && playersOpen)) && (
           <div
             className={cn(
-              "pointer-events-none absolute top-14 left-3 z-10 flex w-80 max-w-[calc(100%-1.5rem)] flex-col gap-2",
+              "pointer-events-none absolute top-14 left-3 z-10 flex w-80 max-w-[calc(100%-1.5rem)] flex-col",
               view === "free" ? "bottom-16" : "bottom-3",
             )}
           >
-            {statsOpen && (
-              <div className="pointer-events-auto shrink-0 self-start">
-                <MapStatsCard instanceId={instanceId} stats={stats} live={view === "free"} />
-              </div>
-            )}
-            {dimensionsOpen && (
-              <DimensionsPanel
-                dimensions={status.data.dimensions}
-                players={players}
-                current={dimension.folder}
-                onChoose={chooseDimension}
-                onClose={() => setDimensionsOpen(false)}
-              />
-            )}
-            {canViewPlayers && playersOpen && (
-              <PlayersPanel
-                live={live.data}
-                dimensionId={dimension.id}
-                skinBase={worldMapSkinBase(instanceId)}
-                focused={request?.name ?? null}
-                following={following}
-                onClose={() => setPlayersOpen(false)}
-                onFocus={focusPlayer}
-                onFollow={followPlayer}
-              />
-            )}
+            <div data-native-scroll className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+              {statsOpen && (
+                <div className="pointer-events-auto shrink-0 self-start">
+                  <MapStatsCard instanceId={instanceId} stats={stats} live={view === "free"} />
+                </div>
+              )}
+              {dimensionsOpen && (
+                <DimensionsPanel
+                  dimensions={status.data.dimensions}
+                  players={players}
+                  current={dimension.folder}
+                  onChoose={chooseDimension}
+                  onClose={() => setDimensionsOpen(false)}
+                />
+              )}
+              {canViewPlayers && playersOpen && (
+                <PlayersPanel
+                  live={live.data}
+                  dimensionId={dimension.id}
+                  skinBase={worldMapSkinBase(instanceId)}
+                  focused={request?.name ?? null}
+                  following={following}
+                  onClose={() => setPlayersOpen(false)}
+                  onFocus={focusPlayer}
+                  onFollow={followPlayer}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -246,7 +248,10 @@ function RenderLine({ status }: { status: WorldMapStatus }) {
 /** Wheel input over the map zooms or sets the flying speed, so the page around it must not scroll as well. */
 function keepWheelInside(node: HTMLDivElement | null) {
   if (!node) return undefined;
-  const stop = (event: WheelEvent) => event.preventDefault();
+  const stop = (event: WheelEvent) => {
+    if (event.target instanceof Element && event.target.closest("[data-native-scroll]")) return;
+    event.preventDefault();
+  };
   node.addEventListener("wheel", stop, { passive: false });
   return () => node.removeEventListener("wheel", stop);
 }
