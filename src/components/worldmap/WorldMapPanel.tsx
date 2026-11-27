@@ -1,3 +1,4 @@
+import { cn } from "@heroui/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   dimensionLabel,
@@ -172,7 +173,12 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
           )}
         </div>
         {(statsOpen || (canViewPlayers && playersOpen)) && (
-          <div className="pointer-events-none absolute top-14 bottom-3 left-3 z-10 flex w-80 max-w-[calc(100%-1.5rem)] flex-col gap-2">
+          <div
+            className={cn(
+              "pointer-events-none absolute top-14 left-3 z-10 flex w-80 max-w-[calc(100%-1.5rem)] flex-col gap-2",
+              view === "free" ? "bottom-16" : "bottom-3",
+            )}
+          >
             {statsOpen && (
               <div className="pointer-events-auto self-start">
                 <MapStatsCard instanceId={instanceId} stats={stats} live={view === "free"} />

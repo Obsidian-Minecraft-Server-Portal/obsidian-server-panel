@@ -58,7 +58,6 @@ interface Cell {
 
 interface Progress {
   message: string;
-  loaded: number;
   /** Cells are being fetched right now. */
   busy: boolean;
 }
@@ -104,7 +103,7 @@ export function WorldMapViewer({
   const reloadRef = useRef<(() => void) | null>(null);
   const revisionRef = useRef(revision);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState<Progress>({ message: "Loading the map", loaded: 0, busy: true });
+  const [progress, setProgress] = useState<Progress>({ message: "Loading the map", busy: true });
 
   useEffect(() => {
     track.record(players, performance.now());
@@ -230,14 +229,13 @@ export function WorldMapViewer({
     };
 
     const report = (message: string) => {
-      const loaded = loadedCells();
       const busy = inFlight > 0;
-      const key = `${message}:${loaded}:${busy}`;
+      const key = `${message}:${busy}`;
       if (disposed || key === reported) {
         return;
       }
       reported = key;
-      setProgress({ message, loaded, busy });
+      setProgress({ message, busy });
     };
 
     const release = (cell: Cell) => {
@@ -413,7 +411,7 @@ export function WorldMapViewer({
         })
         .catch((error: unknown) => {
           if (!disposed) {
-            setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, busy: false });
+            setProgress({ message: `Could not load the map: ${String(error)}`, busy: false });
           }
         });
     };
@@ -474,7 +472,7 @@ export function WorldMapViewer({
         })
         .catch((error: unknown) => {
           if (!disposed) {
-            setProgress({ message: `Could not load the map: ${String(error)}`, loaded: 0, busy: false });
+            setProgress({ message: `Could not load the map: ${String(error)}`, busy: false });
           }
         });
     };
@@ -546,10 +544,10 @@ export function WorldMapViewer({
   return (
     <div className="absolute inset-0 overflow-hidden bg-black">
       <div ref={containerRef} className="absolute inset-0" />
-      {(!streaming || progress.busy) && (
+      {!streaming && (
         <div className="pointer-events-none absolute top-3 right-3 flex items-center gap-2 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 font-mono text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
           {progress.busy && <span className="size-1.5 animate-pulse rounded-full bg-accent" />}
-          {streaming ? `${progress.loaded} cells` : progress.message}
+          {progress.message}
         </div>
       )}
       <div className="pointer-events-none absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-canvas/80 px-2.5 py-1.5 text-[11px] text-ink-2 shadow-lift backdrop-blur-md">
