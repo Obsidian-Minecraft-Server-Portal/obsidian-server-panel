@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::assets::AssetStore;
 use crate::atlas::{Atlas, Layer};
 use crate::biome::{Biome, BiomeRegistry, GrassModifier};
-use crate::chunk::{BlockState, is_air};
+use crate::chunk::{BlockState, is_invisible};
 use crate::colour::Tints;
 use crate::models::bake_state;
 use crate::models::geometry::{Direction, Quad, TintKind};
@@ -76,7 +76,7 @@ pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas) ->
             let quads = bake_state(assets, state);
             BlockEntry {
                 name,
-                air: is_air(&state.name),
+                air: is_invisible(&state.name),
                 fluid: fluid_kind(&state.name),
                 full: full_mask(&quads, atlas),
                 quads: quads.iter().map(|quad| quad_entry(quad, atlas)).collect(),

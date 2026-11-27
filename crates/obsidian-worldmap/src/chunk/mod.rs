@@ -151,19 +151,23 @@ impl Chunk {
 		Some(section.light_at(x, y.rem_euclid(SECTION_SIDE as i32) as usize, z))
 	}
 
-	/// Highest non-air block in a column, as (world y, block). `x` and `z` are section-local, 0..16.
+	/// Highest visible block in a column, as (world y, block). `x` and `z` are section-local, 0..16.
 	pub fn column_top(&self, x: usize, z: usize) -> Option<(i32, &BlockState)> {
 		self.sections.iter().find_map(|section| {
 			(0..SECTION_SIDE).rev().find_map(|local_y| {
 				let state = section.state_at(x, local_y, z);
-				(!is_air(&state.name)).then(|| (section.y * SECTION_SIDE as i32 + local_y as i32, state))
+				(!is_invisible(&state.name)).then(|| (section.y * SECTION_SIDE as i32 + local_y as i32, state))
 			})
 		})
 	}
 }
 
-pub fn is_air(name: &str) -> bool {
-	matches!(name, "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air")
+/// Blocks that draw nothing in game, so the map treats them as empty.
+pub fn is_invisible(name: &str) -> bool {
+	matches!(
+		name,
+		"minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" | "minecraft:barrier" | "minecraft:light" | "minecraft:structure_void"
+	)
 }
 
 fn decode_section(raw: RawSection, spanning: bool) -> Result<Option<Section>> {
@@ -359,6 +363,13 @@ mod tests {
 		let nbt = chunk_nbt(0, 0, 3955, &[((5, 3, 5), "minecraft:cave_air"), ((5, 2, 5), "minecraft:dirt")]);
 		let chunk = Chunk::parse(&nbt).unwrap();
 		assert_eq!(chunk.column_top(5, 5).map(|(y, state)| (y, state.name.as_str())), Some((2, "minecraft:dirt")));
+	}
+
+	#[test]
+	fn treats_invisible_blocks_as_empty() {
+		let nbt = chunk_nbt(0, 0, 3955, &[((5, 4, 5), "minecraft:barrier"), ((5, 3, 5), "minecraft:structure_void"), ((5, 2, 5), "minecraft:light"), ((5, 1, 5), "minecraft:dirt")]);
+		let chunk = Chunk::parse(&nbt).unwrap();
+		assert_eq!(chunk.column_top(5, 5).map(|(y, state)| (y, state.name.as_str())), Some((1, "minecraft:dirt")));
 	}
 
 	#[test]

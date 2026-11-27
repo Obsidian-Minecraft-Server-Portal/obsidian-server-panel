@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use crate::chunk::{BlockDefaults, Chunk, is_air};
+use crate::chunk::{BlockDefaults, Chunk, is_invisible};
 use crate::colour::BlockColours;
 use crate::error::Result;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
@@ -76,7 +76,7 @@ pub fn render_region(path: &Path, dimension_dir: &Path, defaults: &BlockDefaults
 			chunk
 				.sections()
 				.iter()
-				.filter(|section| !section.palette().iter().all(|state| is_air(&state.name)))
+				.filter(|section| !section.palette().iter().all(|state| is_invisible(&state.name)))
 				.map(move |section| SectionEntry {
 					x: chunk.x,
 					y: section.y(),

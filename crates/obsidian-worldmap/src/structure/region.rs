@@ -10,7 +10,7 @@ use super::folder::{LEGACY_FOLDER, PACK_FOLDER};
 use super::pack::write_pack;
 use super::volume::Volume;
 use super::{BiomeTable, StateTable, section_volume};
-use crate::chunk::{BlockDefaults, BlockState, Chunk, Section};
+use crate::chunk::{BlockDefaults, BlockState, Chunk, Section, is_invisible};
 use crate::error::{Result, WorldmapError};
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
 
@@ -66,11 +66,9 @@ pub fn write_region_pack(
     Ok(written)
 }
 
-const AIR: &str = "minecraft:air";
-
 /// An all-air section with open-sky light reads back as the air a missing section already gives, so it is not stored.
 fn is_open_air(section: &Section, volume: &Volume) -> bool {
-    section.palette().iter().all(|state| state.name == AIR)
+    section.palette().iter().all(|state| is_invisible(&state.name))
         && (0..volume.voxels()).all(|index| volume.sky.at(index) == OPEN_SKY && volume.block.at(index) == 0)
 }
 
@@ -101,6 +99,7 @@ mod tests {
             (0, 0, chunk_nbt(0, 0, 3955, &[((1, 1, 1), "minecraft:stone")])),
             (1, 0, chunk_nbt(1, 0, 3955, &[])),
             (2, 0, chunk_nbt_with_sky_light(2, 0, 3955, 0)),
+            (3, 0, chunk_nbt(3, 0, 3955, &[((1, 1, 1), "minecraft:cave_air")])),
         ];
         fs::write(&region, region_bytes(&chunks)).unwrap();
         let defaults = BlockDefaults::default();
@@ -115,6 +114,7 @@ mod tests {
         assert!(pack.section([0, 0, 0]).unwrap().is_some());
         assert!(pack.section([1, 0, 0]).unwrap().is_none());
         assert!(pack.section([2, 0, 0]).unwrap().is_some());
+        assert!(pack.section([3, 0, 0]).unwrap().is_none());
         assert!(!structure.join("sections").exists(), "the per-section files of the region are gone");
     }
 }
