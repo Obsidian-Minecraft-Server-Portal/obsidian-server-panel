@@ -139,7 +139,7 @@ export function TileView({
   return (
     <div
       ref={frame}
-      className="relative h-full min-h-[60vh] w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
+      className="absolute inset-0 cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
       onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         onPan();
