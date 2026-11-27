@@ -114,8 +114,9 @@ fn load_texture(assets: &AssetStore, id: &str, forced_translucent: bool) -> Opti
 	if side == 0 {
 		return None;
 	}
-	let square = imageops::crop_imm(&decoded, 0, 0, side, side).to_image();
+	let mut square = imageops::crop_imm(&decoded, 0, 0, side, side).to_image();
 	let layer = classify(id, &square, forced_translucent);
+	dilate_transparent(&mut square);
 	let cell = if side == CELL {
 		square
 	} else {
@@ -141,6 +142,27 @@ fn classify(id: &str, pixels: &RgbaImage, forced_translucent: bool) -> Layer {
 		(true, _) => Layer::Translucent,
 		(false, true) => Layer::Cutout,
 		(false, false) => Layer::Opaque,
+	}
+}
+
+/// Gives fully transparent texels the texture's mean colour, so the filtered mips of a cutout texture do not darken at its edges.
+fn dilate_transparent(pixels: &mut RgbaImage) {
+	let mut sum = [0_u64; 3];
+	let mut count = 0_u64;
+	for pixel in pixels.pixels().filter(|pixel| pixel[3] > 0) {
+		for (channel, total) in sum.iter_mut().enumerate() {
+			*total += u64::from(pixel[channel]);
+		}
+		count += 1;
+	}
+	if count == 0 {
+		return;
+	}
+	let mean = sum.map(|total| (total / count) as u8);
+	for pixel in pixels.pixels_mut().filter(|pixel| pixel[3] == 0) {
+		for (channel, value) in mean.iter().enumerate() {
+			pixel[channel] = *value;
+		}
 	}
 }
 
