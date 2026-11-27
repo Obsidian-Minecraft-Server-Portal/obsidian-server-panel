@@ -1,5 +1,5 @@
-// The instanced shader that draws a cell's unit faces. Each instance is one face or merged rectangle of blocks; the shader
-// works out its corners, its texture coordinates and its brightness from the instance fields the mesher writes.
+// The shaders that draw a cell. Instanced faces are expanded from the fields the mesher writes, and explicit faces carry their
+// corners and brightness. Both multiply the encoded texture values by the light, as the game does, so nothing is converted.
 
 import {
   DoubleSide,
@@ -18,13 +18,14 @@ import type { InstanceArrays } from "./instances";
 const VERTEX = /* glsl */ `in vec3 aOrigin;
 in vec2 aSize;
 in float aDirection;
+in float aShade;
 in float aPattern;
 in vec2 aCell;
 in vec3 aTint;
 in vec4 aLight;
 out vec2 vAlong;
 out vec2 vFace;
-flat out float vDirection;
+flat out float vShade;
 flat out float vPattern;
 flat out float vUseA;
 flat out vec2 vCell;
@@ -49,7 +50,7 @@ void main() {
     + axis(NORMAL_AXIS[d]) * PLANE_OFFSET[d];
   vFace = position.xy;
   vAlong = position.xy * aSize;
-  vDirection = aDirection;
+  vShade = aShade;
   vUseA = step(8.0, aPattern);
   vPattern = aPattern - vUseA * 8.0;
   vCell = aCell;
@@ -62,7 +63,7 @@ void main() {
 
 const FRAGMENT = /* glsl */ `in vec2 vAlong;
 in vec2 vFace;
-flat in float vDirection;
+flat in float vShade;
 flat in float vPattern;
 flat in float vUseA;
 flat in vec2 vCell;
@@ -74,7 +75,7 @@ uniform vec2 uAtlasSize;
 uniform float uCutout;
 out vec4 outColour;
 
-const float SHADE[6] = float[6](0.5, 1.0, 0.8, 0.8, 0.6, 0.6);
+const float SHADE[7] = float[7](0.5, 1.0, 0.8, 0.8, 0.6, 0.6, 1.0);
 
 vec2 symmetry(int p, vec2 q) {
   if (p == 0) return vec2(q.x, q.y);
@@ -97,18 +98,36 @@ float lightAt(vec2 st) {
   return (1.0 - st.y) * L.y + (st.x + st.y - 1.0) * L.z + (1.0 - st.x) * L.w;
 }
 
-vec3 toSRGB(vec3 c) {
-  return mix(12.92 * c, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
-}
-
 void main() {
   if ((gl_FrontFacing ? 1.0 : 0.0) != vFront) discard;
   vec2 local = vAlong - floor(vAlong - 1e-4);
   vec2 texel = vec2(0.5) + 15.0 * symmetry(int(vPattern + 0.5), local);
   vec4 sampled = texture(uAtlas, (vCell + texel) / uAtlasSize);
   if (uCutout > 0.5 && sampled.a < 0.5) discard;
-  vec3 colour = sampled.rgb * vTint * SHADE[int(vDirection + 0.5)] * lightAt(vFace);
-  outColour = vec4(toSRGB(colour), sampled.a);
+  outColour = vec4(sampled.rgb * vTint * SHADE[int(vShade + 0.5)] * lightAt(vFace), sampled.a);
+}
+`;
+
+const EXPLICIT_VERTEX = /* glsl */ `out vec2 vUv;
+out vec3 vColour;
+
+void main() {
+  vUv = uv;
+  vColour = color;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const EXPLICIT_FRAGMENT = /* glsl */ `in vec2 vUv;
+in vec3 vColour;
+uniform sampler2D uAtlas;
+uniform float uCutout;
+out vec4 outColour;
+
+void main() {
+  vec4 sampled = texture(uAtlas, vUv);
+  if (uCutout > 0.5 && sampled.a < 0.5) discard;
+  outColour = vec4(sampled.rgb * vColour, sampled.a);
 }
 `;
 
@@ -141,6 +160,27 @@ export function createInstanceMaterial({ atlas, atlasSize, cutout, translucent }
   });
 }
 
+export interface ExplicitMaterialOptions {
+  atlas: Texture;
+  cutout: boolean;
+  translucent: boolean;
+}
+
+export function createExplicitMaterial({ atlas, cutout, translucent }: ExplicitMaterialOptions): ShaderMaterial {
+  return new ShaderMaterial({
+    glslVersion: GLSL3,
+    vertexShader: EXPLICIT_VERTEX,
+    fragmentShader: EXPLICIT_FRAGMENT,
+    uniforms: {
+      uAtlas: { value: atlas },
+      uCutout: { value: cutout ? 1 : 0 },
+    },
+    vertexColors: true,
+    transparent: translucent,
+    depthWrite: !translucent,
+  });
+}
+
 export function createInstanceGeometry(instances: InstanceArrays): InstancedBufferGeometry {
   const geometry = new InstancedBufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(TEMPLATE_CORNERS, 3));
@@ -148,6 +188,7 @@ export function createInstanceGeometry(instances: InstanceArrays): InstancedBuff
   geometry.setAttribute("aOrigin", new InstancedBufferAttribute(instances.origin, 3));
   geometry.setAttribute("aSize", new InstancedBufferAttribute(instances.size, 2));
   geometry.setAttribute("aDirection", new InstancedBufferAttribute(instances.direction, 1));
+  geometry.setAttribute("aShade", new InstancedBufferAttribute(instances.shade, 1));
   geometry.setAttribute("aPattern", new InstancedBufferAttribute(instances.pattern, 1));
   geometry.setAttribute("aCell", new InstancedBufferAttribute(instances.cell, 2));
   geometry.setAttribute("aTint", new InstancedBufferAttribute(instances.tint, 3));

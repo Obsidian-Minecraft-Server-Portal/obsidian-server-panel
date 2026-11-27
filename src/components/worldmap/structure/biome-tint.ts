@@ -4,16 +4,20 @@ import type { BiomeJson, GrassModifier } from "./tables";
 
 export type Rgb = [number, number, number];
 
-/** The tint kinds the server writes on quads: grass, foliage and water. */
+/** The tint kinds the server writes on quads: grass, foliage, water and dry foliage. */
 export const TINT_GRASS = 0;
 export const TINT_FOLIAGE = 1;
 export const TINT_WATER = 2;
+export const TINT_DRY_FOLIAGE = 3;
 
 export function tintFor(kind: number, biome: BiomeJson, x: number, z: number): Rgb {
   if (kind === TINT_GRASS) {
     return grassWithModifier(biome.grass, biome.grassModifier, x, z);
   }
-  return kind === TINT_FOLIAGE ? biome.foliage : biome.water;
+  if (kind === TINT_FOLIAGE) {
+    return biome.foliage;
+  }
+  return kind === TINT_DRY_FOLIAGE ? biome.dryFoliage : biome.water;
 }
 
 function grassWithModifier(base: Rgb, modifier: GrassModifier, x: number, z: number): Rgb {

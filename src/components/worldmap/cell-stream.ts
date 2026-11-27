@@ -1,4 +1,4 @@
-import { NearestFilter, SRGBColorSpace, type Scene, type Texture, TextureLoader, Vector2, type Vector3 } from "three";
+import { NearestFilter, NoColorSpace, type Scene, type Texture, TextureLoader, Vector2, type Vector3 } from "three";
 import type { CellCoord, MapManifest, MapSource, SectionEntry } from "./map-source";
 import { CellMesher, MESH_VERSION, MesherClosedError, type MeshedCell, workerCount } from "./structure/cell-mesher";
 import { type CellMaterials, type CellObject, buildCell, createCellMaterials } from "./structure/cell-scene";
@@ -309,7 +309,7 @@ export class CellStream {
       previous?.dispose();
       this.pump();
     });
-    texture.colorSpace = SRGBColorSpace;
+    texture.colorSpace = NoColorSpace;
     texture.magFilter = NearestFilter;
     texture.minFilter = NearestFilter;
     texture.generateMipmaps = false;
@@ -358,8 +358,7 @@ function bindAtlas(materials: CellMaterials, texture: Texture, width: number, he
     material.uniforms.uAtlasSize.value = new Vector2(width, height);
   }
   for (const material of materials.explicit) {
-    material.map = texture;
-    material.needsUpdate = true;
+    material.uniforms.uAtlas.value = texture;
   }
 }
 

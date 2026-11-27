@@ -120,5 +120,5 @@ function coordinate(face: Face, axis: number): number {
 }
 
 function keyOf(face: Face): string {
-  return `${face.quad.layer}|${face.quad.pattern}|${face.quad.uvs.join(",")}|${face.tint.join(",")}|${face.light[0]}`;
+  return `${face.quad.layer}|${face.quad.pattern}|${face.quad.shade}|${face.quad.uvs.join(",")}|${face.tint.join(",")}|${face.light[0]}`;
 }

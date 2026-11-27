@@ -11,7 +11,13 @@ export interface QuadJson {
   cell: [number, number];
   direction: number;
   cullface: number;
+  /** Direction index of the shade, or -1 for full brightness. */
+  shade: number;
+  /** 0 for grass, 1 for foliage, 2 for water, 3 for dry foliage, or -1 for none. */
   tint: number;
+  /** The fixed colour the block state carries, in place of a biome tint. */
+  colour: [number, number, number] | null;
+  ao: boolean;
   layer: number;
 }
 
@@ -20,12 +26,14 @@ export interface BlockJson {
   air: boolean;
   fluid: number;
   full: number;
+  skipSame: boolean;
   quads: QuadJson[];
 }
 
 export interface BlockTableJson {
   atlasWidth: number;
   atlasHeight: number;
+  ambientLight: number;
   names: string[];
   states: BlockJson[];
 }
@@ -34,9 +42,13 @@ export interface BiomeJson {
   name: string;
   grass: [number, number, number];
   foliage: [number, number, number];
+  dryFoliage: [number, number, number];
   water: [number, number, number];
   grassModifier: GrassModifier;
 }
+
+/** The shade index of a face drawn at full brightness, one past the six directions. */
+export const UNSHADED = 6;
 
 /** A quad as the mesher reads it. Corner values are f32, and texture coordinates are the atlas values the server packs. */
 export interface PreparedQuad {
@@ -44,7 +56,11 @@ export interface PreparedQuad {
   uvs: Uint16Array;
   direction: number;
   cullface: number;
+  /** Index into the shade table: a direction, or `UNSHADED`. */
+  shade: number;
   tint: number;
+  colour: [number, number, number] | null;
+  ao: boolean;
   layer: number;
   /** Texel coordinates, 0 to 16, two per corner, before the atlas offset. */
   texel: Float32Array;
@@ -60,6 +76,7 @@ export interface PreparedBlock {
   air: boolean;
   fluid: number;
   full: number;
+  skipSame: boolean;
   name: number;
   quads: PreparedQuad[];
 }
@@ -69,6 +86,7 @@ export interface PreparedTable {
   biomes: BiomeJson[];
   atlasWidth: number;
   atlasHeight: number;
+  ambientLight: number;
 }
 
 export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): PreparedTable {
@@ -77,13 +95,17 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
       air: state.air,
       fluid: state.fluid,
       full: state.full,
+      skipSame: state.skipSame,
       name: state.name,
       quads: state.quads.map((quad) => ({
         corners: Float32Array.from(quad.corners),
         uvs: encodeUvs(quad.uvs, quad.cell, blocks.atlasWidth, blocks.atlasHeight),
         direction: quad.direction,
         cullface: quad.cullface,
+        shade: quad.shade < 0 ? UNSHADED : quad.shade,
         tint: quad.tint,
+        colour: quad.colour,
+        ao: quad.ao,
         layer: quad.layer,
         texel: Float32Array.from(quad.uvs),
         pattern: symmetryOf(Float32Array.from(quad.corners), Float32Array.from(quad.uvs), quad.direction),
@@ -94,6 +116,7 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
     biomes,
     atlasWidth: blocks.atlasWidth,
     atlasHeight: blocks.atlasHeight,
+    ambientLight: Math.fround(blocks.ambientLight),
   };
 }
 

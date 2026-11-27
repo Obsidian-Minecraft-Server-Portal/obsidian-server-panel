@@ -1,4 +1,4 @@
-// Faces of one cell, with the same culling, ambient occlusion and light the server applies (crates/obsidian-worldmap/src/mesh).
+// Faces of one cell, with the culling, ambient occlusion and light that the server's block tables describe.
 // Corners and texture coordinates stay in the server's integer packing, so the output can be compared with it exactly.
 
 import { tintFor } from "./biome-tint";
@@ -19,7 +19,6 @@ export const TANGENTS = [
 ];
 const AXIS_STEP = [1, PLANE, PADDED];
 const OCCLUSION = [Math.fround(0.4), Math.fround(0.6), Math.fround(0.8), 1];
-const AMBIENT = Math.fround(0.05);
 const FULL_LIGHT = 15;
 const ALL_FACES = 0b111111;
 const WHITE = [255, 255, 255];
@@ -63,8 +62,11 @@ export function meshCell(voxels: CellVoxels, table: PreparedTable): Face[] {
           if (quad.cullface >= 0 && isCulled(voxels, table.blocks, block, quad, index)) {
             continue;
           }
-          const tint = quad.tint < 0 ? WHITE : tintFor(quad.tint, biome, cellX(voxels) + x, cellZ(voxels) + z);
-          faces.push({ x, y, z, quad, tint, light: cornerLight(voxels, table.blocks, index, quad) });
+          const tint = quad.colour ?? (quad.tint < 0 ? WHITE : tintFor(quad.tint, biome, cellX(voxels) + x, cellZ(voxels) + z));
+          const light = quad.ao
+            ? cornerLight(voxels, table.blocks, index, quad, table.ambientLight)
+            : flatLight(voxels, index, quad, table.ambientLight);
+          faces.push({ x, y, z, quad, tint, light });
         }
       }
     }
@@ -100,7 +102,7 @@ function isCulled(voxels: CellVoxels, blocks: PreparedBlock[], block: PreparedBl
   if (neighbour.air) {
     return false;
   }
-  if (neighbour.name === block.name && block.fluid !== 0) {
+  if (neighbour.name === block.name && (block.fluid !== 0 || block.skipSame)) {
     return true;
   }
   return ((neighbour.full >> (quad.cullface ^ 1)) & 1) === 1;
@@ -118,7 +120,7 @@ function positions(quad: PreparedQuad, localX: number, localY: number, localZ: n
   return out;
 }
 
-function cornerLight(voxels: CellVoxels, blocks: PreparedBlock[], index: number, quad: PreparedQuad): number[] {
+function cornerLight(voxels: CellVoxels, blocks: PreparedBlock[], index: number, quad: PreparedQuad, ambient: number): number[] {
   const front = index + DIRECTION_STEP[quad.direction];
   const [first, second] = TANGENTS[quad.direction];
   const light: number[] = [0, 0, 0, 0];
@@ -136,9 +138,16 @@ function cornerLight(voxels: CellVoxels, blocks: PreparedBlock[], index: number,
         : 3 - (Number(occludedFirst) + Number(occludedSecond) + Number(isOccluder(voxels, blocks, diagonal)));
     const level =
       (lightLevel(voxels, front) + lightLevel(voxels, besideFirst) + lightLevel(voxels, besideSecond) + lightLevel(voxels, diagonal)) / 4;
-    light[corner] = Math.round(Math.fround(Math.fround(OCCLUSION[occlusion] * lightCurve(level)) * 255));
+    light[corner] = Math.round(Math.fround(Math.fround(OCCLUSION[occlusion] * lightCurve(level, ambient)) * 255));
   }
   return light;
+}
+
+/** Faces of models without ambient occlusion take one brightness, from the cell their cullface points at or from their own. */
+function flatLight(voxels: CellVoxels, index: number, quad: PreparedQuad, ambient: number): number[] {
+  const source = quad.cullface >= 0 ? index + DIRECTION_STEP[quad.cullface] : index;
+  const value = Math.round(Math.fround(lightCurve(lightLevel(voxels, source), ambient) * 255));
+  return [value, value, value, value];
 }
 
 function isOccluder(voxels: CellVoxels, blocks: PreparedBlock[], index: number): boolean {
@@ -150,9 +159,9 @@ function lightLevel(voxels: CellVoxels, index: number): number {
   return Math.max(voxels.sky[index], voxels.block[index]);
 }
 
-function lightCurve(level: number): number {
+function lightCurve(level: number, ambient: number): number {
   const t = Math.min(Math.max(Math.fround(level / FULL_LIGHT), 0), 1);
-  const numerator = Math.fround(Math.fround(1 - AMBIENT) * t);
+  const numerator = Math.fround(Math.fround(1 - ambient) * t);
   const denominator = Math.fround(4 - Math.fround(3 * t));
-  return Math.fround(AMBIENT + Math.fround(numerator / denominator));
+  return Math.fround(ambient + Math.fround(numerator / denominator));
 }

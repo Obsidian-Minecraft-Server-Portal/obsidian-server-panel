@@ -1,14 +1,14 @@
 // Turns a cell's arrays into three.js objects: an instanced mesh and an explicit mesh per render layer, placed at the cell's corner.
 
-import { BufferAttribute, BufferGeometry, Group, Mesh, MeshBasicMaterial, type ShaderMaterial, type Texture, Vector2 } from "three";
+import { BufferAttribute, BufferGeometry, Group, Mesh, type ShaderMaterial, type Texture, Vector2 } from "three";
 import { CELL_BLOCKS } from "./bundle";
-import { createInstanceGeometry, createInstanceMaterial } from "./cell-shader";
+import { createExplicitMaterial, createInstanceGeometry, createInstanceMaterial } from "./cell-shader";
 import type { LayerArrays } from "./instances";
 
 export interface CellMaterials {
   /** Per layer: opaque, cutout, translucent. */
   instanced: ShaderMaterial[];
-  explicit: MeshBasicMaterial[];
+  explicit: ShaderMaterial[];
 }
 
 export function createCellMaterials(atlas: Texture, atlasWidth: number, atlasHeight: number): CellMaterials {
@@ -20,9 +20,9 @@ export function createCellMaterials(atlas: Texture, atlasWidth: number, atlasHei
       createInstanceMaterial({ atlas, atlasSize, cutout: false, translucent: true }),
     ],
     explicit: [
-      new MeshBasicMaterial({ map: atlas, vertexColors: true }),
-      new MeshBasicMaterial({ map: atlas, vertexColors: true, alphaTest: 0.5 }),
-      new MeshBasicMaterial({ map: atlas, vertexColors: true, transparent: true, depthWrite: false }),
+      createExplicitMaterial({ atlas, cutout: false, translucent: false }),
+      createExplicitMaterial({ atlas, cutout: true, translucent: false }),
+      createExplicitMaterial({ atlas, cutout: false, translucent: true }),
     ],
   };
 }
