@@ -4,11 +4,12 @@ use std::collections::BTreeMap;
 
 use crate::assets::AssetStore;
 use crate::chunk::BlockState;
-use crate::models::geometry::{MISSING_TEXTURE, Quad, TintKind, element_quads, tint_kind_for_block, transform_quad};
+use crate::colour::block_tint;
+use crate::models::geometry::{BlockTint, MISSING_TEXTURE, Quad, element_quads, transform_quad};
 use crate::models::{Blockstate, Element, Face, Variant, resolve_model, split_id};
 
 pub fn bake_state(assets: &AssetStore, state: &BlockState) -> Vec<Quad> {
-	let tint = tint_kind_for_block(&state.name);
+	let tint = block_tint(&state.name, &state.properties);
 	if let Some(texture) = fluid_texture(&state.name) {
 		return cube(texture, tint);
 	}
@@ -18,22 +19,19 @@ pub fn bake_state(assets: &AssetStore, state: &BlockState) -> Vec<Quad> {
 		.and_then(|json| Blockstate::parse(json).ok())
 		.map(|blockstate| blockstate.variants_for(&state.properties));
 	match variants {
-		Some(variants) if !variants.is_empty() => variants
-			.iter()
-			.flat_map(|variant| bake_variant(assets, variant, tint))
-			.collect(),
+		Some(variants) if !variants.is_empty() => variants.iter().flat_map(|variant| bake_variant(assets, variant, tint)).collect(),
 		_ => cube(MISSING_TEXTURE, None),
 	}
 }
 
-fn bake_variant(assets: &AssetStore, variant: &Variant, tint: Option<TintKind>) -> Vec<Quad> {
+fn bake_variant(assets: &AssetStore, variant: &Variant, tint: Option<BlockTint>) -> Vec<Quad> {
 	let Ok(model) = resolve_model(assets, &variant.model) else {
 		return cube(MISSING_TEXTURE, None);
 	};
 	model
 		.elements
 		.iter()
-		.flat_map(|element| element_quads(element, &model.textures, tint))
+		.flat_map(|element| element_quads(element, &model.textures, tint, model.ambient_occlusion))
 		.map(|quad| transform_quad(&quad, variant.x, variant.y, variant.uvlock))
 		.collect()
 }
@@ -47,7 +45,7 @@ fn fluid_texture(name: &str) -> Option<&'static str> {
 }
 
 /// A full cube whose faces are all culled by their neighbours. Used for fluids and blocks with no usable model.
-fn cube(texture: &str, tint: Option<TintKind>) -> Vec<Quad> {
+fn cube(texture: &str, tint: Option<BlockTint>) -> Vec<Quad> {
 	let faces = ["down", "up", "north", "south", "west", "east"].map(|name| {
 		let face = Face {
 			uv: None,
@@ -63,18 +61,20 @@ fn cube(texture: &str, tint: Option<TintKind>) -> Vec<Quad> {
 		to: [16.0; 3],
 		rotation: None,
 		faces: BTreeMap::from(faces),
+		shade: None,
+		shade_direction_override: None,
 	};
 	let textures = BTreeMap::from([("all".to_owned(), texture.to_owned())]);
-	element_quads(&element, &textures, tint)
+	element_quads(&element, &textures, tint, true)
 }
 
 #[cfg(test)]
 mod tests {
-	use std::io::Write;
 	use std::collections::BTreeMap;
+	use std::io::Write;
 
 	use super::*;
-	use crate::models::geometry::Direction;
+	use crate::models::geometry::{Direction, TintKind};
 
 	fn store(files: &[(&str, &str)]) -> AssetStore {
 		let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -117,7 +117,7 @@ mod tests {
 		let assets = AssetStore::default();
 		let water = bake_state(&assets, &state("minecraft:water", &[("level", "0")]));
 		assert_eq!(water.len(), 6);
-		assert!(water.iter().all(|quad| quad.tint == Some(TintKind::Water) && quad.texture == "minecraft:block/water_still"));
+		assert!(water.iter().all(|quad| quad.tint == Some(BlockTint::Biome(TintKind::Water)) && quad.texture == "minecraft:block/water_still"));
 		let unknown = bake_state(&assets, &state("othermod:mystery", &[]));
 		assert_eq!(unknown.len(), 6);
 		assert!(unknown.iter().all(|quad| quad.texture == MISSING_TEXTURE && quad.cullface.is_some()));

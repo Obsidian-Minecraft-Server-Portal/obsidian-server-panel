@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::assets::AssetStore;
 use crate::error::{Result, WorldmapError};
-use crate::models::{Element, ModelFile, split_id};
+use crate::models::{Element, ModelFile, namespaced, split_id};
 
 const MAX_PARENT_DEPTH: usize = 32;
 const MAX_TEXTURE_HOPS: usize = 8;
@@ -12,6 +12,9 @@ const MAX_TEXTURE_HOPS: usize = 8;
 pub struct ResolvedModel {
 	pub elements: Vec<Element>,
 	pub textures: BTreeMap<String, String>,
+	/// Sprites that a texture entry forces onto the translucent layer.
+	pub translucent: BTreeSet<String>,
+	pub ambient_occlusion: bool,
 }
 
 pub fn resolve_model(store: &AssetStore, model_id: &str) -> Result<ResolvedModel> {
@@ -27,9 +30,15 @@ pub fn resolve_model(store: &AssetStore, model_id: &str) -> Result<ResolvedModel
 	}
 
 	let mut textures = BTreeMap::new();
+	let mut translucent = BTreeSet::new();
 	let mut elements = Vec::new();
 	for (_, file) in chain.iter().rev() {
-		textures.extend(file.textures.iter().map(|(key, value)| (key.clone(), value.clone())));
+		for (key, value) in &file.textures {
+			textures.insert(key.clone(), value.id().to_owned());
+			if value.force_translucent() {
+				translucent.insert(namespaced(value.id()));
+			}
+		}
 		if let Some(own) = &file.elements {
 			elements = own.clone();
 		}
@@ -37,6 +46,8 @@ pub fn resolve_model(store: &AssetStore, model_id: &str) -> Result<ResolvedModel
 	Ok(ResolvedModel {
 		elements,
 		textures: resolve_texture_variables(textures),
+		translucent,
+		ambient_occlusion: chain.iter().find_map(|(_, file)| file.ambientocclusion).unwrap_or(true),
 	})
 }
 
@@ -94,6 +105,34 @@ mod tests {
 		assert_eq!(resolved.elements.len(), 1);
 		assert_eq!(resolved.textures["up"], "minecraft:block/oak_log_top");
 		assert_eq!(resolved.textures["particle"], "minecraft:block/oak_log_top");
+	}
+
+	#[test]
+	fn texture_objects_keep_their_sprite_and_mark_it_translucent() {
+		let store = store_with(&[
+			(
+				"block/cube",
+				r##"{"textures": {"particle": "#all"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#all"}}}]}"##,
+			),
+			(
+				"block/glass",
+				r#"{"parent": "minecraft:block/cube", "textures": {"all": {"sprite": "minecraft:block/glass", "force_translucent": true}}}"#,
+			),
+		]);
+		let resolved = resolve_model(&store, "minecraft:block/glass").unwrap();
+		assert_eq!(resolved.textures["all"], "minecraft:block/glass");
+		assert!(resolved.translucent.contains("minecraft:block/glass"));
+	}
+
+	#[test]
+	fn ambient_occlusion_is_inherited_and_defaults_to_on() {
+		let store = store_with(&[
+			("block/flat", r#"{"ambientocclusion": false, "elements": []}"#),
+			("block/plant", r#"{"parent": "minecraft:block/flat"}"#),
+			("block/cube", r#"{"elements": []}"#),
+		]);
+		assert!(!resolve_model(&store, "minecraft:block/plant").unwrap().ambient_occlusion);
+		assert!(resolve_model(&store, "minecraft:block/cube").unwrap().ambient_occlusion);
 	}
 
 	#[test]

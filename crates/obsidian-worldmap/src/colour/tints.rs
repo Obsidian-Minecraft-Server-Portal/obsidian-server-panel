@@ -8,10 +8,12 @@ use crate::models::geometry::TintKind;
 /// Used when a colormap is missing, so tinted blocks still get vanilla's plains colour.
 const DEFAULT_GRASS: [u8; 3] = [145, 189, 89];
 const DEFAULT_FOLIAGE: [u8; 3] = [119, 171, 47];
+const DEFAULT_DRY_FOLIAGE: [u8; 3] = [92, 60, 50];
 
 pub struct Tints {
 	grass: Option<Colormap>,
 	foliage: Option<Colormap>,
+	dry_foliage: Option<Colormap>,
 }
 
 impl Tints {
@@ -19,6 +21,7 @@ impl Tints {
 		Self {
 			grass: load_colormap(assets, "grass"),
 			foliage: load_colormap(assets, "foliage"),
+			dry_foliage: load_colormap(assets, "dry_foliage"),
 		}
 	}
 
@@ -26,7 +29,7 @@ impl Tints {
 	pub fn colour(&self, kind: TintKind, biome: &Biome, x: i32, z: i32) -> [u8; 3] {
 		match kind {
 			TintKind::Grass => biome.grass_modifier.apply(self.base_colour(kind, biome), x, z),
-			TintKind::Water | TintKind::Foliage => self.base_colour(kind, biome),
+			TintKind::Water | TintKind::Foliage | TintKind::DryFoliage => self.base_colour(kind, biome),
 		}
 	}
 
@@ -36,6 +39,7 @@ impl Tints {
 			TintKind::Water => biome.water,
 			TintKind::Grass => biome.grass.unwrap_or_else(|| sample(self.grass.as_ref(), biome, DEFAULT_GRASS)),
 			TintKind::Foliage => biome.foliage.unwrap_or_else(|| sample(self.foliage.as_ref(), biome, DEFAULT_FOLIAGE)),
+			TintKind::DryFoliage => biome.dry_foliage.unwrap_or_else(|| sample(self.dry_foliage.as_ref(), biome, DEFAULT_DRY_FOLIAGE)),
 		}
 	}
 }
@@ -89,6 +93,24 @@ mod tests {
 		assert_eq!(tints.colour(TintKind::Grass, &biome, 0, 0), [1, 2, 3]);
 		assert_eq!(tints.colour(TintKind::Foliage, &biome, 0, 0), [4, 5, 6]);
 		assert_eq!(tints.colour(TintKind::Water, &biome, 0, 0), [7, 8, 9]);
+	}
+
+	#[test]
+	fn dry_foliage_samples_its_colormap_and_takes_the_biome_override() {
+		let mut colormap = RgbaImage::new(2, 2);
+		colormap.put_pixel(0, 0, Rgba([40, 50, 60, 255]));
+		let mut png = Vec::new();
+		colormap.write_to(&mut Cursor::new(&mut png), ImageFormat::Png).unwrap();
+		let mut assets = AssetStore::default();
+		assets.insert("minecraft".into(), "textures/colormap/dry_foliage.png".into(), png);
+		let tints = Tints::new(&assets);
+		assert_eq!(tints.colour(TintKind::DryFoliage, &Biome::PLAINS, 0, 0), [40, 50, 60]);
+		let biome = Biome {
+			dry_foliage: Some([1, 2, 3]),
+			..Biome::PLAINS
+		};
+		assert_eq!(tints.colour(TintKind::DryFoliage, &biome, 0, 0), [1, 2, 3]);
+		assert_eq!(Tints::new(&AssetStore::default()).colour(TintKind::DryFoliage, &Biome::PLAINS, 0, 0), DEFAULT_DRY_FOLIAGE);
 	}
 
 	#[test]

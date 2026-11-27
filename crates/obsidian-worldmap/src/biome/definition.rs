@@ -32,6 +32,7 @@ pub struct Biome {
 	pub downfall: f32,
 	pub grass: Option<[u8; 3]>,
 	pub foliage: Option<[u8; 3]>,
+	pub dry_foliage: Option<[u8; 3]>,
 	pub water: [u8; 3],
 	pub grass_modifier: GrassModifier,
 }
@@ -44,6 +45,7 @@ impl Biome {
 		downfall: 0.4,
 		grass: None,
 		foliage: None,
+		dry_foliage: None,
 		water: DEFAULT_WATER,
 		grass_modifier: GrassModifier::None,
 	};
@@ -55,6 +57,7 @@ impl Biome {
 			downfall: raw.downfall,
 			grass: raw.effects.grass_color.and_then(Colour::rgb),
 			foliage: raw.effects.foliage_color.and_then(Colour::rgb),
+			dry_foliage: raw.effects.dry_foliage_color.and_then(Colour::rgb),
 			water: raw.effects.water_color.and_then(Colour::rgb).unwrap_or(DEFAULT_WATER),
 			grass_modifier: match raw.effects.grass_color_modifier.as_deref() {
 				Some("dark_forest") => GrassModifier::DarkForest,
@@ -90,6 +93,7 @@ fn default_climate() -> f32 {
 struct RawEffects {
 	grass_color: Option<Colour>,
 	foliage_color: Option<Colour>,
+	dry_foliage_color: Option<Colour>,
 	water_color: Option<Colour>,
 	grass_color_modifier: Option<String>,
 }
@@ -118,12 +122,13 @@ mod tests {
 
 	#[test]
 	fn reads_climate_and_colour_overrides() {
-		let json = br##"{"temperature": 0.8, "downfall": 0.9, "effects": {"grass_color": 6975545, "foliage_color": "#aabbcc", "water_color": 4159204, "grass_color_modifier": "swamp"}}"##;
+		let json = br##"{"temperature": 0.8, "downfall": 0.9, "effects": {"grass_color": 6975545, "foliage_color": "#aabbcc", "dry_foliage_color": "#a0a69c", "water_color": 4159204, "grass_color_modifier": "swamp"}}"##;
 		let biome = Biome::from_json(json).unwrap();
 		assert!((biome.temperature - 0.8).abs() < 1e-6);
 		assert!((biome.downfall - 0.9).abs() < 1e-6);
 		assert_eq!(biome.grass, Some([0x6a, 0x70, 0x39]));
 		assert_eq!(biome.foliage, Some([0xaa, 0xbb, 0xcc]));
+		assert_eq!(biome.dry_foliage, Some([0xa0, 0xa6, 0x9c]));
 		assert_eq!(biome.water, [0x3f, 0x76, 0xe4]);
 		assert_eq!(biome.grass_modifier, GrassModifier::Swamp);
 	}

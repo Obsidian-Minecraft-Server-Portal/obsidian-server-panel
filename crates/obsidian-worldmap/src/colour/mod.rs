@@ -1,6 +1,7 @@
 //! Block colours from the texture of each block's top face, tinted by the biome the block is in, and the top textures
 //! themselves for the textured detail tiles.
 
+mod block_tints;
 mod texture;
 mod tints;
 
@@ -11,10 +12,11 @@ use image::{Rgba, RgbaImage};
 use crate::assets::AssetStore;
 use crate::biome::{Biome, BiomeRegistry};
 use crate::chunk::BlockState;
-use crate::models::geometry::{TintKind, tint_kind_for_block};
+use crate::models::geometry::{BlockTint, TintKind};
 use crate::models::{Blockstate, Face, ResolvedModel, resolve_model, split_id};
 use texture::Decoded;
 
+pub use block_tints::block_tint;
 pub use tints::Tints;
 
 /// Pixels per side of a block's top texture in a sprite.
@@ -24,7 +26,7 @@ pub const SPRITE_SIZE: u32 = 8;
 struct Surface {
 	sprite: RgbaImage,
 	average: [u8; 3],
-	tint: Option<TintKind>,
+	tint: Option<BlockTint>,
 	/// A plant or other sprite with no top face of its own. The maps leave these out and show the ground beneath.
 	decoration: bool,
 }
@@ -48,7 +50,7 @@ impl SurfaceCache {
 	fn lookup(&mut self, assets: &AssetStore, state: &BlockState) -> Option<Surface> {
 		if state.name == "minecraft:water" {
 			let decoded = self.texture(assets, "minecraft:block/water_still")?;
-			return Some(surface_of(decoded, Some(TintKind::Water)));
+			return Some(surface_of(decoded, Some(BlockTint::Biome(TintKind::Water))));
 		}
 		let (namespace, path) = split_id(&state.name);
 		let json = assets.get(namespace, &format!("blockstates/{path}.json"))?;
@@ -61,10 +63,7 @@ impl SurfaceCache {
 			});
 		};
 		let decoded = self.texture(assets, &face_texture(&model, face)?)?;
-		let tint = match (face.tintindex.is_some(), tint_kind_for_block(&state.name)) {
-			(true, Some(kind)) => Some(kind),
-			_ => None,
-		};
+		let tint = face.tintindex.and(block_tint(&state.name, &state.properties));
 		Some(surface_of(decoded, tint))
 	}
 
@@ -116,7 +115,8 @@ impl<'a> BlockColours<'a> {
 		let surface = self.cache.surface(self.assets, state);
 		let average = surface.average;
 		match surface.tint {
-			Some(kind) => multiply(average, self.tints.colour(kind, biome, x, z)),
+			Some(BlockTint::Biome(kind)) => multiply(average, self.tints.colour(kind, biome, x, z)),
+			Some(BlockTint::Fixed(colour)) => multiply(average, colour),
 			None => average,
 		}
 	}
@@ -129,7 +129,11 @@ impl<'a> BlockColours<'a> {
 	/// The top face's texture at sprite size, and the colour its texels are multiplied by inside `biome`.
 	pub fn texels(&mut self, state: &BlockState, biome: &Biome, x: i32, z: i32) -> (&RgbaImage, [u8; 3]) {
 		let surface = self.cache.surface(self.assets, state);
-		let tint = surface.tint.map_or([255, 255, 255], |kind| self.tints.colour(kind, biome, x, z));
+		let tint = match surface.tint {
+			Some(BlockTint::Biome(kind)) => self.tints.colour(kind, biome, x, z),
+			Some(BlockTint::Fixed(colour)) => colour,
+			None => [255, 255, 255],
+		};
 		(&surface.sprite, tint)
 	}
 }
@@ -146,7 +150,7 @@ pub fn fallback(name: &str) -> [u8; 3] {
 	}
 }
 
-fn surface_of(decoded: Decoded, tint: Option<TintKind>) -> Surface {
+fn surface_of(decoded: Decoded, tint: Option<BlockTint>) -> Surface {
 	Surface {
 		sprite: decoded.sprite,
 		average: decoded.average,

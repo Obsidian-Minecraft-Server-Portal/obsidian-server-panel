@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::models::{Element, ElementRotation};
+use crate::models::{Element, ElementRotation, RotationValue, namespaced};
 
 pub const MISSING_TEXTURE: &str = "minecraft:missing";
 
@@ -68,24 +68,20 @@ impl Direction {
 	}
 }
 
-/// Which tint a face takes from the biome colormaps.
+/// Which biome colour a tint takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TintKind {
 	Grass,
 	Foliage,
+	DryFoliage,
 	Water,
 }
 
-pub fn tint_kind_for_block(name: &str) -> Option<TintKind> {
-	if name == "minecraft:water" {
-		Some(TintKind::Water)
-	} else if name.ends_with("_leaves") {
-		Some(TintKind::Foliage)
-	} else if ["grass_block", "grass", "fern", "tall_grass", "short_grass"].iter().any(|suffix| name.ends_with(suffix)) {
-		Some(TintKind::Grass)
-	} else {
-		None
-	}
+/// What a tinted face is multiplied by: a biome colour, or a colour that the block state fixes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockTint {
+	Biome(TintKind),
+	Fixed([u8; 3]),
 }
 
 /// A rectangle in block space (0..16 per axis) with texture coordinates in 0..16 texture pixels.
@@ -96,11 +92,14 @@ pub struct Quad {
 	pub texture: String,
 	pub direction: Direction,
 	pub cullface: Option<Direction>,
-	pub tint: Option<TintKind>,
+	/// The direction whose shade the face takes, or `None` when it is drawn at full brightness.
+	pub shade: Option<Direction>,
+	pub tint: Option<BlockTint>,
+	pub ambient_occlusion: bool,
 }
 
 /// Quads for every face of one element, before any blockstate rotation.
-pub fn element_quads(element: &Element, textures: &BTreeMap<String, String>, tint: Option<TintKind>) -> Vec<Quad> {
+pub fn element_quads(element: &Element, textures: &BTreeMap<String, String>, tint: Option<BlockTint>, ambient_occlusion: bool) -> Vec<Quad> {
 	let mut quads = Vec::new();
 	for (name, face) in &element.faces {
 		let Some(direction) = Direction::from_name(name) else { continue };
@@ -123,10 +122,19 @@ pub fn element_quads(element: &Element, textures: &BTreeMap<String, String>, tin
 			texture: resolve_texture(&face.texture, textures),
 			direction,
 			cullface: face.cullface.as_deref().and_then(Direction::from_name),
+			shade: shade_direction(element, direction),
 			tint: face.tintindex.and(tint),
+			ambient_occlusion,
 		});
 	}
 	quads
+}
+
+fn shade_direction(element: &Element, direction: Direction) -> Option<Direction> {
+	if element.shade == Some(false) {
+		return None;
+	}
+	Some(element.shade_direction_override.as_deref().and_then(Direction::from_name).unwrap_or(direction))
 }
 
 /// Applies a blockstate's `x` and `y` rotations, and keeps textures upright when `uvlock` is set.
@@ -143,7 +151,9 @@ pub fn transform_quad(quad: &Quad, x: i32, y: i32, uvlock: bool) -> Quad {
 		texture: quad.texture.clone(),
 		direction: rotate_direction(quad.direction),
 		cullface: quad.cullface.map(rotate_direction),
+		shade: quad.shade.map(rotate_direction),
 		tint: quad.tint,
+		ambient_occlusion: quad.ambient_occlusion,
 	}
 }
 
@@ -209,11 +219,7 @@ pub(crate) fn resolve_texture(reference: &str, textures: &BTreeMap<String, Strin
 		Some(variable) => textures.get(variable).map_or(MISSING_TEXTURE, String::as_str),
 		None => reference,
 	};
-	if resolved.contains(':') {
-		resolved.to_owned()
-	} else {
-		format!("minecraft:{resolved}")
-	}
+	namespaced(resolved)
 }
 
 fn quarter_turns(degrees: i32) -> i32 {
@@ -226,22 +232,27 @@ fn rotate_uv(uv: [f32; 2], turns: i32) -> [f32; 2] {
 }
 
 fn rotate_element(point: [f32; 3], rotation: &ElementRotation) -> [f32; 3] {
-	let axis = match rotation.axis.as_str() {
-		"x" => 0,
-		"y" => 1,
-		_ => 2,
-	};
 	let relative = [0, 1, 2].map(|index| point[index] - rotation.origin[index]);
-	let mut rotated = rotate_about(relative, axis, rotation.angle);
-	if rotation.rescale {
-		let scale = 1.0 / rotation.angle.to_radians().cos().abs().max(f32::EPSILON);
-		for (index, component) in rotated.iter_mut().enumerate() {
-			if index != axis {
-				*component *= scale;
-			}
-		}
+	let scale = if rotation.rescale { rescale_factors(rotation.value) } else { [1.0; 3] };
+	let turned = turn([0, 1, 2].map(|index| relative[index] * scale[index]), rotation.value);
+	[0, 1, 2].map(|index| turned[index] + rotation.origin[index])
+}
+
+fn turn(vector: [f32; 3], value: RotationValue) -> [f32; 3] {
+	match value {
+		RotationValue::SingleAxis { axis, angle } => rotate_about(vector, axis, angle),
+		RotationValue::Euler(angles) => (0..3).fold(vector, |turned, axis| rotate_about(turned, axis, angles[axis])),
 	}
-	[0, 1, 2].map(|index| rotated[index] + rotation.origin[index])
+}
+
+/// Stretches each axis before the turn, so the turned box spans the same extent along it as the box did.
+fn rescale_factors(value: RotationValue) -> [f32; 3] {
+	[0, 1, 2].map(|axis| {
+		let mut unit = [0.0; 3];
+		unit[axis] = 1.0;
+		let turned = turn(unit, value);
+		1.0 / turned.iter().fold(0.0_f32, |largest, component| largest.max(component.abs()))
+	})
 }
 
 /// Blockstate rotations turn the block clockwise (viewed from above for `y`), which is a right-handed turn by `-angle`.
@@ -304,6 +315,8 @@ mod tests {
 			to: [16.0; 3],
 			rotation: None,
 			faces: faces.iter().map(|(name, face)| ((*name).to_owned(), face.clone())).collect(),
+			shade: None,
+			shade_direction_override: None,
 		}
 	}
 
@@ -318,7 +331,7 @@ mod tests {
 	fn every_face_of_a_cube_winds_outward_with_full_uvs() {
 		let textures = BTreeMap::from([("all".to_owned(), "minecraft:block/stone".to_owned())]);
 		let faces: Vec<(&str, Face)> = ["down", "up", "north", "south", "west", "east"].iter().map(|name| (*name, face("#all"))).collect();
-		let quads = element_quads(&cube(&faces), &textures, None);
+		let quads = element_quads(&cube(&faces), &textures, None, true);
 		assert_eq!(quads.len(), 6);
 		for quad in &quads {
 			assert!(outward(quad), "{:?} winds inward", quad.direction);
@@ -333,11 +346,11 @@ mod tests {
 		let textures = BTreeMap::from([("all".to_owned(), "minecraft:block/stone".to_owned())]);
 		let mut up = face("#all");
 		up.uv = Some([0.0, 0.0, 8.0, 8.0]);
-		let plain = element_quads(&cube(&[("up", up.clone())]), &textures, None);
+		let plain = element_quads(&cube(&[("up", up.clone())]), &textures, None, true);
 		let max_u = plain[0].uvs.iter().map(|uv| uv[0]).fold(f32::MIN, f32::max);
 		assert_eq!(max_u, 8.0);
 		up.rotation = 90;
-		let turned = element_quads(&cube(&[("up", up)]), &textures, None);
+		let turned = element_quads(&cube(&[("up", up)]), &textures, None, true);
 		let turned_max_u = turned[0].uvs.iter().map(|uv| uv[0]).fold(f32::MIN, f32::max);
 		let turned_max_v = turned[0].uvs.iter().map(|uv| uv[1]).fold(f32::MIN, f32::max);
 		assert_eq!((turned_max_u, turned_max_v), (16.0, 8.0));
@@ -348,7 +361,7 @@ mod tests {
 		let textures = BTreeMap::new();
 		let mut north = face("minecraft:block/furnace_front");
 		north.cullface = Some("north".to_owned());
-		let quads = element_quads(&cube(&[("north", north)]), &textures, None);
+		let quads = element_quads(&cube(&[("north", north)]), &textures, None, true);
 		let turned = transform_quad(&quads[0], 0, 90, false);
 		assert_eq!(turned.direction, Direction::East);
 		assert_eq!(turned.cullface, Some(Direction::East));
@@ -359,18 +372,50 @@ mod tests {
 		let textures = BTreeMap::new();
 		let mut north = face("minecraft:block/log");
 		north.uv = Some([0.0, 0.0, 16.0, 16.0]);
-		let quads = element_quads(&cube(&[("north", north)]), &textures, None);
+		let quads = element_quads(&cube(&[("north", north)]), &textures, None, true);
 		let locked = transform_quad(&quads[0], 0, 90, true);
 		let before = quads[0].uvs[0];
 		assert_eq!(locked.uvs[0], rotate_uv(before, 3));
 	}
 
 	#[test]
+	fn shade_follows_the_element_override_and_can_switch_off() {
+		let textures = BTreeMap::new();
+		let mut element = cube(&[("north", face("minecraft:block/x"))]);
+		assert_eq!(element_quads(&element, &textures, None, true)[0].shade, Some(Direction::North));
+		element.shade_direction_override = Some("up".to_owned());
+		assert_eq!(element_quads(&element, &textures, None, true)[0].shade, Some(Direction::Up));
+		element.shade = Some(false);
+		assert_eq!(element_quads(&element, &textures, None, true)[0].shade, None);
+	}
+
+	#[test]
+	fn euler_angles_turn_about_x_then_y_then_z() {
+		let rotation = ElementRotation {
+			origin: [8.0; 3],
+			value: RotationValue::Euler([90.0, 0.0, 0.0]),
+			rescale: false,
+		};
+		let turned = rotate_element([8.0, 10.0, 8.0], &rotation);
+		assert!((turned[1] - 8.0).abs() < 1e-5 && (turned[2] - 10.0).abs() < 1e-5, "{turned:?}");
+	}
+
+	#[test]
+	fn rescale_stretches_a_box_turned_by_45_degrees_back_to_its_extent() {
+		let rotation = ElementRotation {
+			origin: [8.0; 3],
+			value: RotationValue::SingleAxis { axis: 1, angle: 45.0 },
+			rescale: true,
+		};
+		let turned = rotate_element([10.0, 8.0, 8.0], &rotation);
+		assert!((turned[0] - 10.0).abs() < 1e-4 && (turned[2] - 6.0).abs() < 1e-4, "{turned:?}");
+	}
+
+	#[test]
 	fn element_rotation_turns_points_about_their_origin() {
 		let rotation = ElementRotation {
 			origin: [8.0, 8.0, 8.0],
-			axis: "y".to_owned(),
-			angle: 90.0,
+			value: RotationValue::SingleAxis { axis: 1, angle: 90.0 },
 			rescale: false,
 		};
 		let turned = rotate_element([10.0, 8.0, 8.0], &rotation);

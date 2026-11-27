@@ -9,7 +9,7 @@ use std::path::Path;
 use obsidian_common::Result;
 use obsidian_worldmap::atlas::Atlas;
 use obsidian_worldmap::render::Pack;
-use obsidian_worldmap::structure::{BiomeTable, StateTable};
+use obsidian_worldmap::structure::{BiomeTable, StateTable, ambient_light};
 use rayon::prelude::*;
 use serde::Deserialize;
 
@@ -48,7 +48,8 @@ pub fn write(pending: &[Pending], pack: &Pack, atlas: &Atlas, pacer: &Pacer) -> 
         states.extend(block_states);
         biomes.extend(biome_names);
         fs::write(directory.join("states.json"), states.to_json().map_err(other)?)?;
-        fs::write(directory.join("blocks.json"), serde_json::to_vec(&pack.block_table(states.states(), atlas))?)?;
+        let ambient = dimension_dir.file_name().and_then(|name| name.to_str()).map_or(0.0, ambient_light);
+        fs::write(directory.join("blocks.json"), serde_json::to_vec(&pack.block_table(states.states(), atlas, ambient))?)?;
         fs::write(directory.join("biomes.json"), serde_json::to_vec(&pack.biome_table(biomes.names()))?)?;
         pool().install(|| {
             items.par_iter().try_for_each(|item| {

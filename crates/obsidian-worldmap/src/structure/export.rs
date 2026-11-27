@@ -10,13 +10,15 @@ use crate::biome::{Biome, BiomeRegistry, GrassModifier};
 use crate::chunk::{BlockState, is_invisible};
 use crate::colour::Tints;
 use crate::models::bake_state;
-use crate::models::geometry::{Direction, Quad, TintKind};
+use crate::models::geometry::{BlockTint, Direction, Quad, TintKind};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockTable {
     pub atlas_width: u32,
     pub atlas_height: u32,
+    /// The least light a block takes in its dimension, from 0 to 1.
+    pub ambient_light: f32,
     pub names: Vec<String>,
     pub states: Vec<BlockEntry>,
 }
@@ -31,6 +33,8 @@ pub struct BlockEntry {
     pub fluid: u8,
     /// Bit `n` is set when the state has a full opaque face on the side with direction index `n`.
     pub full: u8,
+    /// Whether the state leaves out the faces it would draw against its own kind, as vanilla's glass does.
+    pub skip_same: bool,
     pub quads: Vec<QuadEntry>,
 }
 
@@ -46,8 +50,14 @@ pub struct QuadEntry {
     pub direction: u8,
     /// Direction index of the cullface, or -1.
     pub cullface: i8,
-    /// 0 for grass, 1 for foliage, 2 for water, or -1 for no tint.
+    /// Direction index of the shade, or -1 for full brightness.
+    pub shade: i8,
+    /// 0 for grass, 1 for foliage, 2 for water, 3 for dry foliage, or -1 for no biome tint.
     pub tint: i8,
+    /// The fixed colour the block state carries, when it has one.
+    pub colour: Option<[u8; 3]>,
+    /// Whether the face takes ambient occlusion from its neighbours.
+    pub ao: bool,
     /// 0 for opaque, 1 for cutout, 2 for translucent.
     pub layer: u8,
 }
@@ -56,14 +66,15 @@ pub struct QuadEntry {
 #[serde(rename_all = "camelCase")]
 pub struct BiomeEntry {
     pub name: String,
-    /// Grass and foliage before any position-dependent modifier.
+    /// Grass, foliage and dry foliage before any position-dependent modifier.
     pub grass: [u8; 3],
     pub foliage: [u8; 3],
+    pub dry_foliage: [u8; 3],
     pub water: [u8; 3],
     pub grass_modifier: &'static str,
 }
 
-pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas) -> BlockTable {
+pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas, ambient_light: f32) -> BlockTable {
     let mut names: Vec<String> = Vec::new();
     let mut name_ids: HashMap<&str, u32> = HashMap::new();
     let entries = states
@@ -79,6 +90,7 @@ pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas) ->
                 air: is_invisible(&state.name),
                 fluid: fluid_kind(&state.name),
                 full: full_mask(&quads, atlas),
+                skip_same: skips_same_block(&state.name),
                 quads: quads.iter().map(|quad| quad_entry(quad, atlas)).collect(),
             }
         })
@@ -87,6 +99,7 @@ pub fn block_table(assets: &AssetStore, states: &[BlockState], atlas: &Atlas) ->
     BlockTable {
         atlas_width,
         atlas_height,
+        ambient_light,
         names,
         states: entries,
     }
@@ -102,11 +115,21 @@ pub fn biome_table(assets: &AssetStore, biomes: &BiomeRegistry, names: &[String]
                 name: name.clone(),
                 grass: tints.base_colour(TintKind::Grass, biome),
                 foliage: tints.base_colour(TintKind::Foliage, biome),
+                dry_foliage: tints.base_colour(TintKind::DryFoliage, biome),
                 water: tints.base_colour(TintKind::Water, biome),
                 grass_modifier: modifier_name(biome.grass_modifier),
             }
         })
         .collect()
+}
+
+/// The least light a dimension's type gives its blocks, by the dimension's folder name.
+pub fn ambient_light(dimension: &str) -> f32 {
+    match dimension {
+        "minecraft_the_nether" => 0.1,
+        "minecraft_the_end" => 0.25,
+        _ => 0.0,
+    }
 }
 
 fn fluid_kind(name: &str) -> u8 {
@@ -115,6 +138,10 @@ fn fluid_kind(name: &str) -> u8 {
         "minecraft:lava" => 2,
         _ => 0,
     }
+}
+
+fn skips_same_block(name: &str) -> bool {
+    name.ends_with("glass")
 }
 
 fn full_mask(quads: &[Quad], atlas: &Atlas) -> u8 {
@@ -162,12 +189,19 @@ fn quad_entry(quad: &Quad, atlas: &Atlas) -> QuadEntry {
         cell: atlas.cell_origin(&quad.texture),
         direction: quad.direction.index(),
         cullface: quad.cullface.map_or(-1, |face: Direction| face.index() as i8),
+        shade: quad.shade.map_or(-1, |face: Direction| face.index() as i8),
         tint: match quad.tint {
-            Some(TintKind::Grass) => 0,
-            Some(TintKind::Foliage) => 1,
-            Some(TintKind::Water) => 2,
-            None => -1,
+            Some(BlockTint::Biome(TintKind::Grass)) => 0,
+            Some(BlockTint::Biome(TintKind::Foliage)) => 1,
+            Some(BlockTint::Biome(TintKind::Water)) => 2,
+            Some(BlockTint::Biome(TintKind::DryFoliage)) => 3,
+            Some(BlockTint::Fixed(_)) | None => -1,
         },
+        colour: match quad.tint {
+            Some(BlockTint::Fixed(colour)) => Some(colour),
+            _ => None,
+        },
+        ao: quad.ambient_occlusion,
         layer: match atlas.layer(&quad.texture) {
             Layer::Opaque => 0,
             Layer::Cutout => 1,

@@ -34,7 +34,7 @@ pub struct Atlas {
 
 impl Atlas {
 	/// Packs `textures` and the missing-texture cell. A texture that cannot be read gets the missing cell.
-	pub fn build<'a>(assets: &AssetStore, textures: impl IntoIterator<Item = &'a str>) -> Self {
+	pub fn build<'a>(assets: &AssetStore, textures: impl IntoIterator<Item = &'a str>, translucent: &BTreeSet<String>) -> Self {
 		let mut ids: BTreeSet<&str> = textures.into_iter().collect();
 		ids.insert(MISSING_TEXTURE);
 		let count = ids.len() as u32;
@@ -45,7 +45,7 @@ impl Atlas {
 		for (index, id) in ids.into_iter().enumerate() {
 			let index = index as u32;
 			let (column, row) = (index % columns, index / columns);
-			let (pixels, layer) = load_texture(assets, id).unwrap_or_else(|| (missing_cell(), Layer::Opaque));
+			let (pixels, layer) = load_texture(assets, id, translucent.contains(id)).unwrap_or_else(|| (missing_cell(), Layer::Opaque));
 			imageops::replace(&mut image, &pixels, i64::from(column * CELL), i64::from(row * CELL));
 			slots.insert(id.to_owned(), Slot { column, row, layer });
 		}
@@ -83,22 +83,30 @@ impl Atlas {
 
 /// Every texture a blockstate in `assets` can draw. An atlas built from this set serves every region of the same assets,
 /// so UVs stay valid as regions are re-rendered one at a time.
-pub fn block_textures(assets: &AssetStore) -> BTreeSet<String> {
-	let mut textures = BTreeSet::new();
+#[derive(Default)]
+pub struct BlockTextures {
+	pub ids: BTreeSet<String>,
+	/// Sprites that a model forces onto the translucent layer.
+	pub translucent: BTreeSet<String>,
+}
+
+pub fn block_textures(assets: &AssetStore) -> BlockTextures {
+	let mut textures = BlockTextures::default();
 	for (_, _, json) in assets.entries_under("blockstates/") {
 		let Ok(blockstate) = Blockstate::parse(json) else { continue };
 		for model in blockstate.model_ids() {
 			let Ok(resolved) = resolve_model(assets, model) else { continue };
 			let faces = resolved.elements.iter().flat_map(|element| element.faces.values().map(|face| face.texture.as_str()));
 			let references = resolved.textures.values().map(String::as_str).chain(faces);
-			textures.extend(references.map(|reference| resolve_texture(reference, &resolved.textures)));
+			textures.ids.extend(references.map(|reference| resolve_texture(reference, &resolved.textures)));
+			textures.translucent.extend(resolved.translucent);
 		}
 	}
 	textures
 }
 
 /// The top square of the texture, so animated frame stacks use their first frame.
-fn load_texture(assets: &AssetStore, id: &str) -> Option<(RgbaImage, Layer)> {
+fn load_texture(assets: &AssetStore, id: &str, forced_translucent: bool) -> Option<(RgbaImage, Layer)> {
 	let (namespace, path) = split_id(id);
 	let png = assets.get(namespace, &format!("textures/{path}.png"))?;
 	let decoded = image::load_from_memory(png).ok()?.to_rgba8();
@@ -107,7 +115,7 @@ fn load_texture(assets: &AssetStore, id: &str) -> Option<(RgbaImage, Layer)> {
 		return None;
 	}
 	let square = imageops::crop_imm(&decoded, 0, 0, side, side).to_image();
-	let layer = classify(id, &square);
+	let layer = classify(id, &square, forced_translucent);
 	let cell = if side == CELL {
 		square
 	} else {
@@ -117,8 +125,8 @@ fn load_texture(assets: &AssetStore, id: &str) -> Option<(RgbaImage, Layer)> {
 }
 
 /// Read from the original pixels, before any resizing blurs alpha values together.
-fn classify(id: &str, pixels: &RgbaImage) -> Layer {
-	if TRANSLUCENT_WORDS.iter().any(|word| id.contains(*word)) {
+fn classify(id: &str, pixels: &RgbaImage, forced_translucent: bool) -> Layer {
+	if forced_translucent || TRANSLUCENT_WORDS.iter().any(|word| id.contains(*word)) {
 		return Layer::Translucent;
 	}
 	let (mut partial, mut empty) = (false, false);
@@ -181,13 +189,13 @@ mod tests {
 			"models/block/log_y.json".into(),
 			br##"{"textures": {"side": "block/a"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#side"}, "down": {"texture": "minecraft:block/b"}}}]}"##.to_vec(),
 		);
-		let textures: Vec<String> = block_textures(&assets).into_iter().collect();
+		let textures: Vec<String> = block_textures(&assets).ids.into_iter().collect();
 		assert_eq!(textures, ["minecraft:block/a", "minecraft:block/b"]);
 	}
 
 	#[test]
 	fn packs_textures_into_cells_with_the_missing_cell_last() {
-		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b"]);
+		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b"], &BTreeSet::new());
 		assert_eq!(atlas.image().dimensions(), (32, 32));
 		assert_eq!(atlas.uv("minecraft:block/a", [0.0, 0.0]), [0.0, 0.0]);
 		assert_eq!(atlas.uv("minecraft:block/b", [0.0, 0.0]), [0.5, 0.0]);
@@ -196,8 +204,15 @@ mod tests {
 	}
 
 	#[test]
-	fn classifies_layers_from_alpha_and_translucent_names() {
-		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b", "minecraft:block/glass"]);
+	fn forced_translucency_overrides_the_alpha_rules() {
+			let forced = BTreeSet::from(["minecraft:block/a".to_owned()]);
+			let atlas = Atlas::build(&assets(), ["minecraft:block/a"], &forced);
+			assert_eq!(atlas.layer("minecraft:block/a"), Layer::Translucent);
+		}
+
+		#[test]
+		fn classifies_layers_from_alpha_and_translucent_names() {
+		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b", "minecraft:block/glass"], &BTreeSet::new());
 		assert_eq!(atlas.layer("minecraft:block/a"), Layer::Opaque);
 		assert_eq!(atlas.layer("minecraft:block/b"), Layer::Cutout);
 		assert_eq!(atlas.layer("minecraft:block/glass"), Layer::Translucent);

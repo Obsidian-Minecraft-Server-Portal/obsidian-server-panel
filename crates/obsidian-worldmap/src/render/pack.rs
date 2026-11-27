@@ -52,8 +52,8 @@ impl Pack {
 		image
 	}
 
-	pub fn block_table(&self, states: &[BlockState], atlas: &Atlas) -> BlockTable {
-		structure::block_table(&self.assets, states, atlas)
+	pub fn block_table(&self, states: &[BlockState], atlas: &Atlas, ambient_light: f32) -> BlockTable {
+		structure::block_table(&self.assets, states, atlas, ambient_light)
 	}
 
 	pub fn biome_table(&self, names: &[String]) -> Vec<BiomeEntry> {
@@ -81,7 +81,10 @@ impl<'a> Renderer<'a> {
 		Self {
 			pack,
 			colours: BlockColours::new(&pack.assets, &pack.biomes),
-			atlas: Atlas::build(&pack.assets, block_textures(&pack.assets).iter().map(String::as_str)),
+			atlas: {
+				let textures = block_textures(&pack.assets);
+				Atlas::build(&pack.assets, textures.ids.iter().map(String::as_str), &textures.translucent)
+			},
 		}
 	}
 

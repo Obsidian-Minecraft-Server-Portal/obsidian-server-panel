@@ -26,6 +26,27 @@ fn block(name: &str, properties: &[(&str, &str)]) -> BlockState {
 
 #[test]
 #[ignore = "needs OBSIDIAN_WORLDMAP_CLIENT_JAR"]
+fn every_blockstate_model_of_a_real_client_jar_resolves() {
+	let store = client_jar_store();
+	let failures: Vec<String> = store
+		.entries_under("blockstates/")
+		.flat_map(|(_, path, json)| {
+			let blockstate = match Blockstate::parse(json) {
+				Ok(blockstate) => blockstate,
+				Err(error) => return vec![format!("{path}: {error}")],
+			};
+			blockstate
+				.model_ids()
+				.into_iter()
+				.filter_map(|model| resolve_model(&store, model).err().map(|error| format!("{path} -> {model}: {error}")))
+				.collect()
+		})
+		.collect();
+	assert!(failures.is_empty(), "{} models fail, first: {:?}", failures.len(), failures.first());
+}
+
+#[test]
+#[ignore = "needs OBSIDIAN_WORLDMAP_CLIENT_JAR"]
 fn resolves_oak_stairs_from_a_real_client_jar() {
 	let store = client_jar_store();
 	let json = store.get("minecraft", "blockstates/oak_stairs.json").expect("oak_stairs blockstate");
