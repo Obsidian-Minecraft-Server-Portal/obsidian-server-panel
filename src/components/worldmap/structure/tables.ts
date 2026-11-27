@@ -29,9 +29,16 @@ export interface BlockJson {
   fluid: number;
   full: number;
   fluidLevel: number;
+  /** Whether the collision is a full block, which makes the faces flat against it cube faces. */
+  collisionFull: boolean;
+  /** Whether it darkens the corners beside it: a full collision, except for transparent blocks. */
   shadeFull: boolean;
-  /** 0 for none, 1 for the same block, or 2 for any leaves. */
+  /** 0 for none, or 1 for the same block. */
   skip: number;
+  /** Whether it is iron bars or a pane. */
+  bars: boolean;
+  /** Bit `n` is set when it connects toward the side with direction index `n`. */
+  connections: number;
   quads: QuadJson[];
 }
 
@@ -79,6 +86,10 @@ export interface PreparedQuad {
   cell: [number, number];
   /** Whether the quad covers its block face exactly, so faces like it can merge into larger rectangles. */
   unit: boolean;
+  /** Whether every corner lies in one plane along the quad's normal axis. */
+  planar: boolean;
+  /** Whether that plane is the boundary of the block the quad faces. */
+  onBoundary: boolean;
 }
 
 export interface PreparedBlock {
@@ -86,8 +97,11 @@ export interface PreparedBlock {
   fluid: number;
   full: number;
   fluidLevel: number;
+  collisionFull: boolean;
   shadeFull: boolean;
   skip: number;
+  bars: boolean;
+  connections: number;
   name: number;
   quads: PreparedQuad[];
 }
@@ -108,8 +122,11 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
       fluid: state.fluid,
       full: state.full,
       fluidLevel: state.fluidLevel,
+      collisionFull: state.collisionFull,
       shadeFull: state.shadeFull,
       skip: state.skip,
+      bars: state.bars,
+      connections: state.connections,
       name: state.name,
       quads: state.quads.map((quad) => ({
         corners: Float32Array.from(quad.corners),
@@ -126,6 +143,8 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
         pattern: symmetryOf(Float32Array.from(quad.corners), Float32Array.from(quad.uvs), quad.direction),
         cell: [quad.cell[0], quad.cell[1]],
         unit: !quad.fluid && coversBlockFace(Float32Array.from(quad.corners), quad.direction),
+        planar: isFlat(Float32Array.from(quad.corners), quad.direction),
+        onBoundary: isOnBoundary(Float32Array.from(quad.corners), quad.direction),
       })),
     })),
     biomes,
@@ -139,6 +158,17 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
 /** The axis and boundary of each face's plane: down, up, north, south, west, east, as the server's `covers_block_face`. */
 const PLANE_AXIS = [1, 1, 2, 2, 0, 0];
 const PLANE_BOUNDARY = [0, 16, 0, 16, 0, 16];
+
+/** Whether every corner lies in one plane along the face's normal axis. */
+function isFlat(corners: Float32Array, direction: number): boolean {
+  const axis = PLANE_AXIS[direction];
+  return [1, 2, 3].every((corner) => Math.abs(corners[corner * 3 + axis] - corners[axis]) < 1e-3);
+}
+
+/** Whether a flat face lies on the boundary of its block that it faces. */
+function isOnBoundary(corners: Float32Array, direction: number): boolean {
+  return isFlat(corners, direction) && Math.abs(corners[PLANE_AXIS[direction]] - PLANE_BOUNDARY[direction]) < 1e-3;
+}
 
 function coversBlockFace(corners: Float32Array, direction: number): boolean {
   const axis = PLANE_AXIS[direction];

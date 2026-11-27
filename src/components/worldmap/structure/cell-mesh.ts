@@ -1,5 +1,5 @@
-// Faces of one cell, lit and culled the way the game draws them: smooth lighting from the four blocks around each corner, flat
-// lighting for models without ambient occlusion, the brightness of each face direction, and the heights and culling of fluids.
+// Faces of one cell, lit and culled the way the game draws them: smooth lighting from the blocks around each corner, flat lighting
+// for models without ambient occlusion, the brightness of each face direction, and the heights and culling of fluids and bars.
 // Corners and texture coordinates stay in the server's integer packing, so the output can be compared with it exactly.
 
 import { tintFor } from "./biome-tint";
@@ -18,7 +18,21 @@ export const TANGENTS = [
   [1, 2],
   [1, 2],
 ];
-const AXIS_STEP = [1, PLANE, PADDED];
+/** The directions of each axis's low and high side: west and east, down and up, north and south. */
+const AXIS_SIDES = [
+  [4, 5],
+  [0, 1],
+  [2, 3],
+];
+/** The four blocks a face's ambient occlusion samples beside it, in the game's order: two opposite pairs. */
+const OCCLUSION_NEIGHBOURS = [
+  [4, 5, 2, 3],
+  [5, 4, 2, 3],
+  [1, 0, 5, 4],
+  [4, 5, 0, 1],
+  [1, 0, 2, 3],
+  [0, 1, 2, 3],
+];
 const DOWN = 0;
 const UP = 1;
 const AIR_STATE = 0;
@@ -69,7 +83,7 @@ export function meshCell(voxels: CellVoxels, table: PreparedTable): Face[] {
             quad,
             corners: quad.fluid ? lowered(quad.corners, height) : quad.corners,
             tint,
-            light: quad.ao ? smoothLight(voxels, table, index, quad) : flatLight(voxels, table, index, quad),
+            light: quad.ao ? smoothLight(voxels, table, index, block, quad) : flatLight(voxels, table, index, block, quad),
           });
         }
       }
@@ -103,10 +117,19 @@ function isCulled(voxels: CellVoxels, blocks: PreparedBlock[], block: PreparedBl
   if (block.skip === 1 && neighbour.name === block.name) {
     return true;
   }
-  if (block.skip === 2 && neighbour.skip === 2) {
+  if (block.bars && neighbour.bars && joinsBars(block, neighbour, quad.cullface)) {
     return true;
   }
   return ((neighbour.full >> (quad.cullface ^ 1)) & 1) === 1;
+}
+
+/** Iron bars and panes leave out a face that meets a neighbouring bar: a side only where both connect across it, and a top or
+ * bottom only against the same block. */
+function joinsBars(block: PreparedBlock, neighbour: PreparedBlock, face: number): boolean {
+  if (face === DOWN || face === UP) {
+    return neighbour.name === block.name;
+  }
+  return ((block.connections >> face) & 1) === 1 && ((neighbour.connections >> (face ^ 1)) & 1) === 1;
 }
 
 /** A fluid face inside a column of the same fluid is hidden. A side beside a neighbour of the same fluid shows only where the
@@ -141,37 +164,53 @@ function lowered(corners: Float32Array, height: number): Float32Array {
   return result;
 }
 
-/** The smooth lighting of a face, as the game computes it: each corner averages the shade of the two blocks beside it, the block
- * diagonal to it and the block the face looks at, and blends their light the same way. */
-function smoothLight(voxels: CellVoxels, table: PreparedTable, index: number, quad: PreparedQuad): number[] {
+/** The smooth lighting of a face, as the game computes it. Each corner averages the shade of the two blocks beside it, the block
+ * diagonal to it and the block the face's own position is in, and blends their light the same way. */
+function smoothLight(voxels: CellVoxels, table: PreparedTable, index: number, block: PreparedBlock, quad: PreparedQuad): number[] {
   const out = DIRECTION_STEP[quad.direction];
-  const base = quad.unit ? index + out : index;
+  const cubic = isCubic(quad, block);
+  const base = cubic ? index + out : index;
+  const centre = cubic || !isOpaque(voxels, table.blocks, index + out) ? lightCoords(voxels, index + out) : lightCoords(voxels, index);
+  const ownShade = shadeAt(voxels, table.blocks, base);
   const [first, second] = TANGENTS[quad.direction];
-  const opaque = (at: number) => blockAt(voxels, table.blocks, at).full === FULL_BLOCK_FACES;
-  const shade = (at: number) => (blockAt(voxels, table.blocks, at).shadeFull ? FULL_BLOCK_SHADE : 1);
-  const centre = quad.unit && opaque(index + out) ? lightCoords(voxels, index) : lightCoords(voxels, index + out);
+  const neighbours = OCCLUSION_NEIGHBOURS[quad.direction];
   const directional = directionalFactor(table, quad);
   const light: number[] = [0, 0, 0, 0];
   for (let corner = 0; corner < 4; corner++) {
-    const firstSide = quad.corners[corner * 3 + first] < 8 ? -1 : 1;
-    const secondSide = quad.corners[corner * 3 + second] < 8 ? -1 : 1;
-    const sideFirst = base + firstSide * AXIS_STEP[first];
-    const sideSecond = base + secondSide * AXIS_STEP[second];
-    const open = !opaque(sideFirst + out) || !opaque(sideSecond + out);
-    const diagonal = open ? sideFirst + secondSide * AXIS_STEP[second] : base - AXIS_STEP[first];
-    const shadeValue = (shade(sideFirst) + shade(sideSecond) + shade(diagonal) + shade(base)) / 4;
+    const alongFirst = DIRECTION_STEP[AXIS_SIDES[first][quad.corners[corner * 3 + first] < 8 ? 0 : 1]];
+    const alongSecond = DIRECTION_STEP[AXIS_SIDES[second][quad.corners[corner * 3 + second] < 8 ? 0 : 1]];
+    const sideFirst = base + alongFirst;
+    const sideSecond = base + alongSecond;
+    const open = !isOpaque(voxels, table.blocks, sideFirst + out) || !isOpaque(voxels, table.blocks, sideSecond + out);
+    const diagonal = open ? sideFirst + alongSecond : base + DIRECTION_STEP[neighbours[0]];
+    const shadeValue =
+      (shadeAt(voxels, table.blocks, sideFirst) + shadeAt(voxels, table.blocks, sideSecond) + shadeAt(voxels, table.blocks, diagonal) + ownShade) / 4;
     const blended = smoothBlend(lightCoords(voxels, sideFirst), lightCoords(voxels, sideSecond), lightCoords(voxels, diagonal), centre);
     light[corner] = clampByte(255 * shadeValue * directional * lightCurve(Math.max(sky(blended), blockLevel(blended)), table.ambientLight));
   }
   return light;
 }
 
-/** The brightness of a model without ambient occlusion: one level for each face, from the cell the face looks at. */
-function flatLight(voxels: CellVoxels, table: PreparedTable, index: number, quad: PreparedQuad): number[] {
-  const source = quad.unit ? index + DIRECTION_STEP[quad.direction] : index;
+/** The brightness of a model without ambient occlusion: one level for each face, from the block the face looks at. */
+function flatLight(voxels: CellVoxels, table: PreparedTable, index: number, block: PreparedBlock, quad: PreparedQuad): number[] {
+  const source = isCubic(quad, block) ? index + DIRECTION_STEP[quad.direction] : index;
   const level = Math.max(skyAt(voxels, source), blockLightAt(voxels, source));
   const value = clampByte(255 * directionalFactor(table, quad) * lightCurve(level, table.ambientLight));
   return [value, value, value, value];
+}
+
+/** A cube's face: flat on its block's boundary, or flat against a block with a full collision. */
+function isCubic(quad: PreparedQuad, block: PreparedBlock): boolean {
+  return quad.planar && (quad.onBoundary || block.collisionFull);
+}
+
+function shadeAt(voxels: CellVoxels, blocks: PreparedBlock[], at: number): number {
+  return blockAt(voxels, blocks, at).shadeFull ? FULL_BLOCK_SHADE : 1;
+}
+
+/** Whether a block blocks light through it, as a solid block does. */
+function isOpaque(voxels: CellVoxels, blocks: PreparedBlock[], at: number): boolean {
+  return blockAt(voxels, blocks, at).full === FULL_BLOCK_FACES;
 }
 
 /** Unshaded faces take the brightness of the up face, as the game shades faces it cannot orient. */
