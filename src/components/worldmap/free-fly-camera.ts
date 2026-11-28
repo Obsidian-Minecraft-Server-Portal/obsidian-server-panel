@@ -1,7 +1,10 @@
 import { PerspectiveCamera, Vector3 } from "three";
+import { easeFactor } from "./ease";
 
 const LOOK_SENSITIVITY = 0.0022;
 const FLY_SPEED = 12;
+/** How quickly the flying velocity follows the keys, per second. */
+const FLY_RESPONSE = 10;
 const SPRINT_MULTIPLIER = 4;
 const PITCH_LIMIT = Math.PI / 2 - 0.01;
 const SPEED_STEP = 1.25;
@@ -36,6 +39,8 @@ export class FreeFlyCamera {
   speed = 1;
   private readonly keys = new Set<string>();
   private captured = false;
+  /** The flying velocity, eased toward what the keys ask for so the camera speeds up and slows down smoothly. */
+  readonly velocity = new Vector3();
 
   /**
    * Connects input to `element`. Holding the right button looks around until it is released; a double click locks the
@@ -151,7 +156,7 @@ export class FreeFlyCamera {
    * direction, up or down included, as spectator flight does. A and D strafe across it, and Space and Shift rise and fall.
    */
   update(seconds: number, camera: PerspectiveCamera): void {
-    const speed = FLY_SPEED * this.speed * seconds * (this.isDown("ControlLeft", "ControlRight") ? SPRINT_MULTIPLIER : 1);
+    const speed = FLY_SPEED * this.speed * (this.isDown("ControlLeft", "ControlRight") ? SPRINT_MULTIPLIER : 1);
     const horizontal = Math.cos(this.pitch);
     const forward = new Vector3(-Math.sin(this.yaw) * horizontal, Math.sin(this.pitch), -Math.cos(this.yaw) * horizontal);
     const right = new Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
@@ -162,12 +167,17 @@ export class FreeFlyCamera {
     if (this.isDown("KeyA")) move.sub(right);
     if (this.isDown("Space")) move.y += 1;
     if (this.isDown("ShiftLeft", "ShiftRight")) move.y -= 1;
-    if (move.lengthSq() > 0) {
-      this.position.addScaledVector(move.normalize(), speed);
-    }
+    const wanted = move.lengthSq() > 0 ? move.normalize().multiplyScalar(speed) : move;
+    this.velocity.lerp(wanted, easeFactor(FLY_RESPONSE, seconds));
+    this.position.addScaledVector(this.velocity, seconds);
     camera.position.copy(this.position);
     camera.rotation.order = "YXZ";
     camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  /** Whether a movement key is held, which takes the camera back from a glide or a followed player. */
+  moving(): boolean {
+    return this.keys.size > 0;
   }
 
   private isDown(...codes: string[]): boolean {

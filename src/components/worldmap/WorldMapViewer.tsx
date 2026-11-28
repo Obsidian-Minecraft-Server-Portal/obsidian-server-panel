@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Color, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 import type { LivePlayer } from "../../api/worldmap";
 import { CellStream, type StreamStats } from "./cell-stream";
-import { applyFocus } from "./follow-camera";
+import { applyFocus, type FocusState, newFocusState } from "./follow-camera";
 import { FreeFlyCamera } from "./free-fly-camera";
 import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import type { MapManifest, MapSource } from "./map-source";
 import type { MapStats } from "./map-stats";
 import { PlayerMarkers } from "./player-markers";
-import { PlayerTrack } from "./player-track";
+import type { PlayerTrack } from "./player-track";
 import type { ViewPlace } from "./use-viewer-heartbeat";
 
 /** How often the camera's place is reported while it moves, in seconds. */
@@ -36,6 +36,8 @@ export interface WorldMapViewerProps {
   revision: number;
   /** Every online player. The viewer draws the ones in its dimension, and keeps the others to follow them across dimensions. */
   players: readonly LivePlayer[];
+  /** The players' recent places, shared with the top-down view so both draw them the same way. */
+  track: PlayerTrack;
   skinBase: string;
   focus: MapFocus | null;
   stats: MapStats;
@@ -69,6 +71,7 @@ export function WorldMapViewer({
   dimensionId,
   revision,
   players,
+  track,
   skinBase,
   focus,
   stats,
@@ -87,7 +90,7 @@ export function WorldMapViewer({
   inputRef.current = onInput;
   const instanceRef = useRef(instanceId);
   instanceRef.current = instanceId;
-  const [track] = useState(() => new PlayerTrack());
+  const focusState = useRef<FocusState>(newFocusState());
   const viewRef = useRef<View | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const reloadRef = useRef<(() => void) | null>(null);
@@ -96,9 +99,8 @@ export function WorldMapViewer({
   const [progress, setProgress] = useState<Progress>({ message: "Loading the map", busy: true });
 
   useEffect(() => {
-    track.record(players, performance.now());
     viewRef.current?.markers.update(playersIn(players, dimensionId));
-  }, [players, track, dimensionId]);
+  }, [players, dimensionId]);
 
   useEffect(() => {
     viewRef.current?.markers.hide(focus?.follow === "head" ? focus.name : null);
@@ -136,7 +138,6 @@ export function WorldMapViewer({
     let disposed = false;
     let raf = 0;
     let last = performance.now();
-    let applied = -1;
     let sinceRemembered = 0;
     let frames = 0;
     let windowMs = 0;
@@ -151,7 +152,12 @@ export function WorldMapViewer({
     const scene = new Scene();
     const camera = new PerspectiveCamera(70, 1, 0.5, 4000);
     const fly = new FreeFlyCamera();
-    const detachInput = fly.attach(renderer.domElement, { onInput: () => inputRef.current() });
+    const detachInput = fly.attach(renderer.domElement, {
+      onInput: () => {
+        focusState.current.gliding = false;
+        inputRef.current();
+      },
+    });
     const markers = new PlayerMarkers(skinBase);
     scene.add(markers.group);
     markers.update(playersIn(playersRef.current, dimensionRef.current));
@@ -206,7 +212,7 @@ export function WorldMapViewer({
       const session = sessionRef.current;
       if (session?.placed) {
         const current = focusRef.current;
-        applied = applyFocus(fly, current, current ? track.pose(current.name, now) : undefined, applied, dimensionRef.current);
+        applyFocus(fly, current, current ? track.pose(current.name, now) : undefined, focusState.current, dimensionRef.current, seconds);
       }
       fly.update(seconds, camera);
       session?.stream.refresh();
@@ -217,7 +223,7 @@ export function WorldMapViewer({
           remember(session);
         }
       }
-      markers.frame(camera, viewport.height, (name) => track.pose(name, now));
+      markers.frame(camera, viewport.height, (name) => track.pose(name, now), seconds);
       renderer.render(scene, camera);
       frames++;
       windowMs += real;

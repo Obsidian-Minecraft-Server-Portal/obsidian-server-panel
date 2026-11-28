@@ -12,12 +12,16 @@ import {
 	Vector3,
 } from "three";
 import type { LivePlayer } from "../../api/worldmap";
-import type { PlayerPose } from "./player-track";
+import { applyAnimation, PlayerAnimator } from "./player-animation";
 import { buildRig, CHARACTER_HEIGHT, disposeRig, type PlayerRig } from "./player-model";
+import { PoseDamper } from "./pose-damper";
+import type { PlayerPose } from "./player-track";
 
 /** Players are drawn 1.75 blocks tall at every distance, like a player in game. */
 const PLAYER_HEIGHT = 1.75;
 const RIG_SCALE = PLAYER_HEIGHT / CHARACTER_HEIGHT;
+/** How quickly a drawn player closes the gap to where the track places them, per second. */
+const DRAW_RATE = 12;
 /** Name tags show only for players this close to the camera, in blocks. */
 const TAG_RANGE = 30;
 const TAG_PIXELS = 26;
@@ -41,9 +45,11 @@ interface Marker {
 	tag: Sprite;
 	tagTexture: CanvasTexture;
 	tagAspect: number;
+	damper: PoseDamper;
+	animator: PlayerAnimator;
 }
 
-/** Player characters and name tags for the 3D view. Each character carries its skin, faces its yaw and tilts its head. */
+/** Player characters and name tags for the 3D view. Each character walks, idles and turns its head the way the game does. */
 export class PlayerMarkers {
 	readonly group = new Group();
 	private readonly skinBase: string;
@@ -63,7 +69,6 @@ export class PlayerMarkers {
 			online.add(player.name);
 			const marker = this.markers.get(player.name) ?? this.add(player);
 			marker.player = player;
-			marker.anchor.set(player.position[0], player.position[1], player.position[2]);
 			this.ensureRig(marker);
 		}
 		for (const name of [...this.markers.keys()]) {
@@ -71,19 +76,20 @@ export class PlayerMarkers {
 		}
 	}
 
-	frame(camera: PerspectiveCamera, viewportHeight: number, poseOf: (name: string) => PlayerPose | undefined): void {
+	/** Draws every player where the track has them, eased, and animates them by the time since the last frame. */
+	frame(camera: PerspectiveCamera, viewportHeight: number, poseOf: (name: string) => PlayerPose | undefined, seconds: number): void {
 		const worldPerPixel = (2 * Math.tan(MathUtils.degToRad(camera.fov) / 2)) / viewportHeight;
 		for (const marker of this.markers.values()) {
 			const { player, rig } = marker;
-			const pose = poseOf(player.name) ?? { dimension: player.dimension, position: player.position, yaw: player.yaw, pitch: player.pitch };
+			const target = poseOf(player.name) ?? { dimension: player.dimension, position: player.position, yaw: player.yaw, pitch: player.pitch };
+			const pose = marker.damper.update(target, seconds, DRAW_RATE) ?? target;
 			const hidden = player.name === this.hidden;
 			marker.anchor.set(pose.position[0], pose.position[1], pose.position[2]);
 			const distance = marker.anchor.distanceTo(camera.position);
 			rig.root.visible = !hidden;
 			rig.root.position.copy(marker.anchor);
-			rig.root.rotation.set(0, MathUtils.degToRad(-pose.yaw), 0);
 			rig.root.scale.setScalar(RIG_SCALE);
-			rig.head.rotation.set(MathUtils.degToRad(pose.pitch), 0, 0);
+			applyAnimation(rig, marker.animator.update(seconds, pose));
 			const tagHeight = TAG_PIXELS * distance * worldPerPixel;
 			marker.tag.visible = !hidden && distance <= TAG_RANGE;
 			marker.tag.position.set(marker.anchor.x, marker.anchor.y + PLAYER_HEIGHT + TAG_LIFT, marker.anchor.z);
@@ -119,6 +125,8 @@ export class PlayerMarkers {
 			tag,
 			tagTexture: texture,
 			tagAspect: aspect,
+			damper: new PoseDamper(),
+			animator: new PlayerAnimator(),
 		};
 		this.group.add(marker.rig.root, tag);
 		this.markers.set(player.name, marker);

@@ -20,6 +20,7 @@ import { DimensionsPanel } from "./DimensionsPanel";
 import { followTargetFolder } from "./dimension-follow";
 import { MapToolbarGroup } from "./MapToolbar";
 import { MapToolbarButton } from "./MapToolbarButton";
+import { PlayerTrack } from "./player-track";
 import { type Following, PlayersPanel } from "./PlayersPanel";
 import { TileView } from "./TileView";
 import { useViewerHeartbeat } from "./use-viewer-heartbeat";
@@ -32,6 +33,10 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
   const status = useWorldMapStatus(instanceId);
   const live = useWorldMapPlayers(instanceId, canViewPlayers);
   const players = live.data?.players ?? NO_PLAYERS;
+  const [track] = useState(() => new PlayerTrack());
+  useEffect(() => {
+    track.record(players, performance.now());
+  }, [players, track]);
   const [picked, setPicked] = useState<string | null>(() => mapMemory(instanceId).folder ?? null);
   const [view, setViewState] = useState<MapView>(() => mapMemory(instanceId).view ?? "top");
   const [request, setRequest] = useState<{ name: string; nonce: number; zoom: boolean } | null>(null);
@@ -136,6 +141,7 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             folder={dimension.folder}
             dimensionId={dimension.id}
             players={players}
+            track={track}
             revision={status.data.revision}
             focus={focus}
             onPan={() => setFollowing(null)}
@@ -147,6 +153,7 @@ export function WorldMapPanel({ instanceId, canViewPlayers }: { instanceId: numb
             folder={dimension.folder}
             dimensionId={dimension.id}
             players={players}
+            track={track}
             revision={status.data.revision}
             focus={focus}
             stats={stats}
@@ -260,6 +267,7 @@ interface FreeViewProps {
   folder: string;
   dimensionId: string;
   players: readonly LivePlayer[];
+  track: PlayerTrack;
   revision: number;
   focus: MapFocus | null;
   stats: MapStats;
@@ -267,7 +275,7 @@ interface FreeViewProps {
   onInput: () => void;
 }
 
-function FreeView({ instanceId, folder, dimensionId, players, revision, focus, stats, onPlace, onInput }: FreeViewProps) {
+function FreeView({ instanceId, folder, dimensionId, players, track, revision, focus, stats, onPlace, onInput }: FreeViewProps) {
   const source = useMemo(() => worldMapSource(instanceId, folder), [instanceId, folder]);
   return (
     <WorldMapViewer
@@ -277,6 +285,7 @@ function FreeView({ instanceId, folder, dimensionId, players, revision, focus, s
       dimensionId={dimensionId}
       revision={revision}
       players={players}
+      track={track}
       skinBase={worldMapSkinBase(instanceId)}
       focus={focus}
       stats={stats}

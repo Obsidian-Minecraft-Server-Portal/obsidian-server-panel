@@ -118,6 +118,11 @@ interface Limb {
 export interface PlayerRig {
 	root: Group;
 	head: Group;
+	body: Group;
+	rightArm: Group;
+	leftArm: Group;
+	rightLeg: Group;
+	leftLeg: Group;
 	meshes: Mesh[];
 }
 
@@ -131,8 +136,8 @@ export function buildRig(material: MeshBasicMaterial, slim: boolean, legacy: boo
 	const limbs: Limb[] = [
 		{ joint: [0, 24, 0], centre: [0, 4, 0], size: { w: 8, h: 8, d: 8 }, base: { u: 0, v: 0 }, overlay: { u: 32, v: 0, inflate: 0.5 } },
 		{ joint: [0, 0, 0], centre: [0, 18, 0], size: { w: 8, h: 12, d: 4 }, base: { u: 16, v: 16 }, overlay: { u: 16, v: 32, inflate: 0.25 } },
-		{ joint: [-armX, 24, 0], centre: [0, -6, 0], size: { w: arm, h: 12, d: 4 }, base: { u: 40, v: 16 }, overlay: { u: 40, v: 32, inflate: 0.25 } },
-		{ joint: [armX, 24, 0], centre: [0, -6, 0], size: { w: arm, h: 12, d: 4 }, base: legacy ? { u: 40, v: 16 } : { u: 32, v: 48 }, overlay: legacy ? undefined : { u: 48, v: 48, inflate: 0.25 }, mirror: legacy },
+		{ joint: [-armX, 22, 0], centre: [0, -4, 0], size: { w: arm, h: 12, d: 4 }, base: { u: 40, v: 16 }, overlay: { u: 40, v: 32, inflate: 0.25 } },
+		{ joint: [armX, 22, 0], centre: [0, -4, 0], size: { w: arm, h: 12, d: 4 }, base: legacy ? { u: 40, v: 16 } : { u: 32, v: 48 }, overlay: legacy ? undefined : { u: 48, v: 48, inflate: 0.25 }, mirror: legacy },
 		{ joint: [-2, 12, 0], centre: [0, -6, 0], size: { w: 4, h: 12, d: 4 }, base: { u: 0, v: 16 }, overlay: { u: 0, v: 32, inflate: 0.25 } },
 		{ joint: [2, 12, 0], centre: [0, -6, 0], size: { w: 4, h: 12, d: 4 }, base: legacy ? { u: 0, v: 16 } : { u: 16, v: 48 }, overlay: legacy ? undefined : { u: 0, v: 48, inflate: 0.25 }, mirror: legacy },
 	];
@@ -140,6 +145,7 @@ export function buildRig(material: MeshBasicMaterial, slim: boolean, legacy: boo
 	const meshes: Mesh[] = [];
 	const hinges = limbs.map((limb) => {
 		const hinge = new Group();
+			hinge.rotation.order = "ZYX";
 		hinge.position.set(limb.joint[0] * PIXEL, limb.joint[1] * PIXEL, limb.joint[2] * PIXEL);
 		const add = (box: SkinBox, inflate: number, mirror: boolean) => {
 			const geometry = new BoxGeometry((box.w + 2 * inflate) * PIXEL, (box.h + 2 * inflate) * PIXEL, (box.d + 2 * inflate) * PIXEL);
@@ -154,7 +160,16 @@ export function buildRig(material: MeshBasicMaterial, slim: boolean, legacy: boo
 		root.add(hinge);
 		return hinge;
 	});
-	return { root, head: hinges[0], meshes };
+	return {
+		root,
+		head: hinges[0],
+		body: hinges[1],
+		rightArm: hinges[2],
+		leftArm: hinges[3],
+		rightLeg: hinges[4],
+		leftLeg: hinges[5],
+		meshes,
+	};
 }
 
 /** Frees the geometry of a rig built by `buildRig`. Its material is shared and stays with the caller. */

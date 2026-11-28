@@ -93,15 +93,16 @@ function carry(prior: Sample, newest: Sample, at: number): PlayerPose {
   return { dimension: newest.dimension, position, yaw: newest.yaw, pitch: newest.pitch };
 }
 
-function far(a: Sample, b: Sample): boolean {
+/** Whether two places are far enough apart that the player must have been teleported between them. */
+export function far(a: { position: Vec3 }, b: { position: Vec3 }): boolean {
   return Math.hypot(b.position[0] - a.position[0], b.position[1] - a.position[1], b.position[2] - a.position[2]) > TELEPORT_BLOCKS;
 }
 
-function lerp3(a: Vec3, b: Vec3, t: number): Vec3 {
+export function lerp3(a: Vec3, b: Vec3, t: number): Vec3 {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
 /** The signed difference between two angles, taking the short way round. */
-function wrapDegrees(delta: number): number {
+export function wrapDegrees(delta: number): number {
   return ((((delta + 180) % 360) + 360) % 360) - 180;
 }
