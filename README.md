@@ -8,9 +8,13 @@ Minecraft servers.
   and custom jars.
 - Mods, plugins and modpacks from Modrinth, CurseForge, Hangar and Spiget.
 - A live console, a file manager with a code editor, and a built-in SFTP server.
+- An optional world map for each instance, with a top-down view and a free-fly
+  3D view. Live player positions come from the console or, if you opt in, RCON.
+- Web maps from BlueMap, Dynmap, Squaremap and Pl3xmap, shown in the Map tab.
 - Deduplicated, incremental backups with single-file restore.
 - A plain-English scheduler for backups, restarts and commands.
-- Instance sharing through preset roles with granular permissions.
+- Instance sharing through preset roles with granular permissions, including
+  separate permissions for the map and for player positions.
 - TOTP two-factor login, new-IP verification and invite-only accounts.
 - Java is downloaded automatically for each Minecraft version, so you don't
   need to install it yourself.
@@ -463,9 +467,12 @@ password = "change-me"
 | `1421`          | TCP      | Web panel, REST API and WebSocket         | `OBSIDIAN_PORT`      |
 | `2022`          | TCP      | SFTP                                      | `OBSIDIAN_SFTP_PORT` |
 | `25565` and up  | TCP      | Minecraft servers, one per instance       | per instance         |
+| `25575` and up  | TCP      | RCON for player positions (opt-in)        | Map tab              |
 
-Some mods and plugins open extra ports, for example voice chat or a web map.
-Forward those as well.
+RCON listens on every network interface, so only open its port to networks you
+trust. Some mods and plugins open extra ports, for example voice chat. Forward
+those as well. The Map tab reaches a web map through the panel, so that map's
+port needs forwarding only if players should open it directly.
 
 ## Data directory
 
