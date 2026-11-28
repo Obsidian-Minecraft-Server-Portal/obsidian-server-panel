@@ -57,8 +57,10 @@ pub struct QuadEntry {
     pub corners: [f32; 12],
     /// Texel coordinates within the texture's 16 by 16 cell, two per corner.
     pub uvs: [f32; 8],
-    /// Top left texel of the texture's cell in the atlas.
+    /// Top left texel of the texture's block in the atlas.
     pub cell: [u32; 2],
+    /// Texels across the texture: 16 for a block texture, 64 for an entity texture.
+    pub size: u32,
     pub direction: u8,
     /// Direction index of the cullface, or -1.
     pub cullface: i8,
@@ -264,7 +266,8 @@ fn quad_entry(quad: &Quad, atlas: &Atlas) -> QuadEntry {
     QuadEntry {
         corners: quad.corners.as_flattened().try_into().expect("four corners of three coordinates"),
         uvs: quad.uvs.as_flattened().try_into().expect("four corners of two coordinates"),
-        cell: atlas.cell_origin(&quad.texture),
+        cell: atlas.origin(&quad.texture),
+        size: atlas.size(&quad.texture),
         direction: quad.direction.index(),
         cullface: quad.cullface.map_or(-1, |face: Direction| face.index() as i8),
         shade: quad.shade.map_or(-1, |face: Direction| face.index() as i8),

@@ -24,7 +24,7 @@ use crate::viewers::{ViewMode, Viewer, Viewers};
 
 pub const OUTPUT_FOLDER: &str = "obsidian-map";
 /// Raised whenever the renderer draws differently, so existing maps redraw in full instead of mixing old and new output.
-const RENDERER_VERSION: u32 = 7;
+const RENDERER_VERSION: u32 = 9;
 const COOLDOWN_SECS: i64 = 60;
 /// Offsets of the regions that share an edge with a region.
 const NEIGHBOURS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];

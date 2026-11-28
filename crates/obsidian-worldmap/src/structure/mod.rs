@@ -5,6 +5,7 @@ mod bits;
 mod cell;
 mod export;
 mod folder;
+mod overlay;
 mod pack;
 mod region;
 mod section;

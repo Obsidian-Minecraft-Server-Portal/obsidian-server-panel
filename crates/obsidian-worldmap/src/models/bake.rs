@@ -7,12 +7,16 @@ use crate::chunk::BlockState;
 use crate::colour::block_tint;
 use crate::models::geometry::{BlockTint, MISSING_TEXTURE, Quad, TintKind, element_quads, transform_quad};
 use crate::models::{Blockstate, Element, Face, Variant, resolve_model, split_id};
+use super::chest::chest_quads;
+use super::cushion::cushion_quads;
 
 pub fn bake_state(assets: &AssetStore, state: &BlockState) -> Vec<Quad> {
 	if let Some((texture, tint)) = fluid_texture(&state.name) {
 		return fluid_cube(texture, tint);
 	}
-	let mut quads = model_quads(assets, state, block_tint(&state.name, &state.properties));
+	let mut quads = chest_quads(state)
+		.or_else(|| cushion_quads(state))
+		.unwrap_or_else(|| model_quads(assets, state, block_tint(&state.name, &state.properties)));
 	if holds_water(state) {
 		quads.extend(fluid_cube("minecraft:block/water_still", Some(BlockTint::Biome(TintKind::Water))));
 	}

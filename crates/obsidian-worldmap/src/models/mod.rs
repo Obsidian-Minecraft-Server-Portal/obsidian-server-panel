@@ -2,12 +2,16 @@
 
 mod bake;
 mod blockstate;
+mod chest;
+mod cushion;
+mod entity;
 pub mod geometry;
 mod model;
 mod resolve;
 
 pub use bake::{bake_state, holds_water};
 pub use blockstate::{Blockstate, Variant};
+pub use cushion::STATE as CUSHION_STATE;
 pub use model::{Element, ElementRotation, Face, ModelFile, RotationValue};
 pub use resolve::{ResolvedModel, resolve_model};
 
@@ -23,4 +27,9 @@ pub fn namespaced(id: &str) -> String {
 	} else {
 		format!("minecraft:{id}")
 	}
+}
+
+/// The textures of the entities the structure draws. The atlas packs each one at its full 64 texel size.
+pub fn entity_textures() -> Vec<String> {
+	chest::TEXTURES.iter().map(|texture| (*texture).to_owned()).chain(cushion::textures()).collect()
 }

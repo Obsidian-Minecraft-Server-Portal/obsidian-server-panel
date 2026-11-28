@@ -1,5 +1,5 @@
-//! One texture atlas for the textures baked models use. Each texture takes a 16x16 cell. UVs stay in image
-//! space (origin at the top left), so renderers must not flip them.
+//! One texture atlas for the textures baked models use. Block textures take a 16x16 cell. Entity textures take a 64x64 block, which
+//! block UVs still address in units of 0 to 16. UVs stay in image space (origin at the top left), so renderers must not flip them.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -8,9 +8,11 @@ use image::{Rgba, RgbaImage};
 
 use crate::assets::AssetStore;
 use crate::models::geometry::{MISSING_TEXTURE, resolve_texture};
-use crate::models::{Blockstate, resolve_model, split_id};
+use crate::models::{Blockstate, entity_textures, resolve_model, split_id};
 
 pub const CELL: u32 = 16;
+/// The side of an entity texture, which spans a block of four by four cells.
+pub const ENTITY_SIZE: u32 = 64;
 const TRANSLUCENT_WORDS: [&str; 3] = ["glass", "ice", "water"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,8 +24,9 @@ pub enum Layer {
 
 #[derive(Debug, Clone, Copy)]
 struct Slot {
-	column: u32,
-	row: u32,
+	x: u32,
+	y: u32,
+	size: u32,
 	layer: Layer,
 }
 
@@ -33,23 +36,45 @@ pub struct Atlas {
 }
 
 impl Atlas {
-	/// Packs `textures` and the missing-texture cell. A texture that cannot be read gets the missing cell.
-	pub fn build<'a>(assets: &AssetStore, textures: impl IntoIterator<Item = &'a str>, translucent: &BTreeSet<String>) -> Self {
+	/// Packs `textures`, the `large` ones at their full entity size, and the missing-texture cell. A texture that cannot be read
+	/// gets the missing cell.
+	pub fn build<'a>(
+		assets: &AssetStore,
+		textures: impl IntoIterator<Item = &'a str>,
+		translucent: &BTreeSet<String>,
+		large: &BTreeSet<String>,
+	) -> Self {
 		let mut ids: BTreeSet<&str> = textures.into_iter().collect();
 		ids.insert(MISSING_TEXTURE);
-		let count = ids.len() as u32;
-		let columns = f64::from(count).sqrt().ceil() as u32;
-		let rows = count.div_ceil(columns);
-		let mut image = RgbaImage::new(columns * CELL, rows * CELL);
-		let mut slots = BTreeMap::new();
-		for (index, id) in ids.into_iter().enumerate() {
+		let (entities, blocks): (Vec<&str>, Vec<&str>) = ids.into_iter().partition(|id| large.contains(*id));
+		let cells_per_entity = (ENTITY_SIZE / CELL) * (ENTITY_SIZE / CELL);
+		let cells = blocks.len() as u32 + entities.len() as u32 * cells_per_entity;
+		let columns = (f64::from(cells).sqrt().ceil() as u32).next_multiple_of(ENTITY_SIZE / CELL);
+		let entities_per_row = columns / (ENTITY_SIZE / CELL);
+		let entities_top = (entities.len() as u32).div_ceil(entities_per_row) * ENTITY_SIZE;
+		let blocks_top = entities_top;
+		let block_rows = (blocks.len() as u32).div_ceil(columns);
+		let mut atlas = Self {
+			image: RgbaImage::new(columns * CELL, blocks_top + block_rows * CELL),
+			slots: BTreeMap::new(),
+		};
+		for (index, id) in entities.iter().enumerate() {
 			let index = index as u32;
-			let (column, row) = (index % columns, index / columns);
-			let (pixels, layer) = load_texture(assets, id, translucent.contains(id)).unwrap_or_else(|| (missing_cell(), Layer::Opaque));
-			imageops::replace(&mut image, &pixels, i64::from(column * CELL), i64::from(row * CELL));
-			slots.insert(id.to_owned(), Slot { column, row, layer });
+			let origin = [(index % entities_per_row) * ENTITY_SIZE, (index / entities_per_row) * ENTITY_SIZE];
+			atlas.place(assets, id, origin, ENTITY_SIZE, translucent.contains(*id));
 		}
-		Self { image, slots }
+		for (index, id) in blocks.iter().enumerate() {
+			let index = index as u32;
+			let origin = [(index % columns) * CELL, blocks_top + (index / columns) * CELL];
+			atlas.place(assets, id, origin, CELL, translucent.contains(*id));
+		}
+		atlas
+	}
+
+	fn place(&mut self, assets: &AssetStore, id: &str, [x, y]: [u32; 2], size: u32, forced_translucent: bool) {
+		let (pixels, layer) = load_texture(assets, id, forced_translucent, size).unwrap_or_else(|| (missing_cell(size), Layer::Opaque));
+		imageops::replace(&mut self.image, &pixels, i64::from(x), i64::from(y));
+		self.slots.insert(id.to_owned(), Slot { x, y, size, layer });
 	}
 
 	pub fn image(&self) -> &RgbaImage {
@@ -60,19 +85,25 @@ impl Atlas {
 		self.slot(texture).layer
 	}
 
-	/// The top left texel of a texture's cell.
-	pub fn cell_origin(&self, texture: &str) -> [u32; 2] {
+	/// The top left texel of a texture's block in the atlas.
+	pub fn origin(&self, texture: &str) -> [u32; 2] {
 		let slot = self.slot(texture);
-		[slot.column * CELL, slot.row * CELL]
+		[slot.x, slot.y]
 	}
 
-	/// Maps a texture coordinate in 0..16 texture pixels to atlas coordinates in 0..1.
+	/// The side of a texture's block in texels: 16 for a block texture, 64 for an entity texture.
+	pub fn size(&self, texture: &str) -> u32 {
+		self.slot(texture).size
+	}
+
+	/// Maps a texture coordinate in 0..16 units across the texture to atlas coordinates in 0..1.
 	pub fn uv(&self, texture: &str, uv: [f32; 2]) -> [f32; 2] {
 		let slot = self.slot(texture);
 		let (width, height) = self.image.dimensions();
+		let scale = slot.size as f32 / CELL as f32;
 		[
-			((slot.column * CELL) as f32 + uv[0].clamp(0.0, CELL as f32)) / width as f32,
-			((slot.row * CELL) as f32 + uv[1].clamp(0.0, CELL as f32)) / height as f32,
+			(slot.x as f32 + uv[0].clamp(0.0, CELL as f32) * scale) / width as f32,
+			(slot.y as f32 + uv[1].clamp(0.0, CELL as f32) * scale) / height as f32,
 		]
 	}
 
@@ -81,13 +112,15 @@ impl Atlas {
 	}
 }
 
-/// Every texture a blockstate in `assets` can draw. An atlas built from this set serves every region of the same assets,
-/// so UVs stay valid as regions are re-rendered one at a time.
+/// Every texture a blockstate in `assets` can draw, with the entity textures the structure draws. An atlas built from this set
+/// serves every region of the same assets, so UVs stay valid as regions are re-rendered one at a time.
 #[derive(Default)]
 pub struct BlockTextures {
 	pub ids: BTreeSet<String>,
 	/// Sprites that a model forces onto the translucent layer.
 	pub translucent: BTreeSet<String>,
+	/// Entity textures, which the atlas packs at their full size.
+	pub large: BTreeSet<String>,
 }
 
 pub fn block_textures(assets: &AssetStore) -> BlockTextures {
@@ -102,11 +135,15 @@ pub fn block_textures(assets: &AssetStore) -> BlockTextures {
 			textures.translucent.extend(resolved.translucent);
 		}
 	}
+	for texture in entity_textures() {
+		textures.ids.insert(texture.clone());
+		textures.large.insert(texture);
+	}
 	textures
 }
 
 /// The top square of the texture, so animated frame stacks use their first frame.
-fn load_texture(assets: &AssetStore, id: &str, forced_translucent: bool) -> Option<(RgbaImage, Layer)> {
+fn load_texture(assets: &AssetStore, id: &str, forced_translucent: bool, size: u32) -> Option<(RgbaImage, Layer)> {
 	let (namespace, path) = split_id(id);
 	let png = assets.get(namespace, &format!("textures/{path}.png"))?;
 	let decoded = image::load_from_memory(png).ok()?.to_rgba8();
@@ -117,10 +154,10 @@ fn load_texture(assets: &AssetStore, id: &str, forced_translucent: bool) -> Opti
 	let mut square = imageops::crop_imm(&decoded, 0, 0, side, side).to_image();
 	let layer = classify(id, &square, forced_translucent);
 	dilate_transparent(&mut square);
-	let cell = if side == CELL {
+	let cell = if side == size {
 		square
 	} else {
-		imageops::resize(&square, CELL, CELL, FilterType::Triangle)
+		imageops::resize(&square, size, size, FilterType::Triangle)
 	};
 	Some((cell, layer))
 }
@@ -166,9 +203,10 @@ fn dilate_transparent(pixels: &mut RgbaImage) {
 	}
 }
 
-fn missing_cell() -> RgbaImage {
-	RgbaImage::from_fn(CELL, CELL, |x, y| {
-		if (x / 8 + y / 8) % 2 == 0 {
+fn missing_cell(size: u32) -> RgbaImage {
+	let check = size / 2;
+	RgbaImage::from_fn(size, size, |x, y| {
+		if (x / check + y / check).is_multiple_of(2) {
 			Rgba([255, 0, 255, 255])
 		} else {
 			Rgba([0, 0, 0, 255])
@@ -184,10 +222,10 @@ mod tests {
 
 	use super::*;
 
-	fn png(pixels: &[[u8; 4]]) -> Vec<u8> {
-		let mut image = RgbaImage::new(16, 16);
-		for (index, pixel) in pixels.iter().cycle().take(256).enumerate() {
-			image.put_pixel(index as u32 % 16, index as u32 / 16, Rgba(*pixel));
+	fn png(pixels: &[[u8; 4]], size: u32) -> Vec<u8> {
+		let mut image = RgbaImage::new(size, size);
+		for (index, pixel) in pixels.iter().cycle().take((size * size) as usize).enumerate() {
+			image.put_pixel(index as u32 % size, index as u32 / size, Rgba(*pixel));
 		}
 		let mut bytes = Vec::new();
 		image.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).unwrap();
@@ -196,9 +234,10 @@ mod tests {
 
 	fn assets() -> AssetStore {
 		let mut assets = AssetStore::default();
-		assets.insert("minecraft".into(), "textures/block/a.png".into(), png(&[[200, 0, 0, 255]]));
-		assets.insert("minecraft".into(), "textures/block/b.png".into(), png(&[[0, 0, 0, 0], [0, 200, 0, 255]]));
-		assets.insert("minecraft".into(), "textures/block/glass.png".into(), png(&[[255, 255, 255, 255]]));
+		assets.insert("minecraft".into(), "textures/block/a.png".into(), png(&[[200, 0, 0, 255]], 16));
+		assets.insert("minecraft".into(), "textures/block/b.png".into(), png(&[[0, 0, 0, 0], [0, 200, 0, 255]], 16));
+		assets.insert("minecraft".into(), "textures/block/glass.png".into(), png(&[[255, 255, 255, 255]], 16));
+		assets.insert("minecraft".into(), "textures/entity/chest/normal.png".into(), png(&[[90, 60, 30, 255]], 64));
 		assets
 	}
 
@@ -211,30 +250,50 @@ mod tests {
 			"models/block/log_y.json".into(),
 			br##"{"textures": {"side": "block/a"}, "elements": [{"from": [0,0,0], "to": [16,16,16], "faces": {"up": {"texture": "#side"}, "down": {"texture": "minecraft:block/b"}}}]}"##.to_vec(),
 		);
-		let textures: Vec<String> = block_textures(&assets).ids.into_iter().collect();
-		assert_eq!(textures, ["minecraft:block/a", "minecraft:block/b"]);
+		let textures = block_textures(&assets);
+		let blocks: Vec<&str> = textures.ids.iter().map(String::as_str).filter(|id| !textures.large.contains(*id)).collect();
+		assert_eq!(blocks, ["minecraft:block/a", "minecraft:block/b"]);
 	}
 
 	#[test]
 	fn packs_textures_into_cells_with_the_missing_cell_last() {
-		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b"], &BTreeSet::new());
-		assert_eq!(atlas.image().dimensions(), (32, 32));
+		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b"], &BTreeSet::new(), &BTreeSet::new());
+		assert_eq!(atlas.image().dimensions(), (64, 16));
 		assert_eq!(atlas.uv("minecraft:block/a", [0.0, 0.0]), [0.0, 0.0]);
-		assert_eq!(atlas.uv("minecraft:block/b", [0.0, 0.0]), [0.5, 0.0]);
-		assert_eq!(atlas.uv("minecraft:missing", [0.0, 0.0]), [0.0, 0.5]);
-		assert_eq!(atlas.uv("minecraft:block/unknown", [16.0, 16.0]), [0.5, 1.0]);
+		assert_eq!(atlas.uv("minecraft:block/b", [0.0, 0.0]), [0.25, 0.0]);
+		assert_eq!(atlas.uv("minecraft:missing", [0.0, 0.0]), [0.5, 0.0]);
+		assert_eq!(atlas.uv("minecraft:block/unknown", [16.0, 16.0]), [0.75, 1.0]);
+	}
+
+	#[test]
+	fn entity_textures_pack_at_full_size_on_a_block_aligned_grid() {
+		let large = BTreeSet::from(["minecraft:entity/chest/normal".to_owned()]);
+		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:entity/chest/normal"], &BTreeSet::new(), &large);
+		assert_eq!(atlas.size("minecraft:entity/chest/normal"), 64);
+		assert_eq!(atlas.size("minecraft:block/a"), 16);
+		assert_eq!(atlas.origin("minecraft:entity/chest/normal"), [0, 0]);
+		assert!(atlas.origin("minecraft:block/a")[1] >= 64, "block cells sit below the entity blocks");
+		let (width, _) = atlas.image().dimensions();
+		let [left, _] = atlas.uv("minecraft:entity/chest/normal", [0.0, 0.0]);
+		let [right, _] = atlas.uv("minecraft:entity/chest/normal", [16.0, 0.0]);
+		assert_eq!(((right - left) * width as f32).round(), 64.0);
 	}
 
 	#[test]
 	fn forced_translucency_overrides_the_alpha_rules() {
-			let forced = BTreeSet::from(["minecraft:block/a".to_owned()]);
-			let atlas = Atlas::build(&assets(), ["minecraft:block/a"], &forced);
-			assert_eq!(atlas.layer("minecraft:block/a"), Layer::Translucent);
-		}
+		let forced = BTreeSet::from(["minecraft:block/a".to_owned()]);
+		let atlas = Atlas::build(&assets(), ["minecraft:block/a"], &forced, &BTreeSet::new());
+		assert_eq!(atlas.layer("minecraft:block/a"), Layer::Translucent);
+	}
 
-		#[test]
-		fn classifies_layers_from_alpha_and_translucent_names() {
-		let atlas = Atlas::build(&assets(), ["minecraft:block/a", "minecraft:block/b", "minecraft:block/glass"], &BTreeSet::new());
+	#[test]
+	fn classifies_layers_from_alpha_and_translucent_names() {
+		let atlas = Atlas::build(
+			&assets(),
+			["minecraft:block/a", "minecraft:block/b", "minecraft:block/glass"],
+			&BTreeSet::new(),
+			&BTreeSet::new(),
+		);
 		assert_eq!(atlas.layer("minecraft:block/a"), Layer::Opaque);
 		assert_eq!(atlas.layer("minecraft:block/b"), Layer::Cutout);
 		assert_eq!(atlas.layer("minecraft:block/glass"), Layer::Translucent);

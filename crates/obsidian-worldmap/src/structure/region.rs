@@ -7,6 +7,7 @@ use std::path::Path;
 
 use super::cell::OPEN_SKY;
 use super::folder::{LEGACY_FOLDER, PACK_FOLDER};
+use super::overlay::Overlays;
 use super::pack::write_pack;
 use super::volume::Volume;
 use super::{BiomeTable, StateTable, section_volume};
@@ -22,6 +23,7 @@ pub struct Vocabulary {
 
 pub fn vocabulary(region: &Path, defaults: &BlockDefaults) -> Result<Vocabulary> {
     let mut vocabulary = Vocabulary::default();
+    vocabulary.states.extend(Overlays::read(region).states().cloned());
     for_each_chunk(region, defaults, |chunk| {
         for section in chunk.sections() {
             vocabulary.states.extend(section.palette().iter().cloned());
@@ -46,12 +48,14 @@ pub fn write_region_pack(
         .and_then(|stem| stem.to_str())
         .ok_or_else(|| WorldmapError::Structure(format!("{} is not a region file", region.display())))?;
     let destination = structure_dir.join(PACK_FOLDER).join(format!("{stem}.obsr"));
+    let overlays = Overlays::read(region);
     let written = write_pack(&destination, |pack| {
         for_each_chunk(region, defaults, |chunk| {
             for section in chunk.sections() {
                 let origin = [chunk.x * 16, section.y() * 16, chunk.z * 16];
-                let volume = section_volume(section, origin, states, biomes)?;
-                if !is_open_air(section, &volume) {
+                let overlay = overlays.in_section([chunk.x, section.y(), chunk.z]);
+                let volume = section_volume(section, origin, states, biomes, overlay)?;
+                if !overlay.is_empty() || !is_open_air(section, &volume) {
                     pack.push([chunk.x, section.y(), chunk.z], &volume.encode())?;
                 }
             }

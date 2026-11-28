@@ -9,6 +9,8 @@ export interface QuadJson {
   corners: number[];
   uvs: number[];
   cell: [number, number];
+  /** Texels across the texture in the atlas: 16 for a block texture, 64 for an entity texture. */
+  size: number;
   direction: number;
   cullface: number;
   /** Direction index of the shade, or -1 for full brightness. */
@@ -130,7 +132,7 @@ export function prepareTable(blocks: BlockTableJson, biomes: BiomeJson[]): Prepa
       name: state.name,
       quads: state.quads.map((quad) => ({
         corners: Float32Array.from(quad.corners),
-        uvs: encodeUvs(quad.uvs, quad.cell, blocks.atlasWidth, blocks.atlasHeight),
+        uvs: encodeUvs(quad.uvs, quad.cell, quad.size, blocks.atlasWidth, blocks.atlasHeight),
         direction: quad.direction,
         cullface: quad.cullface,
         shade: quad.shade < 0 ? UNSHADED : quad.shade,
@@ -186,20 +188,21 @@ function coversBlockFace(corners: Float32Array, direction: number): boolean {
 }
 
 /** Atlas coordinates of texel positions, rounded the way the server rounds them to u16. */
-function encodeUvs(uvs: number[], cell: [number, number], width: number, height: number): Uint16Array {
+function encodeUvs(uvs: number[], cell: [number, number], size: number, width: number, height: number): Uint16Array {
   const encoded = new Uint16Array(8);
   for (let corner = 0; corner < 4; corner++) {
-    const u = atlasCoordinate(cell[0], uvs[corner * 2], width);
-    const v = atlasCoordinate(cell[1], uvs[corner * 2 + 1], height);
+    const u = atlasCoordinate(cell[0], uvs[corner * 2], size, width);
+    const v = atlasCoordinate(cell[1], uvs[corner * 2 + 1], size, height);
     encoded[corner * 2] = encodeUnit(u);
     encoded[corner * 2 + 1] = encodeUnit(v);
   }
   return encoded;
 }
 
-function atlasCoordinate(cellOrigin: number, texel: number, size: number): number {
-  const clamped = Math.min(Math.max(Math.fround(texel), 0), 16);
-  return Math.fround(Math.fround(cellOrigin + clamped) / Math.fround(size));
+/** A UV in 0 to 16 units across a texture `texels` wide, starting at `origin` in an atlas `size` across. */
+function atlasCoordinate(origin: number, units: number, texels: number, size: number): number {
+  const clamped = Math.min(Math.max(Math.fround(units), 0), 16);
+  return Math.fround(Math.fround(origin + Math.fround((clamped * texels) / 16)) / Math.fround(size));
 }
 
 function encodeUnit(value: number): number {

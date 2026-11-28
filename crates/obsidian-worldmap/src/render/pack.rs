@@ -83,7 +83,7 @@ impl<'a> Renderer<'a> {
 			colours: BlockColours::new(&pack.assets, &pack.biomes),
 			atlas: {
 				let textures = block_textures(&pack.assets);
-				Atlas::build(&pack.assets, textures.ids.iter().map(String::as_str), &textures.translucent)
+				Atlas::build(&pack.assets, textures.ids.iter().map(String::as_str), &textures.translucent, &textures.large)
 			},
 		}
 	}
