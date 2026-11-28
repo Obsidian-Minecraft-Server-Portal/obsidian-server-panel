@@ -40,9 +40,9 @@ pub fn unpack(bytes: &[u8], width: u8, count: usize) -> Result<Vec<u16>> {
     Ok(match width {
         0 => vec![0; count],
         16 => bytes
-            .chunks_exact(2)
+            .as_chunks::<2>().0.iter()
             .take(count)
-            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .map(|pair| u16::from_le_bytes(*pair))
             .collect(),
         _ => {
             let bits = usize::from(width);

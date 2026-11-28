@@ -125,7 +125,7 @@ impl PackReader {
         let mut bytes = vec![0_u8; count as usize * ENTRY_LEN];
         file.read_exact(&mut bytes).map_err(|_| malformed())?;
         let mut index = HashMap::with_capacity(count as usize);
-        for entry in bytes.chunks_exact(ENTRY_LEN) {
+        for entry in bytes.as_chunks::<ENTRY_LEN>().0 {
             let key = [i32_at(entry, 0), i32_at(entry, 4), i32_at(entry, 8)];
             let (offset, record) = (u64_at(entry, 12), u32_at(entry, 20));
             if offset < HEADER_LEN || offset + u64::from(record) > index_offset {

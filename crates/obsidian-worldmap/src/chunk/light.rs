@@ -31,7 +31,7 @@ impl Light {
 			return Self::Uniform(first);
 		}
 		let mut packed = Box::new([0_u8; PACKED_LEN]);
-		for (byte, pair) in packed.iter_mut().zip(levels.chunks_exact(2)) {
+		for (byte, pair) in packed.iter_mut().zip(levels.as_chunks::<2>().0) {
 			*byte = pair[0] | (pair[1] << 4);
 		}
 		Self::Packed(packed)
