@@ -1,4 +1,4 @@
-//! Cushions are entities rather than blocks, so each one takes the voxel it occupies in the structure as a block state of its own.
+//! Cushions are entities rather than blocks, so each one takes a voxel of the structure as a block state of its own.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -13,17 +13,21 @@ use crate::region::{CHUNKS_PER_SIDE, RegionFile};
 const CUSHION_ENTITY: &str = "minecraft:cushion";
 /// The horizontal facings in the order of the game's 2D direction data, a quarter turn apart from south.
 const FACINGS: [&str; 4] = ["south", "west", "north", "east"];
+/// A cushion's slab is a quarter block thick.
+const SLAB_HEIGHT: f64 = 0.25;
+/// Keeps a slab whose top lies exactly on a block boundary in the block below it.
+const TOP_EPSILON: f64 = 1e-4;
 
-/// The cushions of one region, keyed by the section that holds them. Each entry is a voxel index within that section, counted the
-/// way the section's own indices are, with the state the cushion takes.
+/// The cushions of one region, keyed by the section that holds them. Each entry is a voxel index within that section, counted the way
+/// the section's own indices are, with the state the cushion takes.
 #[derive(Default)]
 pub struct Overlays {
     sections: BTreeMap<[i32; 3], Vec<(usize, BlockState)>>,
 }
 
 impl Overlays {
-    /// Reads the cushions of the region at `region`, from the entities folder beside its region folder. Entities are an overlay on
-    /// the blocks, so an entity file or chunk that cannot be read leaves its cushions out rather than failing the region.
+    /// Reads the cushions of the region at `region`, from the entities folder beside its region folder. Entities are an overlay on the
+    /// blocks, so an entity file or chunk that cannot be read leaves its cushions out rather than failing the region.
     pub fn read(region: &Path) -> Self {
         let mut overlays = Self::default();
         let Some(path) = entity_region(region).filter(|path| path.is_file()) else {
@@ -72,25 +76,32 @@ struct EntityChunk {
     entities: Vec<Value>,
 }
 
-/// A cushion's voxel and the state it takes, or `None` for any other entity.
+/// A cushion's voxel and the state it takes, or `None` for any other entity. The voxel is the one that holds the cushion's top. A
+/// cushion on a short block keeps that block's voxel, so `offset` is the height of its bottom above the voxel's floor in sixteenths.
 fn cushion(entity: &Value) -> Option<([i32; 3], BlockState)> {
     let Value::Compound(fields) = entity else { return None };
     match fields.get("id") {
         Some(Value::String(id)) if id == CUSHION_ENTITY => {}
         _ => return None,
     }
-    let position: [f64; 3] = numbers(fields.get("Pos")?, double)?.try_into().ok()?;
+    let [x, y, z]: [f64; 3] = numbers(fields.get("Pos")?, double)?.try_into().ok()?;
     let yaw = numbers(fields.get("Rotation")?, float)?.first().copied()?;
     let colour = match fields.get("color") {
         Some(Value::String(colour)) => colour.clone(),
         _ => "white".to_owned(),
     };
     let facing = FACINGS[((yaw / 90.0 + 0.5).floor() as i32 & 3) as usize];
+    let top_voxel = (y + SLAB_HEIGHT - TOP_EPSILON).floor();
+    let offset = ((y - top_voxel) * 16.0).round() as i32;
     let state = BlockState {
         name: CUSHION_STATE.to_owned(),
-        properties: BTreeMap::from([("color".to_owned(), colour), ("facing".to_owned(), facing.to_owned())]),
+        properties: BTreeMap::from([
+            ("color".to_owned(), colour),
+            ("facing".to_owned(), facing.to_owned()),
+            ("offset".to_owned(), offset.to_string()),
+        ]),
     };
-    Some((position.map(|coordinate| coordinate.floor() as i32), state))
+    Some(([x.floor() as i32, top_voxel as i32, z.floor() as i32], state))
 }
 
 fn numbers<T>(value: &Value, pick: fn(&Value) -> Option<T>) -> Option<Vec<T>> {
@@ -147,15 +158,19 @@ mod tests {
         }
     }
 
-    fn cushion_state(colour: &str, facing: &str) -> BlockState {
+    fn cushion_state(colour: &str, facing: &str, offset: &str) -> BlockState {
         BlockState {
             name: CUSHION_STATE.into(),
-            properties: BTreeMap::from([("color".to_owned(), colour.to_owned()), ("facing".to_owned(), facing.to_owned())]),
+            properties: BTreeMap::from([
+                ("color".to_owned(), colour.to_owned()),
+                ("facing".to_owned(), facing.to_owned()),
+                ("offset".to_owned(), offset.to_owned()),
+            ]),
         }
     }
 
     #[test]
-    fn cushions_take_the_voxel_they_occupy_and_other_entities_are_ignored() {
+    fn cushions_take_the_voxel_holding_their_top_and_other_entities_are_ignored() {
         let dir = tempfile::tempdir().unwrap();
         let region = dir.path().join("region").join("r.0.0.mca");
         fs::create_dir_all(dir.path().join("entities")).unwrap();
@@ -164,13 +179,16 @@ mod tests {
                 entity("minecraft:cushion", [1.5, 0.0, 1.5], 90.0, Some("red")),
                 entity("minecraft:zombie", [3.5, 64.0, 3.5], 0.0, None),
                 entity("minecraft:cushion", [33.5, 0.0, 1.5], 0.0, None),
+                entity("minecraft:cushion", [5.5, 80.9375, 5.5], 0.0, None),
             ],
         };
         let nbt = fastnbt::to_bytes(&chunk).unwrap();
         fs::write(dir.path().join("entities").join("r.0.0.mca"), region_bytes(&[(0, 0, nbt)])).unwrap();
         let overlays = Overlays::read(&region);
-        assert_eq!(overlays.in_section([0, 0, 0]).to_vec(), vec![(17, cushion_state("red", "west"))]);
-        assert_eq!(overlays.in_section([2, 0, 0]).to_vec(), vec![(17, cushion_state("white", "south"))]);
+        assert_eq!(overlays.in_section([0, 0, 0]).to_vec(), vec![(17, cushion_state("red", "west", "0"))]);
+        assert_eq!(overlays.in_section([2, 0, 0]).to_vec(), vec![(17, cushion_state("white", "south", "0"))]);
+        // On a dirt path, which is 15 sixteenths high, the cushion's top is in the voxel above the path, a sixteenth below its floor.
+        assert_eq!(overlays.in_section([0, 5, 0]).to_vec(), vec![(341, cushion_state("white", "south", "-1"))]);
         assert!(overlays.in_section([0, 4, 0]).is_empty());
     }
 
