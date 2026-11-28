@@ -70,7 +70,7 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo clippy -p obsidian --all-targets --locked --no-default-features --features updater,service -- -D warnings
       - name: Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked --no-fail-fast
 
   docker:
     name: Docker build
