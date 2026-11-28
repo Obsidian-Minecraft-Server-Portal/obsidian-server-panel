@@ -125,6 +125,7 @@ jobs:
 
   docker:
     name: Docker ${{ matrix.platform }}
+    needs: [binaries]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
