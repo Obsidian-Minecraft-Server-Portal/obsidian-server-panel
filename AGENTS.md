@@ -189,9 +189,17 @@ Examples of what to record:
   - The browser pane blocks every request from an opaque origin
     (`ERR_BLOCKED_BY_CLIENT`), so verify map rendering in headless Chrome
     over CDP instead.
-- **Windows tests:** `obsidian-runner::runner_round_trip` (needs `/bin/sh`)
-  fails on Windows. `obsidian-backups::snapshot_deduplicates_and_restores` can
-  fail intermittently with "Access is denied". Neither is a regression.
+- **Windows tests:** `obsidian-runner::runner_round_trip` runs the test binary
+  as its own child, so it needs no `/bin/sh`. `obsidian-backups` writes chunks
+  with a no-clobber persist and retries file operations that Windows refuses for
+  a moment (`locked.rs`). Both were known Windows failures, so treat a failure in
+  the Windows CI job as a regression.
+- **Access log:** `src-actix/lib.rs` excludes `/map/<kind>/t/` from
+  `middleware::Logger`, because the map proxy's token sits in the path. Exclude
+  any new route that carries a secret in its path the same way.
+- **World map renderer:** `RENDERER_VERSION` in
+  `crates/obsidian-worldmap-service/src/job.rs` feeds the render's build hash.
+  Bump it whenever render output changes, so existing renders are invalidated.
 
 ---
 
@@ -719,7 +727,7 @@ Port those designs to HeroUI v3 tokens and Tailwind v4 in `src/css/index.css`.
   Linux, Windows, and macOS.
 - **`.github/workflows/release.yml`** (on `v*` tags) builds and publishes:
   - **Windows:** x86_64 `.msi` installer (`cargo-wix`).
-  - **macOS:** universal or per-arch `.dmg` (`cargo-bundle` + `create-dmg`).
+  - **macOS:** universal or per-arch `.dmg` (`cargo-bundle` + `hdiutil`).
   - **Linux:** x86_64 and aarch64 `.tar.gz` binaries plus an `install.sh`
     installer script (downloads the latest release, installs the binary and an
     optional systemd unit).
