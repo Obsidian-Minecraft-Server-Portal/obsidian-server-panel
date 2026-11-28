@@ -15,7 +15,7 @@ export function ContentTab() {
   const section: Section = params.get("section") === "files" ? "files" : "content";
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
       <SectionTabs
         label="Content sections"
         tabs={TABS}
