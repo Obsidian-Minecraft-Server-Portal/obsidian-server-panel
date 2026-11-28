@@ -3,7 +3,7 @@ set shell := ["powershell.exe", "-NoProfile", "-NoLogo", "-Command"]
 [linux]
 set shell := ["bash", "-c"]
 [macos]
-set shell :=["zh", "-c"]
+set shell := ["zsh", "-c"]
 
 set dotenv-load := true
 
