@@ -140,7 +140,8 @@ async fn serve(config: Config, shutdown: oneshot::Receiver<()>) -> Result<()> {
 			.app_data(data.clone())
 			.app_data(json_config())
 			.wrap(middleware::from_fn(csrf::verify_origin))
-			.wrap(middleware::Logger::default())
+			// Map proxy paths carry a one-hour token, so they stay out of the access log.
+			.wrap(middleware::Logger::default().exclude_regex(r"/map/[^/]+/t/"))
 			.configure(routes::configure)
 			.configure(openapi::configure)
 			.configure_frontend_routes()

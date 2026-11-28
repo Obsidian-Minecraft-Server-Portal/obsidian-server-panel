@@ -18,11 +18,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 		.service(focus)
 		.service(unfocus)
 		.service(status)
-		.service(manifest)
 		.service(file)
 		.service(players)
 		.service(skin)
 		.service(detail)
+		.service(
+			web::resource("/instances/{id}/worldmap/dimensions/{folder}")
+				.wrap(Compress::default())
+				.route(web::get().to(manifest)),
+		)
 		.service(
 			web::resource("/instances/{id}/worldmap/dimensions/{folder}/structure/cells/{cx}/{cy}/{cz}")
 				.wrap(Compress::default())
@@ -158,7 +162,6 @@ pub async fn status(state: web::Data<AppState>, user: AuthUser, path: web::Path<
 		(status = 404, description = "The dimension has no render yet"),
 	)
 )]
-#[get("/instances/{id}/worldmap/dimensions/{folder}")]
 pub async fn manifest(state: web::Data<AppState>, user: AuthUser, path: web::Path<(InstanceId, String)>) -> ApiResult<web::Json<WorldMapManifest>> {
 	let (id, folder) = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
@@ -211,7 +214,13 @@ pub async fn detail(
 ) -> ApiResult<HttpResponse> {
 	let (id, folder, rx, rz, tx, tz) = path.into_inner();
 	require_instance_perm(&state, &user, id, Permission::MAP_VIEW).await?;
-	let location = state.worldmap.detail(id, &folder, (rx, rz), (tx, tz)).await?;
+	let version = query
+		.v
+		.as_deref()
+		.and_then(|version| version.parse::<i64>().ok())
+		.filter(|version| *version >= 0)
+		.ok_or_else(|| CommonError::Invalid("a detail tile names its render with a v query".into()))?;
+	let location = state.worldmap.detail(id, &folder, (rx, rz), (tx, tz), version).await?;
 	let png = tokio::fs::read(&location).await.map_err(|error| CommonError::Other(error.to_string()))?;
 	Ok(HttpResponse::Ok()
 		.content_type("image/png")

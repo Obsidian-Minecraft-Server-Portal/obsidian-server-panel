@@ -52,6 +52,7 @@ static UPSTREAM: LazyLock<reqwest::Client> = LazyLock::new(|| {
 	reqwest::Client::builder()
 		.redirect(reqwest::redirect::Policy::none())
 		.connect_timeout(Duration::from_secs(5))
+		.read_timeout(Duration::from_secs(30))
 		.build()
 		.expect("the map proxy client builds with static settings")
 });
