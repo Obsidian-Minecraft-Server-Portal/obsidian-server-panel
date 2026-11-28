@@ -7,7 +7,7 @@ use obsidian_worldmap::assets::AssetStore;
 use obsidian_worldmap::biome::{Biome, BiomeRegistry};
 use obsidian_worldmap::chunk::BlockState;
 use obsidian_worldmap::colour::BlockColours;
-use obsidian_worldmap::models::geometry::Direction;
+use obsidian_worldmap::models::geometry::{Direction, MISSING_TEXTURE};
 use obsidian_worldmap::models::{Blockstate, bake_state, resolve_model};
 
 fn client_jar_store() -> AssetStore {
@@ -99,4 +99,30 @@ fn colours_real_blocks_from_the_client_jar() {
 	assert!(g > r && g > b, "grass should be green, got {r} {g} {b}");
 	let [r, _, b] = colours.colour(&samples[3], &plains, 0, 0);
 	assert!(b > r, "water should be blue");
+}
+
+#[test]
+#[ignore = "needs OBSIDIAN_WORLDMAP_CLIENT_JAR and OBSIDIAN_WORLDMAP_MOD_JAR"]
+fn bare_mod_blocks_draw_their_inferred_default_model() {
+	let modded = std::env::var("OBSIDIAN_WORLDMAP_MOD_JAR").expect("set OBSIDIAN_WORLDMAP_MOD_JAR");
+	let mut store = client_jar_store();
+	store.add_jar(Path::new(&modded)).unwrap();
+	let mut mod_only = AssetStore::default();
+	mod_only.add_jar(Path::new(&modded)).unwrap();
+	let smelter = Blockstate::parse(mod_only.get("techreborn", "blockstates/alloy_smelter.json").unwrap()).unwrap();
+	assert_eq!(smelter.default_properties(), Some(BTreeMap::from([("active".to_owned(), "false".to_owned()), ("facing".to_owned(), "north".to_owned())])));
+	let wall = Blockstate::parse(mod_only.get("techreborn", "blockstates/copper_wall.json").unwrap()).unwrap();
+	assert_eq!(wall.default_properties(), Some(BTreeMap::from([("up".to_owned(), "true".to_owned())])));
+	let mut inferred = 0;
+	let failures: Vec<String> = mod_only
+		.blockstates()
+		.filter_map(|(name, json)| {
+			let properties = Blockstate::parse(json).ok()?.default_properties()?;
+			inferred += 1;
+			let state = BlockState { name: name.clone(), properties };
+			bake_state(&store, &state).iter().any(|quad| quad.texture == MISSING_TEXTURE).then_some(name)
+		})
+		.collect();
+	assert!(inferred > 100, "only {inferred} mod blocks needed an inferred default");
+	assert!(failures.is_empty(), "{} mod blocks draw missing textures, first: {:?}", failures.len(), failures.first());
 }

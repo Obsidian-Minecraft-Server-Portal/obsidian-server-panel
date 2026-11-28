@@ -8,6 +8,7 @@ use crate::assets::AssetStore;
 use crate::atlas::{Atlas, block_textures};
 use crate::biome::BiomeRegistry;
 use crate::chunk::{BlockDefaults, BlockState};
+use crate::models::Blockstate;
 use crate::structure::{self, BiomeEntry, BiomeTable, BlockTable, Lighting, StateTable, Vocabulary};
 use crate::colour::{BlockColours, SurfaceCache};
 use crate::error::Result;
@@ -40,7 +41,8 @@ impl Pack {
 			assets.add_jar(jar)?;
 			biomes.add_jar(jar)?;
 		}
-		let defaults = BlockDefaults::parse(&std::fs::read(sources.blocks_report)?)?;
+		let mut defaults = BlockDefaults::parse(&std::fs::read(sources.blocks_report)?)?;
+		infer_mod_defaults(&assets, &mut defaults);
 		Ok(Self { assets, biomes, defaults })
 	}
 
@@ -69,6 +71,18 @@ impl Pack {
 	}
 }
 
+/// Mod blocks are missing from the vanilla report, so their defaults are inferred from their blockstates.
+fn infer_mod_defaults(assets: &AssetStore, defaults: &mut BlockDefaults) {
+	for (name, json) in assets.blockstates() {
+		if defaults.knows(&name) {
+			continue;
+		}
+		if let Some(properties) = Blockstate::parse(json).ok().and_then(|blockstate| blockstate.default_properties()) {
+			defaults.insert_inferred(name, properties);
+		}
+	}
+}
+
 /// Draws the regions of one pack. The atlas is fixed by the pack, so every region's UVs agree with each other.
 pub struct Renderer<'a> {
 	pack: &'a Pack,
@@ -94,5 +108,36 @@ impl<'a> Renderer<'a> {
 
 	pub fn render_region(&mut self, region: &Path, dimension_dir: &Path) -> Result<RegionManifest> {
 		render_region(region, dimension_dir, &self.pack.defaults, &mut self.colours)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::BTreeMap;
+
+	use super::*;
+	use crate::test_support::write_jar;
+
+	#[test]
+	fn mod_blocks_the_report_lacks_get_defaults_from_their_blockstates() {
+		let dir = tempfile::tempdir().unwrap();
+		let jar = dir.path().join("mod.jar");
+		write_jar(
+			&jar,
+			&[(
+				"assets/techreborn/blockstates/alloy_smelter.json",
+				br#"{"variants": {"active=false,facing=north": {"model": "techreborn:block/a"}, "active=true,facing=north": {"model": "techreborn:block/b"}}}"#,
+			)],
+		);
+		let mut assets = AssetStore::default();
+		assets.add_jar(&jar).unwrap();
+		let mut defaults = BlockDefaults::parse(b"{}").unwrap();
+		infer_mod_defaults(&assets, &mut defaults);
+		let mut bare = BlockState {
+			name: "techreborn:alloy_smelter".into(),
+			properties: BTreeMap::new(),
+		};
+		defaults.fill(&mut bare);
+		assert_eq!(bare.properties.get("active").map(String::as_str), Some("false"));
 	}
 }

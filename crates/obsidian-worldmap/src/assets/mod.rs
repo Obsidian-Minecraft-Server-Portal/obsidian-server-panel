@@ -50,6 +50,14 @@ impl AssetStore {
 			.map(|((namespace, relative), bytes)| (namespace.as_str(), relative.as_str(), bytes.as_slice()))
 	}
 
+	/// Every blockstate in any namespace, keyed by block id such as `techreborn:alloy_smelter`.
+	pub fn blockstates(&self) -> impl Iterator<Item = (String, &[u8])> + '_ {
+		self.entries_under("blockstates/").filter_map(|(namespace, relative, bytes)| {
+			let path = relative.strip_prefix("blockstates/")?.strip_suffix(".json")?;
+			Some((format!("{namespace}:{path}"), bytes))
+		})
+	}
+
 	pub(crate) fn insert(&mut self, namespace: String, relative: String, bytes: Vec<u8>) {
 		self.entries.insert((namespace, relative), bytes);
 	}
@@ -117,5 +125,22 @@ mod tests {
 		store.add_jar(&outer).unwrap();
 		assert!(store.get("fabricmod", "models/block/a.json").is_some());
 		assert!(store.get("forgemod", "textures/block/b.png").is_some());
+	}
+
+	#[test]
+	fn lists_blockstates_by_block_id() {
+		let dir = tempfile::tempdir().unwrap();
+		let jar = dir.path().join("mod.jar");
+		write_jar(
+			&jar,
+			&[
+				("assets/techreborn/blockstates/alloy_smelter.json", b"{}"),
+				("assets/techreborn/models/block/a.json", b"{}"),
+			],
+		);
+		let mut store = AssetStore::default();
+		store.add_jar(&jar).unwrap();
+		let ids: Vec<String> = store.blockstates().map(|(id, _)| id).collect();
+		assert_eq!(ids, ["techreborn:alloy_smelter"]);
 	}
 }

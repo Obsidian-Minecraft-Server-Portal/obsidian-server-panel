@@ -1,5 +1,6 @@
-//! Default property values per block, from the vanilla data generator's `blocks.json` report. Version 26.x writes a
-//! block in its default state as a bare name, so those properties must be filled in before baking.
+//! Default property values per block, from the vanilla data generator's `blocks.json` report and, for mod blocks, from
+//! their blockstates. Version 26.x writes a block in its default state as a bare name, so those properties must be
+//! filled in before baking.
 
 use std::collections::BTreeMap;
 
@@ -49,6 +50,15 @@ impl BlockDefaults {
 			}
 		}
 	}
+
+	pub fn knows(&self, name: &str) -> bool {
+		self.properties.contains_key(name)
+	}
+
+	/// Adds the default of a block the report does not list. A default the report already gives is kept.
+	pub fn insert_inferred(&mut self, name: String, properties: BTreeMap<String, String>) {
+		self.properties.entry(name).or_insert(properties);
+	}
 }
 
 #[cfg(test)]
@@ -71,5 +81,26 @@ mod tests {
 		};
 		defaults.fill(&mut explicit);
 		assert_eq!(explicit.properties.get("axis").map(String::as_str), Some("x"));
+	}
+
+	#[test]
+	fn inferred_defaults_only_fill_blocks_the_report_lacks() {
+		let json = br#"{"minecraft:stone": {"states": [{"id": 1, "default": true}]}}"#;
+		let mut defaults = BlockDefaults::parse(json).unwrap();
+		defaults.insert_inferred("techreborn:alloy_smelter".into(), BTreeMap::from([("facing".to_owned(), "north".to_owned())]));
+		defaults.insert_inferred("minecraft:stone".into(), BTreeMap::from([("axis".to_owned(), "x".to_owned())]));
+		assert!(defaults.knows("techreborn:alloy_smelter"));
+		let mut machine = BlockState {
+			name: "techreborn:alloy_smelter".into(),
+			properties: BTreeMap::new(),
+		};
+		defaults.fill(&mut machine);
+		assert_eq!(machine.properties.get("facing").map(String::as_str), Some("north"));
+		let mut stone = BlockState {
+			name: "minecraft:stone".into(),
+			properties: BTreeMap::new(),
+		};
+		defaults.fill(&mut stone);
+		assert!(stone.properties.is_empty());
 	}
 }
