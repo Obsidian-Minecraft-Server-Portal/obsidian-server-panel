@@ -12,6 +12,7 @@ use light::{OPEN_SKY, SectionLight};
 use serde::Deserialize;
 
 use crate::error::{Result, WorldmapError};
+use crate::region::{CHUNKS_PER_SIDE, RegionFile};
 
 const SECTION_SIDE: usize = 16;
 const BLOCKS_PER_SECTION: usize = SECTION_SIDE * SECTION_SIDE * SECTION_SIDE;
@@ -366,6 +367,29 @@ impl RawBlockState {
 	}
 }
 
+/// The chunk at `local_x`, `local_z` of `region`, or `None` when it was never generated or cannot be read. A chunk that cannot
+/// be read is logged and treated as missing, so one damaged chunk never costs the rest of its region.
+pub fn read_chunk(region: &RegionFile, local_x: usize, local_z: usize) -> Option<Chunk> {
+	let (region_x, region_z) = region.region_coords();
+	match region.chunk_nbt(local_x, local_z).and_then(|nbt| nbt.map(|nbt| Chunk::parse(&nbt)).transpose()) {
+		Ok(chunk) => chunk,
+		Err(error) => {
+			tracing::warn!(region_x, region_z, local_x, local_z, %error, "skipping an unreadable chunk");
+			None
+		}
+	}
+}
+
+pub fn load_chunks(region: &RegionFile) -> Vec<Chunk> {
+	let mut chunks = Vec::new();
+	for local_z in 0..CHUNKS_PER_SIDE {
+		for local_x in 0..CHUNKS_PER_SIDE {
+			chunks.extend(read_chunk(region, local_x, local_z));
+		}
+	}
+	chunks
+}
+
 #[cfg(test)]
 mod tests {
 	use std::collections::HashMap;
@@ -373,7 +397,17 @@ mod tests {
 	use fastnbt::Value;
 
 	use super::*;
-	use crate::test_support::{chunk_nbt, chunk_nbt_bare, chunk_nbt_with_biomes};
+	use crate::test_support::{chunk_nbt, chunk_nbt_bare, chunk_nbt_with_biomes, region_records, zlib};
+
+	#[test]
+	fn a_damaged_chunk_is_skipped_and_its_neighbours_still_load() {
+		let dir = tempfile::tempdir().unwrap();
+		let path = dir.path().join("r.0.0.mca");
+		let good = chunk_nbt(0, 0, 3955, &[((0, 0, 0), "minecraft:stone")]);
+		std::fs::write(&path, region_records(&[(0, 0, zlib(&good)), (1, 0, vec![0xde, 0xad, 0xbe, 0xef])])).unwrap();
+		let chunks = load_chunks(&RegionFile::open(&path).unwrap());
+		assert_eq!(chunks.iter().map(|chunk| (chunk.x, chunk.z)).collect::<Vec<_>>(), [(0, 0)]);
+	}
 
 	#[test]
 	fn reads_every_palette_entry_shape() {

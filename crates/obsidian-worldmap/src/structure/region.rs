@@ -11,9 +11,9 @@ use super::overlay::Overlays;
 use super::pack::write_pack;
 use super::volume::Volume;
 use super::{BiomeTable, StateTable, section_volume};
-use crate::chunk::{BlockDefaults, BlockState, Chunk, Section, is_invisible};
+use crate::chunk::{BlockDefaults, BlockState, Chunk, Section, is_invisible, load_chunks};
 use crate::error::{Result, WorldmapError};
-use crate::region::{CHUNKS_PER_SIDE, RegionFile};
+use crate::region::RegionFile;
 
 #[derive(Default)]
 pub struct Vocabulary {
@@ -77,14 +77,9 @@ fn is_open_air(section: &Section, volume: &Volume) -> bool {
 }
 
 fn for_each_chunk(region: &Path, defaults: &BlockDefaults, mut visit: impl FnMut(&Chunk) -> Result<()>) -> Result<()> {
-    let region = RegionFile::open(region)?;
-    for local_z in 0..CHUNKS_PER_SIDE {
-        for local_x in 0..CHUNKS_PER_SIDE {
-            let Some(nbt) = region.chunk_nbt(local_x, local_z)? else { continue };
-            let mut chunk = Chunk::parse(&nbt)?;
-            chunk.fill_default_properties(defaults);
-            visit(&chunk)?;
-        }
+    for mut chunk in load_chunks(&RegionFile::open(region)?) {
+        chunk.fill_default_properties(defaults);
+        visit(&chunk)?;
     }
     Ok(())
 }
@@ -93,7 +88,7 @@ fn for_each_chunk(region: &Path, defaults: &BlockDefaults, mut visit: impl FnMut
 mod tests {
     use super::super::pack::PackReader;
     use super::*;
-    use crate::test_support::{chunk_nbt, chunk_nbt_with_sky_light, region_bytes};
+    use crate::test_support::{chunk_nbt, chunk_nbt_with_sky_light, region_bytes, region_records, zlib};
 
     #[test]
     fn only_all_air_sections_with_open_sky_light_are_left_out() {
@@ -120,5 +115,21 @@ mod tests {
         assert!(pack.section([2, 0, 0]).unwrap().is_none(), "stored light of 0 under open sky is raised to open sky");
         assert!(pack.section([3, 0, 0]).unwrap().is_none());
         assert!(!structure.join("sections").exists(), "the per-section files of the region are gone");
+    }
+
+    #[test]
+    fn a_damaged_chunk_is_left_out_while_its_neighbours_are_packed() {
+        let dir = tempfile::tempdir().unwrap();
+        let region = dir.path().join("r.0.0.mca");
+        let good = chunk_nbt(0, 0, 3955, &[((1, 1, 1), "minecraft:stone")]);
+        fs::write(&region, region_records(&[(0, 0, zlib(&good)), (1, 0, vec![0xde, 0xad, 0xbe, 0xef])])).unwrap();
+        let defaults = BlockDefaults::default();
+        let mut states = StateTable::default();
+        states.extend(vocabulary(&region, &defaults).unwrap().states);
+        let structure = dir.path().join("structure");
+        let written = write_region_pack(&region, &structure, &defaults, &states, &BiomeTable::with_plains()).unwrap();
+        let mut pack = PackReader::open(&structure.join("regions").join("r.0.0.obsr")).unwrap().unwrap();
+        assert_eq!(written, 1);
+        assert!(pack.section([0, 0, 0]).unwrap().is_some());
     }
 }

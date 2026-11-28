@@ -2,6 +2,7 @@
 
 pub mod assets;
 pub mod atlas;
+pub mod atomic;
 pub mod biome;
 pub mod chunk;
 pub mod colour;

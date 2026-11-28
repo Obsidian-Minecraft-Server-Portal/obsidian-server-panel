@@ -4,7 +4,7 @@
 use image::{Rgba, RgbaImage};
 
 use crate::biome::Biome;
-use crate::chunk::{BlockDefaults, Chunk};
+use crate::chunk::{BlockDefaults, Chunk, read_chunk};
 use crate::colour::{BlockColours, SPRITE_SIZE};
 use crate::error::Result;
 use crate::world::BlockWorld;
@@ -35,9 +35,7 @@ pub fn render_detail_tile(
 	let mut chunks = Vec::new();
 	for local_z in first_z..(tile_z + 1) * CHUNKS_PER_TILE {
 		for local_x in tile_x * CHUNKS_PER_TILE..(tile_x + 1) * CHUNKS_PER_TILE {
-			if let Some(nbt) = region.chunk_nbt(local_x, local_z)? {
-				chunks.push(Chunk::parse(&nbt)?);
-			}
+			chunks.extend(read_chunk(region, local_x, local_z));
 		}
 	}
 	let world = BlockWorld::new(chunks, defaults);
@@ -81,7 +79,7 @@ fn paint(image: &mut RgbaImage, left: u32, top: u32, sprite: &RgbaImage, tint: [
 mod tests {
 	use super::*;
 	use crate::biome::BiomeRegistry;
-	use crate::test_support::{chunk_nbt, region_bytes, stone_assets};
+	use crate::test_support::{chunk_nbt, region_bytes, region_records, stone_assets, zlib};
 
 	#[test]
 	fn draws_each_block_with_its_texture_at_sprite_size_and_height_shade() {
@@ -98,5 +96,21 @@ mod tests {
 		let lit = (120.0 * shade_factor(0)) as u8;
 		assert_eq!(image.get_pixel(SPRITE_SIZE - 1, SPRITE_SIZE - 1), &Rgba([lit, lit, lit, 255]));
 		assert_eq!(image.get_pixel(SPRITE_SIZE, 0)[3], 0);
+	}
+
+	#[test]
+	fn a_damaged_chunk_is_skipped_and_its_neighbour_still_draws() {
+		let dir = tempfile::tempdir().unwrap();
+		let path = dir.path().join("r.0.0.mca");
+		let good = chunk_nbt(0, 0, 3955, &[((0, 0, 0), "minecraft:stone")]);
+		std::fs::write(&path, region_records(&[(0, 0, zlib(&good)), (1, 0, vec![0xde, 0xad, 0xbe, 0xef])])).unwrap();
+		let region = RegionFile::open(&path).unwrap();
+		let assets = stone_assets();
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
+		let image = render_detail_tile(&region, 0, 0, &BlockDefaults::default(), &mut colours).unwrap();
+		let lit = (120.0 * shade_factor(0)) as u8;
+		assert_eq!(image.get_pixel(SPRITE_SIZE - 1, SPRITE_SIZE - 1), &Rgba([lit, lit, lit, 255]));
+		assert_eq!(image.get_pixel(16 * SPRITE_SIZE + 1, 1)[3], 0);
 	}
 }

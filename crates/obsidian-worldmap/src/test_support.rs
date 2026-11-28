@@ -145,16 +145,19 @@ pub fn write_jar(path: &Path, entries: &[(&str, &[u8])]) {
 
 /// A region file holding `chunks`, each given by its local (x, z) and NBT bytes. Chunks are zlib-compressed.
 pub fn region_bytes(chunks: &[(usize, usize, Vec<u8>)]) -> Vec<u8> {
+	let records: Vec<(usize, usize, Vec<u8>)> = chunks.iter().map(|(x, z, nbt)| (*x, *z, zlib(nbt))).collect();
+	region_records(&records)
+}
+
+/// A region file whose records are already compressed, so a test can store a damaged one.
+pub fn region_records(records: &[(usize, usize, Vec<u8>)]) -> Vec<u8> {
 	let mut header = vec![0_u8; 8192];
 	let mut body = Vec::new();
 	let mut sector = 2_u32;
-	for (local_x, local_z, nbt) in chunks {
-		let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
-		encoder.write_all(nbt).unwrap();
-		let compressed = encoder.finish().unwrap();
-		let mut record = ((compressed.len() + 1) as u32).to_be_bytes().to_vec();
+	for (local_x, local_z, payload) in records {
+		let mut record = ((payload.len() + 1) as u32).to_be_bytes().to_vec();
 		record.push(2);
-		record.extend(compressed);
+		record.extend(payload);
 		let sectors = record.len().div_ceil(4096);
 		record.resize(sectors * 4096, 0);
 		let entry = local_z * 32 + local_x;
@@ -164,6 +167,12 @@ pub fn region_bytes(chunks: &[(usize, usize, Vec<u8>)]) -> Vec<u8> {
 	}
 	header.extend(body);
 	header
+}
+
+pub fn zlib(bytes: &[u8]) -> Vec<u8> {
+	let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+	encoder.write_all(bytes).unwrap();
+	encoder.finish().unwrap()
 }
 
 /// Assets for one textured cube, so block meshes and atlases have something to pack.

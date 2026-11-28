@@ -7,7 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use crate::chunk::{BlockDefaults, Chunk, is_invisible};
+use crate::atomic;
+use crate::chunk::{BlockDefaults, Chunk, is_invisible, load_chunks, read_chunk};
 use crate::colour::BlockColours;
 use crate::error::Result;
 use crate::region::{CHUNKS_PER_SIDE, RegionFile};
@@ -51,7 +52,7 @@ pub struct SectionEntry {
 pub fn render_region(path: &Path, dimension_dir: &Path, defaults: &BlockDefaults, colours: &mut BlockColours<'_>) -> Result<RegionManifest> {
 	let region = RegionFile::open(path)?;
 	let (region_x, region_z) = region.region_coords();
-	let mut chunks = load_chunks(&region)?;
+	let mut chunks = load_chunks(&region);
 	chunks.extend(neighbour_edges(path, region_x, region_z));
 	let world = BlockWorld::new(chunks, defaults);
 
@@ -108,18 +109,6 @@ fn owns(chunk: &Chunk, region_x: i32, region_z: i32) -> bool {
 	chunk.x.div_euclid(size) == region_x && chunk.z.div_euclid(size) == region_z
 }
 
-fn load_chunks(region: &RegionFile) -> Result<Vec<Chunk>> {
-	let mut chunks = Vec::new();
-	for local_z in 0..CHUNKS_PER_SIDE {
-		for local_x in 0..CHUNKS_PER_SIDE {
-			if let Some(nbt) = region.chunk_nbt(local_x, local_z)? {
-				chunks.push(Chunk::parse(&nbt)?);
-			}
-		}
-	}
-	Ok(chunks)
-}
-
 /// The chunks along the edges of the neighbouring regions that face this one. Unreadable or missing regions add nothing.
 fn neighbour_edges(path: &Path, region_x: i32, region_z: i32) -> Vec<Chunk> {
 	let Some(directory) = path.parent() else { return Vec::new() };
@@ -134,20 +123,14 @@ fn neighbour_edges(path: &Path, region_x: i32, region_z: i32) -> Vec<Chunk> {
 				(_, -1) => (along, LAST_CHUNK),
 				_ => (along, 0),
 			};
-			let Ok(Some(nbt)) = neighbour.chunk_nbt(local_x, local_z) else { continue };
-			if let Ok(chunk) = Chunk::parse(&nbt) {
-				chunks.push(chunk);
-			}
+			chunks.extend(read_chunk(&neighbour, local_x, local_z));
 		}
 	}
 	chunks
 }
 
 fn write(path: &Path, bytes: &[u8]) -> Result<()> {
-	if let Some(parent) = path.parent() {
-		fs::create_dir_all(parent)?;
-	}
-	fs::write(path, bytes)?;
+	atomic::write(path, bytes)?;
 	Ok(())
 }
 
@@ -155,7 +138,7 @@ fn write(path: &Path, bytes: &[u8]) -> Result<()> {
 mod tests {
 	use super::*;
 	use crate::biome::BiomeRegistry;
-	use crate::test_support::{chunk_nbt, region_bytes, stone_assets};
+	use crate::test_support::{chunk_nbt, region_bytes, region_records, stone_assets, zlib};
 
 	fn solid_chunk(x: i32, z: i32) -> Vec<u8> {
 		let blocks: Vec<((usize, usize, usize), &str)> = (0..16)
@@ -183,6 +166,20 @@ mod tests {
 				file: "structure/regions/r.0.0.obsr".to_owned(),
 			}]
 		);
+		assert!(out.join(&manifest.tile).exists());
+	}
+
+	#[test]
+	fn a_region_with_a_damaged_chunk_still_renders_its_readable_chunks() {
+		let dir = tempfile::tempdir().unwrap();
+		let region = dir.path().join("r.0.0.mca");
+		fs::write(&region, region_records(&[(0, 0, zlib(&solid_chunk(0, 0))), (1, 0, vec![0xde, 0xad, 0xbe, 0xef])])).unwrap();
+		let assets = stone_assets();
+		let biomes = BiomeRegistry::default();
+		let mut colours = BlockColours::new(&assets, &biomes);
+		let out = dir.path().join("out");
+		let manifest = render_region(&region, &out, &BlockDefaults::default(), &mut colours).unwrap();
+		assert_eq!(manifest.sections.len(), 1);
 		assert!(out.join(&manifest.tile).exists());
 	}
 }
