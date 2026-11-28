@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 COPY index.html tsconfig.json tsconfig.node.json vite.config.ts ./
 COPY src ./src
+COPY public ./public
 RUN pnpm run build:frontend
 
 FROM rust:${RUST_VERSION}-bookworm AS build
