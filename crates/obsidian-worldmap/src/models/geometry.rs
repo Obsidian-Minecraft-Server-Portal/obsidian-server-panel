@@ -113,7 +113,7 @@ pub fn element_quads(element: &Element, textures: &BTreeMap<String, String>, tin
 			let (du, dv) = default_uv(direction, corner);
 			let u = rect[0] + (du - default[0]) / (default[2] - default[0]) * (rect[2] - rect[0]);
 			let v = rect[1] + (dv - default[1]) / (default[3] - default[1]) * (rect[3] - rect[1]);
-			*slot = rotate_uv([u, v], quarter_turns(face.rotation));
+			*slot = rotate_uv([u, v], (4 - quarter_turns(face.rotation)) % 4);
 		}
 		if let Some(rotation) = &element.rotation {
 			corners = corners.map(|corner| rotate_element(corner, rotation));
@@ -230,7 +230,8 @@ fn quarter_turns(degrees: i32) -> i32 {
 	degrees.rem_euclid(360) / 90
 }
 
-/// Rotates a texture coordinate clockwise about the texture centre.
+/// Turns a texture coordinate clockwise about the texture centre, once per quarter turn. A face's `rotation` turns its texture
+/// clockwise, which is the opposite turn of its coordinates, so the caller passes the complement.
 fn rotate_uv(uv: [f32; 2], turns: i32) -> [f32; 2] {
 	(0..turns).fold(uv, |[u, v], _| [16.0 - v, u])
 }
@@ -357,7 +358,7 @@ mod tests {
 		let turned = element_quads(&cube(&[("up", up)]), &textures, None, true);
 		let turned_max_u = turned[0].uvs.iter().map(|uv| uv[0]).fold(f32::MIN, f32::max);
 		let turned_max_v = turned[0].uvs.iter().map(|uv| uv[1]).fold(f32::MIN, f32::max);
-		assert_eq!((turned_max_u, turned_max_v), (16.0, 8.0));
+		assert_eq!((turned_max_u, turned_max_v), (8.0, 16.0));
 	}
 
 	#[test]
