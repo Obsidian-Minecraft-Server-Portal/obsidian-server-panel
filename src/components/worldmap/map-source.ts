@@ -1,9 +1,8 @@
-/** One section in the manifest: its chunk x, section y and chunk z, and the file that holds its mesh. */
+/** One section in the manifest: its chunk x, section y and chunk z. */
 export interface SectionEntry {
   x: number;
   y: number;
   z: number;
-  file: string;
 }
 
 /** One region's overview tile. `version` is the time the region was drawn, which names its cached copies. */

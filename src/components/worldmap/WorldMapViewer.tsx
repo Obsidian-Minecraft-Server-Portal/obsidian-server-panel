@@ -20,6 +20,8 @@ const DEFAULT_PITCH = -0.45;
 const LOOK_DOWN_HEIGHT = 40;
 const SKY = new Color(0x9ec9f5);
 const NO_CELLS: StreamStats = { loaded: 0, loading: 0, queued: 0, failed: 0, busy: 0, waiting: 0 };
+/** A manifest that failed to load is asked for again after this long. */
+const MANIFEST_RETRY_MS = 10_000;
 
 interface Progress {
   message: string;
@@ -264,7 +266,7 @@ export function WorldMapViewer({
         instanceId,
         position: view.fly.position,
         onProgress: (message, busy) => setProgress({ message, busy }),
-        onStaleTables: () => reloadRef.current?.(),
+        onNeedManifest: () => reloadRef.current?.(),
       },
       source,
       folder,
@@ -283,11 +285,16 @@ export function WorldMapViewer({
       view.fly.pitch = remembered.pitch ?? DEFAULT_PITCH;
     };
 
+    let request = 0;
+    let retry: number | undefined;
     const loadManifest = () => {
+      window.clearTimeout(retry);
+      request += 1;
+      const current = request;
       source
         .loadManifest()
         .then((loaded) => {
-          if (disposed) {
+          if (disposed || current !== request) {
             return;
           }
           stream.apply(loaded);
@@ -297,9 +304,11 @@ export function WorldMapViewer({
           }
         })
         .catch((error: unknown) => {
-          if (!disposed) {
-            setProgress({ message: `Could not load the map: ${String(error)}`, busy: false });
+          if (disposed || current !== request) {
+            return;
           }
+          setProgress({ message: `Could not load the map: ${String(error)}`, busy: false });
+          retry = window.setTimeout(loadManifest, MANIFEST_RETRY_MS);
         });
     };
     reloadRef.current = loadManifest;
@@ -307,6 +316,7 @@ export function WorldMapViewer({
 
     return () => {
       disposed = true;
+      window.clearTimeout(retry);
       reloadRef.current = null;
       remember(session);
       sessionRef.current = null;

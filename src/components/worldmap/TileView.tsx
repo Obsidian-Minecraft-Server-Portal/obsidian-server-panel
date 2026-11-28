@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type SyntheticEvent, type WheelEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type WheelEvent } from "react";
 import {
   useWorldMapManifest,
   worldMapDetailUrl,
@@ -11,6 +11,7 @@ import { easeFactor } from "./ease";
 import type { MapFocus } from "./map-focus";
 import { dimensionMemory, rememberDimension } from "./map-memory";
 import { PlayerTag } from "./PlayerTag";
+import { RetryingImage } from "./RetryingImage";
 import { PoseDamper } from "./pose-damper";
 import type { PlayerPose, PlayerTrack } from "./player-track";
 import type { ViewPlace } from "./use-viewer-heartbeat";
@@ -324,8 +325,8 @@ export function TileView({
         <>
           <div ref={layer} className="absolute top-0 left-0 origin-top-left">
             {tiles.map((tile) => (
-              <img
-                key={tile.file}
+              <RetryingImage
+                key={`${tile.file}:${tile.version}`}
                 src={source.fileUrl(tile.file, tile.version)}
                 alt=""
                 loading="lazy"
@@ -341,13 +342,12 @@ export function TileView({
               />
             ))}
             {detail.map((tile) => (
-              <img
-                key={tile.key}
+              <RetryingImage
+                key={`${tile.key}:${tile.src}`}
                 src={tile.src}
                 alt=""
                 decoding="async"
                 draggable={false}
-                onError={hideBroken}
                 className="absolute max-w-none"
                 style={{ left: tile.left, top: tile.top, width: DETAIL_BLOCKS, height: DETAIL_BLOCKS }}
               />
@@ -446,11 +446,6 @@ function detailTilesOnScreen(
     }
   }
   return found;
-}
-
-/** A tile the server could not draw keeps the overview underneath it. */
-function hideBroken(event: SyntheticEvent<HTMLImageElement>) {
-  event.currentTarget.style.visibility = "hidden";
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -16,6 +16,7 @@ const CELLS_PER_REGION = 8;
 const MAX_CONCURRENT_LOADS = 6;
 const RETRY_MS = 30_000;
 const FETCH_TIMEOUT_MS = 20_000;
+const RELOAD_MS = 10_000;
 
 type CellState = "idle" | "queued" | "loading";
 
@@ -48,8 +49,8 @@ export interface CellStreamOptions {
   /** The camera's position in blocks. Cells are chosen by their distance from it. */
   position: Vector3;
   onProgress(message: string, busy: boolean): void;
-  /** A bundle named ids the loaded tables lack, so the manifest is read again. */
-  onStaleTables(): void;
+  /** The stream needs a fresh manifest: a bundle named ids the loaded tables lack, or tables or the atlas failed to load. */
+  onNeedManifest(): void;
 }
 
 /**
@@ -70,6 +71,7 @@ export class CellStream {
   private inFlight = 0;
   private reported = "";
   private disposed = false;
+  private retryTimer?: number;
 
   constructor(
     private readonly options: CellStreamOptions,
@@ -146,6 +148,7 @@ export class CellStream {
 
   dispose(): void {
     this.disposed = true;
+    window.clearTimeout(this.retryTimer);
     document.removeEventListener("visibilitychange", this.onVisibility);
     for (const cell of this.cells.values()) {
       cell.generation++;
@@ -221,7 +224,7 @@ export class CellStream {
         }
         cell.retryAt = performance.now() + RETRY_MS;
         cell.failed = true;
-        if (error instanceof StaleTablesError) this.options.onStaleTables();
+        if (error instanceof StaleTablesError) this.options.onNeedManifest();
         console.error(`could not load cell ${id}`, error);
       })
       .finally(() => {
@@ -282,7 +285,10 @@ export class CellStream {
         this.pump();
       })
       .catch((error: unknown) => {
-        if (!this.disposed) this.options.onProgress(`Could not load the map: ${String(error)}`, false);
+        if (this.disposed) return;
+        if (this.tablesWanted === key) this.tablesWanted = undefined;
+        this.options.onProgress(`Could not load the map: ${String(error)}`, false);
+        this.scheduleReload();
       });
   }
 
@@ -308,12 +314,26 @@ export class CellStream {
       }
       previous?.dispose();
       this.pump();
+    }, undefined, () => {
+      texture.dispose();
+      if (this.disposed || this.atlasPending !== key) return;
+      this.atlasPending = undefined;
+      this.scheduleReload();
     });
     texture.colorSpace = NoColorSpace;
     texture.magFilter = NearestFilter;
     texture.minFilter = NearestMipmapNearestFilter;
     texture.generateMipmaps = true;
     texture.flipY = false;
+  }
+
+  /** Asks for the manifest again after a moment, so a failed table or atlas load is tried once more. */
+  private scheduleReload(): void {
+    if (this.disposed || this.retryTimer !== undefined) return;
+    this.retryTimer = window.setTimeout(() => {
+      this.retryTimer = undefined;
+      if (!this.disposed) this.options.onNeedManifest();
+    }, RELOAD_MS);
   }
 
   private report(message: string): void {

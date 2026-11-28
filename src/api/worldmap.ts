@@ -98,7 +98,8 @@ export function useWorldMapManifest(instanceId: number, folder: string, revision
     queryKey: [...worldMapKey(instanceId), "manifest", folder, revision] as const,
     queryFn: () => api.get<WorldMapManifest>(`/instances/${instanceId}/worldmap/dimensions/${folder}`),
     enabled: isInstanceId(instanceId),
-    staleTime: 0,
+    // The key names the render revision, so a manifest stays current until the revision moves.
+    staleTime: Infinity,
     placeholderData: keepPreviousData,
   });
 }

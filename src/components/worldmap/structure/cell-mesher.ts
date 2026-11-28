@@ -41,6 +41,7 @@ export class CellMesher {
       const worker = new Worker(new URL("./mesh-worker.ts", import.meta.url), { type: "module" });
       worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.finish(worker, event.data);
       worker.onerror = (event) => this.fail(worker, new Error(event.message));
+      worker.onmessageerror = () => this.fail(worker, new Error("the mesh worker sent an unreadable reply"));
       worker.postMessage({ type: "tables", blocks, biomes } satisfies WorkerRequest);
       this.workers.push(worker);
       this.idle.push(worker);
