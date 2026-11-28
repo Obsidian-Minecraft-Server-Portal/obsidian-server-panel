@@ -20,12 +20,11 @@ pub struct WorldMapManifest {
 	pub tiles: Vec<WorldMapTile>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct WorldMapSection {
 	pub x: i32,
 	pub y: i32,
 	pub z: i32,
-	pub file: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -53,7 +52,20 @@ struct RegionFile {
 	x: i32,
 	z: i32,
 	tile: String,
-	sections: Vec<WorldMapSection>,
+	sections: Vec<RegionSection>,
+	#[serde(rename = "renderedAt", default)]
+	rendered_at: i64,
+}
+
+#[derive(Deserialize)]
+struct RegionSection {
+	x: i32,
+	y: i32,
+	z: i32,
+}
+
+#[derive(Deserialize)]
+struct RegionStamp {
 	#[serde(rename = "renderedAt", default)]
 	rendered_at: i64,
 }
@@ -78,8 +90,9 @@ pub async fn dimension(map_dir: &Path, folder: &str) -> Result<WorldMapManifest>
 			version: region.rendered_at,
 		});
 		sections.extend(region.sections.into_iter().map(|section| WorldMapSection {
-			file: format!("{folder}/{}", section.file),
-			..section
+			x: section.x,
+			y: section.y,
+			z: section.z,
 		}));
 	}
 	sections.sort_by_key(|section| (section.x, section.y, section.z));
@@ -93,6 +106,12 @@ pub async fn dimension(map_dir: &Path, folder: &str) -> Result<WorldMapManifest>
 		sections,
 		tiles,
 	})
+}
+
+/// When a region was last drawn, in Unix milliseconds. Its detail tiles are named by it.
+pub async fn region_version(folder_dir: &Path, region: (i32, i32)) -> Result<i64> {
+	let stamp: RegionStamp = read_json(&folder_dir.join("regions").join(format!("r.{}.{}.json", region.0, region.1))).await?;
+	Ok(stamp.rendered_at)
 }
 
 /// Stamps the block and biome tables by size and modification time, which costs two metadata reads rather than a hash.

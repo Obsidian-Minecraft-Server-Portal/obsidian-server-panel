@@ -13,6 +13,8 @@ use obsidian_worldmap::skins::{self, Model};
 use serde::Deserialize;
 
 const PROFILE_URL: &str = "https://sessionserver.mojang.com/session/minecraft/profile/";
+const MAX_PROFILE_BYTES: usize = 64 * 1024;
+const MAX_SKIN_BYTES: usize = 512 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub const STEVE: &str = "steve.png";
 pub const ALEX: &str = "alex.png";
@@ -79,36 +81,33 @@ impl Skins {
 
 	/// Downloads a player's skin and keeps it under the file name of its model. Returns `false` when Mojang has no skin.
 	pub async fn fetch_skin(&self, uuid: &str) -> Result<bool> {
-		let profile: Profile = self
-			.http
-			.get(format!("{PROFILE_URL}{}", uuid.replace('-', "")))
-			.send()
-			.await
-			.and_then(|response| response.error_for_status())
-			.map_err(other)?
-			.json()
-			.await
-			.map_err(other)?;
+		if !is_uuid(uuid) {
+			return Err(other("a player's UUID must be 32 hex digits"));
+		}
+		let profile: Profile = serde_json::from_slice(&self.get_capped(&format!("{PROFILE_URL}{}", uuid.replace('-', "")), MAX_PROFILE_BYTES).await?)?;
 		let Some(textures) = profile.properties.into_iter().find(|property| property.name == "textures") else {
 			return Ok(false);
 		};
 		let decoded = STANDARD.decode(textures.value).map_err(other)?;
 		let Some(skin) = skins::skin_ref(&decoded) else { return Ok(false) };
-		let png = self
-			.http
-			.get(&skin.url)
-			.send()
-			.await
-			.and_then(|response| response.error_for_status())
-			.map_err(other)?
-			.bytes()
-			.await
-			.map_err(other)?;
+		let png = self.get_capped(&skin.url, MAX_SKIN_BYTES).await?;
 		skins::check_skin(&png).map_err(other)?;
 		let previous = if skin.model == Model::Slim { Model::Wide } else { Model::Slim };
 		let _ = tokio::fs::remove_file(self.path(&skin_file(uuid, previous))).await;
 		tokio::fs::write(self.path(&skin_file(uuid, skin.model)), &png).await?;
 		Ok(true)
+	}
+
+	async fn get_capped(&self, url: &str, limit: usize) -> Result<Vec<u8>> {
+		let mut response = self.http.get(url).send().await.and_then(|response| response.error_for_status()).map_err(other)?;
+		let mut body = Vec::new();
+		while let Some(chunk) = response.chunk().await.map_err(other)? {
+			if body.len() + chunk.len() > limit {
+				return Err(other("a Mojang response is larger than a skin can be"));
+			}
+			body.extend_from_slice(&chunk);
+		}
+		Ok(body)
 	}
 }
 
@@ -145,7 +144,16 @@ pub fn user_cache(instance_dir: &Path) -> HashMap<String, String> {
 	}
 	let Ok(bytes) = std::fs::read(instance_dir.join("usercache.json")) else { return HashMap::new() };
 	let entries: Vec<Entry> = serde_json::from_slice(&bytes).unwrap_or_default();
-	entries.into_iter().map(|entry| (entry.name.to_ascii_lowercase(), entry.uuid)).collect()
+	entries
+		.into_iter()
+		.filter(|entry| is_uuid(&entry.uuid))
+		.map(|entry| (entry.name.to_ascii_lowercase(), entry.uuid))
+		.collect()
+}
+
+fn is_uuid(text: &str) -> bool {
+	let hex = text.replace('-', "");
+	hex.len() == 32 && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 #[derive(Deserialize)]
@@ -227,5 +235,18 @@ mod tests {
 		let cache = user_cache(dir.path());
 		assert_eq!(cache.get("steve").map(String::as_str), Some("853c80ef-3c37-49fd-aa49-938b674adae6"));
 		assert!(user_cache(&dir.path().join("missing")).is_empty());
+	}
+
+	#[test]
+	fn the_user_cache_drops_entries_whose_uuid_is_not_one() {
+		let dir = tempfile::tempdir().unwrap();
+		std::fs::write(
+			dir.path().join("usercache.json"),
+			br#"[{"name": "Steve", "uuid": "../../secret"}, {"name": "Alex", "uuid": "853c80ef-3c37-49fd-aa49-938b674adae6"}]"#,
+		)
+		.unwrap();
+		let cache = user_cache(dir.path());
+		assert!(!cache.contains_key("steve"));
+		assert!(cache.contains_key("alex"));
 	}
 }

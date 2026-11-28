@@ -30,7 +30,11 @@ use crate::jars;
 use crate::viewers::Viewers;
 use crate::settings;
 
+const POLL_TICK: Duration = Duration::from_secs(1);
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// Console replies are written to the server log, so console polls are spaced out. RCON replies are not logged.
+const CONSOLE_POLL_INTERVAL: Duration = Duration::from_secs(5);
+const EMPTY_CONSOLE_POLL_INTERVAL: Duration = Duration::from_secs(15);
 const HOT_INTERVAL: Duration = Duration::from_secs(1);
 const LIST_WAIT: Duration = Duration::from_secs(1);
 const POSITION_WAIT: Duration = Duration::from_secs(1);
@@ -190,7 +194,7 @@ impl LiveService {
 	}
 
 	async fn run(self: Arc<Self>) {
-		let mut ticker = tokio::time::interval(POLL_INTERVAL);
+		let mut ticker = tokio::time::interval(POLL_TICK);
 		ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 		let mut hot = tokio::time::interval(HOT_INTERVAL);
 		hot.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -211,9 +215,12 @@ impl LiveService {
 				session.show_replies();
 			}
 		}
+		let now = Instant::now();
 		for id in watched {
 			let session = sessions.entry(id).or_insert_with(|| Session::new(self.instances.clone(), id));
-			self.poll(id, session).await;
+			if session.next_poll <= now {
+				self.poll(id, session).await;
+			}
 		}
 	}
 
@@ -254,6 +261,7 @@ impl LiveService {
 			}
 			Err(error) => WorldMapPlayers::unavailable(error.to_string()),
 		};
+		session.next_poll = Instant::now() + session.next_interval(&snapshot);
 		self.publish(id, snapshot);
 	}
 
@@ -384,6 +392,7 @@ struct Session {
 	rcon_retry_at: Option<Instant>,
 	defaults_ready: bool,
 	skin_requests: HashMap<String, Instant>,
+	next_poll: Instant,
 }
 
 impl Session {
@@ -395,6 +404,16 @@ impl Session {
 			rcon_retry_at: None,
 			defaults_ready: false,
 			skin_requests: HashMap::new(),
+			next_poll: Instant::now(),
+		}
+	}
+
+	fn next_interval(&self, snapshot: &WorldMapPlayers) -> Duration {
+		match snapshot.state {
+			LiveState::Live if self.rcon.is_some() => POLL_INTERVAL,
+			LiveState::Live if snapshot.players.is_empty() => EMPTY_CONSOLE_POLL_INTERVAL,
+			LiveState::Live => CONSOLE_POLL_INTERVAL,
+			LiveState::Pending | LiveState::Offline | LiveState::Unavailable => POLL_INTERVAL,
 		}
 	}
 

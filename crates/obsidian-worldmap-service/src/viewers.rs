@@ -5,12 +5,15 @@ use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
-use obsidian_common::InstanceId;
+use obsidian_common::{CommonError, InstanceId, Result};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
 const TTL: Duration = Duration::from_secs(45);
-pub const MAX_VIEWER_ID: usize = 64;
+const MAX_VIEWER_ID: usize = 64;
+const MAX_VIEWERS: usize = 256;
+const MAX_FOLDER_LEN: usize = 128;
+const MAX_BLOCK: f64 = 30_000_000.0;
 const REGION_BLOCKS: f64 = 512.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ToSchema)]
@@ -37,6 +40,29 @@ pub struct ViewReport {
 	pub follow: Option<String>,
 }
 
+impl ViewReport {
+	pub fn validate(&self) -> Result<()> {
+		if !(1..=MAX_VIEWER_ID).contains(&self.viewer.len()) || !plain(&self.viewer, b"-_") {
+			return Err(CommonError::Invalid(format!("a view id is 1 to {MAX_VIEWER_ID} letters, digits, dashes or underscores")));
+		}
+		if !(1..=MAX_FOLDER_LEN).contains(&self.folder.len()) || !plain(&self.folder, b"-_.") || self.folder.starts_with('.') {
+			return Err(CommonError::Invalid(format!("{} is not a dimension folder", self.folder)));
+		}
+		if [self.x, self.y, self.z].iter().any(|value| !value.is_finite() || value.abs() > MAX_BLOCK) {
+			return Err(CommonError::Invalid("a view must be inside the world border".into()));
+		}
+		let follows_a_player = self.follow.as_deref().is_none_or(|name| (1..=16).contains(&name.len()) && plain(name, b"_"));
+		if !follows_a_player {
+			return Err(CommonError::Invalid("a followed player must have a player name".into()));
+		}
+		Ok(())
+	}
+}
+
+fn plain(text: &str, extra: &[u8]) -> bool {
+	text.bytes().all(|byte| byte.is_ascii_alphanumeric() || extra.contains(&byte))
+}
+
 #[derive(Debug, Clone)]
 pub struct Viewer {
 	pub folder: String,
@@ -53,6 +79,14 @@ pub struct Viewers {
 }
 
 impl Viewers {
+	/// Whether `viewer` may report: it already counts, or the instance has room for another view.
+	pub fn has_room(&self, id: InstanceId, viewer: &str) -> bool {
+		let mut views = self.views.lock().unwrap_or_else(PoisonError::into_inner);
+		let Some(instance) = views.get_mut(&id) else { return true };
+		instance.retain(|_, view| Instant::now().duration_since(view.seen) < TTL);
+		instance.contains_key(viewer) || instance.len() < MAX_VIEWERS
+	}
+
 	/// Records a heartbeat. Returns whether the view is new or has moved into another region.
 	pub fn report(&self, id: InstanceId, report: ViewReport) -> bool {
 		self.report_at(id, report, Instant::now())

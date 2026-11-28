@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use obsidian_common::{CommonError, EventBus, InstanceId, Paths, Result, TaskHandle, TaskRegistry, TopicDemand};
@@ -26,11 +27,18 @@ use crate::manifest::{self, WorldMapManifest};
 use crate::settings::{self, WorldMapSettings};
 use crate::state::{self, RenderState};
 use crate::status::{WorldMapDimensionStatus, WorldMapStatus};
-use crate::viewers::{MAX_VIEWER_ID, ViewReport, Viewers};
+use crate::viewers::{ViewReport, Viewers};
 use crate::{jars, policy};
 
 type RegionGate = Arc<tokio::sync::Mutex<()>>;
 type DrawGates = Mutex<HashMap<(InstanceId, String, (i32, i32)), RegionGate>>;
+const VIEW_SCAN_GAP: Duration = Duration::from_secs(2);
+
+#[derive(Default)]
+struct ScanSlot {
+	last: Option<Instant>,
+	queued: bool,
+}
 
 #[derive(Default)]
 struct Slot {
@@ -52,6 +60,7 @@ pub struct WorldMapService {
 	draw_gates: DrawGates,
 	viewers: Arc<Viewers>,
 	watches: Watches,
+	scans: Mutex<HashMap<InstanceId, ScanSlot>>,
 }
 
 impl WorldMapService {
@@ -80,6 +89,7 @@ impl WorldMapService {
 			draw_gates: Mutex::new(HashMap::new()),
 			viewers,
 			watches: Watches::default(),
+			scans: Mutex::new(HashMap::new()),
 		}))
 	}
 
@@ -113,6 +123,7 @@ impl WorldMapService {
 		if update.rcon != previous.rcon {
 			self.live.configure_rcon(id, update.rcon).await?;
 		}
+		self.reconcile_watch(id).await;
 		if update.enabled && !previous.enabled {
 			self.request(id, BuildMode::Full);
 		}
@@ -158,31 +169,36 @@ impl WorldMapService {
 		manifest::file_path(&instance.directory.join(OUTPUT_FOLDER), relative)
 	}
 
-	/// One textured detail tile of a region. It is drawn the first time it is asked for, then served from disk.
-	pub async fn detail(&self, id: InstanceId, folder: &str, region: (i32, i32), tile: (usize, usize)) -> Result<PathBuf> {
+	/// One textured detail tile of a region's render, identified by the render's time. It is drawn the first time it is asked
+	/// for, then served from disk. Only the current render is drawn, so a stale request cannot start a draw.
+	pub async fn detail(&self, id: InstanceId, folder: &str, region: (i32, i32), tile: (usize, usize), version: i64) -> Result<PathBuf> {
 		let instance = self.instances.get(id).await?;
 		let map_dir = instance.directory.join(OUTPUT_FOLDER);
-		let location = detail::tile_path(&map_dir, folder, region, tile)?;
+		let location = detail::tile_path(&map_dir, folder, region, tile, version)?;
 		if tokio::fs::metadata(&location).await.is_ok() {
 			return Ok(location);
+		}
+		let folder_dir = manifest::file_path(&map_dir, folder)?;
+		if manifest::region_version(&folder_dir, region).await? != version {
+			return Err(CommonError::NotFound(format!("r.{}.{} was rendered again; fetch the map again", region.0, region.1)));
 		}
 		let gate = self.draw_gate(id, folder, region);
 		let _held = gate.lock().await;
 		if tokio::fs::metadata(&location).await.is_ok() {
 			return Ok(location);
 		}
-		let key = state::load(&map_dir)
-			.await
-			.pack_key
-			.ok_or_else(|| CommonError::NotFound("the map has not rendered yet".into()))?;
+		let sources = self.sources(&instance).await?;
+		let key = sources.pack_key(&instance.mc_version)?;
+		if state::load(&map_dir).await.pack_key.as_deref() != Some(key.as_str()) {
+			return Err(CommonError::Conflict("render the map again before its detail tiles are drawn".into()));
+		}
 		let level = level_name(&instance.directory).await?;
 		let region_file = detail::region_path(&instance.directory, &level, folder, region)?;
-		let sources = self.sources(&instance).await?;
 		let packs = Arc::clone(&self.packs);
 		let draw_folder = folder.to_owned();
 		background::spawn(move || {
 			let pack = packs.get(id, &key, &sources)?;
-			detail::draw_region(&pack, &map_dir, &draw_folder, &region_file, region)
+			detail::draw_region(&pack, &map_dir, &draw_folder, &region_file, region, version)
 		})
 		.await?;
 		Ok(location)
@@ -268,12 +284,13 @@ impl WorldMapService {
 
 	/// Records a view's heartbeat. When the view is new or has moved, the regions it can now draw are rendered.
 	pub async fn focus(self: &Arc<Self>, id: InstanceId, report: ViewReport) -> Result<()> {
-		if !(1..=MAX_VIEWER_ID).contains(&report.viewer.len()) {
-			return Err(CommonError::Invalid(format!("a view id must be 1 to {MAX_VIEWER_ID} characters")));
-		}
+		report.validate()?;
 		self.instances.get(id).await?;
+		if !self.viewers.has_room(id, &report.viewer) {
+			return Err(CommonError::Conflict("too many map views are open on this server".into()));
+		}
 		if self.viewers.report(id, report) {
-			self.draw_viewed_regions(id).await;
+			self.schedule_view_scan(id);
 		}
 		Ok(())
 	}
@@ -282,9 +299,34 @@ impl WorldMapService {
 	pub async fn unfocus(self: &Arc<Self>, id: InstanceId, viewer: &str) -> Result<()> {
 		self.instances.get(id).await?;
 		if self.viewers.remove(id, viewer) {
-			self.draw_viewed_regions(id).await;
+			self.schedule_view_scan(id);
 		}
 		Ok(())
+	}
+
+	/// Looks for the regions a view now needs. A scan runs at most once per `VIEW_SCAN_GAP`: a request inside the gap waits for
+	/// the gap to end, so a burst of heartbeats costs one scan and no move is lost.
+	fn schedule_view_scan(self: &Arc<Self>, id: InstanceId) {
+		let wait = {
+			let mut scans = self.scans.lock().unwrap_or_else(PoisonError::into_inner);
+			let slot = scans.entry(id).or_default();
+			if slot.queued {
+				return;
+			}
+			slot.queued = true;
+			slot.last.map_or(Duration::ZERO, |last| VIEW_SCAN_GAP.saturating_sub(last.elapsed()))
+		};
+		let service = Arc::clone(self);
+		tokio::spawn(async move {
+			tokio::time::sleep(wait).await;
+			{
+				let mut scans = service.scans.lock().unwrap_or_else(PoisonError::into_inner);
+				let slot = scans.entry(id).or_default();
+				slot.queued = false;
+				slot.last = Some(Instant::now());
+			}
+			service.draw_viewed_regions(id).await;
+		});
 	}
 
 	async fn draw_viewed_regions(self: &Arc<Self>, id: InstanceId) {
@@ -359,12 +401,26 @@ impl WorldMapService {
 		}
 	}
 
+	/// Whether a build in `mode` has anything to do: the pack changed, or a region in view is due. A build with nothing to do
+	/// starts no task, so quiet checks do not fill the task list.
+	async fn has_work(&self, id: InstanceId, instance: &Instance, mode: BuildMode) -> bool {
+		let Ok(sources) = self.sources(instance).await else { return true };
+		let Ok(key) = sources.pack_key(&instance.mc_version) else { return true };
+		if state::load(&instance.directory.join(OUTPUT_FOLDER)).await.pack_key.as_deref() != Some(key.as_str()) {
+			return true;
+		}
+		self.has_pending_regions(id, mode).await
+	}
+
 	async fn build(&self, id: InstanceId, mode: BuildMode) -> Result<()> {
 		let settings = settings::load(&self.db, id).await?;
 		if !settings.enabled {
 			return Ok(());
 		}
 		let instance = self.instances.get(id).await?;
+		if !self.has_work(id, &instance, mode).await {
+			return Ok(());
+		}
 		let task = self.tasks.create("worldmap", format!("World map: {}", instance.name), None);
 		match self.run_build(&instance, &settings, mode, &task).await {
 			Ok(finished) => {
@@ -388,21 +444,20 @@ impl WorldMapService {
 			jars::generate_blocks_report(&self.paths, minecraft, &server_jar, &java, task).await?;
 		}
 		let mod_jars = mod_jars(&instance.directory).await?;
-		let mut key_inputs: Vec<&Path> = vec![client_jar.as_path(), server_jar.as_path(), blocks_report.as_path()];
-		key_inputs.extend(mod_jars.iter().map(PathBuf::as_path));
-		let pack_key = job::pack_key(minecraft, &key_inputs)?;
+		let sources = Sources {
+			client_jar,
+			server_jar,
+			mod_jars,
+			blocks_report,
+		};
+		let pack_key = sources.pack_key(minecraft)?;
 		let map_dir = instance.directory.join(OUTPUT_FOLDER);
 		let job = job::Job {
 			instance_dir: instance.directory.clone(),
 			level_name: level_name(&instance.directory).await?,
 			mode,
 			pack_key,
-			sources: Sources {
-				client_jar,
-				server_jar,
-				mod_jars,
-				blocks_report,
-			},
+			sources,
 			state: state::load(&map_dir).await,
 			instance: instance.id,
 			packs: Arc::clone(&self.packs),
