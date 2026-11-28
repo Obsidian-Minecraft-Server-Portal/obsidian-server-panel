@@ -282,6 +282,58 @@ fn viewers_of(reports: Vec<ViewReport>) -> Vec<Viewer> {
 	viewers.active(1)
 }
 
+#[test]
+fn a_region_written_in_the_second_it_was_checked_is_checked_again() {
+	let dir = tempfile::tempdir().unwrap();
+	let region_dir = dir.path().join("world").join("region");
+	std::fs::create_dir_all(&region_dir).unwrap();
+	let path = region_dir.join("r.0.0.mca");
+	std::fs::write(&path, b"x").unwrap();
+	let written = modified_secs(&path);
+	let check = |state: &RenderState, now: i64| pending_regions(dir.path(), "world", state, BuildMode::Changed, now).unwrap();
+	let first = check(&RenderState::default(), written);
+	let mut state = RenderState::default();
+	state.regions.insert("minecraft_overworld/r.0.0".to_owned(), RegionState { source_modified: first[0].source_modified, rendered_at: written });
+	assert_eq!(check(&state, written).len(), 1, "another write can land in the same second");
+	let later = check(&RenderState::default(), written + 1);
+	state.regions.insert("minecraft_overworld/r.0.0".to_owned(), RegionState { source_modified: later[0].source_modified, rendered_at: written + 1 });
+	assert!(check(&state, written + 1).is_empty());
+}
+
+#[test]
+fn a_view_report_must_name_a_plain_folder_a_place_inside_the_border_and_a_player() {
+	let valid = report("view-1", "minecraft_overworld", (0, 0), ViewMode::Free);
+	assert!(valid.validate().is_ok());
+	assert!(ViewReport { viewer: "../x".into(), ..valid.clone() }.validate().is_err());
+	assert!(ViewReport { folder: "../etc".into(), ..valid.clone() }.validate().is_err());
+	assert!(ViewReport { folder: ".hidden".into(), ..valid.clone() }.validate().is_err());
+	assert!(ViewReport { x: f64::INFINITY, ..valid.clone() }.validate().is_err());
+	assert!(ViewReport { z: 1e30, ..valid.clone() }.validate().is_err());
+	assert!(ViewReport { follow: Some("Steve Bob".into()), ..valid.clone() }.validate().is_err());
+	assert!(ViewReport { follow: Some("Steve_1".into()), ..valid }.validate().is_ok());
+}
+
+#[test]
+fn an_instance_takes_a_bounded_number_of_views() {
+	let viewers = Viewers::default();
+	let start = Instant::now();
+	for index in 0..256 {
+		let viewer = format!("view-{index}");
+		assert!(viewers.has_room(1, &viewer));
+		viewers.report_at(1, report(&viewer, "minecraft_overworld", (0, 0), ViewMode::Top), start);
+	}
+	assert!(!viewers.has_room(1, "one-more"));
+	assert!(viewers.has_room(1, "view-0"));
+}
+
+#[test]
+fn detail_tiles_are_kept_under_the_render_they_belong_to() {
+	let map = Path::new("/instance/obsidian-map");
+	let path = crate::detail::tile_path(map, "minecraft_overworld", (2, -1), (3, 4), 1_732_600_000_000).unwrap();
+	assert!(path.ends_with(Path::new("minecraft_overworld/detail/r.2.-1/1732600000000/3_4.png")));
+	assert!(crate::detail::tile_path(map, "../x", (0, 0), (0, 0), 1).is_err());
+}
+
 fn modified_secs(path: &Path) -> i64 {
 	let modified = std::fs::metadata(path).unwrap().modified().unwrap();
 	modified.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64
