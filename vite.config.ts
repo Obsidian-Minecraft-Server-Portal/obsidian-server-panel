@@ -59,7 +59,7 @@ export default defineConfig({
     clearScreen: false,
     server: {
         host: true,
-        allowedHosts: ["70.8.194.110"],
+        allowedHosts: process.env.OBSIDIAN_DEV_ALLOWED_HOST ? [process.env.OBSIDIAN_DEV_ALLOWED_HOST] : [],
         port: 3000,
         strictPort: true,
         hmr: {
