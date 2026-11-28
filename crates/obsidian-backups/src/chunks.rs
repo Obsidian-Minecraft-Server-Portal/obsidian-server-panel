@@ -33,7 +33,8 @@ impl ChunkStore {
 		let mut temp = NamedTempFile::new_in(parent)?;
 		temp.write_all(&packed)?;
 		temp.as_file().sync_data()?;
-		locked::persist(temp, &path)?;
+		// Chunks are named by their content hash, so a file that already sits at the path holds the same bytes.
+		locked::persist_new(temp, &path)?;
 		Ok(hash)
 	}
 

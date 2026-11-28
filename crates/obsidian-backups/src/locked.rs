@@ -43,11 +43,40 @@ pub fn persist(mut temp: NamedTempFile, dest: &Path) -> io::Result<()> {
 	}
 }
 
+/// Moves `temp` to `dest` only if nothing is there yet. A file already at `dest` is left as it is, and the temporary file is
+/// dropped.
+pub fn persist_new(mut temp: NamedTempFile, dest: &Path) -> io::Result<()> {
+	let mut attempt = 1;
+	loop {
+		match temp.persist_noclobber(dest) {
+			Ok(_) => return Ok(()),
+			Err(error) if error.error.kind() == ErrorKind::AlreadyExists => return Ok(()),
+			Err(error) if is_held(&error.error) && attempt < ATTEMPTS => {
+				temp = error.file;
+				thread::sleep(PAUSE * attempt);
+				attempt += 1;
+			}
+			Err(error) => return Err(error.error),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::cell::Cell;
 
 	use super::*;
+
+	#[test]
+	fn an_existing_file_is_kept_when_new_content_arrives_for_the_same_name() {
+		let dir = tempfile::tempdir().unwrap();
+		let dest = dir.path().join("chunk");
+		std::fs::write(&dest, b"first").unwrap();
+		let mut temp = NamedTempFile::new_in(dir.path()).unwrap();
+		std::io::Write::write_all(&mut temp, b"second").unwrap();
+		persist_new(temp, &dest).unwrap();
+		assert_eq!(std::fs::read(&dest).unwrap(), b"first");
+	}
 
 	#[test]
 	fn a_held_file_is_retried_until_it_is_free() {
