@@ -10,6 +10,7 @@ use zip::CompressionMethod;
 use zip::write::{SimpleFileOptions, ZipWriter};
 
 use crate::chunks::ChunkStore;
+use crate::locked;
 use crate::manifest::{Entry, Manifest};
 use crate::model::{PROGRESS_STEP, TreeEntry};
 use crate::snapshot::excludes_matcher;
@@ -92,16 +93,16 @@ fn write_file(entry: &Entry, chunks: &ChunkStore, dest: &Path) -> Result<()> {
 		out.flush()?;
 	}
 	if fs::symlink_metadata(dest).is_ok_and(|meta| meta.is_dir()) {
-		fs::remove_dir_all(dest)?;
+		locked::retry(|| fs::remove_dir_all(dest))?;
 	}
-	temp.persist(dest).map_err(|error| error.error)?;
+	locked::persist(temp, dest)?;
 	Ok(())
 }
 
 fn real_dir(path: &Path) -> Result<()> {
 	match fs::symlink_metadata(path) {
 		Ok(meta) if meta.is_dir() => return Ok(()),
-		Ok(_) => fs::remove_file(path)?,
+		Ok(_) => locked::retry(|| fs::remove_file(path))?,
 		Err(error) if error.kind() == ErrorKind::NotFound => {}
 		Err(error) => return Err(error.into()),
 	}
@@ -150,7 +151,7 @@ fn remove_extras(manifest: &Manifest, target: &Path, subpath: Option<&str>) -> R
 		if entry.file_type().is_some_and(|kind| kind.is_dir()) {
 			stale_dirs.push(entry.into_path());
 		} else {
-			fs::remove_file(entry.path())?;
+			locked::retry(|| fs::remove_file(entry.path()))?;
 		}
 	}
 	for dir in stale_dirs.iter().rev() {

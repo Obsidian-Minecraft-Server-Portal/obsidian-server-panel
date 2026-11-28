@@ -1,5 +1,6 @@
 mod chunks;
 mod index;
+mod locked;
 mod manifest;
 mod model;
 mod restore;

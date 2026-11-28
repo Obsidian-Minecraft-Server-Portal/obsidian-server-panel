@@ -8,6 +8,7 @@ use obsidian_common::{CommonError, Result};
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
+use crate::locked;
 use crate::model::SnapshotInfo;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,12 +76,12 @@ pub(crate) fn write(snapshots: &Path, manifest: &Manifest) -> Result<()> {
 		out.flush()?;
 	}
 	temp.as_file().sync_all()?;
-	temp.persist(file_path(snapshots, &manifest.id)).map_err(|error| error.error)?;
+	locked::persist(temp, &file_path(snapshots, &manifest.id))?;
 	Ok(())
 }
 
 pub(crate) fn remove(snapshots: &Path, id: &str) -> Result<()> {
-	match fs::remove_file(file_path(snapshots, id)) {
+	match locked::retry(|| fs::remove_file(file_path(snapshots, id))) {
 		Ok(()) => Ok(()),
 		Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
 		Err(error) => Err(error.into()),

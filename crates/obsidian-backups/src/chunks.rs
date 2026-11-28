@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use obsidian_common::{CommonError, Result};
 use tempfile::NamedTempFile;
+
+use crate::locked;
 use walkdir::WalkDir;
 
 const ZSTD_LEVEL: i32 = 3;
@@ -31,7 +33,7 @@ impl ChunkStore {
 		let mut temp = NamedTempFile::new_in(parent)?;
 		temp.write_all(&packed)?;
 		temp.as_file().sync_data()?;
-		temp.persist(&path).map_err(|error| error.error)?;
+		locked::persist(temp, &path)?;
 		Ok(hash)
 	}
 
@@ -55,7 +57,7 @@ impl ChunkStore {
 				continue;
 			}
 			freed += entry.metadata().map_err(io::Error::other)?.len();
-			fs::remove_file(entry.path())?;
+			locked::retry(|| fs::remove_file(entry.path()))?;
 			removed += 1;
 		}
 		Ok((removed, freed))
