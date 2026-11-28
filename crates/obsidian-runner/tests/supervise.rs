@@ -6,8 +6,26 @@ use obsidian_common::Paths;
 use obsidian_runner::{ClientMsg, DATA_DIR_ENV, RunState, RunnerClient, RunnerConfig, RunnerMsg};
 use tokio::sync::mpsc::Receiver;
 
-const SCRIPT: &str = "echo 'Done (0.1s)'; while read l; do echo \"got:$l\"; if [ \"$l\" = stop ]; then exit 0; fi; done";
+const CHILD_FLAG: &str = "OBSIDIAN_RUNNER_TEST_CHILD";
 const INSTANCE: i64 = 4242;
+
+#[test]
+fn echo_child() {
+	if std::env::var_os(CHILD_FLAG).is_none() {
+		return;
+	}
+	use std::io::{BufRead, Write};
+	println!("Done (0.1s)");
+	std::io::stdout().flush().unwrap();
+	for line in std::io::stdin().lock().lines() {
+		let line = line.unwrap();
+		println!("got:{line}");
+		std::io::stdout().flush().unwrap();
+		if line == "stop" {
+			break;
+		}
+	}
+}
 
 async fn next_until(rx: &mut Receiver<RunnerMsg>, mut matches: impl FnMut(&RunnerMsg) -> bool) -> RunnerMsg {
 	tokio::time::timeout(Duration::from_secs(10), async {
@@ -28,11 +46,11 @@ async fn runner_round_trip() {
 	let _ = std::fs::remove_dir_all(&dir);
 	let paths = Paths::new(&dir).expect("paths");
 	let config = RunnerConfig {
-		java: PathBuf::from("/bin/sh"),
+		java: std::env::current_exe().expect("test binary path"),
 		jvm_args: Vec::new(),
-		args: vec!["-c".into(), SCRIPT.into()],
+		args: vec!["--exact".into(), "echo_child".into(), "--nocapture".into()],
 		cwd: dir.clone(),
-		env: BTreeMap::new(),
+		env: BTreeMap::from([(CHILD_FLAG.to_owned(), "1".to_owned())]),
 	};
 	config.save(&paths, INSTANCE).await.expect("save config");
 	std::fs::write(paths.runners_dir.join(format!("{INSTANCE}.sock")), b"").expect("stale socket");
